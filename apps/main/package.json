@@ -1,6 +1,6 @@
 {
-  "name": "website",
-  "version": "0.0.1",
+  "name": "main",
+  "version": "0.1.0",
   "type": "module",
   "private": true,
   "scripts": {
@@ -12,12 +12,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@supabase/ssr": "latest",
+    "@supabase/supabase-js": "latest",
     "@workspace/ui": "workspace:*",
     "lucide-react": "^0.475.0",
     "next": "^15.2.0",
     "next-themes": "^0.4.4",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -25,6 +29,10 @@
     "@types/react-dom": "^18",
     "@workspace/eslint-config": "workspace:^",
     "@workspace/typescript-config": "workspace:*",
+    "autoprefixer": "^10.0.1",
+    "eslint": "^8",
+    "postcss": "^8",
+    "tailwindcss": "^3.3.0",
     "typescript": "^5.7.3"
   }
 }

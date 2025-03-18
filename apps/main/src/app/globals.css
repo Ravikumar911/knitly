@@ -1,0 +1,20 @@
+@import "@workspace/ui/globals.css";
+
+/* Website-specific styles */
+.hero-gradient {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary) / 0.1) 0%,
+    hsl(var(--background)) 100%
+  );
+}
+
+.feature-icon {
+  background: linear-gradient(
+    45deg,
+    hsl(var(--primary)) 0%,
+    hsl(var(--primary) / 0.7) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+} 
