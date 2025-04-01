@@ -170,6 +170,34 @@ importers:
         specifier: ^5.7.3
         version: 5.7.3
 
+  packages/database:
+    dependencies:
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.4.7
+      drizzle-orm:
+        specifier: ^0.40.1
+        version: 0.40.1(@opentelemetry/api@1.9.0)(gel@2.0.1)(postgres@3.4.5)
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.5
+    devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.17.19
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      drizzle-kit:
+        specifier: ^0.30.5
+        version: 0.30.5
+      ts-node:
+        specifier: ^10.9.2
+        version: 10.9.2(@types/node@20.17.19)(typescript@5.7.3)
+      typescript:
+        specifier: ^5.2.2
+        version: 5.7.3
+
   packages/eslint-config:
     devDependencies:
       '@next/eslint-plugin-next':

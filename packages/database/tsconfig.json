@@ -1,0 +1,11 @@
+{
+    "extends": "@workspace/typescript-config/base.json",
+    "compilerOptions": {
+      "module": "NodeNext",
+      "moduleResolution": "NodeNext",
+      "target": "ES2021",
+      "outDir": "./dist"
+    },
+    "exclude": ["dist", "node_modules"]
+  }
+  
