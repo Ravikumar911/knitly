@@ -2,12 +2,15 @@
   "name": "@workspace/database",
   "version": "0.0.0",
   "private": true,
-  "main": "dist/index.js",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "dev": "tsc --watch",
     "build": "tsc",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
+    "check": "drizzle-kit check",
     "pull": "drizzle-kit pull"
   },
   "devDependencies": {

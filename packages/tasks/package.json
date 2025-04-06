@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "TRIGGER_SECRET_KEY=tr_dev_mKsHfa7CXI0J9euKxDY2 && pnpm dlx trigger.dev@latest dev"
+    "dev":  "pnpm dlx trigger.dev@latest dev"
   },
   "exports": {
     "./trigger/*": "./src/trigger/*.ts"
@@ -14,6 +14,7 @@
     "typescript": "latest"
   },
   "dependencies": {
-    "@trigger.dev/sdk": "latest"
+    "@trigger.dev/sdk": "latest",
+    "@workspace/database": "workspace:*"
   }
 }

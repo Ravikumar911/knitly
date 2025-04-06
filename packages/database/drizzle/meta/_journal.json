@@ -15,6 +15,20 @@
       "when": 1743599047701,
       "tag": "0001_lyrical_satana",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1743957872300,
+      "tag": "0002_conscious_owl",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1743960573369,
+      "tag": "0003_mature_killer_shrike",
+      "breakpoints": true
     }
   ]
 }
