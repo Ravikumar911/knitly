@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { baseProcedure, createTRPCRouter } from "../init";
 import { createClient } from "@/supabase/server";
-import { processEmails } from "@workspace/tasks";
+import { processEmails } from "@workspace/tasks/trigger/processEmails";
 
 // Protected procedure middleware
 const protectedProcedure = baseProcedure.use(async ({ ctx, next }) => {
@@ -19,22 +19,15 @@ export const emailsRouter = createTRPCRouter({
   refresh: protectedProcedure
     .mutation(async () => {
       try {
-        // Get the current user session
         const supabase = await createClient();
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log("session", session?.provider_token);
-        
-        // Check for provider token (needed for Gmail API)
-        if (!session?.provider_token) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "No provider token available - please reconnect your Google account",
-          });
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+          throw new TRPCError({ code: "UNAUTHORIZED" });
         }
 
         await processEmails.trigger({
-          userId: session.user.id,
-          accessToken: session.provider_token.substring(0, 10) + "...", // Log only part of the token for security
+          userId: user.id,
         });
 
         return {

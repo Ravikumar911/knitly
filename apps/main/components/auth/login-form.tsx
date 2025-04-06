@@ -52,7 +52,7 @@ export function LoginForm() {
   const [isGoogleLoading, setIsGoogleLoading] = React.useState<boolean>(false)
 
   const form = useForm<LoginValues>({
-    resolver: zodResolver(loginSchema),
+    resolver: zodResolver<LoginValues>(loginSchema),
     defaultValues: {
       email: "",
       password: "",

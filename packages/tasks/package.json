@@ -6,8 +6,7 @@
     "dev": "TRIGGER_SECRET_KEY=tr_dev_mKsHfa7CXI0J9euKxDY2 && pnpm dlx trigger.dev@latest dev"
   },
   "exports": {
-    ".": "./src/trigger/index.ts",
-    "./trigger": "./src/trigger/index.ts"
+    "./trigger/*": "./src/trigger/*.ts"
   },
   "devDependencies": {
     "@trigger.dev/build": "latest",
