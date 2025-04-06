@@ -1,4 +1,5 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
+import 'dotenv/config';
 import postgres from 'postgres';
 import * as schema from './schema';
 
@@ -6,9 +7,7 @@ import * as schema from './schema';
 export * from './types';
 export * from 'drizzle-orm';
 
-// Export auth and Gmail modules
-export * from './auth';
-export * from './gmail';
+export * from './auth'
 
 // For query purposes (not for migrations)
 const queryClient = postgres(process.env.DATABASE_URL!);

@@ -1,21 +1,33 @@
 import { logger, task, wait, configure } from "@trigger.dev/sdk/v3";
-import { refreshProviderToken, fetchGmailMessages, fetchGmailMessage } from "@workspace/database";
+import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, EMAIL_PROCESSING_LIMIT, storeEmailData } from "../utils";
+import { GmailHeader } from "../types";
 
 configure({
   secretKey: process.env.TRIGGER_SECRET_KEY,
 });
 
+/**
+ * Task that processes emails from Gmail
+ * Uses Google OAuth to access the Gmail API and process messages
+ */
 export const processEmails = task({
   id: "process-emails",
   // Set an optional maxDuration to prevent tasks from running indefinitely
   maxDuration: 300, // Stop executing after 300 secs (5 mins) of compute
   run: async (payload: {
     userId: string;
+    limit?: number; // Optional parameter to override the default limit
   }, { ctx }) => {
-    logger.log("Processing emails", { payload, ctx });
+    // Use the provided limit or fall back to the default
+    const messageLimit = payload.limit || EMAIL_PROCESSING_LIMIT;
+    
+    logger.log("Processing emails", { 
+      userId: payload.userId,
+      limit: messageLimit
+    });
     
     // Step 1: Refresh the provider token using the userId
-    const providerToken = await refreshProviderToken(payload.userId);
+    const providerToken = await refreshGoogleToken(payload.userId);
     
     if (!providerToken) {
       logger.error("Failed to refresh provider token", { userId: payload.userId });
@@ -26,7 +38,7 @@ export const processEmails = task({
     }
     
     // Step 2: Use the refreshed token to fetch Gmail messages
-    const gmailData = await fetchGmailMessages(providerToken);
+    const gmailData = await fetchGmailMessages(providerToken, messageLimit);
     
     if (!gmailData) {
       logger.error("Failed to fetch Gmail messages", { userId: payload.userId });
@@ -36,27 +48,79 @@ export const processEmails = task({
       };
     }
     
-    // Step 3: Process each message (simplified example)
+    // Step 3: Process each message (up to the specified limit)
     let processedCount = 0;
     if (gmailData.messages && gmailData.messages.length > 0) {
-      for (const messageInfo of gmailData.messages.slice(0, 5)) { // Process up to 5 messages
+      // Process up to the specified limit
+      for (const messageInfo of gmailData.messages.slice(0, messageLimit)) {
+        logger.log("Fetching message details", { messageId: messageInfo.id });
         const messageData = await fetchGmailMessage(providerToken, messageInfo.id);
         
         if (messageData) {
-          logger.log("Processing message", { messageId: messageInfo.id });
-          // Here you would add code to parse the email and store data
-          // For example: await parseAndStoreEmailData(messageData, payload.userId);
-          processedCount++;
-        }
-      }
-    }
+          logger.log("Processing message", { 
+            messageId: messageInfo.id,
+            subject: messageData.payload?.headers.find((h: GmailHeader) => h.name === 'Subject')?.value || 'No Subject'
+          });
+          
+          try {
+            // Extract key information from the message
+            const headers = messageData.payload?.headers || [];
+            const subject = headers.find((h: GmailHeader) => h.name === 'Subject')?.value || 'No Subject';
+            const from = headers.find((h: GmailHeader) => h.name === 'From')?.value || 'Unknown';
+            const date = headers.find((h: GmailHeader) => h.name === 'Date')?.value || '';
+            
+            // Extract message body using our utility function
+            const body = extractEmailBody(messageData);
+            
+            // Store the email data
+            const stored = await storeEmailData({
+              messageId: messageInfo.id,
+              userId: payload.userId,
+              threadId: messageData.threadId,
+              subject,
+              from,
+              date,
+              body,
+              snippet: messageData.snippet
+            });
 
-    await wait.for({ seconds: 5 });
+            if (stored) {
+              logger.log("Successfully processed and stored message", { 
+                messageId: messageInfo.id,
+                subject,
+                from
+              });
+              
+              processedCount++;
+            } else {
+              logger.warn("Processed message but failed to store it", {
+                messageId: messageInfo.id,
+                subject
+              });
+            }
+          } catch (processError) {
+            logger.error("Error processing message", {
+              messageId: messageInfo.id,
+              error: processError instanceof Error ? processError.message : String(processError)
+            });
+            // Continue processing other messages even if one fails
+          }
+        } else {
+          logger.error("Failed to fetch message details", { messageId: messageInfo.id });
+        }
+        
+        // Add a small delay between processing messages to avoid rate limits
+        await wait.for({ seconds: 1 });
+      }
+    } else {
+      logger.log("No messages found to process");
+    }
 
     return {
       success: true,
-      message: `Processed ${processedCount} emails`,
+      message: `Processed ${processedCount} out of up to ${messageLimit} emails`,
       processedCount,
+      totalFound: gmailData.messages?.length || 0
     };
   },
 });

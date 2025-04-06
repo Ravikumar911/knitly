@@ -1,6 +1,5 @@
 {
   "name": "@workspace/tasks",
-  "type": "module",
   "scripts": {
     "build": "tsc",
     "dev":  "pnpm dlx trigger.dev@latest dev"
