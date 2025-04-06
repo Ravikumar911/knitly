@@ -1,56 +1,19 @@
-import { eventTrigger } from "@trigger.dev/sdk";
-import { z } from "zod";
-import { OpenAI } from "openai";
-import client from "../../trigger.config";
+import { logger, task, wait } from "@trigger.dev/sdk/v3";
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
+export const processEmails = task({
+  id: "process-emails",
+  // Set an optional maxDuration to prevent tasks from running indefinitely
+  maxDuration: 300, // Stop executing after 300 secs (5 mins) of compute
+  run: async (payload: {
+    userId: string;
+  }, { ctx }) => {
+    logger.log("Processing emails", { payload, ctx });
+    
 
-// Define payload schema
-const processEmailsPayload = z.object({
-  userId: z.string(),
-  isInitialSync: z.boolean().optional().default(false),
-});
+    await wait.for({ seconds: 5 });
 
-type ProcessEmailsPayload = z.infer<typeof processEmailsPayload>;
-
-// Define the job
-export const processEmails = client.defineJob({
-  id: "process-user-emails",
-  name: "Process User Emails",
-  version: "1.0.0",
-  trigger: eventTrigger({
-    name: "process.emails",
-    schema: processEmailsPayload,
-  }),
-  run: async (payload: ProcessEmailsPayload, io) => {
-    const { userId, isInitialSync } = payload;
-
-    await io.logger.info("Starting email processing", {
-      userId,
-      isInitialSync,
-    });
-
-    try {
-      // TODO: Implement email processing logic
-      // 1. Get Gmail credentials
-      // 2. Fetch emails
-      // 3. Process each email with OpenAI
-      // 4. Store results in database
-
-      return {
-        success: true,
-        message: "Email processing completed",
-      };
-    } catch (error) {
-      await io.logger.error("Failed to process emails", {
-        userId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-
-      throw error;
+    return {
+      message: "Hello, world!",
     }
   },
-}); 
+});

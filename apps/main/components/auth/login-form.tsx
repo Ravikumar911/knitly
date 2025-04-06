@@ -2,10 +2,19 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+
+// External libraries
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
+
+// Internal utilities
+import { createClient } from "@/supabase/client"
+
+// UI Components
+import { Alert, AlertDescription } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import {
   Form,
   FormControl,
@@ -15,10 +24,7 @@ import {
   FormMessage,
 } from "@workspace/ui/components/form"
 import { Input } from "@workspace/ui/components/input"
-import { Alert, AlertDescription } from "@workspace/ui/components/alert"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Separator } from "@workspace/ui/components/separator"
-import { createClient } from "@/supabase/client"
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -67,7 +73,6 @@ export function LoginForm() {
       if (error) {
         throw error
       }
-      console.log("Login data:", data)
       router.push("/dashboard")
     } catch (err) {
       setError("Invalid email or password")
@@ -81,18 +86,26 @@ export function LoginForm() {
     setError("")
 
     try {
-      // TODO: Implement Google sign-in with Supabase
+      const url = new URL(getURL() + 'auth/callback')
+      console.log(url)
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: getURL() + 'auth/callback'
+          redirectTo: getURL() + 'auth/callback',
+          scopes: 'email profile https://www.googleapis.com/auth/gmail.readonly',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       })
       if (error) {
         throw error
       }
-      window.location.href = data.url
+      if(data.url) {
+       router.push(data.url)
+      }
       
     } catch (err) {
       setError("Failed to sign in with Google")

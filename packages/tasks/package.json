@@ -1,22 +1,20 @@
 {
   "name": "@workspace/tasks",
-  "version": "0.0.1",
-  "private": true,
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "type": "module",
   "scripts": {
-    "lint": "eslint .",
-    "type-check": "tsc --noEmit"
+    "build": "tsc",
+    "dev": "TRIGGER_SECRET_KEY=tr_dev_mKsHfa7CXI0J9euKxDY2 && pnpm dlx trigger.dev@latest dev"
   },
-  "dependencies": {
-    "@trigger.dev/sdk": "^3.3.17",
-    "openai": "^4.0.0",
-    "zod": "^3.22.4"
+  "exports": {
+    ".": "./src/trigger/index.ts",
+    "./trigger": "./src/trigger/index.ts"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
+    "@trigger.dev/build": "latest",
     "@workspace/typescript-config": "workspace:*",
-    "eslint": "^8.0.0"
+    "typescript": "latest"
+  },
+  "dependencies": {
+    "@trigger.dev/sdk": "latest"
   }
-} 
+}
