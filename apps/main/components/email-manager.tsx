@@ -36,9 +36,7 @@ export function EmailManager() {
   const handleRefresh = () => {
     setError(null);
     setRefreshResult(null);
-    mutation.mutate({
-      userId: "123",
-    });
+    mutation.mutate();
   };
 
   return (

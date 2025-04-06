@@ -4,9 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 
 // External libraries
-import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import * as z from "zod"
 
 // Internal utilities
 import { createClient } from "@/supabase/client"
@@ -26,12 +24,6 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { Separator } from "@workspace/ui/components/separator"
 
-const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-})
-
-type LoginValues = z.infer<typeof loginSchema>
 
 function getURL() {
   let url =
@@ -51,15 +43,14 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = React.useState<boolean>(false)
   const [isGoogleLoading, setIsGoogleLoading] = React.useState<boolean>(false)
 
-  const form = useForm<LoginValues>({
-    resolver: zodResolver<LoginValues>(loginSchema),
+  const form = useForm({
     defaultValues: {
       email: "",
       password: "",
     },
   })
 
-  async function onSubmit(data: LoginValues) {
+  async function onSubmit() {  
     setIsLoading(true)
     setError("")
 
@@ -86,8 +77,6 @@ export function LoginForm() {
     setError("")
 
     try {
-      const url = new URL(getURL() + 'auth/callback')
-      console.log(url)
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",

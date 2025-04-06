@@ -2,9 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import * as z from "zod"
 import { Button } from "@workspace/ui/components/button"
 import {
   Form,
@@ -18,25 +16,19 @@ import { Input } from "@workspace/ui/components/input"
 import { Alert, AlertDescription } from "@workspace/ui/components/alert"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card"
 
-const registerSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-})
-
-type RegisterValues = z.infer<typeof registerSchema>
+interface RegisterFormValues {
+  name: string
+  email: string
+  password: string
+  confirmPassword: string
+}
 
 export function RegisterForm() {
   const router = useRouter()
   const [error, setError] = React.useState<string>("")
   const [isLoading, setIsLoading] = React.useState<boolean>(false)
 
-  const form = useForm<RegisterValues>({
-    resolver: zodResolver(registerSchema),
+  const form = useForm<RegisterFormValues>({
     defaultValues: {
       name: "",
       email: "",
@@ -45,7 +37,7 @@ export function RegisterForm() {
     },
   })
 
-  async function onSubmit(data: RegisterValues) {
+  async function onSubmit(data: RegisterFormValues) {
     setIsLoading(true)
     setError("")
 
