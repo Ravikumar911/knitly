@@ -175,12 +175,6 @@ importers:
 
   packages/database:
     dependencies:
-      '@supabase/ssr':
-        specifier: latest
-        version: 0.6.1(@supabase/supabase-js@2.49.4)
-      '@supabase/supabase-js':
-        specifier: latest
-        version: 2.49.4
       dotenv:
         specifier: ^16.4.5
         version: 16.4.7
