@@ -180,7 +180,6 @@ export const processEmails = task({
             // Step 4d: Parse email content with AI
             const finwiseAnalysis = await finwiseAIAgent({
               headers: messageData.payload?.headers || [],
-              attachments: messageData.payload?.parts?.filter((p: GmailBodyPart) => p.body?.data) || [],
               subject: metadata.subject,
               from: metadata.from,
               date: metadata.date,

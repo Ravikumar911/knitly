@@ -13,7 +13,7 @@ const ExtractedFinancialData = z.object({
   transaction: z.object({
     amount: z.number().optional().describe("The amount of the transaction"),
     currency: z.string().optional().describe("The currency of the transaction"),
-    type: z.string().optional().describe("The type of the transaction"), // DEBIT, CREDIT, TRANSFER
+    type: z.enum(["DEBIT", "CREDIT"]).optional().describe("The type of the transaction"), 
     transactionDate: z.string().optional().describe("The date of the transaction"),
     description: z.string().optional().describe("The description of the transaction"),
     upiReferenceId: z.string().optional().describe("The UPI reference ID of the transaction"),
@@ -31,7 +31,6 @@ export type FinancialData = z.infer<typeof ExtractedFinancialData>
 
 interface EmailData {
   headers: GmailHeader[]
-  attachments: GmailBodyPart[]
   subject: string
   from: string
   date: string
@@ -46,16 +45,6 @@ export const finwiseAIAgent = async (emailData: EmailData): Promise<FinancialDat
         Subject: ${emailData.subject}
         Date: ${emailData.date}
         Body: ${emailData.body}
-
-        Extract any financial transaction details, including:
-        - The financial institution that sent the email
-        - Type of email (transaction alert, statement, etc.)
-        - Transaction amount and currency
-        - Transaction type (credit/debit)
-        - Transaction date
-        - Description
-        - UPI details if present
-        - Whether this appears to be a recurring transaction
 
         Format the data according to the specified schema.`
 
