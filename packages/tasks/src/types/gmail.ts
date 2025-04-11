@@ -9,9 +9,15 @@ export interface GmailHeader {
 
 export interface GmailBodyPart {
   mimeType: string;
+  filename?: string;
   body?: {
     data?: string;
+    size?: number;
+    attachmentId?: string;
   };
+  headers?: GmailHeader[];
+  parts?: GmailBodyPart[];
+  partId?: string;
 }
 
 export interface GmailMessagePayload {
@@ -24,9 +30,25 @@ export interface GmailMessagePayload {
 
 export interface GmailMessage {
   id: string;
-  threadId: string;
+  threadId?: string;
+  labelIds?: string[];
   snippet?: string;
-  payload?: GmailMessagePayload;
+  historyId?: string;
+  internalDate?: string;
+  payload?: {
+    partId?: string;
+    mimeType: string;
+    filename?: string;
+    headers?: GmailHeader[];
+    body?: {
+      data?: string;
+      size?: number;
+      attachmentId?: string;
+    };
+    parts?: GmailBodyPart[];
+  };
+  sizeEstimate?: number;
+  raw?: string;
 }
 
 export interface ProcessedEmailData {
@@ -49,4 +71,13 @@ export interface GmailAttachment {
   contentId: string;
   contentType: string;
   data: string;
+}
+
+export interface GmailMessageList {
+  messages?: Array<{
+    id: string;
+    threadId?: string;
+  }>;
+  nextPageToken?: string;
+  resultSizeEstimate?: number;
 }

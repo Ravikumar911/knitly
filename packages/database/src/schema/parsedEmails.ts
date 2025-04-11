@@ -8,6 +8,7 @@ export const parsedEmails = pgTable("parsed_emails", {
   
   // Email metadata
   emailId: varchar("email_id", { length: 255 }).notNull(), // Gmail message ID
+  threadId: varchar("thread_id", { length: 255 }), // Gmail thread ID
   subject: text("subject"),
   sender: varchar("sender", { length: 255 }),
   receivedDate: timestamp("received_date"),

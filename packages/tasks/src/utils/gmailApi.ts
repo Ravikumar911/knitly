@@ -1,34 +1,99 @@
 import { logger } from "@trigger.dev/sdk/v3";
-import { GmailMessage } from "../types/gmail.js";
+import { GmailMessage, GmailMessageList } from "../types/gmail.js";
 
 // Configuration
-export const EMAIL_PROCESSING_LIMIT = 10; // Maximum number of emails to process per run
+export const GMAIL_API_BASE_URL = 'https://www.googleapis.com/gmail/v1';
+
 
 /**
- * Fetches a list of Gmail messages
- * @param providerToken OAuth access token
- * @param limit Maximum number of messages to fetch
- * @returns List of message IDs or null if error
+ * Fetches a list of Gmail messages with date filtering and pagination support
  */
-export const fetchGmailMessages = async (providerToken: string, limit = EMAIL_PROCESSING_LIMIT) => {
+export const fetchGmailMessages = async (
+  providerToken: string, 
+  options?: {
+    after?: Date;  // Only fetch messages after this date
+    before?: Date; // Only fetch messages before this date
+    query?: string; // Additional query parameters
+    pageToken?: string; // Token for pagination
+    maxResults?: number; // Optional parameter to override default limit
+  }
+): Promise<GmailMessageList | null> => {
   try {
-    // Initial API call to get message IDs
-    const response = await fetch(`https://www.googleapis.com/gmail/v1/users/me/messages?maxResults=${limit}`, {
+    let query = '';
+    
+    // Add date filters if provided
+    if (options?.after) {
+      query += ` after:${options.after.toISOString().split('T')[0]}`;
+    }
+    if (options?.before) {
+      query += ` before:${options.before.toISOString().split('T')[0]}`;
+    }
+    if (options?.query) {
+      query += ` ${options.query}`;
+    }
+    
+    // Build the Gmail API URL with query parameters
+    const url = new URL(`${GMAIL_API_BASE_URL}/users/me/messages`);
+    
+    // Use maxResults from options or default to 10
+    const maxResults = options?.maxResults || 10;
+    url.searchParams.append('maxResults', maxResults.toString());
+    
+    // Add pagination token if provided
+    if (options?.pageToken) {
+      url.searchParams.append('pageToken', options.pageToken);
+    }
+    
+    if (query.trim()) {
+      url.searchParams.append('q', query.trim());
+    }
+
+    logger.log('Fetching Gmail messages', { 
+      limit: maxResults, 
+      hasDateFilter: !!options?.after || !!options?.before,
+      hasPaginationToken: !!options?.pageToken 
+    });
+
+    // Make the API request
+    const response = await fetch(url.toString(), {
       headers: {
         Authorization: `Bearer ${providerToken}`,
         Accept: 'application/json',
       },
     });
 
+    // Handle rate limiting
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After');
+      const delay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 2000;
+      logger.warn('Gmail API rate limit hit, retrying after delay', { delay });
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return fetchGmailMessages(providerToken, options);
+    }
+
+    // Handle auth errors
+    if (response.status === 401 || response.status === 403) {
+      logger.error('Gmail API authentication error', { status: response.status });
+      return null;
+    }
+
+    // Handle other errors
     if (!response.ok) {
-      logger.error('Gmail API error:', { 
+      logger.error('Gmail API error', { 
         status: response.status,
         statusText: response.statusText 
       });
       return null;
     }
 
-    const data = await response.json();
+    const data = await response.json() as GmailMessageList;
+    
+    logger.log('Gmail messages fetched successfully', { 
+      count: data.messages?.length || 0,
+      hasNextPage: !!data.nextPageToken,
+      totalEstimate: data.resultSizeEstimate
+    });
+    
     return data;
   } catch (error) {
     logger.error('Error fetching Gmail messages:', { 
@@ -39,36 +104,62 @@ export const fetchGmailMessages = async (providerToken: string, limit = EMAIL_PR
 };
 
 /**
- * Fetches a single Gmail message by ID
- * @param providerToken OAuth access token
- * @param messageId The message ID to fetch
- * @returns The message details or null if error
+ * Fetches details for a specific Gmail message
  */
 export const fetchGmailMessage = async (providerToken: string, messageId: string): Promise<GmailMessage | null> => {
   try {
-    const response = await fetch(`https://www.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`, {
+    // Build the Gmail API URL
+    const url = new URL(`${GMAIL_API_BASE_URL}/users/me/messages/${messageId}`);
+    url.searchParams.append('format', 'full'); // Get full message content
+    
+    const response = await fetch(url.toString(), {
       headers: {
         Authorization: `Bearer ${providerToken}`,
+        Accept: 'application/json',
       },
     });
 
+    // Handle rate limiting
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After');
+      const delay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 2000;
+      logger.warn('Gmail API rate limit hit, retrying after delay', { delay, messageId });
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return fetchGmailMessage(providerToken, messageId);
+    }
+
+    // Handle auth errors
+    if (response.status === 401 || response.status === 403) {
+      logger.error('Gmail API authentication error', { status: response.status, messageId });
+      return null;
+    }
+
+    // Handle message not found
+    if (response.status === 404) {
+      logger.error('Gmail message not found', { messageId });
+      return null;
+    }
+
+    // Handle other errors
     if (!response.ok) {
-      logger.error(`Error fetching Gmail message ${messageId}:`, { 
+      logger.error('Gmail API error fetching message', { 
+        messageId,
         status: response.status,
         statusText: response.statusText 
       });
       return null;
     }
 
-    const messageData = await response.json();
-    return messageData as GmailMessage;
+    return await response.json();
   } catch (error) {
-    logger.error(`Error fetching Gmail message ${messageId}:`, { 
+    logger.error('Error fetching Gmail message details:', { 
+      messageId,
       error: error instanceof Error ? error.message : String(error) 
     });
     return null;
   }
 };
+
 
 /**
  * Extracts email body content from a Gmail message
@@ -76,22 +167,119 @@ export const fetchGmailMessage = async (providerToken: string, messageId: string
  * @returns The extracted text content of the email
  */
 export const extractEmailBody = (messageData: GmailMessage): string => {
-  let body = '';
-  
-  if (messageData.payload?.parts) {
-    // Email with multiple parts - find the text/plain part
+  if (!messageData || !messageData.payload) {
+    return '';
+  }
+
+  // First, try to find a text/plain part
+  if (messageData.payload.parts) {
+    // Try to find text/plain first
     const textPart = messageData.payload.parts.find(
-      part => part.mimeType === 'text/plain'
+      part => part.mimeType === 'text/plain' && part.body?.data
     );
     
     if (textPart?.body?.data) {
-      // Decode the base64 content
-      body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
+      return Buffer.from(textPart.body.data, 'base64').toString('utf-8');
     }
-  } else if (messageData.payload?.body?.data) {
-    // Email with single part
-    body = Buffer.from(messageData.payload.body.data, 'base64').toString('utf-8');
+    
+    // If no text/plain, try to find text/html
+    const htmlPart = messageData.payload.parts.find(
+      part => part.mimeType === 'text/html' && part.body?.data
+    );
+    
+    if (htmlPart?.body?.data) {
+      // Consider adding HTML to text conversion here if needed
+      return Buffer.from(htmlPart.body.data, 'base64').toString('utf-8');
+    }
+    
+    // Handle multipart/alternative or nested parts
+    for (const part of messageData.payload.parts) {
+      if (part.parts) {
+        const nestedTextPart = part.parts.find(
+          nestedPart => nestedPart.mimeType === 'text/plain' && nestedPart.body?.data
+        );
+        
+        if (nestedTextPart?.body?.data) {
+          return Buffer.from(nestedTextPart.body.data, 'base64').toString('utf-8');
+        }
+        
+        const nestedHtmlPart = part.parts.find(
+          nestedPart => nestedPart.mimeType === 'text/html' && nestedPart.body?.data
+        );
+        
+        if (nestedHtmlPart?.body?.data) {
+          return Buffer.from(nestedHtmlPart.body.data, 'base64').toString('utf-8');
+        }
+      }
+    }
   }
   
-  return body;
+  // Fallback: use message body if available
+  if (messageData.payload.body?.data) {
+    return Buffer.from(messageData.payload.body.data, 'base64').toString('utf-8');
+  }
+  
+  // Fallback: use snippet if available
+  if (messageData.snippet) {
+    return messageData.snippet;
+  }
+  
+  return '';
+};
+
+/**
+ * Extracts email metadata from Gmail message headers
+ * @param messageData The Gmail message data
+ * @returns Object containing metadata like subject, from, date, etc.
+ */
+export const extractEmailMetadata = (messageData: GmailMessage) => {
+  if (!messageData || !messageData.payload || !messageData.payload.headers) {
+    return {
+      subject: 'No Subject',
+      from: 'Unknown',
+      to: 'Unknown',
+      date: new Date().toISOString(),
+      receivedDate: new Date()
+    };
+  }
+
+  const headers = messageData.payload.headers;
+  const subject = headers.find(h => h.name.toLowerCase() === 'subject')?.value || 'No Subject';
+  const from = headers.find(h => h.name.toLowerCase() === 'from')?.value || 'Unknown';
+  const to = headers.find(h => h.name.toLowerCase() === 'to')?.value || 'Unknown';
+  const date = headers.find(h => h.name.toLowerCase() === 'date')?.value || '';
+  
+  // Parse date from headers or fall back to internalDate or current date
+  let receivedDate: Date;
+  try {
+    receivedDate = date ? new Date(date) : (
+      messageData.internalDate ? new Date(parseInt(messageData.internalDate)) : new Date()
+    );
+    
+    if (isNaN(receivedDate.getTime())) {
+      throw new Error('Invalid date');
+    }
+  } catch (error) {
+    // Fall back to internalDate which is a timestamp in milliseconds
+    try {
+      receivedDate = messageData.internalDate 
+        ? new Date(parseInt(messageData.internalDate)) 
+        : new Date();
+        
+      if (isNaN(receivedDate.getTime())) {
+        throw new Error('Invalid internal date');
+      }
+    } catch {
+      // Last resort: use current date
+      receivedDate = new Date();
+    }
+  }
+  
+  return {
+    subject,
+    from,
+    to,
+    date,
+    receivedDate
+  };
 }; 

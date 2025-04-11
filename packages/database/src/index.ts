@@ -12,6 +12,8 @@ export * from './schema'
 // Queryable operations for the database
 export * from './auth'
 export * from './operations/emails';
+export * from './operations/emailSync';
+export * from './schema/emailSyncStatus';
 
 // For query purposes (not for migrations)
 const queryClient = postgres(process.env.DATABASE_URL!);
