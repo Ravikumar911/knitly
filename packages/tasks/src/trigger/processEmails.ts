@@ -1,6 +1,7 @@
 import { logger, task, wait, configure } from "@trigger.dev/sdk/v3";
-import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, EMAIL_PROCESSING_LIMIT, storeEmailData } from "../utils";
-import { GmailHeader } from "../types";
+import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, EMAIL_PROCESSING_LIMIT, storeEmailData, storeTransactionData } from "../utils";
+import { GmailHeader, GmailBodyPart } from "../types";
+import { finwiseAIAgent } from "../agents/finwiseAI";
 
 configure({
   secretKey: process.env.TRIGGER_SECRET_KEY,
@@ -37,7 +38,7 @@ export const processEmails = task({
       };
     }
     
-    // Step 2: Use the refreshed token to fetch Gmail messages
+    // Step 2: Use the refreshed token to fetch Gmail messages`
     const gmailData = await fetchGmailMessages(providerToken, messageLimit);
     
     if (!gmailData) {
@@ -55,6 +56,8 @@ export const processEmails = task({
       for (const messageInfo of gmailData.messages.slice(0, messageLimit)) {
         logger.log("Fetching message details", { messageId: messageInfo.id });
         const messageData = await fetchGmailMessage(providerToken, messageInfo.id);
+
+        
         
         if (messageData) {
           logger.log("Processing message", { 
@@ -68,9 +71,19 @@ export const processEmails = task({
             const subject = headers.find((h: GmailHeader) => h.name === 'Subject')?.value || 'No Subject';
             const from = headers.find((h: GmailHeader) => h.name === 'From')?.value || 'Unknown';
             const date = headers.find((h: GmailHeader) => h.name === 'Date')?.value || '';
-            
-            // Extract message body using our utility function
-            const body = extractEmailBody(messageData);
+            const attachments = messageData.payload?.parts?.filter((p: GmailBodyPart) => p.body?.data) || [];
+
+            const finwiseAnalysis = await finwiseAIAgent({
+              headers,
+              attachments,
+              subject,
+              from,
+              date,
+              body: extractEmailBody(messageData)
+            });
+
+            logger.log("Finwise analysis", { finwiseAnalysis });
+        
             
             // Store the email data
             const stored = await storeEmailData({
@@ -80,9 +93,33 @@ export const processEmails = task({
               subject,
               from,
               date,
-              body,
-              snippet: messageData.snippet
+              body: extractEmailBody(messageData),
+              snippet: messageData.snippet,
+              detectedProvider: finwiseAnalysis.detectedProvider,
+              emailType: finwiseAnalysis.emailType,
+              parseSuccess: finwiseAnalysis.parseSuccess,
+              parseErrors: finwiseAnalysis.parseErrors?.join(', '),
             });
+
+            // If we successfully extracted transaction data, store it
+            if (finwiseAnalysis.parseSuccess && finwiseAnalysis.transaction) {
+              const transaction = finwiseAnalysis.transaction;
+              
+              // Store the transaction data
+              await storeTransactionData({
+                userId: payload.userId,
+                parsedEmailId: messageInfo.id,
+                amount: transaction.amount || 0,
+                currency: transaction.currency || 'INR',
+                type: transaction.type || '',
+                transactionDate: transaction.transactionDate ? new Date(transaction.transactionDate) : new Date(date),
+                description: transaction.description || '',
+                upiReferenceId: transaction.upiReferenceId || '',
+                upiTransactionId: transaction.upiTransactionId || '',
+                counterpartyUpiHandle: transaction.counterpartyUpiHandle || '',
+                isRecurring: transaction.isRecurring || false,
+              });
+            }
 
             if (stored) {
               logger.log("Successfully processed and stored message", { 

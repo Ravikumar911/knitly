@@ -1,22 +1,26 @@
 import { relations } from "drizzle-orm";
-import { users } from "./users";
+import { pgSchema, uuid } from "drizzle-orm/pg-core";
+import { profiles } from "./users";
 import { financialInstitutions } from "./financialInstitutions";
 import { financialInstruments } from "./financialInstruments";
 import { parsedEmails } from "./parsedEmails";
-import { monthlySummaries } from "./monthlySummaries";
 import { employers } from "./employers";
 import { transactionCategories } from "./transactionCategories";
 import { merchants } from "./merchants";
 import { emailExtractionPatterns } from "./emailExtractionPatterns";
 import { transactions } from "./transactions";
 import { upiHandles } from "./upiHandles";
-import { authUsers, userGoogleTokens, tokenAccessLogs } from "./tokens";
+import { userGoogleTokens, tokenAccessLogs } from "./tokens";
+
+const auth = pgSchema('auth');
+const authUsers = auth.table('users', {
+	id: uuid().primaryKey().notNull(),
+});
 
 // Define relations after all tables are defined to avoid circular references
-export const usersRelations = relations(users, ({ many }) => ({
+export const profilesRelations = relations(profiles, ({ many }) => ({
   financialInstruments: many(financialInstruments),
   parsedEmails: many(parsedEmails),
-  monthlySummaries: many(monthlySummaries),
   employers: many(employers),
 }));
 
@@ -68,38 +72,37 @@ export const merchantsRelations = relations(merchants, ({ many, one }) => ({
 }));
 
 export const employersRelations = relations(employers, ({ one, many }) => ({
-  user: one(users, {
+  user: one(profiles, {
     fields: [employers.userId],
-    references: [users.id],
+    references: [profiles.id],
   }),
   transactions: many(transactions),
 }));
 
 export const parsedEmailsRelations = relations(parsedEmails, ({ one, many }) => ({
-  user: one(users, {
+  user: one(profiles, {
     fields: [parsedEmails.userId],
-    references: [users.id],
+    references: [profiles.id],
   }),
   transactions: many(transactions),
 }));
 
 export const financialInstrumentsRelations = relations(financialInstruments, ({ one, many }) => ({
-  user: one(users, {
+  user: one(profiles, {
     fields: [financialInstruments.userId],
-    references: [users.id],
+    references: [profiles.id],
   }),
   institution: one(financialInstitutions, {
     fields: [financialInstruments.institutionId],
     references: [financialInstitutions.id],
   }),
   transactions: many(transactions),
-  monthlySummaries: many(monthlySummaries),
 }));
 
 export const transactionsRelations = relations(transactions, ({ one }) => ({
-  user: one(users, {
+  user: one(profiles, {
     fields: [transactions.userId],
-    references: [users.id],
+    references: [profiles.id],
   }),
   instrument: one(financialInstruments, {
     fields: [transactions.instrumentId],
@@ -123,17 +126,6 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   }),
 }));
 
-export const monthlySummariesRelations = relations(monthlySummaries, ({ one }) => ({
-  user: one(users, {
-    fields: [monthlySummaries.userId],
-    references: [users.id],
-  }),
-  instrument: one(financialInstruments, {
-    fields: [monthlySummaries.instrumentId],
-    references: [financialInstruments.id],
-  }),
-}));
-
 export const emailExtractionPatternsRelations = relations(emailExtractionPatterns, ({ one }) => ({
   institution: one(financialInstitutions, {
     fields: [emailExtractionPatterns.institutionId],
@@ -142,9 +134,9 @@ export const emailExtractionPatternsRelations = relations(emailExtractionPattern
 }));
 
 export const upiHandlesRelations = relations(upiHandles, ({ one }) => ({
-  user: one(users, {
+  user: one(profiles, {
     fields: [upiHandles.userId],
-    references: [users.id],
+    references: [profiles.id],
   }),
   merchant: one(merchants, {
     fields: [upiHandles.merchantId],

@@ -1,5 +1,5 @@
 import { pgTable, boolean, timestamp, uuid, varchar, text, doublePrecision } from "drizzle-orm/pg-core";
-import { users } from "./users";
+import { profiles } from "./users";
 import { financialInstruments } from "./financialInstruments";
 import { transactionCategories } from "./transactionCategories";
 import { merchants } from "./merchants";
@@ -9,7 +9,7 @@ import { parsedEmails } from "./parsedEmails";
 // Transactions table - the core of the system
 export const transactions = pgTable("transactions", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
   instrumentId: uuid("instrument_id").references(() => financialInstruments.id, { onDelete: "set null" }),
   
   // Transaction details
@@ -18,8 +18,8 @@ export const transactions = pgTable("transactions", {
   type: varchar("type", { length: 20 }).notNull(), // DEBIT, CREDIT, TRANSFER
   
   // Metadata
-  transactionDate: timestamp("transaction_date").notNull(),
-  valueDate: timestamp("value_date"), // When the transaction was actually processed
+  transactionDate: timestamp("transaction_date", { mode: 'date' }).notNull(),
+  valueDate: timestamp("value_date", { mode: 'date' }), // When the transaction was actually processed
   description: text("description"), // Original description from statement
   notes: text("notes"), // User notes
   
@@ -38,6 +38,6 @@ export const transactions = pgTable("transactions", {
   isRecurring: boolean("is_recurring").default(false),
   isVerified: boolean("is_verified").default(false),
   
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().notNull(),
 }); 

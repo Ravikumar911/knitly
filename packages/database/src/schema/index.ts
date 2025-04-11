@@ -7,7 +7,6 @@ export * from './employers';
 export * from './parsedEmails';
 export * from './financialInstruments';
 export * from './transactions';
-export * from './monthlySummaries';
 export * from './emailExtractionPatterns';
 export * from './upiHandles';
 export * from './tokens';

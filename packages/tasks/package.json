@@ -2,18 +2,15 @@
   "name": "@workspace/tasks",
   "scripts": {
     "build": "tsc",
-    "dev":  "pnpm dlx trigger.dev@latest dev"
+    "dev": "pnpm dlx trigger.dev@latest dev"
   },
   "exports": {
     "./trigger/*": "./src/trigger/*.ts"
   },
-  "devDependencies": {
-    "@trigger.dev/build": "latest",
-    "@workspace/typescript-config": "workspace:*",
-    "typescript": "latest"
-  },
   "dependencies": {
-    "@trigger.dev/sdk": "latest",
     "@workspace/database": "workspace:*"
+  },
+  "devDependencies": {
+    "@workspace/typescript-config": "workspace:*"
   }
 }

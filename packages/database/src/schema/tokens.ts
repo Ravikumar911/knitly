@@ -1,17 +1,9 @@
-import { pgTable, text, timestamp, serial, uuid, foreignKey, pgSchema } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, serial, uuid,  foreignKey, pgSchema, varchar } from "drizzle-orm/pg-core";
 
-/**
- * Placeholder for Supabase auth.users table to establish relations
- * (Actual auth tables are managed by Supabase Auth)
- */
-
-const authSchema = pgSchema("auth");
-
-export const authUsers = authSchema.table("users", {
-  id: uuid("id").primaryKey(),
+const auth = pgSchema('auth');
+const authUsers = auth.table('users', {
+	id: uuid().primaryKey().notNull(),
 });
-
-
 /**
  * Google OAuth tokens for users
  * Stores refresh tokens and access tokens needed for the Google Mail API

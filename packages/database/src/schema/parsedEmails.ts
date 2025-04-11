@@ -1,10 +1,10 @@
 import { pgTable, boolean, timestamp, uuid, varchar, text, unique } from "drizzle-orm/pg-core";
-import { users } from "./users";
+import { profiles } from "./users";
 
 // Parsed emails
 export const parsedEmails = pgTable("parsed_emails", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
   
   // Email metadata
   emailId: varchar("email_id", { length: 255 }).notNull(), // Gmail message ID

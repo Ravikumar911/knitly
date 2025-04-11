@@ -38,4 +38,15 @@ export interface ProcessedEmailData {
   date: string;
   snippet?: string;
   body: string;
-} 
+  detectedProvider?: string;
+  emailType?: string;
+  parseSuccess?: boolean;
+  parseErrors?: string;
+}
+
+export interface GmailAttachment {
+  filename: string;
+  contentId: string;
+  contentType: string;
+  data: string;
+}

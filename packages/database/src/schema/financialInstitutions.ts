@@ -8,8 +8,8 @@ export const financialInstitutions = pgTable("financial_institutions", {
   logo: text("logo"), // URL to logo
   type: varchar("type", { length: 50 }), // BANK, CREDIT_ISSUER, INVESTMENT_PLATFORM, etc.
   website: text("website"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().notNull(),
 });
 
 // Enforce uniqueness on either name or short_name

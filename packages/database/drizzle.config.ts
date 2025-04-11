@@ -9,5 +9,6 @@ export default {
     url: process.env.DATABASE_URL!,
   },
   verbose: true,
-  strict: true,
+  // Exclude auth schema tables from migrations as they're managed by Supabase
+  tablesFilter: ["!auth.*"],
 } satisfies Config; 

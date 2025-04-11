@@ -1,11 +1,11 @@
 import { pgTable, boolean, timestamp, uuid, varchar, text, doublePrecision } from "drizzle-orm/pg-core";
-import { users } from "./users";
+import { profiles } from "./users";
 import { financialInstitutions } from "./financialInstitutions";
 
 // Financial instruments like specific accounts, cards, UPI handles
 export const financialInstruments = pgTable("financial_instruments", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
   institutionId: uuid("institution_id").references(() => financialInstitutions.id),
   
   // Basic info
@@ -32,6 +32,6 @@ export const financialInstruments = pgTable("financial_instruments", {
   currency: varchar("currency", { length: 3 }).default("INR"),
   isActive: boolean("is_active").default(true),
   
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'date' }).defaultNow().notNull(),
 }); 
