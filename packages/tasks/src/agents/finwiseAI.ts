@@ -46,7 +46,7 @@ export const finwiseAIAgent = async (emailData: EmailData): Promise<FinancialDat
         Date: ${emailData.date}
         Body: ${emailData.body}
 
-        Format the data according to the specified schema.`
+        Format the data according to the specified schema.` 
 
     const { object } = await generateObject({
       model: openai("gpt-4o-mini"),

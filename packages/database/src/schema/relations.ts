@@ -7,7 +7,6 @@ import { parsedEmails } from "./parsedEmails";
 import { employers } from "./employers";
 import { transactionCategories } from "./transactionCategories";
 import { merchants } from "./merchants";
-import { emailExtractionPatterns } from "./emailExtractionPatterns";
 import { transactions } from "./transactions";
 import { upiHandles } from "./upiHandles";
 import { userGoogleTokens, tokenAccessLogs } from "./tokens";
@@ -45,10 +44,6 @@ export const tokenAccessLogsRelations = relations(tokenAccessLogs, ({ one }) => 
   }),
 }));
 
-export const financialInstitutionsRelations = relations(financialInstitutions, ({ many }) => ({
-  financialInstruments: many(financialInstruments),
-  emailExtractionPatterns: many(emailExtractionPatterns),
-}));
 
 export const transactionCategoriesRelations = relations(transactionCategories, ({ many, one }) => ({
   childCategories: many(transactionCategories, { relationName: 'parent_child' }),
@@ -126,12 +121,6 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   }),
 }));
 
-export const emailExtractionPatternsRelations = relations(emailExtractionPatterns, ({ one }) => ({
-  institution: one(financialInstitutions, {
-    fields: [emailExtractionPatterns.institutionId],
-    references: [financialInstitutions.id],
-  }),
-}));
 
 export const upiHandlesRelations = relations(upiHandles, ({ one }) => ({
   user: one(profiles, {

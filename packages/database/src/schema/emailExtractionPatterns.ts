@@ -1,10 +1,8 @@
 import { pgTable, boolean, timestamp, uuid, varchar, text, integer } from "drizzle-orm/pg-core";
-import { financialInstitutions } from "./financialInstitutions";
 
 // Email extraction patterns to help with parsing
 export const emailExtractionPatterns = pgTable("email_extraction_patterns", {
   id: uuid("id").defaultRandom().primaryKey(),
-  institutionId: uuid("institution_id").references(() => financialInstitutions.id),
   
   // Pattern details
   emailPattern: varchar("email_pattern", { length: 255 }), // Pattern to match sender email

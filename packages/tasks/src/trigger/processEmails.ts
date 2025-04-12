@@ -1,23 +1,29 @@
 import { logger, task, wait, configure } from "@trigger.dev/sdk/v3";
-import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, extractEmailMetadata } from "../utils";
-import { GmailBodyPart } from "../types";
+import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, extractEmailMetadata, buildGmailSearchQuery, extractAttachments } from "../utils";
+import { GmailBodyPart, GmailAttachment } from "../types";
 import { finwiseAIAgent } from "../agents/finwiseAI";
+import { createClient } from "@supabase/supabase-js";
 import { 
   getLastSyncTime, 
-  getNextPageToken,
   updateLastSyncTime, 
-  updateNextPageToken,
   markSyncComplete,
   markSyncInProgress,
   markSyncFailed,
   isEmailProcessed, 
   storeEmailData, 
-  storeTransactionData 
+  storeTransactionData,
+  getEmailExtractionPatterns 
 } from "@workspace/database";
 
 configure({
   secretKey: process.env.TRIGGER_SECRET_KEY,
 });
+
+// Initialize Supabase client for storage
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 /**
  * Task that processes emails from Gmail with pagination support
@@ -34,47 +40,36 @@ export const processEmails = task({
   },
   run: async (payload: {
     userId: string;
-    forceFullSync?: boolean; // Force a full sync regardless of last sync time
     syncPeriodDays?: number; // Specify sync period in days (default: 90)
-    continueFromToken?: string; // Continue processing from a specific page token
   }, { ctx }) => {
     const syncPeriodDays = payload.syncPeriodDays || 5;
     
     logger.log("Starting email sync", { 
       userId: payload.userId,
-      forceFullSync: payload.forceFullSync || false,
-      syncPeriodDays,
-      hasContinuationToken: !!payload.continueFromToken
+      syncPeriodDays
     });
     
     try {
-      // Step 1: Determine sync period and continuation token
-      let nextPageToken = payload.continueFromToken || null;
+      // Step 1: Get active email patterns to build search query
+      const patterns = await getEmailExtractionPatterns();
+      const searchQuery = await buildGmailSearchQuery(patterns);
       
-      if (!nextPageToken) {
-        // Check if we have a stored next page token from a previous run
-        nextPageToken = await getNextPageToken(payload.userId);
-      }
+      logger.log("Built Gmail search query", { searchQuery });
       
-      // If we have a continuation token, no need to check sync time
-      const lastSyncTime = nextPageToken ? null : 
-        (payload.forceFullSync ? null : await getLastSyncTime(payload.userId));
-      
+      // Step 2: Determine sync period
+      const lastSyncTime = await getLastSyncTime(payload.userId);
       const startDate = lastSyncTime || new Date(Date.now() - (syncPeriodDays * 24 * 60 * 60 * 1000));
-      const isFirstSync = !lastSyncTime || payload.forceFullSync;
-      const isContinuation = !!nextPageToken;
+      const isFirstSync = !lastSyncTime;
       
       logger.log("Sync parameters", {
         startDate: startDate.toISOString(),
-        isFirstSync,
-        isContinuation,
-        nextPageToken
+        isFirstSync
       });
       
       // Mark sync as in progress
-      await markSyncInProgress(payload.userId, nextPageToken || undefined);
+      await markSyncInProgress(payload.userId);
       
-      // Step 2: Refresh the provider token for authentication
+      // Step 3: Refresh the provider token for authentication
       const providerToken = await refreshGoogleToken(payload.userId);
       if (!providerToken) {
         await markSyncFailed(payload.userId, "Failed to refresh provider token");
@@ -85,7 +80,7 @@ export const processEmails = task({
         };
       }
       
-      // Step 3: Fetch Gmail messages with date filter and pagination
+      // Step 4: Fetch Gmail messages with date filter and search query
       let allStats = {
         processedCount: 0,
         skippedCount: 0,
@@ -93,13 +88,14 @@ export const processEmails = task({
         totalFound: 0
       };
       
-      let currentPageToken = nextPageToken;
+      let currentPageToken = null;
       
       while (true) {
         const gmailData = await fetchGmailMessages(providerToken, {
-          after: isContinuation ? undefined : startDate,
-          before: isContinuation ? undefined : new Date(),
-          pageToken: currentPageToken || undefined
+          after: startDate,
+          before: new Date(),
+          pageToken: currentPageToken || undefined,
+          query: searchQuery || undefined
         });
         
         if (!gmailData) {
@@ -111,20 +107,11 @@ export const processEmails = task({
           };
         }
         
-        // Save the next page token for future runs (in case task times out)
-        if (gmailData.nextPageToken) {
-          await updateNextPageToken(payload.userId, gmailData.nextPageToken);
-        } else {
-          // If there's no next page token, we've reached the end
-          await markSyncComplete(payload.userId);
-        }
-        
         // No messages found in this page
         if (!gmailData.messages || gmailData.messages.length === 0) {
           logger.log("No messages found to process in current page");
           
           if (!gmailData.nextPageToken) {
-            // Only mark sync complete if we've reached the end
             await markSyncComplete(payload.userId);
             break;
           }
@@ -132,7 +119,7 @@ export const processEmails = task({
           continue;
         }
         
-        // Step 4: Process messages
+        // Step 5: Process messages
         const stats = {
           processedCount: 0,
           skippedCount: 0,
@@ -142,7 +129,7 @@ export const processEmails = task({
         
         for (const messageInfo of gmailData.messages) {
           try {
-            // Step 4a: Skip already processed emails
+            // Step 5a: Skip already processed emails
             const alreadyProcessed = await isEmailProcessed(payload.userId, messageInfo.id);
             if (alreadyProcessed) {
               logger.log("Skipping already processed email", { messageId: messageInfo.id });
@@ -150,7 +137,7 @@ export const processEmails = task({
               continue;
             }
             
-            // Step 4b: Fetch message details
+            // Step 5b: Fetch message details
             logger.log("Fetching message details", { messageId: messageInfo.id });
             const messageData = await fetchGmailMessage(providerToken, messageInfo.id);
             
@@ -168,16 +155,54 @@ export const processEmails = task({
               continue;
             }
             
-            // Step 4c: Extract message metadata
+            // Step 5c: Extract message metadata and check for attachments
             const metadata = extractEmailMetadata(messageData);
             const emailBody = extractEmailBody(messageData);
+            const attachments = extractAttachments(messageData);
             
             logger.log("Processing message", { 
               messageId: messageInfo.id,
-              subject: metadata.subject
+              subject: metadata.subject,
+              hasAttachment: attachments.length > 0
             });
+
+            // Step 5d: Upload attachment to Supabase storage if present
+            let attachmentStoragePath: string | undefined;
+            if (attachments.length > 0) {
+              try {
+                // We'll store only the first attachment for now
+                const attachment = attachments[0];
+                attachmentStoragePath = `attachments/${payload.userId}/${messageInfo.id}/${attachment.filename}`;
+                
+                const { error: uploadError } = await supabase.storage
+                  .from('email-attachments')
+                  .upload(attachmentStoragePath, attachment.data!, {
+                    contentType: attachment.mimeType,
+                    upsert: true
+                  });
+
+                if (uploadError) {
+                  logger.error("Failed to upload attachment", {
+                    messageId: messageInfo.id,
+                    error: uploadError.message
+                  });
+                  attachmentStoragePath = undefined;
+                } else {
+                  logger.log("Uploaded attachment", {
+                    messageId: messageInfo.id,
+                    path: attachmentStoragePath
+                  });
+                }
+              } catch (error) {
+                logger.error("Error uploading attachment", {
+                  messageId: messageInfo.id,
+                  error: error instanceof Error ? error.message : String(error)
+                });
+                attachmentStoragePath = undefined;
+              }
+            }
             
-            // Step 4d: Parse email content with AI
+            // Step 5e: Process with AI
             const finwiseAnalysis = await finwiseAIAgent({
               headers: messageData.payload?.headers || [],
               subject: metadata.subject,
@@ -186,11 +211,11 @@ export const processEmails = task({
               body: emailBody
             });
             
-            // Step 4e: Store email data
+            // Step 5f: Store email data
             const storedEmail = await storeEmailData({
               messageId: messageInfo.id,
               userId: payload.userId,
-              threadId: messageData.threadId || messageInfo.id, // Store threadId for reference
+              threadId: messageData.threadId || messageInfo.id,
               subject: metadata.subject,
               sender: metadata.from,
               receivedDate: metadata.receivedDate,
@@ -199,6 +224,7 @@ export const processEmails = task({
               parseSuccess: finwiseAnalysis.parseSuccess || false,
               parseErrors: finwiseAnalysis.parseErrors?.join(', '),
               rawContent: emailBody,
+              attachmentStoragePath
             });
             
             if (!storedEmail || storedEmail.length === 0) {
@@ -207,7 +233,7 @@ export const processEmails = task({
               continue;
             }
             
-            // Step 4f: Store transaction data if detected
+            // Step 5g: Store transaction data if detected
             if (finwiseAnalysis.parseSuccess && finwiseAnalysis.transaction) {
               const transaction = finwiseAnalysis.transaction;
               const parsedEmailId = storedEmail[0]?.id;
@@ -240,7 +266,8 @@ export const processEmails = task({
             
             logger.log("Successfully processed email", { 
               messageId: messageInfo.id,
-              subject: metadata.subject
+              subject: metadata.subject,
+              matchedPattern: !!finwiseAnalysis
             });
             
             stats.processedCount++;
@@ -274,20 +301,17 @@ export const processEmails = task({
         await wait.for({ seconds: 2 });
       }
       
-      // Step 5: Update the last sync time if this is not a continuation
-      if (!isContinuation) {
-        await updateLastSyncTime(payload.userId, new Date());
-      }
+      // Step 6: Update the last sync time
+      await updateLastSyncTime(payload.userId, new Date());
       
       return {
         success: true,
-        message: `Processed ${allStats.processedCount} emails, skipped ${allStats.skippedCount} already processed emails, encountered ${allStats.errorCount} errors, out of ${allStats.totalFound} total emails found${isContinuation ? ' (continuation)' : ' since ' + startDate.toISOString()}`,
+        message: `Processed ${allStats.processedCount} emails, skipped ${allStats.skippedCount} already processed emails, encountered ${allStats.errorCount} errors, out of ${allStats.totalFound} total emails found since ${startDate.toISOString()}`,
         ...allStats,
         syncStartDate: startDate,
         isFirstSync,
-        isContinuation,
-        hasMorePages: false, // We've processed all pages
-        nextPageToken: null // We've processed all pages
+        hasMorePages: false,
+        nextPageToken: null
       };
     } catch (error) {
       logger.error("Critical error in email processing", {

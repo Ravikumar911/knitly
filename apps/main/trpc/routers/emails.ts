@@ -1,17 +1,9 @@
 import { TRPCError } from "@trpc/server";
-import { baseProcedure, createTRPCRouter } from "../init";
+import {  createTRPCRouter, protectedProcedure } from "../init";
 import { createClient } from "@/supabase/server";
 import { processEmails } from "@workspace/tasks/trigger/processEmails";
 
 // Protected procedure middleware
-const protectedProcedure = baseProcedure.use(async ({ ctx, next }) => {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
-  }
-  return next({ ctx });
-});
 
 // Router for email-related operations
 export const emailsRouter = createTRPCRouter({

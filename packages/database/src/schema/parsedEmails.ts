@@ -20,6 +20,9 @@ export const parsedEmails = pgTable("parsed_emails", {
   parseErrors: text("parse_errors"),
   rawContent: text("raw_content"), // Store the raw email content for debugging
   
+  // Attachment information
+  attachmentStoragePath: text("attachment_storage_path"), // Path to attachment in Supabase storage
+  
   parsedAt: timestamp("parsed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

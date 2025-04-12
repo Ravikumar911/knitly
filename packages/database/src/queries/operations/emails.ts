@@ -1,6 +1,6 @@
-import { db } from '../index';
-import { parsedEmails } from '../schema/parsedEmails';
-import { transactions } from '../schema/transactions';
+import { db } from '@/src/index';
+import { parsedEmails } from '@/src/schema/parsedEmails';
+import { transactions } from '@/src/schema/transactions';
 import { eq, and } from 'drizzle-orm';
 
 export interface StoredEmailData {
@@ -15,6 +15,7 @@ export interface StoredEmailData {
   parseSuccess: boolean;
   parseErrors?: string;
   rawContent: string;
+  attachmentStoragePath?: string;
 }
 
 export interface StoredTransactionData {
@@ -46,6 +47,7 @@ export async function storeEmailData(data: StoredEmailData) {
     parseSuccess: data.parseSuccess,
     parseErrors: data.parseErrors,
     rawContent: data.rawContent,
+    attachmentStoragePath: data.attachmentStoragePath,
     parsedAt: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),

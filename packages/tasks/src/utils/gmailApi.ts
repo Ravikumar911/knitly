@@ -4,6 +4,30 @@ import { GmailMessage, GmailMessageList } from "../types/gmail.js";
 // Configuration
 export const GMAIL_API_BASE_URL = 'https://www.googleapis.com/gmail/v1';
 
+/**
+ * Builds Gmail search query from email extraction patterns
+ */
+export async function buildGmailSearchQuery(patterns: any[]) {
+  const searchQueries = patterns
+    .filter(p => p.isActive)
+    .map(pattern => {
+      const conditions = [];
+      
+      if (pattern.emailPattern) {
+        conditions.push(`from:(${pattern.emailPattern})`);
+      }
+      
+      if (pattern.subjectPattern) {
+        conditions.push(`subject:(${pattern.subjectPattern})`);
+      }
+      
+      return conditions.join(" AND ");
+    })
+    .filter(query => query.length > 0);
+
+  // Combine all pattern queries with OR
+  return searchQueries.length > 0 ? `{${searchQueries.join("} OR {")}}` : "";
+}
 
 /**
  * Fetches a list of Gmail messages with date filtering and pagination support
@@ -53,6 +77,8 @@ export const fetchGmailMessages = async (
       hasDateFilter: !!options?.after || !!options?.before,
       hasPaginationToken: !!options?.pageToken 
     });
+
+    logger.log('Gmail search query', { query, url: url.toString() });
 
     // Make the API request
     const response = await fetch(url.toString(), {
@@ -282,4 +308,34 @@ export const extractEmailMetadata = (messageData: GmailMessage) => {
     date,
     receivedDate
   };
-}; 
+};
+
+/**
+ * Extracts attachments from a Gmail message
+ */
+export function extractAttachments(message: any): GmailAttachment[] {
+  const attachments: GmailAttachment[] = [];
+  
+  function processMessagePart(part: any) {
+    if (part.filename && part.body?.attachmentId) {
+      attachments.push({
+        filename: part.filename,
+        mimeType: part.mimeType,
+        size: part.body.size || 0,
+        attachmentId: part.body.attachmentId,
+        data: part.body.data // Base64 encoded data if available
+      });
+    }
+    
+    // Recursively process child parts
+    if (part.parts) {
+      part.parts.forEach(processMessagePart);
+    }
+  }
+  
+  if (message.payload) {
+    processMessagePart(message.payload);
+  }
+  
+  return attachments;
+} 

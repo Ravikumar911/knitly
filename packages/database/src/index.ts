@@ -10,9 +10,10 @@ export * from './schema'
 
 
 // Queryable operations for the database
-export * from './auth'
-export * from './operations/emails';
-export * from './operations/emailSync';
+export * from './queries/auth'
+export * from './queries/operations/emails';
+export * from './queries/operations/emailSync';
+export * from './queries/operations/emailExtractionPatterns';
 export * from './schema/emailSyncStatus';
 
 // For query purposes (not for migrations)

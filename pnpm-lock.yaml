@@ -129,6 +129,9 @@ importers:
 
   apps/main:
     dependencies:
+      '@workspace/database':
+        specifier: workspace:*
+        version: link:../../packages/database
       '@workspace/tasks':
         specifier: workspace:*
         version: link:../../packages/tasks

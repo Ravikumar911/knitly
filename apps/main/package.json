@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@workspace/ui": "workspace:*",
-    "@workspace/tasks": "workspace:*"
+    "@workspace/tasks": "workspace:*",
+    "@workspace/database": "workspace:*"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:^",
