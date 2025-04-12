@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { TRPCClientError } from '@trpc/client';
 import { useTRPC } from '@/trpc/client';
 import { Button } from '@workspace/ui/components/button';
@@ -33,11 +33,14 @@ export function EmailManager() {
       }
     }
   ));
+
   const handleRefresh = () => {
     setError(null);
     setRefreshResult(null);
     mutation.mutate();
   };
+
+
 
   return (
     <Card className="w-full max-w-3xl">

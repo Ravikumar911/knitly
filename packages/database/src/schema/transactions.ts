@@ -3,7 +3,6 @@ import { profiles } from "./users";
 import { financialInstruments } from "./financialInstruments";
 import { transactionCategories } from "./transactionCategories";
 import { merchants } from "./merchants";
-import { employers } from "./employers";
 import { parsedEmails } from "./parsedEmails";
 
 // Transactions table - the core of the system
@@ -26,7 +25,6 @@ export const transactions = pgTable("transactions", {
   // Classifications
   categoryId: uuid("category_id").references(() => transactionCategories.id),
   merchantId: uuid("merchant_id").references(() => merchants.id),
-  employerId: uuid("employer_id").references(() => employers.id), // For salary credits
   
   // UPI specific
   upiReferenceId: varchar("upi_reference_id", { length: 100 }),

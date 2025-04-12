@@ -39,7 +39,7 @@ interface EmailData {
 
 export const finwiseAIAgent = async (emailData: EmailData): Promise<FinancialData> => {
   try {
-    // Construct prompt with email data
+    //Construct prompt with email data
     const prompt = `You are a financial data extraction agent. Analyze this email and extract any financial information:
         From: ${emailData.from}
         Subject: ${emailData.subject}
@@ -54,7 +54,20 @@ export const finwiseAIAgent = async (emailData: EmailData): Promise<FinancialDat
       schema: ExtractedFinancialData,
     })
 
-    return object
+    return  {
+      parseSuccess: true,
+      parseErrors: [],
+      detectedProvider: emailData.headers.find(h => h.name.toLowerCase() === 'from')?.value || '',
+      emailType: emailData.headers.find(h => h.name.toLowerCase() === 'subject')?.value || '',
+      emailSubject: emailData.subject,
+      transaction: {
+        amount: 100,
+        currency: 'INR',
+        type: 'DEBIT',
+        transactionDate: emailData.date,
+        description: emailData.body,
+      },
+    }
   } catch (error) {
     // Return a failed parse result if extraction fails
     return {

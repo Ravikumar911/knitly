@@ -2,21 +2,7 @@ import { db } from '../../index';
 import { parsedEmails } from '../../schema/parsedEmails';
 import { transactions } from '../../schema/transactions';
 import { eq, and } from 'drizzle-orm';
-
-export interface StoredEmailData {
-  messageId: string;
-  userId: string;
-  threadId?: string;
-  subject: string;
-  sender: string;
-  receivedDate: Date;
-  detectedProvider?: string;
-  emailType?: string;
-  parseSuccess: boolean;
-  parseErrors?: string;
-  rawContent: string;
-  attachmentStoragePath?: string;
-}
+import { ParsedEmail } from '../../types';
 
 export interface StoredTransactionData {
   userId: string;
@@ -35,15 +21,13 @@ export interface StoredTransactionData {
 /**
  * Stores processed email data in the database
  */
-export async function storeEmailData(data: StoredEmailData) {
+export async function storeEmailData(data: Omit<ParsedEmail, 'id' | 'createdAt' | 'updatedAt'>) {
   return await db.insert(parsedEmails).values({
+    messageId: data.messageId,
     userId: data.userId,
-    emailId: data.messageId,
+    senderEmailId: data.senderEmailId,
     subject: data.subject,
-    sender: data.sender,
     receivedDate: data.receivedDate,
-    detectedProvider: data.detectedProvider,
-    emailType: data.emailType,
     parseSuccess: data.parseSuccess,
     parseErrors: data.parseErrors,
     rawContent: data.rawContent,
@@ -83,7 +67,7 @@ export async function isEmailProcessed(userId: string, messageId: string) {
     .from(parsedEmails)
     .where(and(
       eq(parsedEmails.userId, userId),
-      eq(parsedEmails.emailId, messageId)
+      eq(parsedEmails.messageId, messageId)
     ))
     .limit(1);
   

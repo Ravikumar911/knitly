@@ -4,11 +4,9 @@ import { profiles } from "./users";
 import { financialInstitutions } from "./financialInstitutions";
 import { financialInstruments } from "./financialInstruments";
 import { parsedEmails } from "./parsedEmails";
-import { employers } from "./employers";
 import { transactionCategories } from "./transactionCategories";
 import { merchants } from "./merchants";
 import { transactions } from "./transactions";
-import { upiHandles } from "./upiHandles";
 import { userGoogleTokens, tokenAccessLogs } from "./tokens";
 
 const auth = pgSchema('auth');
@@ -20,7 +18,6 @@ const authUsers = auth.table('users', {
 export const profilesRelations = relations(profiles, ({ many }) => ({
   financialInstruments: many(financialInstruments),
   parsedEmails: many(parsedEmails),
-  employers: many(employers),
 }));
 
 // Relations for auth.users (placeholder for Supabase Auth)
@@ -63,16 +60,8 @@ export const merchantsRelations = relations(merchants, ({ many, one }) => ({
     relationName: 'default_category'
   }),
   transactions: many(transactions),
-  upiHandles: many(upiHandles),
 }));
 
-export const employersRelations = relations(employers, ({ one, many }) => ({
-  user: one(profiles, {
-    fields: [employers.userId],
-    references: [profiles.id],
-  }),
-  transactions: many(transactions),
-}));
 
 export const parsedEmailsRelations = relations(parsedEmails, ({ one, many }) => ({
   user: one(profiles, {
@@ -111,24 +100,8 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
     fields: [transactions.merchantId],
     references: [merchants.id],
   }),
-  employer: one(employers, {
-    fields: [transactions.employerId],
-    references: [employers.id],
-  }),
   parsedEmail: one(parsedEmails, {
     fields: [transactions.parsedEmailId],
     references: [parsedEmails.id],
   }),
 }));
-
-
-export const upiHandlesRelations = relations(upiHandles, ({ one }) => ({
-  user: one(profiles, {
-    fields: [upiHandles.userId],
-    references: [profiles.id],
-  }),
-  merchant: one(merchants, {
-    fields: [upiHandles.merchantId],
-    references: [merchants.id],
-  }),
-})); 

@@ -1,3 +1,5 @@
+import { gmail_v1 } from 'googleapis';
+
 /**
  * Gmail API type definitions
  */
@@ -28,28 +30,8 @@ export interface GmailMessagePayload {
   };
 }
 
-export interface GmailMessage {
-  id: string;
-  threadId?: string;
-  labelIds?: string[];
-  snippet?: string;
-  historyId?: string;
-  internalDate?: string;
-  payload?: {
-    partId?: string;
-    mimeType: string;
-    filename?: string;
-    headers?: GmailHeader[];
-    body?: {
-      data?: string;
-      size?: number;
-      attachmentId?: string;
-    };
-    parts?: GmailBodyPart[];
-  };
-  sizeEstimate?: number;
-  raw?: string;
-}
+// Extend the Gmail API Message type
+export type GmailMessage = gmail_v1.Schema$Message;
 
 export interface ProcessedEmailData {
   messageId: string;
@@ -68,16 +50,11 @@ export interface ProcessedEmailData {
 
 export interface GmailAttachment {
   filename: string;
-  contentId: string;
-  contentType: string;
-  data: string;
+  mimeType: string;
+  size: number;
+  attachmentId: string;
+  data?: string;
 }
 
-export interface GmailMessageList {
-  messages?: Array<{
-    id: string;
-    threadId?: string;
-  }>;
-  nextPageToken?: string;
-  resultSizeEstimate?: number;
-}
+// Extend the Gmail API ListMessagesResponse type
+export type GmailMessageList = gmail_v1.Schema$ListMessagesResponse;

@@ -8,7 +8,9 @@
     "./trigger/*": "./src/trigger/*.ts"
   },
   "dependencies": {
-    "@workspace/database": "workspace:*"
+    "@workspace/database": "workspace:*",
+    "googleapis": "^148.0.0",
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
     "@workspace/typescript-config": "workspace:*"

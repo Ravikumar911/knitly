@@ -6,4 +6,9 @@ export interface GmailAttachment {
   size: number;
   attachmentId: string;
   data?: string; // Base64 encoded data
+}
+
+export interface GmailAttachmentData {
+  data: string; // Base64 encoded attachment data
+  size: number;
 } 

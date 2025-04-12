@@ -1,0 +1,1 @@
+ALTER TABLE "parsed_emails" ADD COLUMN "attachment_storage_path" jsonb;
