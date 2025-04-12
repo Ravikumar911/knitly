@@ -1,4 +1,4 @@
-import { pgTable, boolean, timestamp, uuid, varchar, text, doublePrecision, jsonb, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, boolean, timestamp, uuid, varchar, text, doublePrecision, jsonb } from "drizzle-orm/pg-core";
 import { profiles } from "./users";
 import { financialInstruments } from "./financialInstruments";
 import { merchants } from "./merchants";

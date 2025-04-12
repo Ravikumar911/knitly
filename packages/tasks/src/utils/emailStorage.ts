@@ -65,7 +65,7 @@ export const storeTransactionData = async (data: Transaction) => {
 };
 
 /**
- * Downloads Gmail attachments and uploads them to Supabase storage
+ * Downloads Gmail attachments, stores them in Supabase, and returns their data directly
  */
 export const processAttachments = async (
   userId: string,
@@ -76,14 +76,25 @@ export const processAttachments = async (
     attachmentId: string;
     mimeType: string;
   }>
-): Promise<string[] | null> => {
+): Promise<{
+  storagePaths: string[];
+  processedAttachments: Array<{
+    filename: string;
+    mimeType: string;
+    content: string;
+  }>;
+} | null> => {
   try {
     if (!attachments.length) {
-      return [];
+      return {
+        storagePaths: [],
+        processedAttachments: []
+      };
     }
 
     const supabase = createSupabaseClient();
     const storagePaths: string[] = [];
+    const processedAttachments = [];
 
     for (const attachment of attachments) {
       // Download attachment from Gmail
@@ -99,16 +110,13 @@ export const processAttachments = async (
       }
 
       // Generate a unique storage path for each attachment
-      const timestamp = new Date().getTime();
       const safeName = attachment.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const storagePath = `attachments/${userId}/${messageId}/${timestamp}_${safeName}`;
+      const storagePath = `attachments/${userId}/${messageId}/${safeName}`;
 
       logger.log("Uploading attachment to storage", {
         messageId,
         filename: attachment.filename,
-        storagePath,
-        attachmentData,
-        attachment
+        storagePath
       });
 
       const buffer = Buffer.from(attachmentData.data, "base64");
@@ -130,16 +138,24 @@ export const processAttachments = async (
         continue;
       }
 
-      logger.log("Attachment uploaded successfully", {
+      logger.log("Attachment processed successfully", {
         messageId,
         filename: attachment.filename,
         storagePath
       });
 
       storagePaths.push(storagePath);
+      processedAttachments.push({
+        filename: attachment.filename,
+        mimeType: attachment.mimeType,
+        content: attachmentData.data
+      });
     }
 
-    return storagePaths;
+    return {
+      storagePaths,
+      processedAttachments
+    };
   } catch (error) {
     logger.error("Error processing attachments", {
       messageId,

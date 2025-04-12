@@ -152,19 +152,28 @@ export const processEmails = task({
             
             // Step 5d: Process attachments if present
             let attachmentStoragePaths: string[] | null = null;
+            let processedAttachments: Array<{
+              filename: string;
+              mimeType: string;
+              content: string;
+            }> | undefined = undefined;
+            
             if (attachments.length > 0) {
-              attachmentStoragePaths = await processAttachments(
+              const attachmentResult = await processAttachments(
                 payload.userId,
                 messageInfo.id || '',
                 providerToken,
                 attachments
               );
-
-              if (!attachmentStoragePaths) {
+              
+              if (!attachmentResult) {
                 logger.error("Failed to process attachments", {
                   messageId: messageInfo.id,
                   attachmentCount: attachments.length
                 });
+              } else {
+                attachmentStoragePaths = attachmentResult.storagePaths;
+                processedAttachments = attachmentResult.processedAttachments;
               }
             }
             
@@ -176,11 +185,7 @@ export const processEmails = task({
               from: metadata.from,
               date: metadata.date,
               body: emailBody,
-              attachments: messageData.payload?.parts?.map(part => ({
-                filename: part.filename || '',
-                mimeType: part.mimeType || '',
-                storagePath: part.body?.attachmentId || ''
-              })) || []
+              attachments: processedAttachments
             });
             
             // Step 5f: Store email data

@@ -1,41 +1,88 @@
-# Knitly - Modern Monorepo with shadcn/ui
+# Knitly - Modern Full-Stack Monorepo
 
-This is a full-stack monorepo template using a modern tech stack including Next.js, shadcn/ui, Supabase, Drizzle ORM, tRPC, and TriggerDev.
+A modern, type-safe, and scalable monorepo built with Next.js, Supabase, shadcn/ui, Drizzle ORM, tRPC, and TriggerDev. Features strict separation of concerns and centralized database management.
 
-## Project Structure
+## 🏗️ Project Structure
 
 ```
 .
 ├── apps/
-│   ├── main/               # Main application with Next.js, Supabase, and tRPC
-│   └── website/            # Marketing website (Next.js)
+│   ├── main/               # Core Next.js app with Supabase Auth SSR and tRPC
+│   └── website/           # Marketing website (Next.js, static)
 │
 └── packages/
-    ├── database/           # Shared database schema and Drizzle ORM setup
-    ├── eslint-config/      # Shared ESLint configuration
-    ├── tasks/              # TriggerDev background tasks
-    ├── typescript-config/  # Shared TypeScript configuration
-    └── ui/                 # Shared UI components (shadcn/ui)
+    ├── database/          # Centralized database schema and queries
+    ├── eslint-config/     # Shared ESLint configuration
+    ├── tasks/             # Background tasks and jobs
+    ├── typescript-config/ # Shared TypeScript configuration
+    └── ui/                # Shared UI components (shadcn/ui)
 ```
 
-## Getting Started
+## 🏛️ Architecture & Guidelines
+
+### Core Principles
+
+1. **Strict Separation of Concerns**
+   - Each app and package has a single, well-defined responsibility
+   - Clear boundaries between UI, database, and business logic
+
+2. **Centralized Database Management**
+   - All Supabase and Drizzle ORM queries are in `packages/database`
+   - Type-safe database operations exported as reusable functions
+   - No direct database queries in apps or other packages
+
+3. **Authentication & Authorization**
+   - Supabase Auth SSR implemented in `apps/main` using `@supabase/ssr`
+   - Consistent cookie handling patterns across the application
+
+4. **UI Component System**
+   - Shared UI components in `packages/ui` using shadcn/ui
+   - Consistent design system across all applications
+
+### Package-Specific Guidelines
+
+#### apps/main
+- Core Next.js application with SSR
+- Uses tRPC for type-safe API endpoints
+- Implements Supabase Auth SSR
+- Imports UI components from `@workspace/ui`
+- Uses database queries from `@workspace/database`
+
+#### apps/website
+- Static marketing site
+- No authentication or database queries
+- Uses shared UI components
+- Focus on SEO and performance
+
+#### packages/database
+- Central source for all database operations
+- Drizzle ORM schema definitions
+- Type-safe query functions
+- No UI or application logic
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
 - Node.js >= 20
 - pnpm >= 10.4.1
+- Supabase account and project
 
 ### Installation
 
 ```bash
 # Install dependencies
 pnpm install
+
+# Set up environment variables
+cp apps/main/.env.example apps/main/.env.local
+cp packages/database/.env.example packages/database/.env.local
 ```
 
 ### Development
 
 ```bash
-# Run all apps in development mode
+# Run all apps and packages
 pnpm dev
 
 # Run specific app
@@ -43,39 +90,32 @@ pnpm --filter main dev
 pnpm --filter website dev
 ```
 
-## Adding UI Components
+## 🛠️ Development Workflow
 
-To add shadcn/ui components, run the following command:
+### Adding UI Components
 
 ```bash
-# From the root directory
+# Add shared components
 pnpm dlx shadcn@latest add button -c packages/ui
 
-# For app-specific components
+# Add app-specific components
 pnpm dlx shadcn@latest add button -c apps/main
 ```
 
-## Using Components
+### Database Operations
 
-Import UI components from the shared UI package:
+1. Define schemas in `packages/database/src/schema`
+2. Create queries in `packages/database/src/queries`
+3. Export and use type-safe query functions
 
-```tsx
-import { Button } from "@workspace/ui/components/button"
-```
+### Authentication
 
-## Database
+Authentication is handled in `apps/main`:
+- SSR implementation in `apps/main/lib/auth.ts`
+- Middleware in `apps/main/middleware.ts`
+- Uses `@supabase/ssr` for cookie management
 
-This project uses Supabase with Drizzle ORM. The database schema is defined in the `packages/database` package.
-
-## Background Tasks
-
-Background jobs and scheduled tasks are managed with TriggerDev in the `packages/tasks` package.
-
-## Environment Variables
-
-Each app and some packages have their own `.env` files. Copy the `.env.example` files to `.env.local` and fill in the required values.
-
-## Building for Production
+## 🏗️ Building for Production
 
 ```bash
 # Build all packages and apps
@@ -83,13 +123,30 @@ pnpm build
 
 # Build specific app
 pnpm --filter main build
+pnpm --filter website build
 ```
 
-## Additional Resources
+## 📚 Tech Stack
 
-- [shadcn/ui Documentation](https://ui.shadcn.com/)
+- **Framework**: Next.js 14 with App Router
+- **Database**: Supabase (PostgreSQL)
+- **ORM**: Drizzle ORM
+- **API**: tRPC
+- **UI**: shadcn/ui + Tailwind CSS
+- **Authentication**: Supabase Auth
+- **Background Jobs**: TriggerDev
+- **Package Manager**: pnpm
+- **Build Tool**: Turborepo
+
+## 📖 Additional Resources
+
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Supabase Documentation](https://supabase.com/docs)
 - [Drizzle ORM Documentation](https://orm.drizzle.team/)
 - [tRPC Documentation](https://trpc.io/docs)
+- [shadcn/ui Documentation](https://ui.shadcn.com/)
 - [TriggerDev Documentation](https://trigger.dev/docs)
+
+## 📝 License
+
+MIT
