@@ -22,7 +22,7 @@ configure({
 // Initialize Supabase client for storage
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 /**
@@ -171,7 +171,7 @@ export const processEmails = task({
             if (attachments.length > 0) {
               try {
                 // We'll store only the first attachment for now
-                const attachment = attachments[0];
+                const attachment = attachments[0]!;
                 attachmentStoragePath = `attachments/${payload.userId}/${messageInfo.id}/${attachment.filename}`;
                 
                 const { error: uploadError } = await supabase.storage

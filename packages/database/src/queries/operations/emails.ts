@@ -1,6 +1,6 @@
-import { db } from '@/src/index';
-import { parsedEmails } from '@/src/schema/parsedEmails';
-import { transactions } from '@/src/schema/transactions';
+import { db } from '../../index';
+import { parsedEmails } from '../../schema/parsedEmails';
+import { transactions } from '../../schema/transactions';
 import { eq, and } from 'drizzle-orm';
 
 export interface StoredEmailData {

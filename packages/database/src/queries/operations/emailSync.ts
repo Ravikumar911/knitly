@@ -1,5 +1,5 @@
-import { db } from '@/src/index';
-import { emailSyncStatus } from '@/src/schema/emailSyncStatus';
+import { db } from '../../index';
+import { emailSyncStatus } from '../../schema/emailSyncStatus';
 import { eq } from 'drizzle-orm';
 
 interface SyncStatus {

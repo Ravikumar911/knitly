@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
-import { db } from "@/src/index";
-import { userGoogleTokens, tokenAccessLogs } from "@/src/schema/tokens";
+import { db } from "../../index";
+import { userGoogleTokens, tokenAccessLogs } from "../../schema/tokens";
 
 /**
  * Gets a user's Google token from the database

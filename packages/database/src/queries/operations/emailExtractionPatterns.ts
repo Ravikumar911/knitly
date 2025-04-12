@@ -1,7 +1,7 @@
-import { db } from '@/src/index';
-import { emailExtractionPatterns } from '@/src/schema/emailExtractionPatterns';
+import { db } from '../../index';
+import { emailExtractionPatterns } from '../../schema/emailExtractionPatterns';
 import { eq } from 'drizzle-orm';
-import type { EmailExtractionPattern } from '@/src/types';
+import type { EmailExtractionPattern } from '../../types';
 
 /**
  * Gets all active email extraction patterns

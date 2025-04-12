@@ -1,5 +1,6 @@
 import { logger } from "@trigger.dev/sdk/v3";
 import { GmailMessage, GmailMessageList } from "../types/gmail.js";
+import { GmailAttachment } from "../types/index.js";
 
 // Configuration
 export const GMAIL_API_BASE_URL = 'https://www.googleapis.com/gmail/v1';

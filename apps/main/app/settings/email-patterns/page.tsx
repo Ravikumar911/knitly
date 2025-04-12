@@ -24,8 +24,20 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTRPC } from '@/trpc/client';  
-import type { EmailExtractionPattern } from '@workspace/database';
 
+// Define our own type that matches the API response
+type EmailExtractionPattern = {
+  id: string;
+  emailPattern: string | null;
+  subjectPattern: string | null;
+  bodyPattern: string | null;
+  extractionType: string;
+  config: string | null;
+  priority: number | null;
+  isActive: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+};
 
 // Form schema matching our API schema
 const formSchema = z.object({
