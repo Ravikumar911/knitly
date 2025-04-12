@@ -171,7 +171,7 @@ export const processEmails = task({
             // Step 5e: Process with AI
             const finwiseAnalysis = await finwiseAIAgent({
               userId: payload.userId,
-              messageId: messageInfo.id,
+              threadId: messageData.threadId || '',
               subject: metadata.subject,
               from: metadata.from,
               date: metadata.date,

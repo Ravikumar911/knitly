@@ -70,6 +70,9 @@ export const finwiseAIAgent = async (emailData: EmailData): Promise<FinancialDat
     if (emailData.attachments) {
       for (const attachment of emailData.attachments) {
         if (attachment.mimeType === 'application/pdf') {
+          logger.log("Processing PDF attachment", {
+            storagePath: attachment.storagePath
+          })
           const pdfContent = await getPdfContent(attachment.storagePath);
           if (pdfContent !== null) {
             attachment.content = pdfContent;
@@ -126,12 +129,18 @@ Provide confidence score based on the clarity and completeness of the extracted 
       type: object.emailType
     })
 
+
     // Store the analysis results
-    if (emailData.messageId) {
+    if (emailData.threadId) {
       await storeAIAnalysis({
         userId: emailData.userId,
-        parsedEmailId: emailData.messageId,
+        parsedThreadId: emailData.threadId,
         analysis: object
+      }).catch(error => {
+        logger.error("Error storing AI analysis", {
+          error: error,
+          subject: emailData.subject
+        })
       });
     }
 
@@ -153,10 +162,10 @@ Provide confidence score based on the clarity and completeness of the extracted 
     }
 
     // Store the failed analysis
-    if (emailData.messageId) {
+    if (emailData.threadId) {
       await storeAIAnalysis({
         userId: emailData.userId,
-        parsedEmailId: emailData.messageId,
+        parsedThreadId: emailData.threadId,
         analysis: failedAnalysis
       });
     }

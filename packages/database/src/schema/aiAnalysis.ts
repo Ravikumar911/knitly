@@ -6,7 +6,7 @@ import { parsedEmails } from "./parsedEmails";
 export const aiAnalysis = pgTable("ai_analysis", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
-  parsedEmailId: uuid("parsed_email_id").references(() => parsedEmails.id),
+  parsedThreadId: varchar("parsed_thread_id", { length: 255 }),
   
   // Source metadata
   detectedProvider: varchar("detected_provider", { length: 255 }), // e.g., "SWIGGY", "AMAZON", "PHONEPE"

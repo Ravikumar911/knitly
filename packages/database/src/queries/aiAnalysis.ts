@@ -98,17 +98,17 @@ export type FinancialData = z.infer<typeof ExtractedFinancialData>
 
 export async function storeAIAnalysis({
   userId,
-  parsedEmailId,
+  parsedThreadId,
   analysis
 }: {
   userId: string;
-  parsedEmailId: string;
+    parsedThreadId: string;
   analysis: FinancialData;
 }) {
   
   const result = await db.insert(aiAnalysis).values({
     userId,
-    parsedEmailId,
+    parsedThreadId,
     detectedProvider: analysis.detectedProvider,
     emailType: analysis.emailType,
     emailSubject: analysis.emailSubject,
@@ -123,12 +123,12 @@ export async function storeAIAnalysis({
   return result[0];
 }
 
-export async function getAIAnalysisByEmailId(parsedEmailId: string) {
+export async function getAIAnalysisByThreadId(parsedThreadId: string) {
   
   const result = await db
     .select()
     .from(aiAnalysis)
-    .where(eq(aiAnalysis.parsedEmailId, parsedEmailId))
+    .where(eq(aiAnalysis.parsedThreadId, parsedThreadId))
     .limit(1);
     
   return result[0];

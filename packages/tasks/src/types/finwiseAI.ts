@@ -96,7 +96,7 @@ export type FinancialData = z.infer<typeof ExtractedFinancialData>
 // Email data interface
 export interface EmailData {
   userId: string;
-  messageId: string;
+  threadId: string;
   subject: string;
   body: string;
   date: string;

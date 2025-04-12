@@ -3,9 +3,6 @@ import { GmailMessage, GmailMessageList, GmailAttachment } from "../types/gmail"
 import { google, gmail_v1 } from 'googleapis';
 import { GmailAttachmentData } from "../types";
 
-// Configuration
-export const GMAIL_API_BASE_URL = 'https://www.googleapis.com/gmail/v1';
-
 // Create Gmail API client
 const createGmailClient = (providerToken: string) => {
   const auth = new google.auth.OAuth2();
@@ -261,7 +258,7 @@ export const extractEmailMetadata = (messageData: GmailMessage) => {
  */
 export function extractAttachments(message: GmailMessage): GmailAttachment[] {
   const attachments: GmailAttachment[] = [];
-  logger.log('Extracting attachments from message', { message });
+  logger.log('Extracting attachments from message');
   if (!message?.payload) {
     logger.warn('No message payload found when extracting attachments');
     return attachments;
