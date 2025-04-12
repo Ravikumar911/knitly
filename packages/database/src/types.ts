@@ -1,4 +1,4 @@
-import { emailExtractionPatterns, profiles } from "./schema";
+import { emailExtractionPatterns, profiles, transactions } from "./schema";
 import { emailSyncStatus } from "./schema/emailSyncStatus";
 import { parsedEmails } from "./schema/parsedEmails";
 
@@ -14,3 +14,6 @@ export type NewEmailSyncStatus = typeof emailSyncStatus.$inferInsert;
 
 export type ParsedEmail = typeof parsedEmails.$inferSelect;
 export type NewParsedEmail = typeof parsedEmails.$inferInsert;
+
+export type Transaction = typeof transactions.$inferSelect;
+export type NewTransaction = typeof transactions.$inferInsert;

@@ -16,6 +16,9 @@ export * from './queries/operations/emailSync';
 export * from './queries/operations/emailExtractionPatterns';
 export * from './schema/emailSyncStatus';
 
+// Export AI analysis functions
+export * from './queries/aiAnalysis';
+
 // For query purposes (not for migrations)
 const queryClient = postgres(process.env.DATABASE_URL!);
 export const db = drizzle(queryClient, { 

@@ -6,7 +6,6 @@ import { profiles } from "./users";
 export const parsedEmails = pgTable("parsed_emails", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
-  messageId: varchar("message_id", { length: 255 }).notNull(),
   
   // Email metadata
   senderEmailId: varchar("sender_email_id", { length: 255 }),

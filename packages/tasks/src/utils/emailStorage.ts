@@ -142,7 +142,7 @@ export const processAttachments = async (
       logger.log('Expected size (bytes):', {size: attachmentData.size});
 
       // Upload to Supabase storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('email-attachments')
         .upload(storagePath, buffer, {
           contentType: attachment.mimeType,

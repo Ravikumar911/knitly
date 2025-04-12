@@ -18,6 +18,7 @@ const authUsers = auth.table('users', {
 export const profilesRelations = relations(profiles, ({ many }) => ({
   financialInstruments: many(financialInstruments),
   parsedEmails: many(parsedEmails),
+  transactions: many(transactions),
 }));
 
 // Relations for auth.users (placeholder for Supabase Auth)
@@ -93,7 +94,7 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
     references: [financialInstruments.id],
   }),
   category: one(transactionCategories, {
-    fields: [transactions.categoryId],
+    fields: [transactions.category],
     references: [transactionCategories.id],
   }),
   merchant: one(merchants, {

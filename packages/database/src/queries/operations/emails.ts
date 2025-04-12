@@ -2,30 +2,15 @@ import { db } from '../../index';
 import { parsedEmails } from '../../schema/parsedEmails';
 import { transactions } from '../../schema/transactions';
 import { eq, and } from 'drizzle-orm';
-import { ParsedEmail } from '../../types';
-
-export interface StoredTransactionData {
-  userId: string;
-  parsedEmailId: string;
-  amount: number;
-  currency: string;
-  type: string;
-  transactionDate: Date;
-  description?: string;
-  upiReferenceId?: string;
-  upiTransactionId?: string;
-  counterpartyUpiHandle?: string;
-  isRecurring: boolean;
-}
-
+import { ParsedEmail, Transaction } from '../../types';
 /**
  * Stores processed email data in the database
  */
 export async function storeEmailData(data: Omit<ParsedEmail, 'id' | 'createdAt' | 'updatedAt'>) {
   return await db.insert(parsedEmails).values({
-    messageId: data.messageId,
     userId: data.userId,
     senderEmailId: data.senderEmailId,
+    threadId: data.threadId,
     subject: data.subject,
     receivedDate: data.receivedDate,
     parseSuccess: data.parseSuccess,
@@ -41,19 +26,32 @@ export async function storeEmailData(data: Omit<ParsedEmail, 'id' | 'createdAt' 
 /**
  * Stores transaction data extracted from emails
  */
-export async function storeTransactionData(data: StoredTransactionData) {
+export async function storeTransactionData(data: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>) {
   return await db.insert(transactions).values({
     userId: data.userId,
     parsedEmailId: data.parsedEmailId,
     amount: data.amount,
     currency: data.currency,
     type: data.type,
+    status: data.status,
     transactionDate: data.transactionDate,
+    valueDate: data.valueDate,
     description: data.description,
-    upiReferenceId: data.upiReferenceId,
-    upiTransactionId: data.upiTransactionId,
-    counterpartyUpiHandle: data.counterpartyUpiHandle,
-    isRecurring: data.isRecurring,
+    notes: data.notes,
+    category: data.category,
+    merchantId: data.merchantId,
+    merchantName: data.merchantName,
+    merchantCategory: data.merchantCategory,
+    instrumentId: data.instrumentId,
+    orderId: data.orderId,
+    orderItems: data.orderItems,
+    deliveryAddress: data.deliveryAddress,
+    paymentMethod: data.paymentMethod,
+    referenceIds: data.referenceIds,
+    location: data.location,
+    isVerified: data.isVerified,
+    verificationStatus: data.verificationStatus,
+    aiAnalysisId: data.aiAnalysisId,
     createdAt: new Date(),
     updatedAt: new Date(),
   }).returning();
@@ -67,7 +65,7 @@ export async function isEmailProcessed(userId: string, messageId: string) {
     .from(parsedEmails)
     .where(and(
       eq(parsedEmails.userId, userId),
-      eq(parsedEmails.messageId, messageId)
+      eq(parsedEmails.threadId, messageId)
     ))
     .limit(1);
   
