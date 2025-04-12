@@ -48,14 +48,14 @@ export const processEmails = task({
       const patterns = await getEmailExtractionPatterns();
       const searchQuery = await buildGmailSearchQuery(patterns);
       
-      logger.log("Built Gmail search query", { searchQuery });
-      
       // Step 2: Determine sync period
       const lastSyncTime = await getLastSyncTime(payload.userId);
       const startDate = lastSyncTime || new Date(Date.now() - (syncPeriodDays * 24 * 60 * 60 * 1000));
       const isFirstSync = !lastSyncTime;
       
-      logger.log("Sync parameters", {
+      logger.log("Starting email sync", { 
+        userId: payload.userId,
+        syncPeriodDays,
         startDate: startDate.toISOString(),
         isFirstSync
       });
@@ -137,16 +137,7 @@ export const processEmails = task({
             }
             
             // Step 5b: Fetch message details
-            logger.log("Fetching message details", { messageId: messageInfo.id });
             const messageData = await fetchGmailMessage(providerToken, messageInfo.id);
-            
-            // Avoid logging full message data as it's too verbose
-            logger.log("Message received", { 
-              messageId: messageInfo.id,
-              threadId: messageData?.threadId,
-              size: messageData?.sizeEstimate,
-              labelCount: messageData?.labelIds?.length
-            });
             
             if (!messageData) {
               logger.error("Failed to fetch message details", { messageId: messageInfo.id });
@@ -159,20 +150,9 @@ export const processEmails = task({
             const emailBody = extractEmailBody(messageData);
             const attachments = extractAttachments(messageData);
             
-            logger.log("Processing message", { 
-              messageId: messageInfo.id,
-              subject: metadata.subject,
-              hasAttachments: attachments.length > 0
-            });
-
             // Step 5d: Process attachments if present
             let attachmentStoragePaths: string[] | null = null;
             if (attachments.length > 0) {
-              logger.log("Processing attachments", { 
-                count: attachments.length,
-                messageId: messageInfo.id 
-              }); 
-
               attachmentStoragePaths = await processAttachments(
                 payload.userId,
                 messageInfo.id || '',
@@ -184,11 +164,6 @@ export const processEmails = task({
                 logger.error("Failed to process attachments", {
                   messageId: messageInfo.id,
                   attachmentCount: attachments.length
-                });
-              } else {
-                logger.log("Attachments processed successfully", {
-                  messageId: messageInfo.id,
-                  storedPaths: attachmentStoragePaths
                 });
               }
             }
@@ -273,12 +248,6 @@ export const processEmails = task({
                 });
               }
             }
-            
-            logger.log("Successfully processed email", { 
-              messageId: messageInfo.id,
-              subject: metadata.subject,
-              matchedPattern: !!finwiseAnalysis
-            });
             
             stats.processedCount++;
             

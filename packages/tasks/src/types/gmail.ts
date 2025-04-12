@@ -33,20 +33,6 @@ export interface GmailMessagePayload {
 // Extend the Gmail API Message type
 export type GmailMessage = gmail_v1.Schema$Message;
 
-export interface ProcessedEmailData {
-  messageId: string;
-  userId: string;
-  threadId?: string;
-  subject: string;
-  from: string;
-  date: string;
-  snippet?: string;
-  body: string;
-  detectedProvider?: string;
-  emailType?: string;
-  parseSuccess?: boolean;
-  parseErrors?: string;
-}
 
 export interface GmailAttachment {
   filename: string;

@@ -79,7 +79,7 @@ export const finwiseAIAgent = async (emailData: EmailData): Promise<FinancialDat
     }
 
     const { object } = await generateObject({
-      model: openai("gpt-4"),
+      model: openai("gpt-4o-mini"),
       prompt: `${SYSTEM_PROMPT}
 
 Now, analyze this email and extract financial information:

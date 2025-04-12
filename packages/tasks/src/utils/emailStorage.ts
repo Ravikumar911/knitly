@@ -1,45 +1,31 @@
 import { logger } from "@trigger.dev/sdk/v3";
-import { ProcessedEmailData } from "../types/gmail";
-import { storeEmailData as dbStoreEmail, storeTransactionData as dbStoreTransaction } from "@workspace/database";
+import { storeEmailData as dbStoreEmail, storeTransactionData as dbStoreTransaction, ParsedEmail, Transaction } from "@workspace/database";
 import { createSupabaseClient } from "./supabase";
 import { downloadAttachment } from "./gmailApi";
 
 /**
  * Stores processed email data using the database functions
  */
-export const storeEmailData = async (emailData: ProcessedEmailData) => {
+export const storeEmailData = async (emailData: ParsedEmail) => {
   try {
     logger.log("Storing email data", { 
-      messageId: emailData.messageId,
+      threadId: emailData.threadId,
       subject: emailData.subject
     });
 
-    const stored = await dbStoreEmail({
-      messageId: emailData.messageId,
-      userId: emailData.userId,
-      subject: emailData.subject,
-      sender: emailData.from,
-      receivedDate: new Date(emailData.date),
-      detectedProvider: emailData.detectedProvider,
-      emailType: emailData.emailType,
-      parseSuccess: emailData.parseSuccess || false,
-      parseErrors: emailData.parseErrors,
-      rawContent: emailData.body,
-    });
+    const stored = await dbStoreEmail(emailData);
 
     if (!stored || stored.length === 0) {
       throw new Error("Failed to store email data");
     }
 
     logger.log("Email data stored successfully", { 
-      messageId: emailData.messageId,
       id: stored[0]?.id
     });
     
     return stored[0];
   } catch (error) {
     logger.error("Error storing email data", { 
-      messageId: emailData.messageId,
       error: error instanceof Error ? error.message : String(error)
     });
     return null;
@@ -49,19 +35,7 @@ export const storeEmailData = async (emailData: ProcessedEmailData) => {
 /**
  * Stores transaction data using the database functions
  */
-export const storeTransactionData = async (data: {
-  userId: string;
-  parsedEmailId: string;
-  amount: number;
-  currency: string;
-  type: string;
-  transactionDate: Date;
-  description?: string;
-  upiReferenceId?: string;
-  upiTransactionId?: string;
-  counterpartyUpiHandle?: string;
-  isRecurring: boolean;
-}) => {
+export const storeTransactionData = async (data: Transaction) => {
   try {
     logger.log("Storing transaction data", {
       userId: data.userId,
@@ -138,8 +112,6 @@ export const processAttachments = async (
       });
 
       const buffer = Buffer.from(attachmentData.data, "base64");
-      logger.log('Base64 length:', {length: attachmentData.data.length});
-      logger.log('Expected size (bytes):', {size: attachmentData.size});
 
       // Upload to Supabase storage
       const { error: uploadError } = await supabase.storage
