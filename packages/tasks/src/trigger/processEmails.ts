@@ -36,7 +36,7 @@ export const processEmails = task({
     userId: string;
     syncPeriodDays?: number; // Specify sync period in days (default: 90)
   }, { ctx }) => {
-    const syncPeriodDays = payload.syncPeriodDays || 5;
+    const syncPeriodDays = payload.syncPeriodDays || 90;
     
     logger.log("Starting email sync", { 
       userId: payload.userId,

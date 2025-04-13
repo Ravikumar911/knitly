@@ -12,9 +12,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@workspace/ui": "workspace:*",
+    "@tanstack/react-table": "^8.21.2",
+    "@workspace/database": "workspace:*",
     "@workspace/tasks": "workspace:*",
-    "@workspace/database": "workspace:*"
+    "@workspace/ui": "workspace:*"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:^",

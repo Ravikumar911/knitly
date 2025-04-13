@@ -15,6 +15,8 @@ export * from './queries/operations/emails';
 export * from './queries/operations/emailSync';
 export * from './queries/operations/emailExtractionPatterns';
 export * from './schema/emailSyncStatus';
+export * from './queries/transactions';
+
 
 // Export AI analysis functions
 export * from './queries/aiAnalysis';
@@ -26,3 +28,18 @@ export const db = drizzle(queryClient, {
         ...schema,
     }
  });
+
+export * from './schema/transactions';
+export * from './schema/users';
+export * from './schema/parsedEmails';
+export * from './schema/aiAnalysis';
+export * from './schema/emailExtractionPatterns';
+export * from './schema/emailSyncStatus';
+export * from './schema/financialInstruments';
+export * from './schema/merchants';
+export * from './schema/transactionCategories';
+export * from './schema/financialInstitutions';
+export * from './schema/relations';
+
+// Export queries
+export * from './queries/transactions';

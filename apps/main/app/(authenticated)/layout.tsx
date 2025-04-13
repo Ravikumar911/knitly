@@ -6,8 +6,8 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset } from '@workspace/ui/components/sidebar';
 import { SidebarTrigger } from '@workspace/ui/components/sidebar';
 import { Separator } from '@workspace/ui/components/separator';
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@workspace/ui/components/breadcrumb';
-
+import { RouteBreadcrumb } from '@/components/route-breadcrumb';
+  
 export default async function AuthenticatedLayout({
   children,
 }: {
@@ -22,10 +22,11 @@ export default async function AuthenticatedLayout({
   if (!user) {
     redirect('/login');
   }
+  
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar user={{avatar: user.user_metadata.avatar_url, email: user.email ?? '', name: user.user_metadata.name}} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2">
           <div className="flex items-center gap-2 px-4">
@@ -34,22 +35,12 @@ export default async function AuthenticatedLayout({
               orientation="vertical"
               className="mr-2 data-[orientation=vertical]:h-4"
             />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="#">
-                    Building Your Application
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Data Fetching</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
+          <RouteBreadcrumb />
           </div>
         </header>
-       {children}
+       <main className="flex flex-1 flex-col gap-4">
+        {children}
+       </main>
       </SidebarInset>
     </SidebarProvider>
   );
