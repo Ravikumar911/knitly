@@ -11,18 +11,18 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: {
-    default: "Knitly",
-    template: "%s | Knitly"
+    default: "slash.cash",
+    template: "%s | slash.cash"
   },
   description: "Connect with like-minded locals and make real-world friendships — powered by AI",
-  keywords: ["Knitly", "community", "local events", "AI", "social platform"],
+  keywords: ["slash.cash", "community", "local events", "AI", "social platform"],
   authors: [
     {
-      name: "Knitly",
-      url: "https://knitly.com",
+      name: "slash.cash",
+      url: "https://slash.cash",
     },
   ],
-  creator: "Knitly",
+  creator: "slash.cash",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "white" },
     { media: "(prefers-color-scheme: dark)", color: "black" },
@@ -47,7 +47,7 @@ export default function RootLayout({
             <nav className="container flex h-16 items-center justify-between mx-auto">
               <div className="flex items-center gap-6">
                 <a href="/" className="flex items-center space-x-2">
-                  <span className="font-bold text-xl">Knitly</span>
+                  <span className="font-bold text-xl">slash.cash</span>
                 </a>
                 <NavigationMenu>
                   <NavigationMenuList>
@@ -94,7 +94,7 @@ export default function RootLayout({
           <footer className="border-t">
             <div className="container flex h-16 items-center justify-between mx-auto">
               <p className="text-sm text-muted-foreground">
-                Built with ❤️ by the Knitly team
+                Built with ❤️ by the slash.cash team
               </p>
               <div className="flex gap-6">
                 <a href="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Terms</a>

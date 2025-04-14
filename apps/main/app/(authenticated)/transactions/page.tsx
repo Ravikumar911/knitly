@@ -16,12 +16,7 @@ export default function TransactionsPage() {
   return (
     <HydrateClient>
       <div className="flex flex-col gap-4 p-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
-          <p className="text-muted-foreground">
-            View and manage all your transactions in one place.
-          </p>
-        </div>
+        
         <Suspense fallback={<div>Loading...</div>}>
           <TransactionsDataTable />
         </Suspense>

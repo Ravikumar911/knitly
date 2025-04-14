@@ -1,4 +1,4 @@
-# Knitly - Modern Full-Stack Monorepo
+# slash.cash - Modern Full-Stack Monorepo
 
 A modern, type-safe, and scalable monorepo built with Next.js, Supabase, shadcn/ui, Drizzle ORM, tRPC, and TriggerDev. Features strict separation of concerns and centralized database management.
 

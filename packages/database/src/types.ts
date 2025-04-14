@@ -29,6 +29,7 @@ export const ExtractedFinancialData = z.object({
     detectedProvider: z.string().describe("The detected financial service provider (e.g., 'Swiggy', 'PhonePe', 'HDFC')"),
     emailType: z.enum([
       'TRANSACTION_ALERT',
+      'TRANSACTION_RECEIPT',
       'PAYMENT_CONFIRMATION',
       'ORDER_CONFIRMATION',
       'BILL_PAYMENT',
@@ -36,6 +37,8 @@ export const ExtractedFinancialData = z.object({
       'BALANCE_UPDATE',
       'SUBSCRIPTION_CHARGE',
       'REFUND_NOTIFICATION',
+      'INVOICE',
+      'MANDATE_REQUEST',
       'OTHER'
     ]).describe("The type of financial email - categorizes the purpose of the email"),
     emailSubject: z.string().describe("The original subject line of the email"),
@@ -48,6 +51,7 @@ export const ExtractedFinancialData = z.object({
       type: z.enum(['DEBIT', 'CREDIT', 'TRANSFER', 'REFUND']).describe("The type of transaction - whether money was sent, received, transferred, or refunded"),
       status: z.enum(['COMPLETED', 'PENDING', 'FAILED', 'REFUNDED']).default('COMPLETED').describe("The current status of the transaction"),
       transactionDate: z.string().describe("The date and time of the transaction in ISO format"),
+      isPendingTransaction: z.boolean().optional().default(false).describe("Flag indicating if this is a future transaction (invoice/mandate)"),
       
       // Transaction context
       category: z.enum([

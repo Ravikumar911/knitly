@@ -160,7 +160,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
                   <Command className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">Knitly</span>
+                  <span className="truncate font-medium">slash.cash</span>
                   <span className="truncate text-xs">Personal Finance</span>
                 </div>
               </a>

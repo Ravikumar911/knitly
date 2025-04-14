@@ -1,4 +1,4 @@
-import { logger, task, wait, configure } from "@trigger.dev/sdk/v3";
+import { logger, task, wait, configure, batch } from "@trigger.dev/sdk/v3";
 import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, extractEmailMetadata, buildGmailSearchQuery, extractAttachments } from "../utils";
 import { finwiseAIAgent } from "../agents/finwiseAI";
 import { processAttachments } from "../utils/emailStorage";
@@ -18,14 +18,17 @@ configure({
   secretKey: process.env.TRIGGER_SECRET_KEY,
 });
 
+// Constants for optimization
+const BATCH_SIZE = 20; // Process 20 emails per batch
+const MAX_CONCURRENT_BATCHES = 5; // Run 5 batches in parallel
+const RATE_LIMIT_DELAY = 0.1; // 0.1 seconds delay between API calls
 
 /**
- * Task that processes emails from Gmail with pagination support
- * Uses Google OAuth to access the Gmail API and process messages
+ * Worker task that processes a batch of emails
  */
-export const processEmails = task({
-  id: "process-emails",
-  maxDuration: 18000, // Stop executing after 30 mins of compute
+export const processEmailBatch = task({
+  id: "process-email-batch",
+  maxDuration: 1800, // 30 mins per batch
   retry: {
     maxAttempts: 3,
     factor: 2,
@@ -34,8 +37,159 @@ export const processEmails = task({
   },
   run: async (payload: {
     userId: string;
-    syncPeriodDays?: number; // Specify sync period in days (default: 90)
-  }, { ctx }) => {
+    providerToken: string;
+    messages: Array<{id: string; threadId?: string}>;
+  }) => {
+    const stats = {
+      processedCount: 0,
+      skippedCount: 0,
+      errorCount: 0,
+      totalFound: payload.messages.length
+    };
+
+    // Process messages in batch
+    for (const messageInfo of payload.messages) {
+      try {
+        // Skip already processed emails
+        const alreadyProcessed = await isEmailProcessed(payload.userId, messageInfo.id);
+        if (alreadyProcessed) {
+          stats.skippedCount++;
+          continue;
+        }
+
+        // Fetch message with rate limiting
+        await wait.for({ seconds: RATE_LIMIT_DELAY });
+        const messageData = await fetchGmailMessage(payload.providerToken, messageInfo.id);
+        
+        if (!messageData) {
+          stats.errorCount++;
+          continue;
+        }
+
+        // Extract and process message data
+        const metadata = extractEmailMetadata(messageData);
+        const emailBody = extractEmailBody(messageData);
+        const attachments = extractAttachments(messageData);
+
+        // Process attachments if present
+        let attachmentStoragePaths: string[] | null = null;
+        let processedAttachments: Array<{
+          filename: string;
+          mimeType: string;
+          content: string;
+        }> | undefined = undefined;
+
+        if (attachments.length > 0) {
+          const attachmentResult = await processAttachments(
+            payload.userId,
+            messageInfo.id,
+            payload.providerToken,
+            attachments
+          );
+
+          if (attachmentResult) {
+            attachmentStoragePaths = attachmentResult.storagePaths;
+            processedAttachments = attachmentResult.processedAttachments;
+          }
+        }
+
+        // Process with AI
+        const finwiseAnalysis = await finwiseAIAgent({
+          userId: payload.userId,
+          threadId: messageData.threadId || '',
+          subject: metadata.subject,
+          from: metadata.from,
+          date: metadata.date,
+          body: emailBody,
+          attachments: processedAttachments
+        });
+
+        // Store email data
+        const storedEmail = await storeEmailData({
+          threadId: messageData.threadId || null,
+          userId: payload.userId,
+          subject: metadata.subject || null,
+          senderEmailId: metadata.from || null,  
+          receivedDate: metadata.receivedDate || new Date(),
+          snippet: metadata.snippet || null,
+          parseSuccess: finwiseAnalysis.parseSuccess || null,
+          parseErrors: finwiseAnalysis.parseErrors?.join(', ') || null,
+          rawContent: emailBody || '',
+          attachmentStoragePath: attachmentStoragePaths ? JSON.stringify(attachmentStoragePaths) : null,
+          sender: metadata.from || null,
+          parsedAt: new Date()
+        });
+
+        if (!storedEmail || storedEmail.length === 0) {
+          stats.errorCount++;
+          continue;
+        }
+
+        // Store transaction if detected
+        if (finwiseAnalysis.parseSuccess && finwiseAnalysis.transaction) {
+          const transaction = finwiseAnalysis.transaction;
+          const parsedEmailId = storedEmail[0]?.id;
+
+          if (parsedEmailId && !['INVOICE', 'MANDATE_REQUEST'].includes(finwiseAnalysis.emailType)) {
+            await storeTransactionData({
+              userId: payload.userId,
+              parsedEmailId,
+              amount: transaction.amount || 0,
+              currency: transaction.currency || 'INR',
+              type: transaction.type || 'DEBIT',
+              status: transaction.status || 'COMPLETED',
+              transactionDate: transaction.transactionDate ? new Date(transaction.transactionDate) : metadata.receivedDate,
+              valueDate: null,
+              description: transaction.description || '',
+              notes: null,
+              category: transaction.category || null,
+              merchantId: null,
+              merchantName: transaction.merchantName || null,
+              merchantCategory: transaction.merchantCategory || null,
+              instrumentId: null,
+              orderId: transaction.orderId || null,
+              orderItems: transaction.orderItems || null,
+              deliveryAddress: transaction.deliveryAddress || null,
+              paymentMethod: transaction.paymentMethod || null,
+              referenceIds: transaction.referenceIds || {},
+              location: transaction.location || null,
+              isVerified: false,
+              verificationStatus: 'UNVERIFIED',
+              aiAnalysisId: null
+            });
+          }
+        }
+
+        stats.processedCount++;
+      } catch (error) {
+        logger.error("Error processing message in batch", {
+          messageId: messageInfo.id,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        stats.errorCount++;
+      }
+    }
+
+    return stats;
+  }
+});
+
+/**
+ * Main coordinator task that splits emails into batches and processes them in parallel
+ */
+export const processEmails = task({
+  id: "process-emails",
+  maxDuration: 3600, // 1 hour total
+  retry: {
+    maxAttempts: 3,
+    factor: 2,
+    minTimeoutInMs: 1000,
+    maxTimeoutInMs: 10000,
+  },
+  run: async (payload: {
+    userId: string;
+    syncPeriodDays?: number;
+  }) => {
     const syncPeriodDays = payload.syncPeriodDays || 90;
     
     logger.log("Starting email sync", { 
@@ -44,26 +198,17 @@ export const processEmails = task({
     });
     
     try {
-      // Step 1: Get active email patterns to build search query
+      // Step 1: Initial setup
       const patterns = await getEmailExtractionPatterns();
       const searchQuery = await buildGmailSearchQuery(patterns);
       
-      // Step 2: Determine sync period
       const lastSyncTime = await getLastSyncTime(payload.userId);
       const startDate = lastSyncTime || new Date(Date.now() - (syncPeriodDays * 24 * 60 * 60 * 1000));
       const isFirstSync = !lastSyncTime;
       
-      logger.log("Starting email sync", { 
-        userId: payload.userId,
-        syncPeriodDays,
-        startDate: startDate.toISOString(),
-        isFirstSync
-      });
-      
-      // Mark sync as in progress
       await markSyncInProgress(payload.userId);
       
-      // Step 3: Refresh the provider token for authentication
+      // Step 2: Get provider token
       const providerToken = await refreshGoogleToken(payload.userId);
       if (!providerToken) {
         await markSyncFailed(payload.userId, "Failed to refresh provider token");
@@ -73,230 +218,88 @@ export const processEmails = task({
           error: "PROVIDER_TOKEN_REFRESH_FAILED"
         };
       }
-      
-      // Step 4: Fetch Gmail messages with date filter and search query
-      let allStats = {
-        processedCount: 0,
-        skippedCount: 0,
-        errorCount: 0,
-        totalFound: 0
-      };
-      
-      let currentPageToken = null;
-      
+
+      // Step 3: Fetch all messages first
+      let allMessages: Array<{id: string; threadId?: string}> = [];
+      let nextPageToken = null;
+
       while (true) {
         const gmailData = await fetchGmailMessages(providerToken, {
           after: startDate,
           before: new Date(),
-          pageToken: currentPageToken || undefined,
+          pageToken: nextPageToken || undefined,
           query: searchQuery || undefined
         });
-        
+
         if (!gmailData) {
           await markSyncFailed(payload.userId, "Failed to fetch Gmail messages");
-          return {
-            success: false, 
-            message: "Failed to fetch Gmail messages",
-            error: "GMAIL_FETCH_FAILED"
-          };
+          return { success: false, message: "Failed to fetch Gmail messages", error: "GMAIL_FETCH_FAILED" };
         }
-        
-        // No messages found in this page
-        if (!gmailData.messages || gmailData.messages.length === 0) {
-          logger.log("No messages found to process in current page");
-          
-          if (!gmailData.nextPageToken) {
-            await markSyncComplete(payload.userId);
-            break;
-          }
-          currentPageToken = gmailData.nextPageToken;
-          continue;
+
+        if (gmailData.messages) {
+          // Ensure we only take messages with valid IDs
+          const validMessages = gmailData.messages
+            .filter((msg): msg is {id: string; threadId?: string} => 
+              typeof msg.id === 'string'
+            );
+          allMessages = [...allMessages, ...validMessages];
         }
-        
-        // Step 5: Process messages
-        const stats = {
-          processedCount: 0,
-          skippedCount: 0,
-          errorCount: 0,
-          totalFound: gmailData.messages.length
-        };
-        
-        for (const messageInfo of gmailData.messages) {
-          if (!messageInfo.id) {
-            logger.error("Skipping message with no ID", { message: messageInfo });
-            stats.skippedCount++;
-            continue;
-          }
-          try {
-            // Step 5a: Skip already processed emails
-            const alreadyProcessed = await isEmailProcessed(payload.userId, messageInfo.id);
-            if (alreadyProcessed) {
-              logger.log("Skipping already processed email", { messageId: messageInfo.id });
-              stats.skippedCount++;
-              continue;
-            }
-            
-            // Step 5b: Fetch message details
-            const messageData = await fetchGmailMessage(providerToken, messageInfo.id);
-            
-            if (!messageData) {
-              logger.error("Failed to fetch message details", { messageId: messageInfo.id });
-              stats.errorCount++;
-              continue;
-            }
-            
-            // Step 5c: Extract message metadata and check for attachments
-            const metadata = extractEmailMetadata(messageData);
-            const emailBody = extractEmailBody(messageData);
-            const attachments = extractAttachments(messageData);
-            
-            // Step 5d: Process attachments if present
-            let attachmentStoragePaths: string[] | null = null;
-            let processedAttachments: Array<{
-              filename: string;
-              mimeType: string;
-              content: string;
-            }> | undefined = undefined;
-            
-            if (attachments.length > 0) {
-              const attachmentResult = await processAttachments(
-                payload.userId,
-                messageInfo.id || '',
-                providerToken,
-                attachments
-              );
-              
-              if (!attachmentResult) {
-                logger.error("Failed to process attachments", {
-                  messageId: messageInfo.id,
-                  attachmentCount: attachments.length
-                });
-              } else {
-                attachmentStoragePaths = attachmentResult.storagePaths;
-                processedAttachments = attachmentResult.processedAttachments;
-              }
-            }
-            
-            // Step 5e: Process with AI
-            const finwiseAnalysis = await finwiseAIAgent({
-              userId: payload.userId,
-              threadId: messageData.threadId || '',
-              subject: metadata.subject,
-              from: metadata.from,
-              date: metadata.date,
-              body: emailBody,
-              attachments: processedAttachments
-            });
-            
-            // Step 5f: Store email data
-            const storedEmail = await storeEmailData({
-              threadId: messageData.threadId || null,
-              userId: payload.userId,
-              subject: metadata.subject || null,
-              senderEmailId: metadata.from || null,  
-              receivedDate: metadata.receivedDate || new Date(),
-              snippet: metadata.snippet || null,
-              parseSuccess: finwiseAnalysis.parseSuccess || null,
-              parseErrors: finwiseAnalysis.parseErrors?.join(', ') || null,
-              rawContent: emailBody || '',
-              attachmentStoragePath: attachmentStoragePaths ? JSON.stringify(attachmentStoragePaths) : null,
-              sender: metadata.from || null,
-              parsedAt: new Date()
-            });
-            
-            if (!storedEmail || storedEmail.length === 0) {
-              logger.warn("Failed to store email", { messageId: messageInfo.id });
-              stats.errorCount++;
-              continue;
-            }
-            
-            // Step 5g: Store transaction data if detected
-            if (finwiseAnalysis.parseSuccess && finwiseAnalysis.transaction) {
-              const transaction = finwiseAnalysis.transaction;
-              const parsedEmailId = storedEmail[0]?.id;
-              
-              if (parsedEmailId) {
-                await storeTransactionData({
-                  userId: payload.userId,
-                  parsedEmailId,
-                  amount: transaction.amount || 0,
-                  currency: transaction.currency || 'INR',
-                  type: transaction.type || 'DEBIT',
-                  status: transaction.status || 'COMPLETED',
-                  transactionDate: transaction.transactionDate ? new Date(transaction.transactionDate) : metadata.receivedDate,
-                  valueDate: null,
-                  description: transaction.description || '',
-                  notes: null,
-                  category: transaction.category || null,
-                  merchantId: null,
-                  merchantName: transaction.merchantName || null,
-                  merchantCategory: transaction.merchantCategory || null,
-                  instrumentId: null,
-                  orderId: transaction.orderId || null,
-                  orderItems: transaction.orderItems || null,
-                  deliveryAddress: transaction.deliveryAddress || null,
-                  paymentMethod: transaction.paymentMethod || null,
-                  referenceIds: transaction.referenceIds || {},
-                  location: transaction.location || null,
-                  isVerified: false,
-                  verificationStatus: 'UNVERIFIED',
-                  aiAnalysisId: null
-                }).catch(error => {
-                  logger.error("Error storing transaction", {
-                    messageId: messageInfo.id,
-                    error: error instanceof Error ? error.message : String(error)
-                  });
-                });
-              } else {
-                logger.error("Cannot store transaction, missing parsed email ID", {
-                  messageId: messageInfo.id
-                });
-              }
-            }
-            
-            stats.processedCount++;
-            
-            // Add a small delay between processing messages to avoid rate limits
-            await wait.for({ seconds: 1 });
-          } catch (error) {
-            logger.error("Error processing message", {
-              messageId: messageInfo.id,
-              error: error instanceof Error ? error.message : String(error)
-            });
-            stats.errorCount++;
-          }
-        }
-        
-        // Accumulate stats from this page
-        allStats.processedCount += stats.processedCount;
-        allStats.skippedCount += stats.skippedCount;
-        allStats.errorCount += stats.errorCount;
-        allStats.totalFound += stats.totalFound;
-        
-        // Check if we have more pages
-        if (!gmailData.nextPageToken) {
-          break;
-        }
-        
-        // Update token for next iteration
-        currentPageToken = gmailData.nextPageToken;
-        
-        // Add a small delay between pages to avoid rate limits
-        await wait.for({ seconds: 2 });
+
+        if (!gmailData.nextPageToken) break;
+        nextPageToken = gmailData.nextPageToken;
+        await wait.for({ seconds: RATE_LIMIT_DELAY });
       }
-      
-      // Step 6: Update the last sync time
+
+      // Step 4: Split messages into batches and process in parallel
+      const batches = [];
+      for (let i = 0; i < allMessages.length; i += BATCH_SIZE) {
+        const batchMessages = allMessages.slice(i, i + BATCH_SIZE);
+        batches.push({
+          task: processEmailBatch,
+          payload: {
+            userId: payload.userId,
+            providerToken,
+            messages: batchMessages
+          }
+        });
+      }
+
+      // Process batches in parallel with concurrency limit
+      const results = [];
+      for (let i = 0; i < batches.length; i += MAX_CONCURRENT_BATCHES) {
+        const batchSlice = batches.slice(i, i + MAX_CONCURRENT_BATCHES);
+        const batchResults = await batch.triggerByTaskAndWait(batchSlice);
+        results.push(...batchResults.runs);
+      }
+
+      // Aggregate results
+      const totalStats = {
+        processedCount: 0,
+        skippedCount: 0,
+        errorCount: 0,
+        totalFound: allMessages.length
+      };
+
+      for (const result of results) {
+        if (result.ok) {
+          totalStats.processedCount += result.output.processedCount;
+          totalStats.skippedCount += result.output.skippedCount;
+          totalStats.errorCount += result.output.errorCount;
+        }
+      }
+
+      // Update sync time and complete
       await updateLastSyncTime(payload.userId, new Date());
-      
+      await markSyncComplete(payload.userId);
+
       return {
         success: true,
-        message: `Processed ${allStats.processedCount} emails, skipped ${allStats.skippedCount} already processed emails, encountered ${allStats.errorCount} errors, out of ${allStats.totalFound} total emails found since ${startDate.toISOString()}`,
-        ...allStats,
+        message: `Processed ${totalStats.processedCount} emails, skipped ${totalStats.skippedCount} already processed emails, encountered ${totalStats.errorCount} errors, out of ${totalStats.totalFound} total emails found since ${startDate.toISOString()}`,
+        ...totalStats,
         syncStartDate: startDate,
-        isFirstSync,
-        hasMorePages: false,
-        nextPageToken: null
+        isFirstSync
       };
+
     } catch (error) {
       logger.error("Critical error in email processing", {
         userId: payload.userId,
@@ -313,7 +316,7 @@ export const processEmails = task({
         errorType: "CRITICAL_PROCESSING_ERROR"
       };
     }
-  },
+  }
 });
 
 
