@@ -2,7 +2,8 @@
   "name": "@workspace/tasks",
   "scripts": {
     "build": "tsc",
-    "dev": "pnpm dlx trigger.dev@latest dev"
+    "dev": "pnpm dlx trigger.dev@latest dev",
+    "deploy": "pnpm dlx trigger.dev@latest deploy"
   },
   "exports": {
     "./trigger/*": "./src/trigger/*.ts"
