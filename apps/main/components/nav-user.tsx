@@ -8,6 +8,7 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 import {
   Avatar,
@@ -40,10 +41,11 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
-
-  const handleLogout = () => {
+  const router = useRouter()
+  const handleLogout = async () => {
     const supabase = createClient()
-    supabase.auth.signOut()
+    await supabase.auth.signOut()
+    router.push("/login") 
   }
 
   return (
