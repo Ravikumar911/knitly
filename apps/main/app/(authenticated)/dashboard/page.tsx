@@ -39,13 +39,13 @@ export default function Page() {
             <DailySpendingCardWrapper />
           </Suspense>
         </div>
-        <div className="grid grid-rows-1 gap-4 md:grid-cols-4">
+        <div className="grid grid-rows-1 gap-4 md:grid-cols-4 ">
           <Suspense
             fallback={
               <div className="bg-muted/50 h-[400px] rounded-xl animate-pulse col-span-2" />
             }
           >
-            <div className="col-span-2">
+            <div className="col-span-2 md:col-span-2 sm:col-span-4">
               <SpendingByDayChart />
             </div>
           </Suspense>

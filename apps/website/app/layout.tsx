@@ -85,7 +85,9 @@ export default function RootLayout({
                 </NavigationMenu>
               </div>
               <div className="flex items-center gap-4">
-                <Button variant="ghost" size="sm" className="h-9">Sign In</Button>
+                <a href="https://app.slash.cash" target="_blank" rel="noopener noreferrer">
+                  <Button variant="ghost" size="sm" className="h-9">Sign In</Button>
+                </a>
                 <Button size="sm" className="h-9">Join Beta</Button>
               </div>
             </nav>
