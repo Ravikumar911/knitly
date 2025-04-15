@@ -124,142 +124,202 @@ export default function HomePage() {
           <div className="absolute inset-0 hero-gradient opacity-40" />
           <div className="relative z-10 max-w-[900px] mx-auto text-center">
             <Badge variant="secondary" className="mb-6 text-sm px-4 py-1">
-              The Smarter Way to Save
+              Your AI Finance Assistant
             </Badge>
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-4 bg-clip-text text-transparent bg-gradient-to-b from-primary to-foreground/80">
-              Slash Your Spendings
+              Slash Your Spendings. Save Smarter.
             </h1>
             <h2 className="text-2xl md:text-3xl font-semibold text-primary mb-6">
-              Track. Slash. Celebrate. Repeat.
+              Your AI-powered finance assistant that reads your emails, tracks your credit card transactions, flags hidden subscriptions, and shows you where your money is leaking—so you can spend smarter and live better.
             </h2>
-            <p className="text-xl md:text-2xl text-muted-foreground max-w-[600px] mx-auto mb-8">
-              Tired of money leaks? Slash automatically tracks your Food, Groceries, Travel, and Subscriptions—so you can cut the waste and keep more cash in your pocket.
-            </p>
             <div className="flex items-center justify-center gap-4 mb-4">
-              <Button size="lg" className="h-12 px-8">Start Slashing Free</Button>
-              <Button size="lg" variant="outline" className="h-12 px-8">See Slash in Action</Button>
+              <Button size="lg" className="h-12 px-8">Get Early Access for Free →</Button>
+              <Button size="lg" variant="outline" className="h-12 px-8">Watch Demo →</Button>
             </div>
-            <div className="text-sm text-muted-foreground font-medium">No credit card required. Get started in under 60 seconds.</div>
+            <div className="text-sm text-muted-foreground font-medium mb-8">No credit card required</div>
+            {/* Hero Imagery Placeholder */}
+            <div className="flex justify-center mt-8">
+              <img
+                src="/hero-illustration.png"
+                alt="Person cutting a credit card bill in half or dashboard screenshot"
+                className="w-full max-w-xl rounded-xl shadow-lg object-cover"
+                loading="lazy"
+                style={{ aspectRatio: '16/9' }}
+              />
+            </div>
           </div>
         </section>
 
-        {/* Why Slash Section */}
-        <section className="py-12 bg-background">
+        {/* How Slash Works */}
+        <section className="py-16 bg-muted/30">
           <div className="max-w-[1100px] mx-auto px-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-10">Why Slash?</h2>
-            <div className="grid md:grid-cols-4 gap-6 text-center">
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">How Slash Works</h2>
+            <div className="grid md:grid-cols-4 gap-8">
+              <Card className="bg-background/60">
+                <CardHeader>
+                  <CardTitle className="text-xl">1. Connect Your Gmail (Securely)</CardTitle>
+                </CardHeader>
+                <CardContent className="text-muted-foreground text-sm">
+                  Slash uses OAuth 2.0 to request read-only access to financial emails.<br />
+                  Only scans transactional data (banks, UPI, wallets, credit cards, subscriptions).<br />
+                  No personal or non-financial emails are accessed.
+                </CardContent>
+              </Card>
+              <Card className="bg-background/60">
+                <CardHeader>
+                  <CardTitle className="text-xl">2. AI Parses and Categorizes Everything</CardTitle>
+                </CardHeader>
+                <CardContent className="text-muted-foreground text-sm">
+                  Merchant and category classification (e.g. Zomato → Food & Dining).<br />
+                  Supports multiple banks, wallets, and credit cards.<br />
+                  Smart deduplication prevents double-counting.
+                </CardContent>
+              </Card>
+              <Card className="bg-background/60">
+                <CardHeader>
+                  <CardTitle className="text-xl">3. Real-Time Finance Dashboard</CardTitle>
+                </CardHeader>
+                <CardContent className="text-muted-foreground text-sm">
+                  Visualize monthly burn, top spend categories, and category-wise split.<br />
+                  EMI, interest payments, and credit card due dates highlighted.<br />
+                  Trends, warnings, and comparisons.
+                </CardContent>
+              </Card>
+              <Card className="bg-background/60">
+                <CardHeader>
+                  <CardTitle className="text-xl">4. Ask Slash Anything</CardTitle>
+                </CardHeader>
+                <CardContent className="text-muted-foreground text-sm">
+                  Chat interface for questions like:<br />
+                  "How much did I spend on food last month?"<br />
+                  "Which subscriptions are active?"<br />
+                  "How much interest am I paying in total?"<br />
+                  Slash replies with accurate, data-backed answers.
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* Key Features */}
+        <section className="py-16 bg-background">
+          <div className="max-w-[1100px] mx-auto px-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Key Features</h2>
+            <div className="grid md:grid-cols-4 gap-8 text-center">
               <div>
-                <span className="text-4xl">⚡️</span>
-                <h3 className="font-semibold mt-2 mb-1">Instant Insights</h3>
-                <p className="text-muted-foreground text-sm">See where your money goes—no spreadsheets, no stress.</p>
+                <span className="text-4xl">🔄</span>
+                <h3 className="font-semibold mt-2 mb-1">Email-Based Spend Tracking</h3>
+                <p className="text-muted-foreground text-sm">No need to enter expenses manually. Slash reads your financial emails for you.</p>
               </div>
               <div>
                 <span className="text-4xl">🧠</span>
-                <h3 className="font-semibold mt-2 mb-1">Smart Categorization</h3>
-                <p className="text-muted-foreground text-sm">Slash sorts your spendings for you. Food, travel, subscriptions—done!</p>
+                <h3 className="font-semibold mt-2 mb-1">Smart Spend Insights</h3>
+                <p className="text-muted-foreground text-sm">Detects hidden fees, late charges, and flags savings opportunities.</p>
               </div>
               <div>
-                <span className="text-4xl">🔔</span>
-                <h3 className="font-semibold mt-2 mb-1">Subscription Alerts</h3>
-                <p className="text-muted-foreground text-sm">Never get surprised by a forgotten subscription again.</p>
+                <span className="text-4xl">🔍</span>
+                <h3 className="font-semibold mt-2 mb-1">Duplicate Charge Detector</h3>
+                <p className="text-muted-foreground text-sm">Fuzzy matching and merchant normalization to avoid over-reporting spends.</p>
               </div>
               <div>
-                <span className="text-4xl">🎉</span>
-                <h3 className="font-semibold mt-2 mb-1">Celebrate Savings</h3>
-                <p className="text-muted-foreground text-sm">Watch your savings grow and treat yourself—guilt free!</p>
+                <span className="text-4xl">💬</span>
+                <h3 className="font-semibold mt-2 mb-1">AI Chat for Finance</h3>
+                <p className="text-muted-foreground text-sm">Ask your data anything. Slash responds in natural language with real insights.</p>
+              </div>
+              <div>
+                <span className="text-4xl">📅</span>
+                <h3 className="font-semibold mt-2 mb-1">Subscription Tracker</h3>
+                <p className="text-muted-foreground text-sm">Detects active subscriptions, shows renewal dates, and notifies before charges.</p>
+              </div>
+              <div>
+                <span className="text-4xl">⚠️</span>
+                <h3 className="font-semibold mt-2 mb-1">Overspend Alerts</h3>
+                <p className="text-muted-foreground text-sm">Set monthly limits and get alerted when you breach a threshold.</p>
+              </div>
+              <div>
+                <span className="text-4xl">📈</span>
+                <h3 className="font-semibold mt-2 mb-1">Timeline View</h3>
+                <p className="text-muted-foreground text-sm">Visual trend of spending across 3, 6, or 12 months. See if you're improving.</p>
+              </div>
+              <div>
+                <span className="text-4xl">🔐</span>
+                <h3 className="font-semibold mt-2 mb-1">Private and Secure</h3>
+                <p className="text-muted-foreground text-sm">No third-party tracking, no ads, no reselling data. Bank-level encryption.</p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Category Highlights */}
+        {/* Who Is Slash For? */}
         <section className="py-16 bg-muted/30">
-          <div className="max-w-[1100px] mx-auto px-4">
-            <h2 className="text-3xl font-bold text-center mb-12">Track What Matters Most</h2>
-            <div className="grid md:grid-cols-3 gap-8">
-              <Card className="bg-background/60">
-                <CardHeader>
-                  <CardTitle className="text-xl">Food & Groceries</CardTitle>
-                </CardHeader>
-                <CardContent className="text-muted-foreground">
-                  Slash auto-detects your food delivery and grocery spend. No more guessing where your money went.
-                </CardContent>
-              </Card>
-              <Card className="bg-background/60">
-                <CardHeader>
-                  <CardTitle className="text-xl">Travel & Transport</CardTitle>
-                </CardHeader>
-                <CardContent className="text-muted-foreground">
-                  From cabs to flights, Slash keeps your travel and commute costs crystal clear.
-                </CardContent>
-              </Card>
-              <Card className="bg-background/60">
-                <CardHeader>
-                  <CardTitle className="text-xl">Subscriptions</CardTitle>
-                </CardHeader>
-                <CardContent className="text-muted-foreground">
-                  See every recurring charge in one place. Cancel, keep, or renegotiate—your call!
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </section>
-
-        {/* How It Works Section */}
-        <section className="py-20 md:py-32">
-          <div className="max-w-[1100px] mx-auto px-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
-              How Slash Works
-            </h2>
-            <div className="grid md:grid-cols-3 gap-12">
-              <div className="text-center">
-                <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold mx-auto mb-6">1</div>
-                <h3 className="text-xl font-semibold mb-4">Connect & Relax</h3>
-                <p className="text-muted-foreground">Link your accounts or import statements. Slash does the rest—automatically.</p>
+          <div className="max-w-[900px] mx-auto px-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-10">Who Is Slash For?</h2>
+            <div className="grid md:grid-cols-4 gap-8 text-center">
+              <div>
+                <span className="text-4xl">📱</span>
+                <h3 className="font-semibold mt-2 mb-1">Young professionals</h3>
+                <p className="text-muted-foreground text-sm">Who want to save smarter</p>
               </div>
-              <div className="text-center">
-                <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold mx-auto mb-6">2</div>
-                <h3 className="text-xl font-semibold mb-4">See the Leaks</h3>
-                <p className="text-muted-foreground">Instantly spot where your money is slipping away—by category, merchant, or time.</p>
+              <div>
+                <span className="text-4xl">💳</span>
+                <h3 className="font-semibold mt-2 mb-1">Credit card users</h3>
+                <p className="text-muted-foreground text-sm">With high monthly spends</p>
               </div>
-              <div className="text-center">
-                <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold mx-auto mb-6">3</div>
-                <h3 className="text-xl font-semibold mb-4">Slash & Celebrate</h3>
-                <p className="text-muted-foreground">Cut the waste, keep the joy. Watch your savings grow and celebrate every win!</p>
+              <div>
+                <span className="text-4xl">📦</span>
+                <h3 className="font-semibold mt-2 mb-1">Subscription-heavy users</h3>
+                <p className="text-muted-foreground text-sm">Netflix, Spotify, etc.</p>
+              </div>
+              <div>
+                <span className="text-4xl">💼</span>
+                <h3 className="font-semibold mt-2 mb-1">Founders & freelancers</h3>
+                <p className="text-muted-foreground text-sm">Juggling multiple payments</p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Testimonials Section */}
-        <section className="py-20 md:py-32 bg-muted/30">
-          <div className="max-w-[1100px] mx-auto px-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
-              Real People, Real Savings
-            </h2>
-            <Carousel className="w-full max-w-xl mx-auto">
+        {/* Testimonials */}
+        <section className="py-16 bg-background">
+          <div className="max-w-[900px] mx-auto px-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-10">Testimonials</h2>
+            <Carousel>
               <CarouselContent>
                 <CarouselItem>
-                  <div className="text-center p-6">
-                    <Avatar className="w-20 h-20 mx-auto mb-4">
-                      <AvatarImage src="https://i.pravatar.cc/150?img=11" alt="Alex Morgan avatar" />
-                      <AvatarFallback>AM</AvatarFallback>
-                    </Avatar>
-                    <p className="text-lg mb-4">“Slash showed me I was spending ₹2,000 a month on subscriptions I never used. Now I'm saving for a weekend getaway!”</p>
-                    <p className="font-semibold">Alex Morgan</p>
-                    <p className="text-sm text-muted-foreground">Designer & Serial Saver</p>
-                  </div>
+                  <Card className="bg-background/60">
+                    <CardContent className="flex flex-col items-center py-8">
+                      <Avatar className="mb-4 w-16 h-16">
+                        <AvatarImage src="/avatars/aarav.png" alt="Aarav" />
+                        <AvatarFallback>AR</AvatarFallback>
+                      </Avatar>
+                      <div className="text-lg font-medium mb-2">"I had 12 subscriptions I didn't even realize were active. Slash saved me ₹9,000+ in two months."</div>
+                      <div className="text-muted-foreground text-sm">— Aarav, Hyderabad</div>
+                    </CardContent>
+                  </Card>
                 </CarouselItem>
                 <CarouselItem>
-                  <div className="text-center p-6">
-                    <Avatar className="w-20 h-20 mx-auto mb-4">
-                      <AvatarImage src="https://i.pravatar.cc/150?img=12" alt="Riya Shah avatar" />
-                      <AvatarFallback>RS</AvatarFallback>
-                    </Avatar>
-                    <p className="text-lg mb-4">“I never realized how much my daily coffee runs added up. Slash made it obvious—and now I treat myself, guilt-free!”</p>
-                    <p className="font-semibold">Riya Shah</p>
-                    <p className="text-sm text-muted-foreground">Product Manager</p>
-                  </div>
+                  <Card className="bg-background/60">
+                    <CardContent className="flex flex-col items-center py-8">
+                      <Avatar className="mb-4 w-16 h-16">
+                        <AvatarImage src="/avatars/meena.png" alt="Meena" />
+                        <AvatarFallback>MN</AvatarFallback>
+                      </Avatar>
+                      <div className="text-lg font-medium mb-2">"Slash helped me understand my true credit card interest cost. I immediately switched to EMI conversion."</div>
+                      <div className="text-muted-foreground text-sm">— Meena, Mumbai</div>
+                    </CardContent>
+                  </Card>
+                </CarouselItem>
+                <CarouselItem>
+                  <Card className="bg-background/60">
+                    <CardContent className="flex flex-col items-center py-8">
+                      <Avatar className="mb-4 w-16 h-16">
+                        <AvatarImage src="/avatars/rahul.png" alt="Rahul" />
+                        <AvatarFallback>RH</AvatarFallback>
+                      </Avatar>
+                      <div className="text-lg font-medium mb-2">"Now I ask Slash every week—'where did my money go?' and it tells me with brutal honesty."</div>
+                      <div className="text-muted-foreground text-sm">— Rahul, Bengaluru</div>
+                    </CardContent>
+                  </Card>
                 </CarouselItem>
               </CarouselContent>
               <CarouselPrevious />
@@ -268,29 +328,67 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Micro-CTA Section */}
-        <section className="py-8 bg-primary/10">
-          <div className="max-w-[700px] mx-auto px-4 text-center">
-            <h3 className="text-2xl font-bold mb-2">Start Saving in Seconds</h3>
-            <p className="text-lg text-muted-foreground mb-4">Sign up, connect, and watch your savings grow. It's that easy.</p>
-            <Button size="lg" className="h-12 px-8">
-              Start Slashing Now
-            </Button>
+        {/* Pricing */}
+        <section className="py-16 bg-muted/30">
+          <div className="max-w-[1100px] mx-auto px-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-center mb-10">Pricing (Launch Phase)</h2>
+            <div className="grid md:grid-cols-3 gap-8">
+              <Card className="bg-background/60">
+                <CardHeader>
+                  <CardTitle className="text-xl">Free Plan</CardTitle>
+                </CardHeader>
+                <CardContent className="text-muted-foreground text-sm">
+                  Track last 90 days of email-based transactions<br />
+                  Access to all insights & chatbot
+                </CardContent>
+              </Card>
+              <Card className="bg-background/60">
+                <CardHeader>
+                  <CardTitle className="text-xl">Pro Plan (Coming Soon)</CardTitle>
+                </CardHeader>
+                <CardContent className="text-muted-foreground text-sm">
+                  ₹99/month<br />
+                  Full 1-year spend history<br />
+                  Multi-email account support<br />
+                  Export reports
+                </CardContent>
+              </Card>
+              <Card className="bg-background/60">
+                <CardHeader>
+                  <CardTitle className="text-xl">Lifetime (One-time Offer)</CardTitle>
+                </CardHeader>
+                <CardContent className="text-muted-foreground text-sm">
+                  ₹999 — Pay once, own forever<br />
+                  All Pro features included
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-20 md:py-32 bg-muted/40">
+        {/* Final Call to Action */}
+        <section className="py-16 bg-background">
           <div className="max-w-[700px] mx-auto px-4 text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Slash Your Spendings?</h2>
-            <p className="text-xl text-muted-foreground mb-8">
-              Join thousands who are saving more and spending smarter with Slash.
-            </p>
-            <Button size="lg" className="h-12 px-8">
-              Get Started Free
-            </Button>
+            <h2 className="text-3xl md:text-4xl font-bold mb-6">Take control of your money. Slash unnecessary spend.</h2>
+            <Button size="lg" className="h-12 px-8 text-lg">👉 Join the Waitlist → slash.cash</Button>
           </div>
         </section>
+
+        {/* SEO Footer Content */}
+        <footer className="py-8 bg-muted/40 mt-auto">
+          <div className="max-w-[1100px] mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            <nav className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-2 md:mb-0">
+              <a href="/" className="hover:underline">Home</a>
+              <a href="#features" className="hover:underline">Features</a>
+              <a href="#blog" className="hover:underline">Blog</a>
+              <a href="#contact" className="hover:underline">Contact</a>
+              <a href="#privacy" className="hover:underline">Privacy Policy</a>
+              <a href="#terms" className="hover:underline">Terms of Service</a>
+              <a href="/spending-psychology" className="hover:underline">Spending Psychology</a>
+            </nav>
+            <div className="text-xs text-muted-foreground">© 2025 Slash. Built with 💰 in India.</div>
+          </div>
+        </footer>
       </div>
     </>
   )
