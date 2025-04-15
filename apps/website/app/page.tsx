@@ -2,11 +2,8 @@ import { Metadata } from "next"
 import { Button } from "@workspace/ui/components/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Badge } from "@workspace/ui/components/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@workspace/ui/components/carousel"
-import { Alert, AlertDescription } from "@workspace/ui/components/alert"
-import { Progress } from "@workspace/ui/components/progress"
 import Head from "next/head"
 
 export const metadata: Metadata = {
@@ -140,7 +137,7 @@ export default function HomePage() {
             {/* Hero Imagery Placeholder */}
             <div className="flex justify-center mt-8">
               <img
-                src="/hero-illustration.png"
+                src="images/hero-illustration.png"
                 alt="Person cutting a credit card bill in half or dashboard screenshot"
                 className="w-full max-w-xl rounded-xl shadow-lg object-cover"
                 loading="lazy"
@@ -373,22 +370,6 @@ export default function HomePage() {
             <Button size="lg" className="h-12 px-8 text-lg">👉 Join the Waitlist → slash.cash</Button>
           </div>
         </section>
-
-        {/* SEO Footer Content */}
-        <footer className="py-8 bg-muted/40 mt-auto">
-          <div className="max-w-[1100px] mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-            <nav className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-2 md:mb-0">
-              <a href="/" className="hover:underline">Home</a>
-              <a href="#features" className="hover:underline">Features</a>
-              <a href="#blog" className="hover:underline">Blog</a>
-              <a href="#contact" className="hover:underline">Contact</a>
-              <a href="#privacy" className="hover:underline">Privacy Policy</a>
-              <a href="#terms" className="hover:underline">Terms of Service</a>
-              <a href="/spending-psychology" className="hover:underline">Spending Psychology</a>
-            </nav>
-            <div className="text-xs text-muted-foreground">© 2025 Slash. Built with 💰 in India.</div>
-          </div>
-        </footer>
       </div>
     </>
   )

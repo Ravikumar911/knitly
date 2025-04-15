@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/componen
 import { Badge } from "@workspace/ui/components/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
 import { Progress } from "@workspace/ui/components/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 import { AlertCircle, ArrowRight, BrainCircuit, CreditCard, LineChart, PiggyBank, TrendingUp, BarChart4 } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -372,22 +371,6 @@ export default function SpendingPsychologyPage() {
           </div>
         </section>
       </main>
-
-      {/* SEO Footer */}
-      <footer className="py-8 bg-muted/40 mt-auto">
-        <div className="max-w-[1100px] mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <nav className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-2 md:mb-0">
-            <a href="/" className="hover:underline">Home</a>
-            <a href="/#features" className="hover:underline">Features</a>
-            <a href="/#blog" className="hover:underline">Blog</a>
-            <a href="/#contact" className="hover:underline">Contact</a>
-            <a href="/#privacy" className="hover:underline">Privacy Policy</a>
-            <a href="/#terms" className="hover:underline">Terms of Service</a>
-            <a href="/spending-psychology" className="hover:underline font-medium text-primary">Spending Psychology</a>
-          </nav>
-          <div className="text-xs text-muted-foreground">© 2025 Slash. Built with <span role="img" aria-label="money">💰</span> in India.</div>
-        </div>
-      </footer>
     </div>
   );
 } 
