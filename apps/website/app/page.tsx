@@ -137,7 +137,7 @@ export default function HomePage() {
             {/* Hero Imagery Placeholder */}
             <div className="flex justify-center mt-8">
               <img
-                src="images/hero-illustration.png"
+                src="images/hero-illustration.jpg"
                 alt="Person cutting a credit card bill in half or dashboard screenshot"
                 className="w-full max-w-xl rounded-xl shadow-lg object-cover"
                 loading="lazy"
