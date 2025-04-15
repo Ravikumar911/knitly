@@ -6,6 +6,7 @@ import Script from "next/script"
 
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from "@workspace/ui/components/navigation-menu"
 import { Button } from "@workspace/ui/components/button"
+import { ThemeSwitcher } from "@/components/theme-switcher"
 
 import "./globals.css"
 
@@ -263,7 +264,8 @@ export default function RootLayout({
               
               <div className="border-t border-muted-foreground/10 pt-6 flex flex-col md:flex-row items-center justify-between">
                 <div className="text-xs text-muted-foreground">© 2025 Slash. Built with 💰 in India.</div>
-                <div className="flex space-x-4 mt-4 md:mt-0">
+                <div className="flex items-center space-x-4 mt-4 md:mt-0">
+                  <ThemeSwitcher />
                   <a href="#" className="text-muted-foreground hover:text-primary">
                     <span className="sr-only">Twitter</span>
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-twitter"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>

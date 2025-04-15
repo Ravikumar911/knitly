@@ -23,7 +23,6 @@ export default async function AuthenticatedLayout({
     redirect('/login');
   }
   
-
   return (
     <SidebarProvider>
       <AppSidebar user={{avatar: user.user_metadata.avatar_url, email: user.email ?? '', name: user.user_metadata.name}} />
@@ -35,12 +34,12 @@ export default async function AuthenticatedLayout({
               orientation="vertical"
               className="mr-2 data-[orientation=vertical]:h-4"
             />
-          <RouteBreadcrumb />
+            <RouteBreadcrumb />
           </div>
         </header>
-       <main className="flex flex-1 flex-col gap-4">
-        {children}
-       </main>
+        <main className="flex flex-1 flex-col gap-4">
+          {children}
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );
