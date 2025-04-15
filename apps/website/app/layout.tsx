@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "next-themes"
 import { Analytics } from "@vercel/analytics/react"
+import Script from "next/script"
 
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from "@workspace/ui/components/navigation-menu"
 import { Button } from "@workspace/ui/components/button"
@@ -11,12 +12,13 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://slash.cash'),
   title: {
-    default: "slash.cash",
-    template: "%s | slash.cash"
+    default: "Slash - Slash Your Spendings Effortlessly",
+    template: "%s | Slash"
   },
-  description: "Connect with like-minded locals and make real-world friendships — powered by AI",
-  keywords: ["slash.cash", "community", "local events", "AI", "social platform"],
+  description: "Take control of your expenses with Slash. Track Food & Grocery, Travel, and Subscriptions. Slash your spendings, not your lifestyle.",
+  keywords: ["spending tracker", "budget app", "expense management", "food and grocery tracking", "travel expenses", "subscription management", "personal finance", "slash app"],
   authors: [
     {
       name: "slash.cash",
@@ -24,10 +26,42 @@ export const metadata: Metadata = {
     },
   ],
   creator: "slash.cash",
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName: "Slash",
+    title: "Slash - Slash Your Spendings Effortlessly",
+    description: "Take control of your expenses with Slash. Track Food & Grocery, Travel, and Subscriptions. Slash your spendings, not your lifestyle.",
+    url: "https://slash.cash",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Slash App"
+      }
+    ]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Slash - Slash Your Spendings Effortlessly",
+    description: "Take control of your expenses with Slash. Track Food & Grocery, Travel, and Subscriptions. Slash your spendings, not your lifestyle.",
+    site: "@slashcash",
+    creator: "@slashcash",
+    images: ["/og-image.png"]
+  },
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "white" },
     { media: "(prefers-color-scheme: dark)", color: "black" },
   ],
+  viewport: "width=device-width, initial-scale=1",
 }
 
 // Component to handle active link highlighting based on path
@@ -78,6 +112,94 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <Script
+          id="structured-data-website"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              "name": "Slash",
+              "url": "https://slash.cash",
+              "potentialAction": {
+                "@type": "SearchAction",
+                "target": "https://slash.cash/search?q={search_term_string}",
+                "query-input": "required name=search_term_string"
+              }
+            })
+          }}
+        />
+        <Script
+          id="structured-data-app"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              "name": "Slash",
+              "url": "https://slash.cash/",
+              "applicationCategory": "FinanceApplication",
+              "operatingSystem": "All",
+              "description": "Slash helps you automatically track and categorize your spendings across Food & Grocery, Travel, and Subscriptions. Get instant insights and start saving.",
+              "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD"
+              },
+              "publisher": {
+                "@type": "Organization",
+                "name": "Slash",
+                "url": "https://slash.cash/"
+              }
+            })
+          }}
+        />
+        <Script
+          id="structured-data-faq"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": "How does Slash track my expenses?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Slash automatically imports and categorizes your transactions from connected accounts or imported statements. No manual entry required."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "What categories does Slash support?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Slash supports Food Delivery, Groceries, Travel & Transport, Subscriptions, and more."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Is Slash free to use?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes, Slash offers a free plan for all users."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Can I track subscriptions with Slash?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes, Slash automatically finds and tracks all your recurring subscriptions."
+                  }
+                }
+              ]
+            })
+          }}
+        />
+      </head>
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"
@@ -99,9 +221,9 @@ export default function RootLayout({
                         <div className="grid gap-3 p-6 w-[400px]">
                           <NavigationMenuLink asChild>
                             <a href="#features" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
-                              <div className="text-sm font-medium leading-none">AI-Powered Matching</div>
+                              <div className="text-sm font-medium leading-none">AI Finance Assistant</div>
                               <p className="line-clamp-2 text-sm leading-snug text-muted-foreground mt-1">
-                                Find the perfect local events and communities
+                                Track spending and save money automatically
                               </p>
                             </a>
                           </NavigationMenuLink>
@@ -116,7 +238,7 @@ export default function RootLayout({
                             <a href="#how-it-works" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
                               <div className="text-sm font-medium leading-none">Get Started</div>
                               <p className="line-clamp-2 text-sm leading-snug text-muted-foreground mt-1">
-                                Learn how to join and create communities
+                                Connect Gmail and start tracking your expenses
                               </p>
                             </a>
                           </NavigationMenuLink>
