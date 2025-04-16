@@ -4,7 +4,7 @@ import { transactions } from "../schema/transactions";
 import type { Transaction } from "../types";
 
 // Types
-export type TransactionStatus = "COMPLETED" | "PENDING" | "FAILED" | "REFUNDED";
+export type TransactionStatus = "COMPLETED" | "PENDING" | "FAILED" | "REFUNDED" | "DUPLICATE";
 export type TransactionType = "DEBIT" | "CREDIT" | "TRANSFER" | "REFUND";
 
 export interface GetTransactionsParams {

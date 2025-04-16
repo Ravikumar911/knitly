@@ -17,6 +17,10 @@ export * from './queries/operations/emailExtractionPatterns';
 export * from './schema/emailSyncStatus';
 export * from './queries/transactions';
 
+// Export transaction deduplication
+export * from './queries/operations/transactionDedup';
+export * from './queries/reconciliation';
+export * from './schema/reconciliationResults';
 
 // Export AI analysis functions
 export * from './queries/aiAnalysis';

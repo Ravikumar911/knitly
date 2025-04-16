@@ -30,6 +30,8 @@ For PDF attachments:
 3. Use the most authoritative source for data
 4. Consider both email and PDF confidence in scoring
 
+IMPORTANT: Ensure it's a transaction validate if it's real transaction or not, There could be some emails which are not related to transactions like newsletter, loan updates, etc.
+
 Be thorough but avoid making assumptions about unclear data.`;
 
 export const finwiseAIAgent = async (emailData: EmailData): Promise<FinancialData> => {
