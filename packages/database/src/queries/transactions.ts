@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ne, sql, type SQL } from "drizzle-orm";
 import { db } from "../";
 import { transactions } from "../schema/transactions";
 import type { Transaction } from "../types";
@@ -11,7 +11,6 @@ export interface GetTransactionsParams {
   page?: number;
   pageSize?: number;
   status?: TransactionStatus | null;
-  search?: string;
   userId: string;
 }
 
@@ -32,13 +31,15 @@ export async function getTransactions({
   page = 1,
   pageSize = 10,
   status,
-  search,
   userId,
 }: GetTransactionsParams): Promise<TransactionResult> {
   const offset = (page - 1) * pageSize;
 
   // Build where conditions
-  const whereConditions: SQL<unknown>[] = [eq(transactions.userId, userId)];
+  const whereConditions: SQL<unknown>[] = [
+    eq(transactions.userId, userId),
+    ne(transactions.status, 'DUPLICATE') // Always exclude duplicates
+  ];
 
   if (status) {
     whereConditions.push(eq(transactions.status, status));
@@ -77,7 +78,8 @@ export async function getTotalSpending(userId: string): Promise<number> {
     .where(
       and(
         eq(transactions.userId, userId),
-        eq(transactions.status, 'COMPLETED')
+        eq(transactions.status, 'COMPLETED'),
+        ne(transactions.status, 'DUPLICATE')
       )
     );
 
@@ -98,6 +100,7 @@ export async function getTotalSpendingByDateRange(
       and(
         eq(transactions.userId, userId),
         eq(transactions.status, 'COMPLETED'),
+        ne(transactions.status, 'DUPLICATE'),
         sql`${transactions.transactionDate} >= ${startDate}`,
         sql`${transactions.transactionDate} <= ${endDate}`
       )
@@ -107,7 +110,6 @@ export async function getTotalSpendingByDateRange(
 }
 
 export async function getAverageMonthlySpending(userId: string): Promise<number> {
-  // First get monthly totals using a subquery
   const monthlyTotals = db
     .$with('monthly_totals').as(
       db
@@ -119,13 +121,13 @@ export async function getAverageMonthlySpending(userId: string): Promise<number>
         .where(
           and(
             eq(transactions.userId, userId),
-            eq(transactions.status, 'COMPLETED')
+            eq(transactions.status, 'COMPLETED'),
+            ne(transactions.status, 'DUPLICATE')
           )
         )
         .groupBy(sql`DATE_TRUNC('month', ${transactions.transactionDate})`)
     );
 
-  // Then calculate the average from monthly totals
   const result = await db
     .with(monthlyTotals)
     .select({
@@ -137,7 +139,6 @@ export async function getAverageMonthlySpending(userId: string): Promise<number>
 }
 
 export async function getAverageDailySpending(userId: string): Promise<number> {
-  // First get daily totals using a subquery
   const dailyTotals = db
     .$with('daily_totals').as(
       db
@@ -149,13 +150,13 @@ export async function getAverageDailySpending(userId: string): Promise<number> {
         .where(
           and(
             eq(transactions.userId, userId),
-            eq(transactions.status, 'COMPLETED')
+            eq(transactions.status, 'COMPLETED'),
+            ne(transactions.status, 'DUPLICATE')
           )
         )
         .groupBy(sql`DATE_TRUNC('day', ${transactions.transactionDate})`)
     );
 
-  // Then calculate the average from daily totals
   const result = await db
     .with(dailyTotals)
     .select({
@@ -185,17 +186,16 @@ export async function getSpendingByDayOfWeek(userId: string): Promise<DayOfWeekS
     .where(
       and(
         eq(transactions.userId, userId),
-        eq(transactions.status, 'COMPLETED')
+        eq(transactions.status, 'COMPLETED'),
+        ne(transactions.status, 'DUPLICATE')
       )
     )
     .groupBy(sql`EXTRACT(DOW FROM ${transactions.transactionDate}), to_char(${transactions.transactionDate}, 'Day')`)
     .orderBy(sql`day_of_week`);
 
-  // PostgreSQL's EXTRACT(DOW) returns 0-6 where 0 is Sunday
-  // Let's transform it to 1-7 where 1 is Monday to match conventional week display
   return result.map(row => ({
     dayOfWeek: row.dayOfWeek === 0 ? 7 : row.dayOfWeek,
-    dayName: row.dayName.trim(), // Remove padding from day name
+    dayName: row.dayName.trim(),
     totalSpending: row.totalSpending || 0
   }));
 } 

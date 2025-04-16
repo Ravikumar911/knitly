@@ -401,7 +401,11 @@ function selectPrimaryTransaction(txGroup: Transaction[]): Transaction {
     return dateA - dateB;
   });
   
-  return sorted[0];
+  if (sorted.length === 0) {
+    throw new Error('No valid transactions found in group');
+  }
+
+  return sorted[0]!;
 }
 
 /**
