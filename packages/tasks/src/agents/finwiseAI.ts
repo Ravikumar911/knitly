@@ -34,7 +34,7 @@ IMPORTANT: Ensure it's a transaction validate if it's real transaction or not, T
 
 Be thorough but avoid making assumptions about unclear data.`;
 
-export const finwiseAIAgent = async (emailData: EmailData): Promise<FinancialData> => {
+export const finwiseAIAgent = async (emailData: EmailData): Promise<FinancialData & { analysisId: string | null }> => {
   try {
     logger.log("Processing email with FinwiseAI", {
       subject: emailData.subject,
@@ -108,10 +108,10 @@ IMPORTANT: It's must to determine the category of spending this transaction repr
       provider: object.detectedProvider,
       type: object.emailType
     })
-
+    let analysis = null;
     // Store the analysis results
     if (emailData.threadId) {
-      await storeAIAnalysis({
+      analysis = await storeAIAnalysis({
         userId: emailData.userId,
         parsedThreadId: emailData.threadId,
         analysis: object
@@ -125,7 +125,10 @@ IMPORTANT: It's must to determine the category of spending this transaction repr
 
 
     
-    return object
+    return {
+      ...object,
+      analysisId: analysis?.id || null
+    }
 
   } catch (error) {
     logger.error("Error in FinwiseAI extraction", {
@@ -142,16 +145,20 @@ IMPORTANT: It's must to determine the category of spending this transaction repr
       confidenceScore: 0
     }
 
+    let analysis = null;
     // Store the failed analysis
     if (emailData.threadId) {
-      await storeAIAnalysis({
+      analysis = await storeAIAnalysis({
         userId: emailData.userId,
         parsedThreadId: emailData.threadId,
         analysis: failedAnalysis
       });
     }
 
-    return failedAnalysis
+    return {
+      ...failedAnalysis,
+      analysisId: analysis?.id || null
+    }
   }
 }
 

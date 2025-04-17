@@ -18,9 +18,7 @@ export * from './schema/emailSyncStatus';
 export * from './queries/transactions';
 
 // Export transaction deduplication
-export * from './queries/operations/transactionDedup';
-export * from './queries/reconciliation';
-export * from './schema/reconciliationResults';
+export * from './queries/operations/transactionFellegiSunter';
 
 // Export AI analysis functions
 export * from './queries/aiAnalysis';
@@ -44,6 +42,3 @@ export * from './schema/merchants';
 export * from './schema/transactionCategories';
 export * from './schema/financialInstitutions';
 export * from './schema/relations';
-
-// Export queries
-export * from './queries/transactions';

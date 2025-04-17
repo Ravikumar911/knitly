@@ -1,10 +1,10 @@
-import { and, count, desc, eq, ne, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ne, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "../";
 import { transactions } from "../schema/transactions";
 import type { Transaction } from "../types";
 
 // Types
-export type TransactionStatus = "COMPLETED" | "PENDING" | "FAILED" | "REFUNDED" | "DUPLICATE";
+export type TransactionStatus = "COMPLETED" | "PENDING" | "FAILED" | "REFUNDED";
 export type TransactionType = "DEBIT" | "CREDIT" | "TRANSFER" | "REFUND";
 
 export interface GetTransactionsParams {
@@ -38,7 +38,7 @@ export async function getTransactions({
   // Build where conditions
   const whereConditions: SQL<unknown>[] = [
     eq(transactions.userId, userId),
-    ne(transactions.status, 'DUPLICATE') // Always exclude duplicates
+    isNull(transactions.duplicateOf), // Always filter out duplicates
   ];
 
   if (status) {
@@ -79,7 +79,7 @@ export async function getTotalSpending(userId: string): Promise<number> {
       and(
         eq(transactions.userId, userId),
         eq(transactions.status, 'COMPLETED'),
-        ne(transactions.status, 'DUPLICATE')
+        isNull(transactions.duplicateOf)
       )
     );
 
@@ -100,7 +100,7 @@ export async function getTotalSpendingByDateRange(
       and(
         eq(transactions.userId, userId),
         eq(transactions.status, 'COMPLETED'),
-        ne(transactions.status, 'DUPLICATE'),
+        isNull(transactions.duplicateOf),
         sql`${transactions.transactionDate} >= ${startDate}`,
         sql`${transactions.transactionDate} <= ${endDate}`
       )
@@ -122,7 +122,7 @@ export async function getAverageMonthlySpending(userId: string): Promise<number>
           and(
             eq(transactions.userId, userId),
             eq(transactions.status, 'COMPLETED'),
-            ne(transactions.status, 'DUPLICATE')
+            isNull(transactions.duplicateOf)
           )
         )
         .groupBy(sql`DATE_TRUNC('month', ${transactions.transactionDate})`)
@@ -151,7 +151,7 @@ export async function getAverageDailySpending(userId: string): Promise<number> {
           and(
             eq(transactions.userId, userId),
             eq(transactions.status, 'COMPLETED'),
-            ne(transactions.status, 'DUPLICATE')
+            isNull(transactions.duplicateOf)
           )
         )
         .groupBy(sql`DATE_TRUNC('day', ${transactions.transactionDate})`)
@@ -187,7 +187,7 @@ export async function getSpendingByDayOfWeek(userId: string): Promise<DayOfWeekS
       and(
         eq(transactions.userId, userId),
         eq(transactions.status, 'COMPLETED'),
-        ne(transactions.status, 'DUPLICATE')
+        isNull(transactions.duplicateOf)
       )
     )
     .groupBy(sql`EXTRACT(DOW FROM ${transactions.transactionDate}), to_char(${transactions.transactionDate}, 'Day')`)

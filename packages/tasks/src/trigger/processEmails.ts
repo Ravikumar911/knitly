@@ -2,7 +2,7 @@ import { logger, task, wait, configure, batch } from "@trigger.dev/sdk/v3";
 import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, extractEmailMetadata, buildGmailSearchQuery, extractAttachments } from "../utils";
 import { finwiseAIAgent } from "../agents/finwiseAI";
 import { processAttachments } from "../utils/emailStorage";
-import { reconcileTransactionsTask } from "../tasks/transactionReconciliation";
+import { detectDuplicateTransactions } from "./duplicateDetector";
 import { 
   getLastSyncTime, 
   updateLastSyncTime, 
@@ -116,6 +116,7 @@ export const processEmailBatch = task({
           parseSuccess: finwiseAnalysis.parseSuccess || null,
           parseErrors: finwiseAnalysis.parseErrors?.join(', ') || null,
           rawContent: emailBody || '',
+          aiAnalysisId: finwiseAnalysis.analysisId || null,
           attachmentStoragePath: attachmentStoragePaths ? JSON.stringify(attachmentStoragePaths) : null,
           sender: metadata.from || null,
           parsedAt: new Date()
@@ -156,7 +157,7 @@ export const processEmailBatch = task({
               location: transaction.location || null,
               isVerified: false,
               verificationStatus: 'UNVERIFIED',
-              aiAnalysisId: null
+              duplicateOf: null
             });
           }
         }
@@ -190,15 +191,12 @@ export const processEmails = task({
   run: async (payload: {
     userId: string;
     syncPeriodDays?: number;
-    skipReconciliation?: boolean;
   }) => {
     const syncPeriodDays = payload.syncPeriodDays || 90;
-    const skipReconciliation = payload.skipReconciliation || false;
     
     logger.log("Starting email sync", { 
       userId: payload.userId,
-      syncPeriodDays,
-      skipReconciliation
+      syncPeriodDays
     });
     
     try {
@@ -296,37 +294,9 @@ export const processEmails = task({
       await updateLastSyncTime(payload.userId, new Date());
       await markSyncComplete(payload.userId);
 
-      // Run transaction reconciliation after successful sync
-      if (!skipReconciliation) {
-        logger.log("Triggering transaction reconciliation after email sync", {
-          userId: payload.userId
-        });
-        
-        try {
-          // Use a threshold for auto-applying duplicates
-          // Only automatically apply very high confidence matches (95%+)
-          await reconcileTransactionsTask.trigger({
-            userId: payload.userId,
-            config: {
-              // Use last 90 days for reconciliation by default
-              timeWindowMs: 90 * 24 * 60 * 60 * 1000,
-              autoMergeThreshold: 0.95 // Very high confidence required for auto-apply
-            },
-            autoApply: true // Automatically apply high-confidence matches
-          });
-          
-          logger.log("Transaction reconciliation triggered successfully", {
-            userId: payload.userId
-          });
-        } catch (reconcileError) {
-          // Don't fail the entire task if reconciliation fails
-          // Just log the error and continue
-          logger.error("Failed to trigger transaction reconciliation", {
-            userId: payload.userId,
-            error: reconcileError instanceof Error ? reconcileError.message : String(reconcileError)
-          });
-        }
-      }
+      // Trigger duplicate detection
+      const duplicateDetectionHandle = await detectDuplicateTransactions.trigger();
+      logger.log("Triggered duplicate detection", { runId: duplicateDetectionHandle.id });
 
       return {
         success: true,
@@ -334,7 +304,7 @@ export const processEmails = task({
         ...totalStats,
         syncStartDate: startDate,
         isFirstSync,
-        reconciliationTriggered: !skipReconciliation
+        reconciliationTriggered: true
       };
 
     } catch (error) {
