@@ -13,7 +13,6 @@ export const parsedEmails = pgTable("parsed_emails", {
   snippet: text("snippet"),
   threadId: varchar("thread_id", { length: 255 }), // Gmail thread ID
   subject: text("subject"),
-  sender: varchar("sender", { length: 255 }),
   receivedDate: timestamp("received_date"),
   aiAnalysisId: uuid("ai_analysis_id").references(() => aiAnalysis.id, { onDelete: "cascade" }),
   // Parsing metadata

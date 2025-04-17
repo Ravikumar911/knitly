@@ -1,10 +1,9 @@
-import { EmailManager } from "@/components/email-manager";
+import { EmailSyncStatus } from "@/components/email-sync-status"; 
 
 export default function EmailsPage() {
   return (
-    <div className="container py-12">
-      <h1 className="text-2xl font-bold mb-8">Email Management</h1>
-      <EmailManager />
+    <div className="container px-4">
+      <EmailSyncStatus />
     </div>
   );
 } 

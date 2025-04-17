@@ -163,7 +163,13 @@ export function EmailSyncStatus() {
         {/* Show last sync time if available */}
         {hasSynced && syncStatus?.lastSyncedAt && (
           <div className="text-sm text-muted-foreground">
-            Last synced: {new Date(syncStatus.lastSyncedAt).toLocaleString()}
+            Last synced: {new Date(syncStatus.lastSyncedAt).toLocaleString('en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
           </div>
         )}
       </CardContent>

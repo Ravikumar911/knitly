@@ -6,8 +6,9 @@ import { DataTable } from "@/components/data-table/data-table"
 import { useTRPC } from "@/trpc/client"
 import { columns } from "./columns"
 import { TransactionFilters } from "./filters"
-import type { Table } from "@tanstack/react-table"
+import type { Table, SortingState } from "@tanstack/react-table"
 import type { Transaction } from "@workspace/database"
+import { useTransactionFilters } from "@/store/transaction-filters"
 
 // Type for raw transaction data from API before date conversion
 type RawTransaction = Omit<Transaction, 'createdAt' | 'updatedAt' | 'transactionDate' | 'valueDate'> & {
@@ -23,19 +24,51 @@ export function TransactionsDataTable() {
     pageSize: 10,
   })
   const [tableInstance, setTableInstance] = React.useState<Table<Transaction>>()
+  
+  // Define initial sorting state (newest transactions first)
+  const [sorting, setSorting] = React.useState<SortingState>([
+    { id: "transactionDate", desc: true }
+  ])
+  
+  // Use transaction filters from Zustand store
+  const { type, category, startDate, endDate, amountMin, amountMax } = useTransactionFilters()
 
   const trpc = useTRPC()
+  
+  // Convert sorting state to API parameters
+  const sortParams = React.useMemo(() => {
+    if (!sorting.length) {
+      return { 
+        sortBy: 'transactionDate' as const, 
+        sortDirection: 'desc' as const 
+      }
+    }
+    
+    const primarySort = sorting[0]
+    if (!primarySort) {
+      return { 
+        sortBy: 'transactionDate' as const, 
+        sortDirection: 'desc' as const 
+      }
+    }
+    
+    return {
+      sortBy: primarySort.id,
+      sortDirection: primarySort.desc ? 'desc' as const : 'asc' as const,
+    }
+  }, [sorting])
 
-  // Get filter values from table instance
-  const filters = React.useMemo(() => ({
-    status: (tableInstance?.getColumn("status")?.getFilterValue() as string | undefined)?.toUpperCase() as any || undefined,
-    search: (tableInstance?.getColumn("description")?.getFilterValue() as string) || undefined,
-  }), [tableInstance])
-
+  // API query with filters from Zustand store and sorting
   const { data: rawData, isLoading, isError, error } = useQuery(trpc.transactions.list.queryOptions({
     page: pagination.pageIndex + 1, // Convert to 1-based for API
     pageSize: pagination.pageSize,
-    ...filters,
+    type,
+    category,
+    startDate,
+    endDate,
+    amountMin,
+    amountMax,
+    ...sortParams,
   }))
 
   // Convert string dates to Date objects and ensure all required fields are present
@@ -55,6 +88,11 @@ export function TransactionsDataTable() {
     }
   }, [rawData])
 
+  // Handle sort change
+  const handleSortingChange = React.useCallback((newSorting: SortingState) => {
+    setSorting(newSorting)
+  }, [])
+
   // Handle pagination changes
   const handlePaginationChange = React.useCallback((newPagination: { pageIndex: number; pageSize: number }) => {
     setPagination(newPagination)
@@ -70,6 +108,7 @@ export function TransactionsDataTable() {
 
   return (
     <div className="space-y-4">
+      {tableInstance && <TransactionFilters table={tableInstance} />}
       <DataTable
         columns={columns}
         data={data?.transactions ?? []}
@@ -79,8 +118,10 @@ export function TransactionsDataTable() {
         onPaginationChange={handlePaginationChange}
         totalCount={data?.totalCount ?? 0}
         isLoading={isLoading}
-        filterComponent={tableInstance && <TransactionFilters table={tableInstance} />}
+        filterComponent={null}
         onTableMount={setTableInstance}
+        initialSorting={sorting}
+        onSortingChange={handleSortingChange}
       />
     </div>
   )

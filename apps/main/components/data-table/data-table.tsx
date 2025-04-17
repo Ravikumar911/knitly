@@ -12,6 +12,8 @@ import {
   getSortedRowModel,
   useReactTable,
   type Table,
+  type OnChangeFn,
+  type Updater,
 } from "@tanstack/react-table"
 
 import {
@@ -43,6 +45,8 @@ interface DataTableProps<TData> {
   isLoading?: boolean
   filterComponent?: React.ReactNode
   onTableMount?: (table: Table<TData>) => void
+  initialSorting?: SortingState
+  onSortingChange?: (sorting: SortingState) => void
 }
 
 export function DataTable<TData>({
@@ -56,11 +60,30 @@ export function DataTable<TData>({
   isLoading,
   filterComponent,
   onTableMount,
+  initialSorting = [],
+  onSortingChange,
 }: DataTableProps<TData>) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [sorting, setSorting] = React.useState<SortingState>(initialSorting)
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
+  
+  // Handle sorting changes and notify parent component
+  const handleSortingChange = React.useCallback((
+    updaterOrValue: Updater<SortingState>
+  ) => {
+    // Pass through the updater to setSorting
+    setSorting(updaterOrValue)
+    
+    // If it's a function, we need to compute the new value to pass to onSortingChange
+    if (typeof updaterOrValue === 'function') {
+      const newSorting = updaterOrValue(sorting)
+      onSortingChange?.(newSorting)
+    } else {
+      // If it's a direct value, pass it along
+      onSortingChange?.(updaterOrValue)
+    }
+  }, [sorting, onSortingChange])
 
   const table = useReactTable({
     data,
@@ -76,7 +99,7 @@ export function DataTable<TData>({
         pageSize,
       },
     },
-    onSortingChange: setSorting,
+    onSortingChange: handleSortingChange,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
@@ -91,6 +114,13 @@ export function DataTable<TData>({
   React.useEffect(() => {
     onTableMount?.(table)
   }, [table, onTableMount])
+
+  // Update sorting state if initialSorting changes
+  React.useEffect(() => {
+    if (initialSorting.length > 0) {
+      setSorting(initialSorting)
+    }
+  }, [initialSorting])
 
   const handlePageChange = (newPageIndex: number) => {
     onPaginationChange({ pageIndex: newPageIndex, pageSize })
