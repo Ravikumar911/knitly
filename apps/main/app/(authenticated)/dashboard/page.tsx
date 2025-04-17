@@ -2,6 +2,7 @@ import { SpendingCardWrapper } from "./spending-card-wrapper";
 import { AverageSpendingCardWrapper } from "./average-spending-card-wrapper";
 import { DailySpendingCardWrapper } from "./daily-spending-card-wrapper";
 import { SpendingByDayChart } from "./spending-by-day-chart";
+import { EmailSyncStatus } from "@/components/email-sync-status";
 import { prefetch, HydrateClient } from "@/trpc/server";
 import { trpc } from "@/trpc/server";
 import { Suspense } from "react";
@@ -12,6 +13,7 @@ export default function Page() {
   prefetch(trpc.transactions.getAverageMonthlySpending.queryOptions());
   prefetch(trpc.transactions.getAverageDailySpending.queryOptions());
   prefetch(trpc.transactions.getSpendingByDayOfWeek.queryOptions());
+  prefetch(trpc.emails.getSyncStatus.queryOptions());
 
   return (
     <HydrateClient>
@@ -37,6 +39,13 @@ export default function Page() {
             }
           >
             <DailySpendingCardWrapper />
+          </Suspense>
+          <Suspense
+            fallback={
+              <div className="bg-muted/50 aspect-video rounded-xl animate-pulse" />
+            }
+          >
+            <EmailSyncStatus />
           </Suspense>
         </div>
         <div className="grid grid-rows-1 gap-4 md:grid-cols-4 ">

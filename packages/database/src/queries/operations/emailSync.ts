@@ -6,6 +6,7 @@ interface SyncStatus {
   lastSyncedAt: Date | null;
   nextPageToken: string | null;
   syncStatus: string | null;
+  errorDetails: string | null;
 }
 
 /**
@@ -15,7 +16,8 @@ export async function getSyncStatus(userId: string): Promise<SyncStatus> {
   const result = await db.select({
     lastSyncedAt: emailSyncStatus.lastSyncedAt,
     nextPageToken: emailSyncStatus.nextPageToken,
-    syncStatus: emailSyncStatus.syncStatus
+    syncStatus: emailSyncStatus.syncStatus,
+    errorDetails: emailSyncStatus.errorDetails
   })
     .from(emailSyncStatus)
     .where(eq(emailSyncStatus.userId, userId))
@@ -25,14 +27,16 @@ export async function getSyncStatus(userId: string): Promise<SyncStatus> {
     return {
       lastSyncedAt: null,
       nextPageToken: null,
-      syncStatus: null
+      syncStatus: null,
+      errorDetails: null
     };
   }
 
   return {
     lastSyncedAt: result[0]?.lastSyncedAt || null,
     nextPageToken: result[0]?.nextPageToken || null,
-    syncStatus: result[0]?.syncStatus || null
+    syncStatus: result[0]?.syncStatus || null,
+    errorDetails: result[0]?.errorDetails || null
   };
 }
 

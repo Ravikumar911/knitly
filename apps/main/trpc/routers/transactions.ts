@@ -1,6 +1,16 @@
 import { z } from "zod"
 import { createTRPCRouter, protectedProcedure } from "../init"
-import { getTransactions, type TransactionStatus, type DayOfWeekSpending, getTotalSpending, getTotalSpendingByDateRange, getAverageMonthlySpending, getAverageDailySpending, getSpendingByDayOfWeek } from "@workspace/database"
+import { 
+  getTransactions,
+  type TransactionStatus, 
+  type TransactionType, 
+  type DayOfWeekSpending, 
+  getTotalSpending, 
+  getTotalSpendingByDateRange, 
+  getAverageMonthlySpending, 
+  getAverageDailySpending, 
+  getSpendingByDayOfWeek 
+} from "@workspace/database"
 
 
 const transactionStatusEnum = z.enum([
@@ -10,6 +20,13 @@ const transactionStatusEnum = z.enum([
   "REFUNDED",
 ]) satisfies z.ZodType<TransactionStatus>
 
+const transactionTypeEnum = z.enum([
+  "DEBIT",
+  "CREDIT",
+  "TRANSFER",
+  "REFUND",
+]) satisfies z.ZodType<TransactionType>
+
 export const transactionsRouter = createTRPCRouter({
   list: protectedProcedure
     .input(
@@ -17,7 +34,16 @@ export const transactionsRouter = createTRPCRouter({
         page: z.number().min(1).default(1),
         pageSize: z.number().min(1).max(100).default(10),
         status: transactionStatusEnum.nullable().default(null),
+        type: transactionTypeEnum.nullable().default(null),
+        category: z.string().nullable().default(null),
+        startDate: z.date().nullable().default(null),
+        endDate: z.date().nullable().default(null),
+        amountMin: z.number().nullable().default(null),
+        amountMax: z.number().nullable().default(null),
+        merchantName: z.string().nullable().default(null),
         search: z.string().optional(),
+        sortBy: z.string().nullable().default('transactionDate'),
+        sortDirection: z.enum(['asc', 'desc']).nullable().default('desc'),
       })
     )
     .query(async ({ ctx, input }) => {

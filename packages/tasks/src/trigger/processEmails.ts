@@ -118,7 +118,6 @@ export const processEmailBatch = task({
           rawContent: emailBody || '',
           aiAnalysisId: finwiseAnalysis.analysisId || null,
           attachmentStoragePath: attachmentStoragePaths ? JSON.stringify(attachmentStoragePaths) : null,
-          sender: metadata.from || null,
           parsedAt: new Date()
         });
 

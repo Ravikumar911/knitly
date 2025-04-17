@@ -11,7 +11,17 @@ export interface GetTransactionsParams {
   page?: number;
   pageSize?: number;
   status?: TransactionStatus | null;
+  type?: TransactionType | null;
+  category?: string | null;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  amountMin?: number | null;
+  amountMax?: number | null;
+  merchantName?: string | null;
   userId: string;
+  search?: string | null;
+  sortBy?: string | null;
+  sortDirection?: 'asc' | 'desc' | null;
 }
 
 export interface TransactionResult {
@@ -31,7 +41,17 @@ export async function getTransactions({
   page = 1,
   pageSize = 10,
   status,
+  type,
+  category,
+  startDate,
+  endDate,
+  amountMin,
+  amountMax,
+  merchantName,
   userId,
+  search,
+  sortBy = 'transactionDate',
+  sortDirection = 'desc',
 }: GetTransactionsParams): Promise<TransactionResult> {
   const offset = (page - 1) * pageSize;
 
@@ -44,6 +64,42 @@ export async function getTransactions({
   if (status) {
     whereConditions.push(eq(transactions.status, status));
   }
+  
+  if (type) {
+    whereConditions.push(eq(transactions.type, type));
+  }
+  
+  if (category) {
+    whereConditions.push(eq(transactions.category, category));
+  }
+  
+  if (startDate) {
+    whereConditions.push(sql`${transactions.transactionDate} >= ${startDate}`);
+  }
+  
+  if (endDate) {
+    whereConditions.push(sql`${transactions.transactionDate} <= ${endDate}`);
+  }
+  
+  if (amountMin !== null && amountMin !== undefined) {
+    whereConditions.push(sql`${transactions.amount} >= ${amountMin}`);
+  }
+  
+  if (amountMax !== null && amountMax !== undefined) {
+    whereConditions.push(sql`${transactions.amount} <= ${amountMax}`);
+  }
+  
+  if (merchantName) {
+    whereConditions.push(sql`${transactions.merchantName} ILIKE ${`%${merchantName}%`}`);
+  }
+  
+  if (search) {
+    whereConditions.push(
+      sql`(${transactions.description} ILIKE ${`%${search}%`} OR 
+          ${transactions.merchantName} ILIKE ${`%${search}%`} OR
+          ${transactions.notes} ILIKE ${`%${search}%`})`
+    );
+  }
 
   // Get total count
   const totalCountResult = await db
@@ -53,12 +109,41 @@ export async function getTransactions({
 
   const totalCount = Number(totalCountResult[0]?.count ?? 0);
 
-  // Get paginated transactions
+  // Build the orderBy clause based on sortBy and sortDirection
+  let orderByClause;
+  
+  // Default sort by transactionDate desc if no sort params provided
+  if (!sortBy || sortBy === 'transactionDate') {
+    orderByClause = sortDirection === 'asc' 
+      ? sql`${transactions.transactionDate} asc` 
+      : sql`${transactions.transactionDate} desc`;
+  } else if (sortBy === 'amount') {
+    orderByClause = sortDirection === 'asc'
+      ? sql`${transactions.amount} asc`
+      : sql`${transactions.amount} desc`;
+  } else if (sortBy === 'type') {
+    orderByClause = sortDirection === 'asc'
+      ? sql`${transactions.type} asc`
+      : sql`${transactions.type} desc`;
+  } else if (sortBy === 'status') {
+    orderByClause = sortDirection === 'asc'
+      ? sql`${transactions.status} asc`
+      : sql`${transactions.status} desc`;
+  } else if (sortBy === 'category') {
+    orderByClause = sortDirection === 'asc'
+      ? sql`${transactions.category} asc nulls last`
+      : sql`${transactions.category} desc nulls last`;
+  } else {
+    // Default to transactionDate desc for any unhandled sort field
+    orderByClause = sql`${transactions.transactionDate} desc`;
+  }
+
+  // Get paginated transactions with sorting
   const results = await db
     .select()
     .from(transactions)
     .where(and(...whereConditions))
-    .orderBy(desc(transactions.transactionDate))
+    .orderBy(orderByClause)
     .limit(pageSize)
     .offset(offset);
 
