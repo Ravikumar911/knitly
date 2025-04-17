@@ -3,8 +3,6 @@ import { profiles } from "./users";
 import { financialInstruments } from "./financialInstruments";
 import { merchants } from "./merchants";
 import { parsedEmails } from "./parsedEmails";
-import { aiAnalysis } from "./aiAnalysis";
-
 
 // Transactions table - the core of the system
 export const transactions = pgTable("transactions", {
@@ -13,7 +11,6 @@ export const transactions = pgTable("transactions", {
   
   // Source tracking
   parsedEmailId: uuid("parsed_email_id").references(() => parsedEmails.id),
-  aiAnalysisId: uuid("ai_analysis_id").references(() => aiAnalysis.id),
   
   // Core transaction data
   amount: doublePrecision("amount").notNull(),
@@ -50,6 +47,8 @@ export const transactions = pgTable("transactions", {
   // Location data
   location: jsonb("location"), // city, state, country
   
+  // Duplication tracking
+  duplicateOf: uuid("duplicate_of").references((): any => transactions.id),
   
   // Verification
   isVerified: boolean("is_verified").default(false),

@@ -2,6 +2,7 @@ import { logger, task, wait, configure, batch } from "@trigger.dev/sdk/v3";
 import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, extractEmailMetadata, buildGmailSearchQuery, extractAttachments } from "../utils";
 import { finwiseAIAgent } from "../agents/finwiseAI";
 import { processAttachments } from "../utils/emailStorage";
+import { detectDuplicateTransactions } from "./duplicateDetector";
 import { 
   getLastSyncTime, 
   updateLastSyncTime, 
@@ -115,6 +116,7 @@ export const processEmailBatch = task({
           parseSuccess: finwiseAnalysis.parseSuccess || null,
           parseErrors: finwiseAnalysis.parseErrors?.join(', ') || null,
           rawContent: emailBody || '',
+          aiAnalysisId: finwiseAnalysis.analysisId || null,
           attachmentStoragePath: attachmentStoragePaths ? JSON.stringify(attachmentStoragePaths) : null,
           sender: metadata.from || null,
           parsedAt: new Date()
@@ -130,7 +132,7 @@ export const processEmailBatch = task({
           const transaction = finwiseAnalysis.transaction;
           const parsedEmailId = storedEmail[0]?.id;
 
-          if (parsedEmailId && !['INVOICE', 'MANDATE_REQUEST'].includes(finwiseAnalysis.emailType)) {
+          if (parsedEmailId) {
             await storeTransactionData({
               userId: payload.userId,
               parsedEmailId,
@@ -155,7 +157,7 @@ export const processEmailBatch = task({
               location: transaction.location || null,
               isVerified: false,
               verificationStatus: 'UNVERIFIED',
-              aiAnalysisId: null
+              duplicateOf: null
             });
           }
         }
@@ -292,12 +294,17 @@ export const processEmails = task({
       await updateLastSyncTime(payload.userId, new Date());
       await markSyncComplete(payload.userId);
 
+      // Trigger duplicate detection
+      const duplicateDetectionHandle = await detectDuplicateTransactions.trigger();
+      logger.log("Triggered duplicate detection", { runId: duplicateDetectionHandle.id });
+
       return {
         success: true,
         message: `Processed ${totalStats.processedCount} emails, skipped ${totalStats.skippedCount} already processed emails, encountered ${totalStats.errorCount} errors, out of ${totalStats.totalFound} total emails found since ${startDate.toISOString()}`,
         ...totalStats,
         syncStartDate: startDate,
-        isFirstSync
+        isFirstSync,
+        reconciliationTriggered: true
       };
 
     } catch (error) {

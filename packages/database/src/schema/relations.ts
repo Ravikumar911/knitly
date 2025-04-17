@@ -105,4 +105,8 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
     fields: [transactions.parsedEmailId],
     references: [parsedEmails.id],
   }),
+  duplicateOfTransaction: one(transactions, {
+    fields: [transactions.duplicateOf],
+    references: [transactions.id],
+  }),
 }));
