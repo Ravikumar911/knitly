@@ -17,7 +17,7 @@ export default function HomePage() {
             Starting with Swiggy. More Coming Soon!
           </Badge>
           <h1 className="font-inter text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight leading-tight mb-6 bg-clip-text text-transparent bg-gradient-to-b from-primary to-foreground/80">
-            <span className="block">Swiggy Spends Sorted.</span>
+            <span className="block">Swiggy Spends Simplified.</span>
             <TypewriterText 
               text="Save Smarter." 
               speed={100} 
