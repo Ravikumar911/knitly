@@ -63,5 +63,10 @@
   "packageManager": "pnpm@10.4.1",
   "engines": {
     "node": ">=20"
-  }
+  },
+  "description": "A modern, type-safe, and scalable monorepo built with Next.js, Supabase, shadcn/ui, Drizzle ORM, tRPC, and TriggerDev. Features strict separation of concerns and centralized database management.",
+  "main": ".eslintrc.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

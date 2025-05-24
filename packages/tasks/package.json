@@ -9,11 +9,13 @@
     "./trigger/*": "./src/trigger/*.ts"
   },
   "dependencies": {
+    "@trigger.dev/sdk": "^3.3.17",
     "@workspace/database": "workspace:*",
     "googleapis": "^148.0.0",
     "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
+    "@trigger.dev/build": "^3.3.17",
     "@workspace/typescript-config": "workspace:*"
   }
 }
