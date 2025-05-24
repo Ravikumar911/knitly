@@ -15,6 +15,7 @@ import {
   getEmailExtractionPatterns 
 } from "@workspace/database";
 
+
 configure({
   secretKey: process.env.TRIGGER_SECRET_KEY,
 });
@@ -199,6 +200,9 @@ export const processEmails = task({
     });
     
     try {
+      logger.log("DATABASE_URL", {
+        DATABASE_URL: process.env.DATABASE_URL
+      });
       // Step 1: Initial setup
       const patterns = await getEmailExtractionPatterns();
       const searchQuery = await buildGmailSearchQuery(patterns);
