@@ -4,6 +4,9 @@
       "outDir": "dist",
       "rootDir": "src",
     },
-    "include": ["src"],
+    "include": [
+      "src",
+      "trigger.config.ts"
+    ],
     "exclude": ["node_modules", "dist"]
   }
