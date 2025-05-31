@@ -3,7 +3,8 @@ import { openai } from "@ai-sdk/openai"
 import { logger } from "@trigger.dev/sdk/v3"
 import { storeAIAnalysis, ExtractedFinancialData, FinancialData } from "@workspace/database"
 import { EmailData } from "../types/finwiseAI"
-
+import { findBestMatchingTemplate, TemplateMatch } from "../utils/templateMatching"
+import { TemplatePromptBuilder } from "../utils/promptBuilder"
 
 const SYSTEM_PROMPT = `You are a financial data extraction AI. Your task is to analyze emails and their attachments to extract structured financial information.
 
@@ -34,7 +35,14 @@ IMPORTANT: Ensure it's a transaction validate if it's real transaction or not, T
 
 Be thorough but avoid making assumptions about unclear data.`;
 
-export const finwiseAIAgent = async (emailData: EmailData): Promise<FinancialData & { analysisId: string | null }> => {
+// Enhanced interface for tracking template usage
+export interface EnhancedFinancialData extends FinancialData {
+  analysisId: string | null;
+  templateUsed?: string;
+  templateMatchScore?: number;
+}
+
+export const finwiseAIAgent = async (emailData: EmailData): Promise<EnhancedFinancialData> => {
   try {
     logger.log("Processing email with FinwiseAI", {
       subject: emailData.subject,
@@ -42,92 +50,68 @@ export const finwiseAIAgent = async (emailData: EmailData): Promise<FinancialDat
       hasAttachments: !!emailData.attachments?.length
     })
 
+    // Step 1: Find matching template
+    const matchingTemplate = await findBestMatchingTemplate(emailData);
+    
+    // Step 2: Build enhanced prompt using template
+    const promptBuilder = new TemplatePromptBuilder(SYSTEM_PROMPT);
+    const optimizedPrompt = promptBuilder.buildPrompt(emailData, matchingTemplate?.template);
+    
+    // Step 3: Execute AI extraction with enhanced prompt
     const { object } = await generateObject({
       model: openai("gpt-4o"),
-      prompt: `${SYSTEM_PROMPT}
-
-Now, analyze this email and extract financial information:
-
-FROM: ${emailData.from}
-SUBJECT: ${emailData.subject}
-DATE: ${emailData.date}
-
-EMAIL BODY:
-${emailData.body}
-
-${emailData.attachments ? `ATTACHMENTS:
-${emailData.attachments.map(a => {
-  const base = `- ${a.filename} (${a.mimeType})`
-  
-  if (a.mimeType === 'application/pdf') {
-    return `${base}
-  PDF Content: ${a.content}`
-  }
-  return base
-}).join('\n')}` : 'NO ATTACHMENTS'}
-
-Extract all relevant financial data according to the schema. Pay special attention to:
-1. Transaction amounts and currencies
-2. Payment references and IDs
-3. Transaction type (DEBIT/CREDIT)
-4. Merchant information
-5. Recurring payment patterns
-6. Transaction categories
-${emailData.attachments?.some(a => a.mimeType === 'application/pdf') ? `7. PDF Analysis:
-   - Cross-reference email data with PDF content
-   - Extract additional transaction details from PDFs
-   - Use the most authoritative source for each field` : ''}
-
-Provide confidence score based on the clarity and completeness of the extracted information.
-IMPORTANT: It's must to determine the category of spending this transaction represents. 
-  -  'FOOD_DELIVERY'
-  -  'GROCERIES'
-  -  'SHOPPING'
-  -  'TRANSPORT'
-  -  'UTILITIES'
-  -  'ENTERTAINMENT'
-  -  'HEALTHCARE'
-  -  'EDUCATION'
-  -  'TRANSFER'
-  -  'SUBSCRIPTION'
-  -  'OTHER'
-
-
-`,
+      prompt: optimizedPrompt,
       schema: ExtractedFinancialData,
     }).catch(error => {
       logger.error("Error in FinwiseAI extraction", {
         error: error,
+        templateUsed: matchingTemplate?.template.id,
+        subject: emailData.subject
       })
       throw error;
     })
 
+    // Step 4: Apply template-based post-processing if needed
+    const processedResult = matchingTemplate 
+      ? applyTemplatePostProcessing(object, matchingTemplate)
+      : object;
+
     logger.log("FinwiseAI extraction completed", {
-      success: object.parseSuccess,
-      confidence: object.confidenceScore,
-      provider: object.detectedProvider,
-      type: object.emailType
+      success: processedResult.parseSuccess,
+      confidence: processedResult.confidenceScore,
+      provider: processedResult.detectedProvider,
+      type: processedResult.emailType,
+      templateUsed: matchingTemplate?.template.id,
+      templateScore: matchingTemplate?.matchScore
     })
+
+    // Step 5: Store analysis with template metadata
     let analysis = null;
-    // Store the analysis results
     if (emailData.threadId) {
+      const analysisData = {
+        ...processedResult,
+        templateUsed: matchingTemplate?.template.id,
+        templateMatchScore: matchingTemplate?.matchScore
+      };
+
       analysis = await storeAIAnalysis({
         userId: emailData.userId,
         parsedThreadId: emailData.threadId,
-        analysis: object
+        analysis: analysisData
       }).catch(error => {
         logger.error("Error storing AI analysis", {
           error: error,
-          subject: emailData.subject
+          subject: emailData.subject,
+          templateUsed: matchingTemplate?.template.id
         })
       });
     }
 
-
-    
     return {
-      ...object,
-      analysisId: analysis?.id || null
+      ...processedResult,
+      analysisId: analysis?.id || null,
+      templateUsed: matchingTemplate?.template.id,
+      templateMatchScore: matchingTemplate?.matchScore
     }
 
   } catch (error) {
@@ -136,29 +120,55 @@ IMPORTANT: It's must to determine the category of spending this transaction repr
       subject: emailData.subject
     })
 
-    const failedAnalysis = {
-      detectedProvider: "UNKNOWN",
-      emailType: "OTHER" as const,
-      emailSubject: emailData.subject,
-      parseSuccess: false,
-      parseErrors: [error instanceof Error ? error.message : 'Unknown error during extraction'],
-      confidenceScore: 0
-    }
+    return handleExtractionError(error, emailData);
+  }
+}
 
-    let analysis = null;
-    // Store the failed analysis
-    if (emailData.threadId) {
-      analysis = await storeAIAnalysis({
-        userId: emailData.userId,
-        parsedThreadId: emailData.threadId,
-        analysis: failedAnalysis
-      });
-    }
+/**
+ * Apply template-specific post-processing to extraction results
+ */
+function applyTemplatePostProcessing(
+  result: FinancialData, 
+  matchingTemplate: TemplateMatch
+): FinancialData {
+  // For now, return the result as-is
+  // Future enhancements could include:
+  // - Field validation based on template rules
+  // - Data correction using field mappings
+  // - Category override based on merchant patterns
+  
+  return result;
+}
 
-    return {
-      ...failedAnalysis,
-      analysisId: analysis?.id || null
-    }
+/**
+ * Handle extraction errors with template context
+ */
+async function handleExtractionError(
+  error: unknown, 
+  emailData: EmailData
+): Promise<EnhancedFinancialData> {
+  const failedAnalysis = {
+    detectedProvider: "UNKNOWN",
+    emailType: "OTHER" as const,
+    emailSubject: emailData.subject,
+    parseSuccess: false,
+    parseErrors: [error instanceof Error ? error.message : 'Unknown error during extraction'],
+    confidenceScore: 0
+  }
+
+  let analysis = null;
+  // Store the failed analysis
+  if (emailData.threadId) {
+    analysis = await storeAIAnalysis({
+      userId: emailData.userId,
+      parsedThreadId: emailData.threadId,
+      analysis: failedAnalysis
+    });
+  }
+
+  return {
+    ...failedAnalysis,
+    analysisId: analysis?.id || null
   }
 }
 

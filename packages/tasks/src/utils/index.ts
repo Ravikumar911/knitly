@@ -3,4 +3,5 @@
  */
 export * from './gmailApi';
 export * from './emailStorage';
-export * from './googleAuth'; 
+export * from './googleAuth';
+export { buildMerchantBasedGmailSearchQuery } from './gmailApi'; 

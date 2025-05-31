@@ -1,5 +1,5 @@
 import { logger } from "@trigger.dev/sdk/v3";
-import { storeEmailData as dbStoreEmail, storeTransactionData as dbStoreTransaction, ParsedEmail, Transaction } from "@workspace/database";
+import { storeEmailData as dbStoreEmail, storeTransactionV2 as dbStoreTransaction, ParsedEmail, Transaction } from "@workspace/database";
 import { createSupabaseClient } from "./supabase";
 import { downloadAttachment } from "./gmailApi";
 

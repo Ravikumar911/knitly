@@ -1,8 +1,9 @@
 import { logger, task, wait, configure, batch } from "@trigger.dev/sdk/v3";
-import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, extractEmailMetadata, buildGmailSearchQuery, extractAttachments } from "../utils";
-import { finwiseAIAgent } from "../agents/finwiseAI";
+import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, extractEmailMetadata, buildMerchantBasedGmailSearchQuery, extractAttachments } from "../utils";
+import { finwiseAIV2Agent } from "../agents/finwiseAIV2";
 import { processAttachments } from "../utils/emailStorage";
 import { detectDuplicateTransactions } from "./duplicateDetector";
+import { getMerchantEmailConfigs } from "../merchants";
 import { 
   getLastSyncTime, 
   updateLastSyncTime, 
@@ -10,11 +11,8 @@ import {
   markSyncInProgress,
   markSyncFailed,
   isEmailProcessed, 
-  storeEmailData, 
-  storeTransactionData,
-  getEmailExtractionPatterns 
+  storeEmailData
 } from "@workspace/database";
-
 
 configure({
   secretKey: process.env.TRIGGER_SECRET_KEY,
@@ -24,6 +22,81 @@ configure({
 const BATCH_SIZE = 20; // Process 20 emails per batch
 const MAX_CONCURRENT_BATCHES = 5; // Run 5 batches in parallel
 const RATE_LIMIT_DELAY = 0.1; // 0.1 seconds delay between API calls
+const SYNC_PERIOD_DAYS = 10; // 90 days of email history to process
+
+/**
+ * Check if an email is from a supported merchant
+ */
+function isSupportedMerchantEmail(senderEmail: string, subject: string, body: string): boolean {
+  try {
+    const merchantConfigs = getMerchantEmailConfigs();
+    
+    // Extract domain from sender email
+    const senderDomain = senderEmail.split('@')[1]?.toLowerCase();
+    if (!senderDomain) {
+      return false;
+    }
+
+    // Check if any merchant supports this email
+    for (const merchant of merchantConfigs) {
+      // Check domain matching
+      if (merchant.domains && merchant.domains.length > 0) {
+        const domainMatch = merchant.domains.some(domain => 
+          senderDomain === domain.toLowerCase() || senderEmail.toLowerCase().includes(domain.toLowerCase())
+        );
+        
+        if (domainMatch) {
+          logger.log("Email matches merchant domain", {
+            merchantName: merchant.name,
+            merchantId: merchant.id,
+            senderDomain,
+            matchedDomain: merchant.domains.find(d => 
+              senderDomain === d.toLowerCase() || senderEmail.toLowerCase().includes(d.toLowerCase())
+            )
+          });
+          return true;
+        }
+      }
+
+      // Check subject pattern matching if domain matched or as fallback
+      if (merchant.subjectPatterns && merchant.subjectPatterns.length > 0) {
+        const subjectMatch = merchant.subjectPatterns.some(pattern => {
+          try {
+            // Simple pattern matching (could be enhanced to support regex)
+            const cleanPattern = pattern.toLowerCase().replace(/[^\w\s]/g, ' ').trim();
+            return cleanPattern && subject.toLowerCase().includes(cleanPattern);
+          } catch {
+            return false;
+          }
+        });
+        
+        if (subjectMatch) {
+          logger.log("Email matches merchant subject pattern", {
+            merchantName: merchant.name,
+            merchantId: merchant.id,
+            subject
+          });
+          return true;
+        }
+      }
+    }
+
+    logger.log("Email not from supported merchant", {
+      senderEmail,
+      senderDomain,
+      subject: subject.substring(0, 100) + '...'
+    });
+    
+    return false;
+  } catch (error) {
+    logger.error("Error checking merchant support", {
+      error: error instanceof Error ? error.message : String(error),
+      senderEmail
+    });
+    // If there's an error, process the email anyway to avoid losing data
+    return true;
+  }
+}
 
 /**
  * Worker task that processes a batch of emails
@@ -46,7 +119,8 @@ export const processEmailBatch = task({
       processedCount: 0,
       skippedCount: 0,
       errorCount: 0,
-      totalFound: payload.messages.length
+      totalFound: payload.messages.length,
+      merchantFilteredCount: 0  // Track emails filtered out by merchant checks
     };
 
     // Process messages in batch
@@ -73,6 +147,30 @@ export const processEmailBatch = task({
         const emailBody = extractEmailBody(messageData);
         const attachments = extractAttachments(messageData);
 
+        // Check if email is from a supported merchant before processing
+        const isSupported = isSupportedMerchantEmail(
+          metadata.from || '',
+          metadata.subject || '',
+          emailBody || ''
+        );
+
+        if (!isSupported) {
+          logger.log("Skipping email from unsupported merchant", {
+            messageId: messageInfo.id,
+            from: metadata.from,
+            subject: metadata.subject?.substring(0, 100) + '...'
+          });
+          stats.skippedCount++;
+          stats.merchantFilteredCount++;
+          continue;
+        }
+
+        logger.log("Processing email from supported merchant", {
+          messageId: messageInfo.id,
+          from: metadata.from,
+          subject: metadata.subject?.substring(0, 50) + '...'
+        });
+
         // Process attachments if present
         let attachmentStoragePaths: string[] | null = null;
         let processedAttachments: Array<{
@@ -95,8 +193,8 @@ export const processEmailBatch = task({
           }
         }
 
-        // Process with AI
-        const finwiseAnalysis = await finwiseAIAgent({
+        // Prepare email data for V2 processing
+        const emailData = {
           userId: payload.userId,
           threadId: messageData.threadId || '',
           subject: metadata.subject,
@@ -104,9 +202,32 @@ export const processEmailBatch = task({
           date: metadata.date,
           body: emailBody,
           attachments: processedAttachments
-        });
+        };
 
-        // Store email data
+        // Process with V2 AI
+        let finwiseV2Result: any = null;
+        let v2Success = false;
+
+        try {
+          logger.log("Processing with V2 system", { messageId: messageInfo.id });
+          finwiseV2Result = await finwiseAIV2Agent(emailData);
+          v2Success = true;
+          logger.log("V2 processing completed", { 
+            messageId: messageInfo.id,
+            parseSuccess: finwiseV2Result.parseSuccess,
+            merchantId: finwiseV2Result.merchantId,
+            schemaUsed: finwiseV2Result.schemaUsed
+          });
+        } catch (error) {
+          logger.error("V2 processing failed", {
+            messageId: messageInfo.id,
+            error: error instanceof Error ? error.message : String(error)
+          });
+          stats.errorCount++;
+          continue;
+        }
+
+        // Store email data using V2 results
         const storedEmail = await storeEmailData({
           threadId: messageData.threadId || null,
           userId: payload.userId,
@@ -114,10 +235,10 @@ export const processEmailBatch = task({
           senderEmailId: metadata.from || null,  
           receivedDate: metadata.receivedDate || new Date(),
           snippet: metadata.snippet || null,
-          parseSuccess: finwiseAnalysis.parseSuccess || null,
-          parseErrors: finwiseAnalysis.parseErrors?.join(', ') || null,
+          parseSuccess: finwiseV2Result?.parseSuccess || false,
+          parseErrors: finwiseV2Result?.parseErrors?.join(', ') || null,
           rawContent: emailBody || '',
-          aiAnalysisId: finwiseAnalysis.analysisId || null,
+          aiAnalysisId: null,
           attachmentStoragePath: attachmentStoragePaths ? JSON.stringify(attachmentStoragePaths) : null,
           parsedAt: new Date()
         });
@@ -127,39 +248,14 @@ export const processEmailBatch = task({
           continue;
         }
 
-        // Store transaction if detected
-        if (finwiseAnalysis.parseSuccess && finwiseAnalysis.transaction) {
-          const transaction = finwiseAnalysis.transaction;
-          const parsedEmailId = storedEmail[0]?.id;
-
-          if (parsedEmailId) {
-            await storeTransactionData({
-              userId: payload.userId,
-              parsedEmailId,
-              amount: transaction.amount || 0,
-              currency: transaction.currency || 'INR',
-              type: transaction.type || 'DEBIT',
-              status: transaction.status || 'COMPLETED',
-              transactionDate: transaction.transactionDate ? new Date(transaction.transactionDate) : metadata.receivedDate,
-              valueDate: null,
-              description: transaction.description || '',
-              notes: null,
-              category: transaction.category || null,
-              merchantId: null,
-              merchantName: transaction.merchantName || null,
-              merchantCategory: transaction.merchantCategory || null,
-              instrumentId: null,
-              orderId: transaction.orderId || null,
-              orderItems: transaction.orderItems || null,
-              deliveryAddress: transaction.deliveryAddress || null,
-              paymentMethod: transaction.paymentMethod || null,
-              referenceIds: transaction.referenceIds || {},
-              location: transaction.location || null,
-              isVerified: false,
-              verificationStatus: 'UNVERIFIED',
-              duplicateOf: null
-            });
-          }
+        // Log V2 transaction storage (already handled by finwiseAIV2Agent)
+        if (finwiseV2Result?.transactionId) {
+          logger.log("V2 transaction stored successfully", { 
+            messageId: messageInfo.id,
+            transactionId: finwiseV2Result.transactionId,
+            merchantId: finwiseV2Result.merchantId,
+            schemaUsed: finwiseV2Result.schemaUsed
+          });
         }
 
         stats.processedCount++;
@@ -192,9 +288,9 @@ export const processEmails = task({
     userId: string;
     syncPeriodDays?: number;
   }) => {
-    const syncPeriodDays = payload.syncPeriodDays || 90;
+    const syncPeriodDays = payload.syncPeriodDays || SYNC_PERIOD_DAYS;
     
-    logger.log("Starting email sync", { 
+    logger.log("Starting email sync with V2 processing", { 
       userId: payload.userId,
       syncPeriodDays
     });
@@ -204,8 +300,7 @@ export const processEmails = task({
         DATABASE_URL: process.env.DATABASE_URL
       });
       // Step 1: Initial setup
-      const patterns = await getEmailExtractionPatterns();
-      const searchQuery = await buildGmailSearchQuery(patterns);
+      const searchQuery = buildMerchantBasedGmailSearchQuery();
       
       const lastSyncTime = await getLastSyncTime(payload.userId);
       const startDate = lastSyncTime || new Date(Date.now() - (syncPeriodDays * 24 * 60 * 60 * 1000));
@@ -282,7 +377,8 @@ export const processEmails = task({
         processedCount: 0,
         skippedCount: 0,
         errorCount: 0,
-        totalFound: allMessages.length
+        totalFound: allMessages.length,
+        merchantFilteredCount: 0  // Track emails filtered out by merchant checks
       };
 
       for (const result of results) {
@@ -290,6 +386,7 @@ export const processEmails = task({
           totalStats.processedCount += result.output.processedCount;
           totalStats.skippedCount += result.output.skippedCount;
           totalStats.errorCount += result.output.errorCount;
+          totalStats.merchantFilteredCount += result.output.merchantFilteredCount || 0;
         }
       }
 
@@ -301,9 +398,22 @@ export const processEmails = task({
       const duplicateDetectionHandle = await detectDuplicateTransactions.trigger();
       logger.log("Triggered duplicate detection", { runId: duplicateDetectionHandle.id });
 
+      // Build success message
+      let message = `Processed ${totalStats.processedCount} emails, skipped ${totalStats.skippedCount} already processed emails, encountered ${totalStats.errorCount} errors, out of ${totalStats.totalFound} total emails found since ${startDate.toISOString()}`;
+      
+      // Add merchant filtering information
+      if (totalStats.merchantFilteredCount > 0) {
+        message += `\nMerchant Filtering: ${totalStats.merchantFilteredCount} emails filtered out (unsupported merchants)`;
+      }
+
+      logger.log("Email sync completed successfully", {
+        userId: payload.userId,
+        totalStats
+      });
+
       return {
         success: true,
-        message: `Processed ${totalStats.processedCount} emails, skipped ${totalStats.skippedCount} already processed emails, encountered ${totalStats.errorCount} errors, out of ${totalStats.totalFound} total emails found since ${startDate.toISOString()}`,
+        message,
         ...totalStats,
         syncStartDate: startDate,
         isFirstSync,
@@ -328,7 +438,6 @@ export const processEmails = task({
     }
   }
 });
-
 
 // const response = {
 //   "message": {

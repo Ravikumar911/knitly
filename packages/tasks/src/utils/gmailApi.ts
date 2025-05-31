@@ -2,6 +2,7 @@ import { logger } from "@trigger.dev/sdk/v3";
 import { GmailMessage, GmailMessageList, GmailAttachment } from "../types/gmail";
 import { google, gmail_v1 } from 'googleapis';
 import { GmailAttachmentData } from "../types";
+import { getMerchantEmailConfigs } from "../merchants";
 
 // Create Gmail API client
 const createGmailClient = (providerToken: string) => {
@@ -11,9 +12,88 @@ const createGmailClient = (providerToken: string) => {
 };
 
 /**
- * Builds Gmail search query from email extraction patterns
+ * Builds Gmail search query based on active merchants from the codebase
+ * This replaces generic email extraction patterns with merchant-specific filtering
+ */
+export function buildMerchantBasedGmailSearchQuery(): string {
+  try {
+    const merchantConfigs = getMerchantEmailConfigs();
+    
+    if (merchantConfigs.length === 0) {
+      logger.warn("No active merchants found for email filtering");
+      return "";
+    }
+
+    const searchQueries: string[] = [];
+
+    for (const merchant of merchantConfigs) {
+      const conditions: string[] = [];
+
+      // Add domain-based filtering (most important)
+      if (merchant.domains && merchant.domains.length > 0) {
+        const domainConditions = merchant.domains
+          .map(domain => `from:${domain}`)
+          .join(" OR ");
+        conditions.push(`(${domainConditions})`);
+      }
+
+      // Add subject pattern filtering if available
+      if (merchant.subjectPatterns && merchant.subjectPatterns.length > 0) {
+        const subjectConditions = merchant.subjectPatterns
+          .map(pattern => {
+            // Convert regex patterns to Gmail search-friendly format
+            // Gmail doesn't support full regex, so we'll use basic keyword matching
+            const cleanPattern = pattern.replace(/[^\w\s]/g, ' ').trim();
+            return cleanPattern ? `subject:"${cleanPattern}"` : '';
+          })
+          .filter(pattern => pattern.length > 0)
+          .join(" OR ");
+        
+        if (subjectConditions) {
+          conditions.push(`(${subjectConditions})`);
+        }
+      }
+
+      // Combine merchant conditions with AND
+      if (conditions.length > 0) {
+        const merchantQuery = conditions.join(" AND ");
+        searchQueries.push(`(${merchantQuery})`);
+        
+        logger.log("Added merchant to email filter", {
+          merchantName: merchant.name,
+          merchantId: merchant.id,
+          domains: merchant.domains,
+          hasSubjectPatterns: !!(merchant.subjectPatterns && merchant.subjectPatterns.length > 0),
+          query: merchantQuery
+        });
+      }
+    }
+
+    // Combine all merchant queries with OR
+    const finalQuery = searchQueries.length > 0 ? searchQueries.join(" OR ") : "";
+    
+    logger.log("Built merchant-based Gmail search query", {
+      merchantCount: merchantConfigs.length,
+      queryLength: finalQuery.length,
+      hasQuery: finalQuery.length > 0
+    });
+
+    return finalQuery;
+  } catch (error) {
+    logger.error("Failed to build merchant-based Gmail search query", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return "";
+  }
+}
+
+/**
+ * Builds Gmail search query from email extraction patterns (DEPRECATED)
+ * @deprecated Use buildMerchantBasedGmailSearchQuery instead
  */
 export async function buildGmailSearchQuery(patterns: any[]) {
+  logger.warn("Using deprecated buildGmailSearchQuery - consider migrating to buildMerchantBasedGmailSearchQuery");
+  
   const searchQueries = patterns
     .filter(p => p.isActive)
     .map(pattern => {
