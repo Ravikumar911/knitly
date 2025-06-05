@@ -7,28 +7,27 @@ export const SwiggyMerchant: MerchantConfig = {
   name: "Swiggy",
   code: "SWIGGY",
   
-  // Email identification patterns
+  // Primary filtering: Domain-based Gmail search
   emailPatterns: [
-    "swiggy.in",
-    "swiggy.com",
-    "noreply@swiggy.in",
-    "orders@swiggy.in",
-    "partnerupdate.swiggy.in"
+    "*.swiggy.in",    // Catches all Swiggy India subdomains
+    "*.swiggy.com"    // Catches all Swiggy global subdomains
   ],
   
+  // Secondary filtering: Used for post-processing identification only
   subjectPatterns: [
     "swiggy order",
-    "swiggy instamart",
-    "order.*delivered",
-    "payment.*swiggy",
-    "your.*swiggy.*order"
+    "swiggy instamart", 
+    "order delivered",
+    "payment swiggy",
+    "your swiggy order",
+    "successfully delivered"
   ],
   
   bodyPatterns: [
     "swiggy",
     "order id",
-    "delivery.*address",
-    "restaurant.*order"
+    "delivery address",
+    "restaurant order"
   ],
   
   // Schema and prompt

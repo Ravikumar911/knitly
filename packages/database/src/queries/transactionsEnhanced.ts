@@ -28,6 +28,38 @@ export interface TransactionV2Input {
 }
 
 /**
+ * Store a new transaction in the enhanced v2 table using input data
+ */
+export async function storeTransactionV2Input(transaction: TransactionV2Input) {
+  const result = await db.insert(transactionsV2).values({
+    userId: transaction.userId,
+    parsedEmailId: transaction.parsedEmailId || null,
+    merchantId: transaction.merchantId || null,
+    merchantCode: transaction.merchantCode || null,
+    merchantName: transaction.merchantName || null,
+    amount: transaction.amount.toString(),
+    currency: transaction.currency || "INR",
+    type: transaction.type,
+    status: transaction.status || "COMPLETED",
+    transactionDate: transaction.transactionDate,
+    description: transaction.description || null,
+    category: transaction.category || null,
+    paymentMethod: transaction.paymentMethod || null,
+    referenceIds: transaction.referenceIds || {},
+    location: transaction.location || null,
+    merchantData: transaction.merchantData || {},
+    extractionConfidence: transaction.extractionConfidence || null,
+    schemaUsed: transaction.schemaUsed || null,
+    dataSource: transaction.dataSource || null,
+    isVerified: transaction.isVerified || false,
+    verificationStatus: transaction.verificationStatus || "UNVERIFIED",
+    duplicateOf: transaction.duplicateOf || null,
+  }).returning();
+  
+  return result[0];
+}
+
+/**
  * Store a new transaction in the enhanced v2 table
  */
 export async function storeTransactionV2(transaction: Transaction) {

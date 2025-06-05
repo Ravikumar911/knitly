@@ -6,7 +6,7 @@ import { identifyMerchant } from "../merchants";
 import { BaseExtractionSchema } from "../merchants/base/baseSchema";
 import { SwiggyExtractionSchema } from "../merchants/swiggy/schema";
 import { PhonePeExtractionSchema } from "../merchants/phonepe/schema";
-import { storeTransactionV2 } from "@workspace/database";
+import { storeTransactionV2, storeTransactionV2Input } from "@workspace/database";
 import { z } from "zod";
 
 
@@ -90,7 +90,7 @@ export const finwiseAIV2Agent = async (emailData: EmailData): Promise<FinwiseAIV
     const merchantMatch = await identifyMerchant(emailData);
 
     // Step 2: Select appropriate schema based on merchant
-    const { schema, schemaType } = selectSchema(merchantMatch?.merchant.id);
+    const { schema, schemaType } = selectSchema('swiggy');
     const prompt = merchantMatch?.merchant.prompt || "Extract financial data from this email.";
 
     logger.log("Using schema", {
@@ -165,9 +165,9 @@ export const finwiseAIV2Agent = async (emailData: EmailData): Promise<FinwiseAIV
 
     if (extractionResult.parseSuccess && extractionResult.transaction) {
       try {
-        const storedTransaction = await storeTransactionV2({
+        const storedTransaction = await storeTransactionV2Input({
           userId: emailData.userId,
-          parsedEmailId: undefined, // Will be set by the calling function
+          parsedEmailId: emailData.emailId,
           merchantId: merchantMatch?.merchant.id,
           merchantCode: merchantMatch?.merchant.code,
           merchantName: merchantMatch?.merchant.name,

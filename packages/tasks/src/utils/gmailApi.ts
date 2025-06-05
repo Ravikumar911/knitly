@@ -27,45 +27,22 @@ export function buildMerchantBasedGmailSearchQuery(): string {
     const searchQueries: string[] = [];
 
     for (const merchant of merchantConfigs) {
-      const conditions: string[] = [];
-
-      // Add domain-based filtering (most important)
+      // Only use domain-based filtering
       if (merchant.domains && merchant.domains.length > 0) {
         const domainConditions = merchant.domains
           .map(domain => `from:${domain}`)
           .join(" OR ");
-        conditions.push(`(${domainConditions})`);
-      }
-
-      // Add subject pattern filtering if available
-      if (merchant.subjectPatterns && merchant.subjectPatterns.length > 0) {
-        const subjectConditions = merchant.subjectPatterns
-          .map(pattern => {
-            // Convert regex patterns to Gmail search-friendly format
-            // Gmail doesn't support full regex, so we'll use basic keyword matching
-            const cleanPattern = pattern.replace(/[^\w\s]/g, ' ').trim();
-            return cleanPattern ? `subject:"${cleanPattern}"` : '';
-          })
-          .filter(pattern => pattern.length > 0)
-          .join(" OR ");
         
-        if (subjectConditions) {
-          conditions.push(`(${subjectConditions})`);
+        if (domainConditions) {
+          searchQueries.push(`(${domainConditions})`);
+          
+          logger.log("Added merchant to email filter", {
+            merchantName: merchant.name,
+            merchantId: merchant.id,
+            domains: merchant.domains,
+            query: domainConditions
+          });
         }
-      }
-
-      // Combine merchant conditions with AND
-      if (conditions.length > 0) {
-        const merchantQuery = conditions.join(" AND ");
-        searchQueries.push(`(${merchantQuery})`);
-        
-        logger.log("Added merchant to email filter", {
-          merchantName: merchant.name,
-          merchantId: merchant.id,
-          domains: merchant.domains,
-          hasSubjectPatterns: !!(merchant.subjectPatterns && merchant.subjectPatterns.length > 0),
-          query: merchantQuery
-        });
       }
     }
 
@@ -428,9 +405,59 @@ export const downloadAttachment = async (
     });
     return null;
   }
-}; 
+};
 
+/**
+ * Gets the total count of emails matching the merchant-based search criteria
+ * This uses the same search query as the email processing to ensure accuracy
+ */
+export const getGmailEmailCount = async (
+  providerToken: string, 
+  options?: {
+    after?: Date;  // Only count messages after this date
+    before?: Date; // Only count messages before this date
+  }
+): Promise<number> => {
+  try {
+    // Build the same merchant-based query used in email processing
+    const merchantQuery = buildMerchantBasedGmailSearchQuery();
+    
+    let query = merchantQuery;
+    
+    // Add date filters if provided (same as in fetchGmailMessages)
+    if (options?.after) {
+      query += ` after:${options.after.toISOString().split('T')[0]}`;
+    }
+    if (options?.before) {
+      query += ` before:${options.before.toISOString().split('T')[0]}`;
+    }
 
+    logger.log('Getting Gmail email count with query', { query });
+
+    const gmail = createGmailClient(providerToken);
+    
+    // Get just one message to get the resultSizeEstimate
+    const response = await gmail.users.messages.list({
+      userId: 'me',
+      maxResults: 1, // We only need the count estimate
+      q: query.trim() || undefined
+    });
+
+    const totalCount = response.data.resultSizeEstimate || 0;
+    
+    logger.log('Gmail email count retrieved', { 
+      totalCount,
+      query: query.trim()
+    });
+    
+    return totalCount;
+  } catch (error) {
+    logger.error('Error getting Gmail email count:', { 
+      error: error instanceof Error ? error.message : String(error) 
+    });
+    return 0;
+  }
+};
 
 const sampleMessage = {
   "message": {

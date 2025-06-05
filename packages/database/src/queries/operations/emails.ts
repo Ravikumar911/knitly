@@ -23,6 +23,19 @@ export async function storeEmailData(data: Omit<ParsedEmail, 'id' | 'createdAt' 
 }
 
 /**
+ * Updates an existing email record
+ */
+export async function updateEmailData(emailId: string, data: Partial<Omit<ParsedEmail, 'id' | 'createdAt' | 'updatedAt'>>) {
+  return await db.update(parsedEmails)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
+    .where(eq(parsedEmails.id, emailId))
+    .returning();
+}
+
+/**
  * Checks if an email has already been processed
  */
 export async function isEmailProcessed(userId: string, messageId: string) {

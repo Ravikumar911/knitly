@@ -50,8 +50,8 @@ export const SwiggyExtractionSchema = BaseExtractionSchema.extend({
   
   // Swiggy-specific metadata
   swiggyMetadata: z.object({
-    service: z.enum(["FOOD_DELIVERY", "INSTAMART", "GENIE"]).default("FOOD_DELIVERY")
-      .describe("Type of Swiggy service - FOOD_DELIVERY for restaurants, INSTAMART for groceries, GENIE for courier"),
+    service: z.enum(["FOOD_DELIVERY", "INSTAMART", "GENIE", "DINEOUT"]).default("FOOD_DELIVERY")
+      .describe("Type of Swiggy service - FOOD_DELIVERY for restaurants, INSTAMART for groceries, GENIE for courier, DINEOUT for dine-in"),
     appVersion: z.string().optional().describe("Version of the Swiggy app used"),
     orderType: z.enum(["DELIVERY", "PICKUP", "DINE_IN"]).default("DELIVERY")
       .describe("How the order was fulfilled - DELIVERY for home delivery, PICKUP for customer pickup"),

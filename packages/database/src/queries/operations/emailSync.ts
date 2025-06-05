@@ -1,12 +1,22 @@
 import { db } from '../../index';
 import { emailSyncStatus } from '../../schema/emailSyncStatus';
-import { eq } from 'drizzle-orm';
+import { parsedEmails } from '../../schema/parsedEmails';
+import { eq, count } from 'drizzle-orm';
 
 interface SyncStatus {
   lastSyncedAt: Date | null;
   nextPageToken: string | null;
   syncStatus: string | null;
   errorDetails: string | null;
+}
+
+interface SyncProgress {
+  totalEmails: number | null;
+  processedEmails: number;
+  progressPercentage: number;
+  estimatedCompletion: Date | null;
+  syncStatus: string | null;
+  hasInitialSync: boolean;
 }
 
 /**
@@ -38,6 +48,143 @@ export async function getSyncStatus(userId: string): Promise<SyncStatus> {
     syncStatus: result[0]?.syncStatus || null,
     errorDetails: result[0]?.errorDetails || null
   };
+}
+
+/**
+ * Check if user has any synced email data
+ */
+export async function checkUserHasData(userId: string): Promise<{
+  hasEmails: boolean;
+  hasInitialSync: boolean;
+  emailCount: number;
+}> {
+  // Check if user has any parsed emails
+  const emailCountResult = await db.select({ count: count() })
+    .from(parsedEmails)
+    .where(eq(parsedEmails.userId, userId));
+  
+  const emailCount = emailCountResult[0]?.count || 0;
+  
+  // Check sync status
+  const syncResult = await db.select({
+    hasInitialSync: emailSyncStatus.hasInitialSync
+  })
+    .from(emailSyncStatus)
+    .where(eq(emailSyncStatus.userId, userId))
+    .limit(1);
+  
+  return {
+    hasEmails: emailCount > 0,
+    hasInitialSync: syncResult[0]?.hasInitialSync || false,
+    emailCount
+  };
+}
+
+/**
+ * Get sync progress information
+ */
+export async function getSyncProgress(userId: string): Promise<SyncProgress> {
+  const result = await db.select({
+    totalEmails: emailSyncStatus.totalEmails,
+    processedEmails: emailSyncStatus.processedEmails,
+    progressPercentage: emailSyncStatus.progressPercentage,
+    estimatedCompletion: emailSyncStatus.estimatedCompletion,
+    syncStatus: emailSyncStatus.syncStatus,
+    hasInitialSync: emailSyncStatus.hasInitialSync
+  })
+    .from(emailSyncStatus)
+    .where(eq(emailSyncStatus.userId, userId))
+    .limit(1);
+  
+  if (result.length === 0) {
+    return {
+      totalEmails: null,
+      processedEmails: 0,
+      progressPercentage: 0,
+      estimatedCompletion: null,
+      syncStatus: null,
+      hasInitialSync: false
+    };
+  }
+
+  const data = result[0]!; // Safe to use ! here since we checked length > 0
+  return {
+    totalEmails: data.totalEmails,
+    processedEmails: data.processedEmails || 0,
+    progressPercentage: parseFloat(data.progressPercentage || '0'),
+    estimatedCompletion: data.estimatedCompletion,
+    syncStatus: data.syncStatus,
+    hasInitialSync: data.hasInitialSync || false
+  };
+}
+
+/**
+ * Initialize sync with total email count
+ */
+export async function initializeSync(userId: string, totalEmails: number): Promise<void> {
+  const existing = await db.select({ id: emailSyncStatus.id })
+    .from(emailSyncStatus)
+    .where(eq(emailSyncStatus.userId, userId))
+    .limit(1);
+
+  const estimatedCompletion = new Date();
+  estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + Math.ceil(totalEmails / 1000)); // ~1000 emails per minute
+
+  if (existing.length > 0) {
+    await db.update(emailSyncStatus)
+      .set({
+        totalEmails,
+        processedEmails: 0,
+        progressPercentage: '0.00',
+        estimatedCompletion,
+        syncStatus: 'counting_emails',
+        updatedAt: new Date()
+      })
+      .where(eq(emailSyncStatus.userId, userId));
+  } else {
+    await db.insert(emailSyncStatus)
+      .values({
+        userId,
+        lastSyncedAt: new Date(),
+        totalEmails,
+        processedEmails: 0,
+        progressPercentage: '0.00',
+        estimatedCompletion,
+        syncStatus: 'counting_emails',
+        hasInitialSync: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+  }
+}
+
+/**
+ * Update sync progress during email processing
+ */
+export async function updateSyncProgress(userId: string, processedEmails: number): Promise<void> {
+  const current = await getSyncProgress(userId);
+  
+  if (!current.totalEmails) {
+    throw new Error('Cannot update progress without total email count');
+  }
+
+  const progressPercentage = (processedEmails / current.totalEmails) * 100;
+  const remainingEmails = current.totalEmails - processedEmails;
+  const estimatedMinutesRemaining = Math.ceil(remainingEmails / 1000); // ~1000 emails per minute
+  
+  const estimatedCompletion = new Date();
+  estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + estimatedMinutesRemaining);
+
+  await db.update(emailSyncStatus)
+    .set({
+      processedEmails,
+      progressPercentage: progressPercentage.toFixed(2),
+      estimatedCompletion,
+      syncStatus: processedEmails >= current.totalEmails ? 'complete' : 'syncing',
+      hasInitialSync: processedEmails >= current.totalEmails ? true : current.hasInitialSync,
+      updatedAt: new Date()
+    })
+    .where(eq(emailSyncStatus.userId, userId));
 }
 
 /**
@@ -159,4 +306,16 @@ export async function markSyncFailed(userId: string, errorDetails?: string) {
     syncStatus: 'failed',
     errorDetails: errorDetails || null
   });
+}
+
+/**
+ * Mark sync as counting emails
+ */
+export async function markSyncCountingEmails(userId: string): Promise<void> {
+  await db.update(emailSyncStatus)
+    .set({ 
+      syncStatus: 'counting_emails',
+      lastSyncedAt: new Date()
+    })
+    .where(eq(emailSyncStatus.userId, userId));
 } 

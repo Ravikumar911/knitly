@@ -40,3 +40,9 @@ export * from './schema/transactionsV2';
 
 // Export enhanced transaction functions
 export * from "./queries/transactionsEnhanced"
+
+// Export new transaction query functions with email data
+export * from "./queries/transactions"
+
+// Export Swiggy analytics functions
+export * from "./queries/insights/swiggyAnalytics"
