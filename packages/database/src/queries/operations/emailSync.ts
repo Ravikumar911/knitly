@@ -1,7 +1,8 @@
 import { db } from '../../index';
 import { emailSyncStatus } from '../../schema/emailSyncStatus';
 import { parsedEmails } from '../../schema/parsedEmails';
-import { eq, count } from 'drizzle-orm';
+import { eq, count, and, or, isNotNull, isNull, lt, not, inArray } from 'drizzle-orm';
+import { userGoogleTokens } from '../../schema/tokens';
 
 interface SyncStatus {
   lastSyncedAt: Date | null;
@@ -357,4 +358,57 @@ export async function markSyncCountingEmails(userId: string): Promise<void> {
         updatedAt: new Date()
       });
   }
+}
+
+/**
+ * Get all users who need email syncing
+ * Returns users with Google tokens who haven't synced in the last 24 hours
+ */
+export async function getUsersNeedingSync(): Promise<Array<{
+  userId: string;
+  lastSyncedAt: Date | null;
+}>> {
+  // Get users with Google tokens who either:
+  // 1. Have never synced (no record in emailSyncStatus)
+  // 2. Haven't synced in the last 24 hours
+  // 3. Have a sync status that's not 'in_progress' or 'syncing' (to avoid double syncing)
+  
+  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  
+  const usersWithTokens = await db
+    .select({
+      userId: userGoogleTokens.userId,
+      lastSyncedAt: emailSyncStatus.lastSyncedAt,
+      syncStatus: emailSyncStatus.syncStatus,
+    })
+    .from(userGoogleTokens)
+    .leftJoin(emailSyncStatus, eq(userGoogleTokens.userId, emailSyncStatus.userId))
+    .where(
+      and(
+        // Has valid refresh token
+        isNotNull(userGoogleTokens.providerRefreshToken),
+        // Either never synced, synced more than 24 hours ago, or not currently syncing
+        or(
+          // Never synced (no emailSyncStatus record)
+          isNull(emailSyncStatus.userId),
+          // Synced more than 24 hours ago
+          and(
+            isNotNull(emailSyncStatus.lastSyncedAt),
+            lt(emailSyncStatus.lastSyncedAt, twentyFourHoursAgo)
+          ),
+          // Failed sync that needs retry
+          eq(emailSyncStatus.syncStatus, 'failed')
+        ),
+        // Not currently syncing
+        or(
+          isNull(emailSyncStatus.syncStatus),
+          not(inArray(emailSyncStatus.syncStatus, ['in_progress', 'syncing', 'counting_emails']))
+        )
+      )
+    );
+
+  return usersWithTokens.map(user => ({
+    userId: user.userId,
+    lastSyncedAt: user.lastSyncedAt,
+  }));
 } 

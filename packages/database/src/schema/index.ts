@@ -4,3 +4,4 @@ export * from './parsedEmails';
 export * from './tokens';
 export * from './relations';
 export * from './transactionsV2';
+export * from './feedback';

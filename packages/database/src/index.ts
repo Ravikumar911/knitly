@@ -46,3 +46,6 @@ export * from "./queries/transactions"
 
 // Export Swiggy analytics functions
 export * from "./queries/insights/swiggyAnalytics"
+
+// Export feedback functions
+export * from "./queries/feedback"
