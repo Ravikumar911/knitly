@@ -69,6 +69,7 @@ Globs: **/*.ts, **/*.tsx
   - Export reusable, type-safe functions for @apps/main (via tRPC) and @packages/tasks.
   - No UI components, tRPC, or app logic.
   - Use @supabase/ssr for query-related auth checks (e.g., user ID).
+  - Always use generate and migrate scripts from package.json. don't change from the packages/databases/drizzle
 - **Allowed Imports**:
   - drizzle-orm/*
   - @supabase/ssr

@@ -1,6 +1,6 @@
 import { eq, isNull } from 'drizzle-orm';
 import { db } from '../../index';
-import { transactions } from '../../schema/transactions';
+import { transactionsV2 } from '../../schema/transactionsV2';
 import { Transaction } from '../../types';
 
 /**
@@ -191,9 +191,9 @@ async function updateDuplicateReferences(duplicates: Record<string, string>): Pr
   for (const duplicateId of duplicateIds) {
     const canonicalId = duplicates[duplicateId];
     
-    await db.update(transactions)
+    await db.update(transactionsV2)
       .set({ duplicateOf: canonicalId })
-      .where(eq(transactions.id, duplicateId));
+      .where(eq(transactionsV2.id, duplicateId));
   }
 }
 
@@ -204,9 +204,9 @@ async function updateDuplicateReferences(duplicates: Record<string, string>): Pr
 export async function markDuplicatesForAllUsers(): Promise<number> {
   // Get all transactions without duplicate_of set
   const allTransactions = await db.select()
-    .from(transactions)
-    .where(isNull(transactions.duplicateOf))
-    .orderBy(transactions.transactionDate);
+    .from(transactionsV2)
+    .where(isNull(transactionsV2.duplicateOf))
+    .orderBy(transactionsV2.transactionDate);
   
   // Group by user ID
   const transactionsByUser: Record<string, Transaction[]> = {};

@@ -3,17 +3,12 @@
 import * as React from "react"
 import {
   LayoutDashboard,
-  Receipt,
-  Tags,
   Wallet,
-  Settings,
   Command,
-  LifeBuoy,
   Send,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
@@ -42,44 +37,6 @@ const data = {
           title: "Analytics",
           url: "/dashboard/analytics",
         },
-        {
-          title: "Reports",
-          url: "/dashboard/reports",
-        },
-      ],
-    },
-    {
-      title: "Transactions",
-      url: "/transactions",
-      icon: Receipt,
-      items: [
-        {
-          title: "All Transactions",
-          url: "/transactions",
-        },
-        {
-          title: "Recurring",
-          url: "/transactions/recurring",
-        },
-        {
-          title: "Scheduled",
-          url: "/transactions/scheduled",
-        },
-      ],
-    },
-    {
-      title: "Categories",
-      url: "/categories",
-      icon: Tags,
-      items: [
-        {
-          title: "Manage Categories",
-          url: "/categories",
-        },
-        {
-          title: "Rules",
-          url: "/categories/rules",
-        },
       ],
     },
     {
@@ -97,36 +54,8 @@ const data = {
         },
       ],
     },
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Settings,
-      items: [
-        {
-          title: "General",
-          url: "/settings",
-        },
-        {
-          title: "Profile",
-          url: "/settings/profile",
-        },
-        {
-          title: "Notifications",
-          url: "/settings/notifications",
-        },
-        {
-          title: "Security",
-          url: "/settings/security",
-        },
-      ],
-    },
   ],
   navSecondary: [
-    {
-      title: "Help & Support",
-      url: "/support",
-      icon: LifeBuoy,
-    },
     {
       title: "Send Feedback",
       url: "/feedback",

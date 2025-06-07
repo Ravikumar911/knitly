@@ -1,8 +1,7 @@
 import { db } from '../../index';
 import { parsedEmails } from '../../schema/parsedEmails';
-import { transactions } from '../../schema/transactions';
 import { eq, and } from 'drizzle-orm';
-import { ParsedEmail, Transaction } from '../../types';
+import { ParsedEmail } from '../../types';
 /**
  * Stores processed email data in the database
  */
@@ -24,14 +23,16 @@ export async function storeEmailData(data: Omit<ParsedEmail, 'id' | 'createdAt' 
 }
 
 /**
- * Stores transaction data extracted from emails
+ * Updates an existing email record
  */
-export async function storeTransactionData(data: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>) {
-  return await db.insert(transactions).values({
-    ...data,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }).returning();
+export async function updateEmailData(emailId: string, data: Partial<Omit<ParsedEmail, 'id' | 'createdAt' | 'updatedAt'>>) {
+  return await db.update(parsedEmails)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
+    .where(eq(parsedEmails.id, emailId))
+    .returning();
 }
 
 /**

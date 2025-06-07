@@ -1,8 +1,7 @@
 import { create } from 'zustand'
-import type { TransactionType } from '@workspace/database'
 
 interface TransactionFiltersState {
-  type: TransactionType | null
+  type: string | null
   category: string | null
   startDate: Date | null
   endDate: Date | null
@@ -10,7 +9,7 @@ interface TransactionFiltersState {
   amountMax: number | null
   
   // Actions
-  setType: (type: TransactionType | null) => void
+  setType: (type: string | null) => void
   setCategory: (category: string | null) => void
   setStartDate: (date: Date | null) => void
   setEndDate: (date: Date | null) => void

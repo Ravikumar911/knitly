@@ -1,6 +1,5 @@
 import { pgTable, boolean, timestamp, uuid, varchar, text, unique, jsonb, pgEnum } from "drizzle-orm/pg-core";
 import { profiles } from "./users";
-import { aiAnalysis } from "./aiAnalysis";
 
 
 // Parsed emails
@@ -14,7 +13,6 @@ export const parsedEmails = pgTable("parsed_emails", {
   threadId: varchar("thread_id", { length: 255 }), // Gmail thread ID
   subject: text("subject"),
   receivedDate: timestamp("received_date"),
-  aiAnalysisId: uuid("ai_analysis_id").references(() => aiAnalysis.id, { onDelete: "cascade" }),
   // Parsing metadata
   parseSuccess: boolean("parse_success").default(false),
   parseErrors: text("parse_errors"),

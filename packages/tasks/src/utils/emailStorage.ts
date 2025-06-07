@@ -1,5 +1,5 @@
 import { logger } from "@trigger.dev/sdk/v3";
-import { storeEmailData as dbStoreEmail, storeTransactionData as dbStoreTransaction, ParsedEmail, Transaction } from "@workspace/database";
+import { storeEmailData as dbStoreEmail, storeTransactionV2 as dbStoreTransaction, ParsedEmail, Transaction } from "@workspace/database";
 import { createSupabaseClient } from "./supabase";
 import { downloadAttachment } from "./gmailApi";
 
@@ -47,15 +47,15 @@ export const storeTransactionData = async (data: Transaction) => {
       stored
     });
 
-    if (!stored || stored.length === 0) {
+    if (!stored) {
       throw new Error("Failed to store transaction data");
     }
 
     logger.log("Transaction stored successfully", {
-      id: stored[0]?.id,
+      id: stored.id,
     });
 
-    return stored[0];
+    return stored;
   } catch (error) {
     logger.error("Error storing transaction", {
       error: error instanceof Error ? error.message : String(error),

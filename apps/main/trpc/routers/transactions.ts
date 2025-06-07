@@ -1,89 +1,122 @@
-import { z } from "zod"
-import { createTRPCRouter, protectedProcedure } from "../init"
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { baseProcedure, createTRPCRouter } from "../init";
 import { 
-  getTransactions,
-  type TransactionStatus, 
-  type TransactionType, 
-  type DayOfWeekSpending, 
-  getTotalSpending, 
-  getTotalSpendingByDateRange, 
-  getAverageMonthlySpending, 
-  getAverageDailySpending, 
-  getSpendingByDayOfWeek 
-} from "@workspace/database"
+  getTransactionsWithEmails, 
+  getTransactionsCount, 
+  getUserMerchants,
+  getTransactionWithEmail,
+  type TransactionFilters 
+} from "@workspace/database";
 
-
-const transactionStatusEnum = z.enum([
-  "COMPLETED",
-  "PENDING",
-  "FAILED",
-  "REFUNDED",
-]) satisfies z.ZodType<TransactionStatus>
-
-const transactionTypeEnum = z.enum([
-  "DEBIT",
-  "CREDIT",
-  "TRANSFER",
-  "REFUND",
-]) satisfies z.ZodType<TransactionType>
+const transactionFiltersSchema = z.object({
+  merchantId: z.string().optional(),
+  merchantName: z.string().optional(),
+  status: z.string().optional(),
+  type: z.string().optional(),
+  category: z.string().optional(),
+  startDate: z.date().optional(),
+  endDate: z.date().optional(),
+  searchQuery: z.string().optional(),
+});
 
 export const transactionsRouter = createTRPCRouter({
-  list: protectedProcedure
+  // Get transactions with filtering and pagination
+  list: baseProcedure
     .input(
       z.object({
         page: z.number().min(1).default(1),
-        pageSize: z.number().min(1).max(100).default(10),
-        status: transactionStatusEnum.nullable().default(null),
-        type: transactionTypeEnum.nullable().default(null),
-        category: z.string().nullable().default(null),
-        startDate: z.date().nullable().default(null),
-        endDate: z.date().nullable().default(null),
-        amountMin: z.number().nullable().default(null),
-        amountMax: z.number().nullable().default(null),
-        merchantName: z.string().nullable().default(null),
-        search: z.string().optional(),
-        sortBy: z.string().nullable().default('transactionDate'),
-        sortDirection: z.enum(['asc', 'desc']).nullable().default('desc'),
+        pageSize: z.number().min(1).max(100).default(20),
+        filters: transactionFiltersSchema.optional(),
       })
     )
-    .query(async ({ ctx, input }) => {
-      const { transactions, pageCount, totalCount } = await getTransactions({
-        ...input,
-        userId: ctx.userId!,
-      })
+    .query(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
+        });
+      }
+
+      const { page, pageSize, filters } = input;
+      const offset = (page - 1) * pageSize;
+
+      const [transactions, totalCount] = await Promise.all([
+        getTransactionsWithEmails(
+          ctx.userId,
+          filters as TransactionFilters,
+          pageSize,
+          offset
+        ),
+        getTransactionsCount(ctx.userId, filters as TransactionFilters),
+      ]);
+
+      const totalPages = Math.ceil(totalCount / pageSize);
+
       return {
         transactions,
-        pageCount,
-        totalCount,
+        pagination: {
+          page,
+          pageSize,
+          totalCount,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
+      };
+    }),
+
+  // Get a specific transaction with email data
+  getById: baseProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input, ctx }) => {
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
+        });
       }
+
+      const transaction = await getTransactionWithEmail(input.id, ctx.userId);
+
+      if (!transaction) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Transaction not found",
+        });
+      }
+
+      return transaction;
     }),
 
-  getTotalSpending: protectedProcedure
-    .query(async ({ ctx }) => {
-      return getTotalSpending(ctx.userId!);
-    }),
+  // Get user's merchants for filter dropdown
+  getMerchants: baseProcedure.query(async ({ ctx }) => {
+    if (!ctx.userId) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "User not authenticated",
+      });
+    }
 
-  getTotalSpendingByDateRange: protectedProcedure
-    .input(z.object({
-      startDate: z.date(),
-      endDate: z.date()
-    }))
-    .query(async ({ ctx, input }) => {
-      return getTotalSpendingByDateRange(ctx.userId!, input.startDate, input.endDate);
-    }),
+    const merchants = await getUserMerchants(ctx.userId);
+    return merchants;
+  }),
 
-  getAverageMonthlySpending: protectedProcedure
-    .query(async ({ ctx }) => {
-      return getAverageMonthlySpending(ctx.userId!);
-    }),
+  // Get unique statuses for filter dropdown
+  getStatuses: baseProcedure.query(async () => {
+    return [
+      { value: "COMPLETED", label: "Completed" },
+      { value: "PENDING", label: "Pending" },
+      { value: "FAILED", label: "Failed" },
+      { value: "CANCELLED", label: "Cancelled" },
+    ];
+  }),
 
-  getAverageDailySpending: protectedProcedure
-    .query(async ({ ctx }) => {
-      return getAverageDailySpending(ctx.userId!);
-    }),
-
-  getSpendingByDayOfWeek: protectedProcedure
-    .query(async ({ ctx }): Promise<DayOfWeekSpending[]> => {
-      return getSpendingByDayOfWeek(ctx.userId!);
-    })
-}) 
+  // Get unique types for filter dropdown
+  getTypes: baseProcedure.query(async () => {
+    return [
+      { value: "DEBIT", label: "Debit" },
+      { value: "CREDIT", label: "Credit" },
+    ];
+  }),
+}); 

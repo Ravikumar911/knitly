@@ -3,6 +3,7 @@ import { z } from "zod"
 // Email data interface
 export interface EmailData {
   userId: string;
+  emailId?: string; // Optional email ID for linking transactions to emails
   threadId: string;
   subject: string;
   body: string;

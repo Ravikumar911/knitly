@@ -6,7 +6,6 @@
     },
     "include": [
       "src",
-      "trigger.config.ts"
     ],
     "exclude": ["node_modules", "dist"]
   }

@@ -1,6 +1,3 @@
-// Export all tasks
-export * from './agents/finwiseAI';
-
 // Export email processing tasks
 export * from './trigger/processEmails';
 

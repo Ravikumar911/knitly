@@ -1,65 +1,84 @@
-import { SpendingCardWrapper } from "./spending-card-wrapper";
-import { AverageSpendingCardWrapper } from "./average-spending-card-wrapper";
-import { DailySpendingCardWrapper } from "./daily-spending-card-wrapper";
-import { SpendingByDayChart } from "./spending-by-day-chart";
-import { EmailSyncStatus } from "@/components/email-sync-status";
-import { prefetch, HydrateClient } from "@/trpc/server";
-import { trpc } from "@/trpc/server";
+import { DataStatusChecker } from '@/components/onboarding';
+import { HydrateClient } from "@/trpc/server";
 import { Suspense } from "react";
+import { AnalyticsContent } from "@/components/analytics/analytics-content";
+import { DateRangePicker } from "@/components/analytics/date-range-picker";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import { Skeleton } from "@workspace/ui/components/skeleton";
+
+// Loading placeholder component
+function DashboardLoading() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <Skeleton className="h-4 w-[100px]" />
+              <Skeleton className="h-4 w-4" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-8 w-[120px] mb-1" />
+              <Skeleton className="h-3 w-[80px]" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-4">
+          <CardHeader>
+            <Skeleton className="h-6 w-[200px]" />
+            <Skeleton className="h-4 w-[300px]" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-[300px] w-full" />
+          </CardContent>
+        </Card>
+        
+        <Card className="col-span-3">
+          <CardHeader>
+            <Skeleton className="h-6 w-[150px]" />
+            <Skeleton className="h-4 w-[200px]" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex items-center space-x-4">
+                  <Skeleton className="h-8 w-8 rounded" />
+                  <div className="space-y-1 flex-1">
+                    <Skeleton className="h-4 w-[120px]" />
+                    <Skeleton className="h-3 w-[80px]" />
+                  </div>
+                  <Skeleton className="h-4 w-[60px]" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
 
 export default function Page() {
-  // Prefetch the data
-  prefetch(trpc.transactions.getTotalSpending.queryOptions());
-  prefetch(trpc.transactions.getAverageMonthlySpending.queryOptions());
-  prefetch(trpc.transactions.getAverageDailySpending.queryOptions());
-  prefetch(trpc.transactions.getSpendingByDayOfWeek.queryOptions());
-  prefetch(trpc.emails.getSyncStatus.queryOptions());
-
   return (
-    <HydrateClient>
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="grid grid-rows-1 gap-4 md:grid-cols-4">
-          <Suspense
-            fallback={
-              <div className="bg-muted/50 aspect-video rounded-xl animate-pulse" />
-            }
-          >
-            <SpendingCardWrapper />
-          </Suspense>
-          <Suspense
-            fallback={
-              <div className="bg-muted/50 aspect-video rounded-xl animate-pulse" />
-            }
-          >
-            <AverageSpendingCardWrapper />
-          </Suspense>
-          <Suspense
-            fallback={
-              <div className="bg-muted/50 aspect-video rounded-xl animate-pulse" />
-            }
-          >
-            <DailySpendingCardWrapper />
-          </Suspense>
-          <Suspense
-            fallback={
-              <div className="bg-muted/50 aspect-video rounded-xl animate-pulse" />
-            }
-          >
-            <EmailSyncStatus />
-          </Suspense>
+    <DataStatusChecker>
+      {/* Dashboard content for users with synced data */}
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="flex items-center justify-between space-y-2">
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+          <div className="flex items-center space-x-2">
+            <DateRangePicker />
+          </div>
         </div>
-        <div className="grid grid-rows-1 gap-4 md:grid-cols-4 ">
-          <Suspense
-            fallback={
-              <div className="bg-muted/50 h-[400px] rounded-xl animate-pulse col-span-2" />
-            }
-          >
-            <div className="col-span-2 md:col-span-2 sm:col-span-4">
-              <SpendingByDayChart />
-            </div>
+        
+        <HydrateClient>
+          <Suspense fallback={<DashboardLoading />}>
+            <AnalyticsContent />
           </Suspense>
-        </div>
+        </HydrateClient>
       </div>
-    </HydrateClient>
+    </DataStatusChecker>
   );
 }

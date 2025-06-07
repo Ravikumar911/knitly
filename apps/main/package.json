@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack --port 3000",
+    "dev": "NODE_TLS_REJECT_UNAUTHORIZED=0 next dev --turbopack --port 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -15,7 +15,8 @@
     "@tanstack/react-table": "^8.21.2",
     "@workspace/database": "workspace:*",
     "@workspace/tasks": "workspace:*",
-    "@workspace/ui": "workspace:*"
+    "@workspace/ui": "workspace:*",
+    "date-fns": "^4.1.0"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:^",

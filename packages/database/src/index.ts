@@ -13,15 +13,14 @@ export * from './schema'
 export * from './queries/auth'
 export * from './queries/operations/emails';
 export * from './queries/operations/emailSync';
-export * from './queries/operations/emailExtractionPatterns';
 export * from './schema/emailSyncStatus';
-export * from './queries/transactions';
+
+
 
 // Export transaction deduplication
 export * from './queries/operations/transactionFellegiSunter';
 
-// Export AI analysis functions
-export * from './queries/aiAnalysis';
+
 
 // For query purposes (not for migrations)
 const queryClient = postgres(process.env.DATABASE_URL!);
@@ -31,14 +30,22 @@ export const db = drizzle(queryClient, {
     }
  });
 
-export * from './schema/transactions';
 export * from './schema/users';
 export * from './schema/parsedEmails';
-export * from './schema/aiAnalysis';
-export * from './schema/emailExtractionPatterns';
 export * from './schema/emailSyncStatus';
-export * from './schema/financialInstruments';
-export * from './schema/merchants';
-export * from './schema/transactionCategories';
-export * from './schema/financialInstitutions';
 export * from './schema/relations';
+
+// New v2 schema modules
+export * from './schema/transactionsV2';
+
+// Export enhanced transaction functions
+export * from "./queries/transactionsEnhanced"
+
+// Export new transaction query functions with email data
+export * from "./queries/transactions"
+
+// Export Swiggy analytics functions
+export * from "./queries/insights/swiggyAnalytics"
+
+// Export feedback functions
+export * from "./queries/feedback"
