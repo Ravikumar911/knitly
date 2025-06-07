@@ -16,13 +16,13 @@ export const createTRPCContext = cache(async () => {
     const { data: { user }, error } = await supabase.auth.getUser();
     
     if (error) {
-      console.error('tRPC context - Supabase auth error:', error);
+     // console.error('tRPC context - Supabase auth error:', error);
     }
     
     if (!user) {
-      console.log('tRPC context - No user found in session');
+      //  console.log('tRPC context - No user found in session');
     } else {
-      console.log('tRPC context - User found:', user.id);
+      // console.log('tRPC context - User found:', user.id);
     }
     
     return { 

@@ -7,9 +7,8 @@ import { useTRPC } from '@/trpc/client';
 import { Button } from '@workspace/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import { Alert, AlertDescription } from '@workspace/ui/components/alert';
-import { Mail, Zap, BarChart3, Shield, Loader2 } from 'lucide-react';
-import { EmailCountDisplay } from './EmailCountDisplay';
-import { SyncProgressTracker } from './SyncProgressTracker';
+import { Progress } from '@workspace/ui/components/progress';
+import { Mail, Zap, BarChart3, Shield, Loader2, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
 interface SyncInitiatorProps {
   dataStatus: {
@@ -22,14 +21,18 @@ interface SyncInitiatorProps {
 
 export function SyncInitiator({ dataStatus }: SyncInitiatorProps) {
   const [error, setError] = useState<string | null>(null);
+  const [syncTriggered, setSyncTriggered] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const trpc = useTRPC();
 
-  // Mutation to start sync - following the same pattern as email-sync-status.tsx
+  // Mutation to start sync
   const initiateSyncMutation = useMutation(trpc.emails.initiateSync.mutationOptions({
     onSuccess: () => {
       setError(null);
+      setSyncTriggered(true);
     },
     onError: (err) => {
+      setSyncTriggered(false);
       if (err instanceof TRPCClientError) {
         setError(err.message || "Failed to start email analysis");
       } else {
@@ -38,27 +41,24 @@ export function SyncInitiator({ dataStatus }: SyncInitiatorProps) {
     }
   }));
 
-  // Get sync progress - but only poll when sync is actually active
-  const { data: progressData, isLoading: progressLoading } = useQuery({
+  // Enhanced polling for sync progress
+  const { data: progressData } = useQuery({
     ...trpc.emails.getSyncProgress.queryOptions(),
-    refetchInterval: (data) => {
-      // Only poll if there's an active sync status
+    refetchInterval: (query) => {
+      const data = query.state.data;
       const syncStatus = data?.syncStatus;
-      const isActiveSyncStatus = syncStatus && [
-        'counting_emails', 
-        'in_progress', 
-        'syncing'
-      ].includes(syncStatus);
       
-      // Poll every 2 seconds if sync is active, otherwise stop polling
-      return isActiveSyncStatus ? 2000 : false;
+      const activeSyncStates = ['counting_emails', 'in_progress', 'syncing'];
+      const shouldPoll = syncTriggered || (syncStatus && activeSyncStates.includes(syncStatus));
+      
+      return shouldPoll ? 1000 : false;
     },
-    // Start with a single fetch to check current state
     refetchOnMount: true,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
-  // Determine current sync state from database
+  // Determine current sync state
   const syncStatus = progressData?.syncStatus;
   const isInitiating = initiateSyncMutation.isPending;
   const isCountingEmails = syncStatus === 'counting_emails';
@@ -68,172 +68,240 @@ export function SyncInitiator({ dataStatus }: SyncInitiatorProps) {
   const isComplete = syncStatus === 'complete';
   const isFailed = syncStatus === 'failed';
   
-  // Active sync states that should show progress
   const isActiveSyncInProgress = isCountingEmails || isInProgress || isSyncing;
 
-  console.log('SyncInitiator Debug:', {
-    syncStatus,
-    isInitiating,
-    isActiveSyncInProgress,
-    hasTotalEmails,
-    progressData
-  });
-
-  // Show progress tracker if we have total emails and sync is actively processing
-  if (isSyncing && hasTotalEmails) {
-    return <SyncProgressTracker />;
+  // Reset syncTriggered when sync is complete or failed
+  if (syncTriggered && (isComplete || isFailed)) {
+    setSyncTriggered(false);
   }
 
-  // Show email count if we have the total but still in early sync stages
-  if (hasTotalEmails && (isCountingEmails || isInProgress || isSyncing)) {
-    return (
-      <div className="space-y-4">
-        <EmailCountDisplay 
-          totalEmails={progressData.totalEmails || undefined}
-          estimatedMinutes={progressData.totalEmails ? Math.ceil(progressData.totalEmails / 1000) : undefined}
-        />
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            {isCountingEmails 
-              ? 'Preparing to process your emails...' 
-              : 'Starting to process your emails...'
-            }
-          </p>
-        </div>
-      </div>
-    );
+  // Helper functions for status display
+  const getStatusIcon = () => {
+    if (isComplete) return <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-500" />;
+    if (isFailed) return <AlertCircle className="h-8 w-8 text-destructive" />;
+    return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
+  };
+
+  const getStatusTitle = () => {
+    if (isComplete) return 'Sync Complete!';
+    if (isFailed) return 'Sync Failed';
+    if (isInitiating) return 'Starting Email Analysis';
+    if (syncTriggered && !isActiveSyncInProgress) return 'Initiating Sync Process';
+    if (isCountingEmails) return 'Analyzing Your Gmail';
+    if (isInProgress) return 'Preparing to Process';
+    if (isSyncing) return 'Processing Your Emails';
+    return 'Welcome to Knitly';
+  };
+
+  const getStatusDescription = () => {
+    if (isComplete) return 'Your emails have been successfully analyzed and insights are ready!';
+    if (isFailed) return 'Email sync failed. Please try starting the sync again.';
+    if (isInitiating) return 'Initializing the sync process...';
+    if (syncTriggered && !isActiveSyncInProgress) return 'Your sync request is being processed. This may take a moment...';
+    if (isCountingEmails) return 'We\'re analyzing your Gmail account to see how many emails need processing';
+    if (isInProgress) return 'Preparing to process your emails...';
+    if (isSyncing) return 'Processing emails in the background. You can safely close this page and return later.';
+    return 'Get powerful insights from your email transactions and communication patterns';
+  };
+
+  const formatTimeRemaining = (estimatedCompletion: string | null) => {
+    if (!estimatedCompletion) return null;
+    
+    const now = new Date();
+    const completion = new Date(estimatedCompletion);
+    const diffMs = completion.getTime() - now.getTime();
+    
+    if (diffMs <= 0) return 'Almost done...';
+    
+    const diffMinutes = Math.ceil(diffMs / (1000 * 60));
+    if (diffMinutes < 60) {
+      return `~${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} remaining`;
+    }
+    
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+    return `~${hours}h ${minutes}m remaining`;
+  };
+
+  // Show dashboard when user clicks the button
+  if (showDashboard) {
+    window.location.reload(); // This will trigger DataStatusChecker to show dashboard
+    return null;
   }
 
-  // Show loading state only if we're initiating or there's an active sync without total count yet
-  if (isInitiating || (isActiveSyncInProgress && !hasTotalEmails)) {
-    return (
-      <Card className="w-full">
-        <CardContent className="flex flex-col items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-4" />
-          <h3 className="text-lg font-semibold mb-2">
-            {isInitiating ? 'Starting email analysis...' : 'Counting your emails...'}
-          </h3>
-          <p className="text-sm text-gray-600 text-center">
-            {isInitiating 
-              ? 'Initializing the sync process' 
-              : 'We\'re analyzing your Gmail account to see how many emails need processing'
-            }
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Show completion message if sync is complete
-  if (isComplete) {
-    return (
-      <Card className="w-full">
-        <CardContent className="flex flex-col items-center justify-center py-8">
-          <div className="text-center space-y-4">
-            <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-green-800">Email Sync Complete!</h3>
-            <p className="text-sm text-gray-600">
-              Your emails have been successfully analyzed. You can now view your insights in the dashboard.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Show error state if sync failed
-  if (isFailed) {
-    return (
-      <Card className="w-full">
-        <CardContent className="py-8">
-          <Alert variant="destructive">
-            <AlertDescription>
-              Email sync failed. Please try starting the sync again.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Initial welcome screen - user hasn't started sync yet
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Welcome Card */}
-      <Card className="text-center">
-        <CardHeader>
-          <CardTitle className="text-2xl flex items-center justify-center gap-2">
-            <Mail className="h-8 w-8 text-blue-600" />
-            Welcome to Knitly
-          </CardTitle>
-          <CardDescription className="text-base">
-            Get powerful insights from your email transactions and communication patterns
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Features */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20">
-              <BarChart3 className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-              <h4 className="font-semibold text-sm">Transaction Analytics</h4>
-              <p className="text-xs text-gray-600 mt-1">Track spending patterns and merchants</p>
-            </div>
-            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/20">
-              <Zap className="h-6 w-6 text-green-600 mx-auto mb-2" />
-              <h4 className="font-semibold text-sm">Smart Processing</h4>
-              <p className="text-xs text-gray-600 mt-1">AI-powered email analysis</p>
-            </div>
-            <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-950/20">
-              <Shield className="h-6 w-6 text-purple-600 mx-auto mb-2" />
-              <h4 className="font-semibold text-sm">Secure & Private</h4>
-              <p className="text-xs text-gray-600 mt-1">Your data stays protected</p>
-            </div>
-          </div>
-
-          {/* Sync Button */}
-          <div className="pt-4">
-            <Button 
-              onClick={() => initiateSyncMutation.mutate()}
-              disabled={initiateSyncMutation.isPending}
-              size="lg"
-              className="w-full md:w-auto px-8"
-            >
-              {initiateSyncMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Starting Analysis...
-                </>
+    <div className="flex items-center justify-center p-4">
+      <div className="w-full max-w-2xl mx-auto">
+        {/* Main Sync Card - Fixed dimensions to prevent CLS */}
+        <Card className="w-full min-h-[600px] shadow-lg border bg-card backdrop-blur-sm">
+          <CardHeader className="text-center pb-6">
+            <div className="flex justify-center mb-4">
+              {(isInitiating || syncTriggered || isActiveSyncInProgress) ? (
+                getStatusIcon()
               ) : (
-                <>
-                  <Zap className="h-4 w-4 mr-2" />
-                  Start Email Analysis
-                </>
+                <Mail className="h-8 w-8 text-primary" />
               )}
-            </Button>
-          </div>
+            </div>
+            <CardTitle className="text-2xl font-bold">
+              {getStatusTitle()}
+            </CardTitle>
+            <CardDescription className="text-base text-muted-foreground">
+              {getStatusDescription()}
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="space-y-6">
+            {/* Progress Section - Always reserve space */}
+            <div className="min-h-[120px] flex flex-col justify-center">
+              {(isActiveSyncInProgress || isComplete) && (
+                <div className="space-y-4">
+                  {/* Progress Bar */}
+                  {hasTotalEmails && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>
+                          {progressData.processedEmails?.toLocaleString() || 0} of {progressData.totalEmails?.toLocaleString() || 0} emails processed
+                        </span>
+                        <span className="font-medium">
+                          {Math.round(progressData.progressPercentage || 0)}%
+                        </span>
+                      </div>
+                      <Progress 
+                        value={progressData.progressPercentage || 0} 
+                        className="h-3"
+                      />
+                    </div>
+                  )}
 
-          {/* Info */}
-          <Alert>
-            <AlertDescription className="text-sm">
-              We'll analyze your emails to extract transaction data and insights. 
-              This process is secure and typically takes a few minutes.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+                  {/* Time Remaining */}
+                  {progressData?.estimatedCompletion && !isComplete && (
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      {formatTimeRemaining(progressData.estimatedCompletion)}
+                    </div>
+                  )}
 
-      {/* Error handling */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            {error}
-          </AlertDescription>
-        </Alert>
-      )}
+                  {/* Email Count Display */}
+                  {hasTotalEmails && !isComplete && (
+                    <div className="text-center p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                      <p className="text-sm text-primary font-medium">
+                        Found {progressData.totalEmails?.toLocaleString()} emails to analyze
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Welcome Features - Only show when not syncing */}
+              {!syncTriggered && !isActiveSyncInProgress && !isComplete && !isFailed && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-lg bg-primary/10 border border-primary/20 text-center">
+                    <BarChart3 className="h-6 w-6 text-primary mx-auto mb-2" />
+                    <h4 className="font-semibold text-sm">Transaction Analytics</h4>
+                    <p className="text-xs text-muted-foreground mt-1">Track spending patterns</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-chart-2/10 border border-chart-2/20 text-center">
+                    <Zap className="h-6 w-6 text-chart-2 mx-auto mb-2" />
+                    <h4 className="font-semibold text-sm">Smart Processing</h4>
+                    <p className="text-xs text-muted-foreground mt-1">AI-powered analysis</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-chart-3/10 border border-chart-3/20 text-center">
+                    <Shield className="h-6 w-6 text-chart-3 mx-auto mb-2" />
+                    <h4 className="font-semibold text-sm">Secure & Private</h4>
+                    <p className="text-xs text-muted-foreground mt-1">Data stays protected</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Action Section - Always reserve space */}
+            <div className="min-h-[80px] flex flex-col justify-center">
+              {isComplete ? (
+                <div className="space-y-4">
+                  <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
+                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    <AlertDescription className="text-green-800 dark:text-green-200">
+                      Your emails have been successfully analyzed! Ready to explore your insights.
+                    </AlertDescription>
+                  </Alert>
+                  <Button 
+                    onClick={() => setShowDashboard(true)}
+                    size="lg"
+                    className="w-full"
+                  >
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    View Your Dashboard
+                  </Button>
+                </div>
+              ) : isFailed ? (
+                <div className="space-y-4">
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      Email sync failed. Please try starting the sync again.
+                    </AlertDescription>
+                  </Alert>
+                  <Button 
+                    onClick={() => {
+                      setError(null);
+                      setSyncTriggered(false);
+                      initiateSyncMutation.mutate();
+                    }}
+                    variant="outline"
+                    size="lg"
+                    className="w-full"
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              ) : !syncTriggered && !isActiveSyncInProgress ? (
+                <div className="space-y-4">
+                  <Button 
+                    onClick={() => initiateSyncMutation.mutate()}
+                    disabled={initiateSyncMutation.isPending}
+                    size="lg"
+                    className="w-full"
+                  >
+                    {initiateSyncMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Starting Analysis...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="h-4 w-4 mr-2" />
+                        Start Email Analysis
+                      </>
+                    )}
+                  </Button>
+                  <Alert>
+                    <AlertDescription className="text-sm text-center">
+                      We'll analyze your emails to extract transaction data and insights. 
+                      This process is secure and typically takes a few minutes.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground">
+                    {isSyncing ? 'Processing emails in background...' : 'Starting sync process...'}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Error Display */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {error}
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 } 

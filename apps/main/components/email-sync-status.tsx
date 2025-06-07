@@ -61,7 +61,6 @@ export function EmailSyncStatus() {
         schema: 'public', 
         table: 'email_sync_status',
       }, (payload) => {
-        console.log('Sync status updated:', payload);
         
         // Refetch the status when there's an update
         refetchStatus();

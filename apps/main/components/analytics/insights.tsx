@@ -95,13 +95,13 @@ export function AnalyticsInsights() {
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
             {insights.monthOverMonthChange >= 0 ? (
-              <TrendingUp className="h-4 w-4 text-green-600" />
+              <TrendingUp className="h-4 w-4 text-chart-1" />
             ) : (
-              <TrendingDown className="h-4 w-4 text-red-600" />
+              <TrendingDown className="h-4 w-4 text-destructive" />
             )}
             <span className="text-sm font-medium">Month-over-Month</span>
           </div>
-          <div className={`text-2xl font-bold ${insights.monthOverMonthChange >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <div className={`text-2xl font-bold ${insights.monthOverMonthChange >= 0 ? 'text-chart-1' : 'text-destructive'}`}>
             {formatPercentage(insights.monthOverMonthChange)}
           </div>
           <p className="text-xs text-muted-foreground">

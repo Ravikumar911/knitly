@@ -11,7 +11,6 @@ import {
   SheetTitle,
 } from '@workspace/ui/components/sheet';
 import { Button } from '@workspace/ui/components/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import {
   FileText,
   ExternalLink,
@@ -94,47 +93,41 @@ export function TransactionPDFViewer({ transactionId, onClose }: TransactionPDFV
   const renderPDFViewer = () => {
     if (!transaction?.attachmentStoragePath) {
       return (
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-gray-500">
-              <FileText className="mx-auto h-12 w-12 mb-4 text-gray-300" />
-              <p className="text-sm">No PDF attachment available for this transaction</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="p-6">
+          <div className="text-center text-gray-500">
+            <FileText className="mx-auto h-12 w-12 mb-4 text-gray-300" />
+            <p className="text-sm">No PDF attachment available for this transaction</p>
+          </div>
+        </div>
       );
     }
 
     if (pdfError) {
       return (
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-red-500">
-              <AlertCircle className="mx-auto h-12 w-12 mb-4" />
-              <p className="text-sm">{pdfError}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="p-6">
+          <div className="text-center text-destructive">
+            <AlertCircle className="mx-auto h-12 w-12 mb-4" />
+            <p className="text-sm">{pdfError}</p>
+          </div>
+        </div>
       );
     }
 
     if (!pdfUrl) {
       return (
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center text-gray-500">
-              <FileText className="mx-auto h-12 w-12 mb-4 text-gray-300" />
-              <p className="text-sm">PDF URL not available</p>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="p-6">
+          <div className="text-center text-gray-500">
+            <FileText className="mx-auto h-12 w-12 mb-4 text-gray-300" />
+            <p className="text-sm">PDF URL not available</p>
+          </div>
+        </div>
       );
     }
 
     return (
-      <Card className="h-full">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Invoice PDF</CardTitle>
+      <div className="h-full">
+        <div className="flex flex-row items-center justify-between pb-4">
+          <h3 className="text-sm font-medium">Invoice PDF</h3>
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -160,18 +153,16 @@ export function TransactionPDFViewer({ transactionId, onClose }: TransactionPDFV
               Download
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="w-full h-[70vh] border rounded-lg overflow-hidden">
-            <iframe
-              src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&page=1&zoom=page-width`}
-              className="w-full h-full"
-              title="Transaction PDF"
-              onError={() => setPdfError('Failed to load PDF viewer')}
-            />
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="w-full h-[70vh] border rounded-lg overflow-hidden">
+          <iframe
+            src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&page=1&zoom=page-width`}
+            className="w-full h-full"
+            title="Transaction PDF"
+            onError={() => setPdfError('Failed to load PDF viewer')}
+          />
+        </div>
+      </div>
     );
   };
 

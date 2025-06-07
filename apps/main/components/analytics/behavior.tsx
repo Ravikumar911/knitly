@@ -115,7 +115,7 @@ export function AnalyticsBehavior() {
             <TrendingDown className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">Total Savings</span>
           </div>
-          <div className="text-2xl font-bold text-green-600">{formatCurrency(behavior.totalSavings)}</div>
+          <div className="text-2xl font-bold text-chart-1">{formatCurrency(behavior.totalSavings)}</div>
           <p className="text-xs text-muted-foreground">
             From discounts and offers
           </p>
@@ -128,7 +128,7 @@ export function AnalyticsBehavior() {
             <span className="text-sm font-medium">Monthly Trend (Last 6 Months)</span>
           </div>
           <div className="space-y-2">
-            {behavior.monthlyTrend.slice(-3).map((month: { month: string; spend: number }) => (
+            {behavior.monthlyTrend.slice(-6).map((month: { month: string; spend: number }) => (
               <div key={month.month} className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
                   {new Date(month.month + '-01').toLocaleDateString('en-US', { 

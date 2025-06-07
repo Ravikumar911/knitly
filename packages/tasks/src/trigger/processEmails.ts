@@ -1,5 +1,5 @@
 import { logger, task, wait, configure, batch } from "@trigger.dev/sdk/v3";
-import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, extractEmailMetadata, buildMerchantBasedGmailSearchQuery, extractAttachments, getGmailEmailCount } from "../utils";
+import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, extractEmailMetadata, buildMerchantBasedGmailSearchQuery, extractAttachments } from "../utils";
 import { finwiseAIV2Agent } from "../agents/finwiseAIV2";
 import { processAttachments } from "../utils/emailStorage";
 import { detectDuplicateTransactions } from "./duplicateDetector";
@@ -33,7 +33,7 @@ const SYNC_PERIOD_DAYS = 30; // 30 days of email history to process (increased f
  */
 export const processEmailBatch = task({
   id: "process-email-batch",
-  maxDuration: 1800, // 30 mins per batch
+  maxDuration: 1800,
   retry: {
     maxAttempts: 3,
     factor: 2,
@@ -45,6 +45,13 @@ export const processEmailBatch = task({
     providerToken: string;
     messages: Array<{id: string; threadId?: string}>;
   }) => {
+    logger.log("Starting batch processing", {
+      userId: payload.userId,
+      batchSize: payload.messages.length,
+      firstMessageId: payload.messages[0]?.id,
+      lastMessageId: payload.messages[payload.messages.length - 1]?.id
+    });
+
     const stats = {
       processedCount: 0,
       skippedCount: 0,
@@ -76,12 +83,6 @@ export const processEmailBatch = task({
         const emailBody = extractEmailBody(messageData);
         const attachments = extractAttachments(messageData);
 
-        logger.log("Processing email", {
-          messageId: messageInfo.id,
-          from: metadata.from,
-          subject: metadata.subject?.substring(0, 50) + '...'
-        });
-
         // Process attachments if present
         let attachmentStoragePaths: string[] | null = null;
         let processedAttachments: Array<{
@@ -112,7 +113,7 @@ export const processEmailBatch = task({
           senderEmailId: metadata.from || null,  
           receivedDate: metadata.receivedDate || new Date(),
           snippet: metadata.snippet || null,
-          parseSuccess: false, // Will be updated after V2 processing
+          parseSuccess: false,
           parseErrors: null,
           rawContent: emailBody || '',
           attachmentStoragePath: attachmentStoragePaths ? JSON.stringify(attachmentStoragePaths) : null,
@@ -120,6 +121,11 @@ export const processEmailBatch = task({
         });
 
         if (!storedEmail || storedEmail.length === 0) {
+          logger.error("Failed to store email data", {
+            messageId: messageInfo.id,
+            userId: payload.userId,
+            threadId: messageData.threadId
+          });
           stats.errorCount++;
           continue;
         }
@@ -135,7 +141,7 @@ export const processEmailBatch = task({
         // Prepare email data for V2 processing
         const emailData = {
           userId: payload.userId,
-          emailId: emailId, // Add email ID for linking
+          emailId: emailId,
           threadId: messageData.threadId || '',
           subject: metadata.subject,
           from: metadata.from,
@@ -149,21 +155,32 @@ export const processEmailBatch = task({
         let v2Success = false;
 
         try {
-          logger.log("Processing with V2 system", { messageId: messageInfo.id, emailId });
-          finwiseV2Result = await finwiseAIV2Agent(emailData);
-          v2Success = true;
-          logger.log("V2 processing completed", { 
-            messageId: messageInfo.id,
+          logger.log("Processing email with AI", {
             emailId,
-            parseSuccess: finwiseV2Result.parseSuccess,
-            merchantId: finwiseV2Result.merchantId,
-            schemaUsed: finwiseV2Result.schemaUsed
+            messageId: messageInfo.id,
+            hasAttachments: processedAttachments ? processedAttachments.length : 0
           });
+
+          finwiseV2Result = await finwiseAIV2Agent(emailData);
+          
+          if (finwiseV2Result?.transactionId) {
+            logger.log("Transaction extracted successfully", { 
+              emailId,
+              transactionId: finwiseV2Result.transactionId,
+              merchantId: finwiseV2Result.merchantId,
+              schemaUsed: finwiseV2Result.schemaUsed
+            });
+          } else if (finwiseV2Result?.parseSuccess) {
+            logger.log("Email processed but no transaction found", {
+              emailId,
+              reason: finwiseV2Result.noTransactionReason || 'Unknown'
+            });
+          }
         } catch (error) {
-          logger.error("V2 processing failed", {
-            messageId: messageInfo.id,
+          logger.error("AI processing failed", {
             emailId,
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined
           });
           stats.errorCount++;
           continue;
@@ -175,26 +192,27 @@ export const processEmailBatch = task({
           parseErrors: finwiseV2Result?.parseErrors?.join(', ') || null,
         });
 
-        // Log V2 transaction storage (already handled by finwiseAIV2Agent)
-        if (finwiseV2Result?.transactionId) {
-          logger.log("V2 transaction stored successfully", { 
-            messageId: messageInfo.id,
-            emailId,
-            transactionId: finwiseV2Result.transactionId,
-            merchantId: finwiseV2Result.merchantId,
-            schemaUsed: finwiseV2Result.schemaUsed
-          });
-        }
-
         stats.processedCount++;
       } catch (error) {
-        logger.error("Error processing message in batch", {
+        logger.error("Batch message processing failed", {
           messageId: messageInfo.id,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          currentStats: stats
         });
         stats.errorCount++;
       }
     }
+
+    await updateSyncProgress(payload.userId, stats.processedCount);
+
+    logger.log("Batch processing completed", {
+      userId: payload.userId,
+      batchStats: stats,
+      successRate: `${((stats.processedCount / stats.totalFound) * 100).toFixed(1)}%`,
+      errorRate: `${((stats.errorCount / stats.totalFound) * 100).toFixed(1)}%`,
+      skipRate: `${((stats.skippedCount / stats.totalFound) * 100).toFixed(1)}%`
+    });
 
     return stats;
   }
@@ -205,7 +223,7 @@ export const processEmailBatch = task({
  */
 export const processEmails = task({
   id: "process-emails",
-  maxDuration: 3600, // 1 hour total
+  maxDuration: 3600,
   retry: {
     maxAttempts: 3,
     factor: 2,
@@ -218,87 +236,49 @@ export const processEmails = task({
   }) => {
     const syncPeriodDays = payload.syncPeriodDays || SYNC_PERIOD_DAYS;
     
-    logger.log("Starting email sync with V2 processing", { 
+    logger.log("Initializing email sync", { 
       userId: payload.userId,
-      syncPeriodDays
+      syncPeriodDays,
+      timestamp: new Date().toISOString()
     });
     
     try {
-      // Step 1: Initial setup and immediate sync status
-      await markSyncInProgress(payload.userId);
       
       const searchQuery = buildMerchantBasedGmailSearchQuery();
       const lastSyncTime = await getLastSyncTime(payload.userId);
       const startDate = lastSyncTime || new Date(Date.now() - (syncPeriodDays * 24 * 60 * 60 * 1000));
       const isFirstSync = !lastSyncTime;
+
+      logger.log("Sync parameters determined", {
+        userId: payload.userId,
+        isFirstSync,
+        lastSyncTime: lastSyncTime,
+        startDate: startDate.toISOString(),
+        endDate: new Date().toISOString(),
+        searchQuery
+      });
       
-      // Step 2: Get provider token FAST
-      logger.log("Getting provider token", { userId: payload.userId });
       const providerToken = await refreshGoogleToken(payload.userId);
       if (!providerToken) {
-        await markSyncFailed(payload.userId, "Failed to refresh provider token");
+        const error = "Failed to refresh provider token";
+        logger.error("Token refresh failed", {
+          userId: payload.userId,
+          timestamp: new Date().toISOString()
+        });
+        await markSyncFailed(payload.userId, error);
         return {
           success: false,
-          message: "Failed to refresh provider token",
+          message: error,
           error: "PROVIDER_TOKEN_REFRESH_FAILED"
         };
       }
-
-      // Step 2.5: Get Gmail email count IMMEDIATELY and update status
-      logger.log("Getting Gmail email count - FAST TRACK", { userId: payload.userId });
-      
-      // Update status to show we're counting emails
-      await markSyncCountingEmails(payload.userId);
-      
-      // Debug the date calculation
-      const today = new Date();
-      logger.log("Date calculation debug", {
-        userId: payload.userId,
-        lastSyncTime,
-        isFirstSync,
-        today: today.toISOString(),
-        startDate: startDate.toISOString(),
-        syncPeriodDays,
-        todayFormatted: today.toISOString().split('T')[0],
-        startDateFormatted: startDate.toISOString().split('T')[0]
-      });
-      
-      // Ensure we don't have the same date for before and after
+  
       const endDate = new Date();
-      if (startDate.toISOString().split('T')[0] === endDate.toISOString().split('T')[0]) {
-        // If startDate is today, set startDate to yesterday to avoid same-day issue
-        startDate.setDate(startDate.getDate() - 1);
-        logger.log("Adjusted startDate to avoid same-day issue", {
-          userId: payload.userId,
-          adjustedStartDate: startDate.toISOString()
-        });
-      }
       
-      const totalEmailCount = await getGmailEmailCount(providerToken, {
-        after: startDate,
-        before: endDate
-      });
+      // Mark sync as starting
+      await markSyncInProgress(payload.userId);
       
-      logger.log("Gmail email count retrieved - INITIALIZING SYNC", { 
-        userId: payload.userId,
-        totalEmailCount,
-        dateRange: { 
-          from: startDate.toISOString(), 
-          to: endDate.toISOString(),
-          fromFormatted: startDate.toISOString().split('T')[0],
-          toFormatted: endDate.toISOString().split('T')[0]
-        }
-      });
-      
-      // Initialize sync with the total count IMMEDIATELY
-      await initializeSync(payload.userId, totalEmailCount);
-      
-      logger.log("Sync initialized with email count - UI SHOULD UPDATE NOW", { 
-        userId: payload.userId,
-        totalEmailCount 
-      });
-
-      // Step 3: Fetch all messages first
+      // Step 3: Fetch all messages  
       let allMessages: Array<{id: string; threadId?: string}> = [];
       let nextPageToken = null;
 
@@ -316,7 +296,6 @@ export const processEmails = task({
         }
 
         if (gmailData.messages) {
-          // Ensure we only take messages with valid IDs
           const validMessages = gmailData.messages
             .filter((msg): msg is {id: string; threadId?: string} => 
               typeof msg.id === 'string'
@@ -328,6 +307,17 @@ export const processEmails = task({
         nextPageToken = gmailData.nextPageToken;
         await wait.for({ seconds: RATE_LIMIT_DELAY });
       }
+
+      // Mark as counting emails and initialize sync with total count
+      await markSyncCountingEmails(payload.userId);
+      await initializeSync(payload.userId, allMessages.length);
+
+      logger.log("Messages fetched successfully", {
+        userId: payload.userId,
+        totalMessages: allMessages.length,
+        batchCount: Math.ceil(allMessages.length / BATCH_SIZE),
+        concurrentBatches: MAX_CONCURRENT_BATCHES
+      });
 
       // Step 4: Split messages into batches and process in parallel
       const batches = [];
@@ -348,35 +338,30 @@ export const processEmails = task({
       let cumulativeProcessed = 0;
       
       for (let i = 0; i < batches.length; i += MAX_CONCURRENT_BATCHES) {
+        const batchNumber = Math.floor(i / MAX_CONCURRENT_BATCHES) + 1;
+        const totalBatchGroups = Math.ceil(batches.length / MAX_CONCURRENT_BATCHES);
+        
+        logger.log("Processing batch group", {
+          userId: payload.userId,
+          batchGroup: batchNumber,
+          totalGroups: totalBatchGroups,
+          batchesInGroup: Math.min(MAX_CONCURRENT_BATCHES, batches.length - i),
+          overallProgress: `${((i / batches.length) * 100).toFixed(1)}%`
+        });
+
         const batchSlice = batches.slice(i, i + MAX_CONCURRENT_BATCHES);
         const batchResults = await batch.triggerByTaskAndWait(batchSlice);
         results.push(...batchResults.runs);
         
-        // Update progress after each batch group
+        // Update progress
         for (const result of batchResults.runs) {
           if (result.ok) {
             cumulativeProcessed += result.output.processedCount;
           }
         }
-        
-        // Update sync progress in database
-        try {
-          await updateSyncProgress(payload.userId, cumulativeProcessed);
-          logger.log("Progress updated", {
-            userId: payload.userId,
-            processed: cumulativeProcessed,
-            total: allMessages.length,
-            percentage: ((cumulativeProcessed / allMessages.length) * 100).toFixed(2)
-          });
-        } catch (error) {
-          logger.error("Failed to update progress", {
-            userId: payload.userId,
-            error: error instanceof Error ? error.message : String(error)
-          });
-        }
       }
 
-      // Aggregate results
+      // Aggregate final results
       const totalStats = {
         processedCount: 0,
         skippedCount: 0,
@@ -392,25 +377,32 @@ export const processEmails = task({
         }
       }
 
-      // Update sync time and complete
+      // Update sync completion
       await updateLastSyncTime(payload.userId, new Date());
       await markSyncComplete(payload.userId);
 
       // Trigger duplicate detection
-      const duplicateDetectionHandle = await detectDuplicateTransactions.trigger();
-      logger.log("Triggered duplicate detection", { runId: duplicateDetectionHandle.id });
-
-      // Build success message
-      const message = `Processed ${totalStats.processedCount} emails, skipped ${totalStats.skippedCount} already processed emails, encountered ${totalStats.errorCount} errors, out of ${totalStats.totalFound} total emails found since ${startDate.toISOString()}`;
+      await detectDuplicateTransactions.trigger();
 
       logger.log("Email sync completed successfully", {
         userId: payload.userId,
-        totalStats
+        duration: `${((Date.now() - startDate.getTime()) / 1000 / 60).toFixed(1)} minutes`,
+        stats: {
+          ...totalStats,
+          successRate: `${((totalStats.processedCount / totalStats.totalFound) * 100).toFixed(1)}%`,
+          errorRate: `${((totalStats.errorCount / totalStats.totalFound) * 100).toFixed(1)}%`,
+          skipRate: `${((totalStats.skippedCount / totalStats.totalFound) * 100).toFixed(1)}%`
+        },
+        syncPeriod: {
+          start: startDate.toISOString(),
+          end: new Date().toISOString(),
+          isFirstSync
+        }
       });
 
       return {
         success: true,
-        message,
+        message: `Processed ${totalStats.processedCount} emails, skipped ${totalStats.skippedCount} already processed emails, encountered ${totalStats.errorCount} errors, out of ${totalStats.totalFound} total emails found since ${startDate.toISOString()}`,
         ...totalStats,
         syncStartDate: startDate,
         isFirstSync,
@@ -418,10 +410,11 @@ export const processEmails = task({
       };
 
     } catch (error) {
-      logger.error("Critical error in email processing", {
+      logger.error("Critical sync error", {
         userId: payload.userId,
         error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
       });
       
       await markSyncFailed(payload.userId, error instanceof Error ? error.message : String(error));
@@ -435,176 +428,3 @@ export const processEmails = task({
     }
   }
 });
-
-// const response = {
-//   "message": {
-//     "id": "19622c101e77a680",
-//     "snippet": "Greetings from Swiggy👋 Your Swiggy Instamart order id: 203308138905999 was successfully delivered. Deliver To: D-1301 Garebhavipalya, Hongasandra, Bengaluru, Karnataka 560068, India Order Items 2 x",
-//     "threadId": "19622c101e77a680",
-//     "historyId": "14192952",
-//     "internalDate": "1744339795000",
-//     "labelIds": [
-//       "CATEGORY_UPDATES",
-//       "INBOX"
-//     ],
-//     "sizeEstimate": 72827,
-//     "payload": {
-//       "partId": "",
-//       "filename": "",
-//       "mimeType": "multipart/mixed",
-//       "body": {
-//         "size": 0
-//       },
-//       "headers": [
-//         {
-//           "name": "Delivered-To",
-//           "value": "ravi.911kumar@gmail.com"
-//         },
-//         {
-//           "name": "Received",
-//           "value": "by 2002:a05:6850:3b4d:b0:637:cd65:2d65 with SMTP id u13csp90810nnt;        Thu, 10 Apr 2025 19:49:56 -0700 (PDT)"
-//         },
-//         {
-//           "name": "X-Google-Smtp-Source",
-//           "value": "AGHT+IErOfLCqRs9bYfSsHCy7MUBoYgkY0H4MoGDn5JIIP2yARduUGdHtL5xSw61GqITgcwQUHO2"
-//         },
-//         {
-//           "name": "X-Received",
-//           "value": "by 2002:a05:6a20:12d4:b0:1f5:591b:4f73 with SMTP id adf61e73a8af0-20179969b8amr2007852637.34.1744339796350;        Thu, 10 Apr 2025 19:49:56 -0700 (PDT)"
-//         },
-//         {
-//           "name": "ARC-Seal",
-//           "value": "i=1; a=rsa-sha256; t=1744339796; cv=none;        d=google.com; s=arc-20240605;        b=KooWFaarLdb9xUKiMmLOOzXQ1KLjry3Zitgvq/Hvb8flSsP60cCguZV5FHdd/j6mm7         WpARIYsl6GFVg6JAlG4G64ciHDsUu4z+Fg60SZyOK0iPmud4dOnsGX1afLAJOOhkTdP6         T9zm87lNJ5Sm6IM7gbnieLT7tNLC8W5OqlAO/g+Psb813XQcuJ1HUsjFncSCO5suvzmL         Q4ghy0qL7tp2CRDNEbmxle27RLXd+ai4k42FBBgacQJ0yrgPew5RAO5JCHe19F7vxfr4         0K0V3RFqT90K96VexG8wQZccAUWddY0wIuicNGML2o7zTXGJs3jL0FOOtNG/VOX39ENa         m1hw=="
-//         },
-//         {
-//           "name": "ARC-Message-Signature",
-//           "value": "i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;        h=feedback-id:date:mime-version:subject:message-id:to:from         :dkim-signature:dkim-signature;        bh=f4AWwCLy1W/MMV9DQxjeYfCXAgHbKETDTJiPBuHhleo=;        fh=Y7oUzj+8lhLDtdwdE+rGaR5IEKln2KliatOAAN03vfk=;        b=Kt4tbgNrdw7B8lNF0uhYobpkTU9mY+CX7Hg5jFAbb38j14zUjzNagOUHvFsWiw17Q4         eb0EoX/Z//BGdaMXelUFkun71KsfV+bF+n6bA4Xz1CuAuvw9ccBK4fgxfbiG9fRwOJGL         prBXO00bGkaWDzKYRXtrWTjfFrRVeQd27Yjel7hUZE8TfhFsuduuWFygzPdaMMuLUQ7y         FnlOeeKh2bw9ff/6njSVf0GpAAEozjnglbNCQ5msWV3bXbRIkl2AT6FJMZLGcd7X1s81         wzuAoTOteNRCReC4pIOk/n6GCYAbuGZW0zlhcrinwJiZYdn/it490n0aq27EZdvFbKMd         UvqQ==;        dara=google.com"
-//         },
-//         {
-//           "name": "ARC-Authentication-Results",
-//           "value": "i=1; mx.google.com;       dkim=pass header.i=@swiggy.in header.s=hzpghd5ihtmth46iqp7a5vayizkzpwbs header.b=ZzrxqaDD;       dkim=pass header.i=@amazonses.com header.s=gdwg2y3kokkkj5a55z2ilkup5wp5hhxx header.b=WaINBE7l;       spf=pass (google.com: domain of 0101019622c0ffcc-d4d8889a-fd02-4744-873d-1c2c0bf88926-000000@partnerupdate.swiggy.in designates 54.240.27.113 as permitted sender) smtp.mailfrom=0101019622c0ffcc-d4d8889a-fd02-4744-873d-1c2c0bf88926-000000@partnerupdate.swiggy.in;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=swiggy.in"
-//         },
-//         {
-//           "name": "Return-Path",
-//           "value": "<0101019622c0ffcc-d4d8889a-fd02-4744-873d-1c2c0bf88926-000000@partnerupdate.swiggy.in>"
-//         },
-//         {
-//           "name": "Received",
-//           "value": "from a27-113.smtp-out.us-west-2.amazonses.com (a27-113.smtp-out.us-west-2.amazonses.com. [54.240.27.113])        by mx.google.com with ESMTPS id 41be03b00d2f7-b02a0a08518si5812201a12.144.2025.04.10.19.49.56        for <ravi.911kumar@gmail.com>        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);        Thu, 10 Apr 2025 19:49:56 -0700 (PDT)"
-//         },
-//         {
-//           "name": "Received-SPF",
-//           "value": "pass (google.com: domain of 0101019622c0ffcc-d4d8889a-fd02-4744-873d-1c2c0bf88926-000000@partnerupdate.swiggy.in designates 54.240.27.113 as permitted sender) client-ip=54.240.27.113;"
-//         },
-//         {
-//           "name": "Authentication-Results",
-//           "value": "mx.google.com;       dkim=pass header.i=@swiggy.in header.s=hzpghd5ihtmth46iqp7a5vayizkzpwbs header.b=ZzrxqaDD;       dkim=pass header.i=@amazonses.com header.s=gdwg2y3kokkkj5a55z2ilkup5wp5hhxx header.b=WaINBE7l;       spf=pass (google.com: domain of 0101019622c0ffcc-d4d8889a-fd02-4744-873d-1c2c0bf88926-000000@partnerupdate.swiggy.in designates 54.240.27.113 as permitted sender) smtp.mailfrom=0101019622c0ffcc-d4d8889a-fd02-4744-873d-1c2c0bf88926-000000@partnerupdate.swiggy.in;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=swiggy.in"
-//         },
-//         {
-//           "name": "DKIM-Signature",
-//           "value": "v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple; s=hzpghd5ihtmth46iqp7a5vayizkzpwbs; d=swiggy.in; t=1744339796; h=From:To:Message-ID:Subject:MIME-Version:Content-Type:Date; bh=4Reozc7/aXp9cte+68wtAo1hpN5CTXgkA1GsVrUnq94=; b=ZzrxqaDDGC6WfWRLYzboNBA4518aEHZujwWaV7VFhkblXLFc9kp7ZovmyHuMWkDT jwyxGRX0lcOj2qcGozZaIwGstMu+ysqAWpUpWJrInlm7n5K+NptI1XrOdtvH1Tx5Hr2 7HdKzyUQH8fUMV5Q26Z+YfTS0/LJET6t7xVKXO9o="
-//         },
-//         {
-//           "name": "DKIM-Signature",
-//           "value": "v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple; s=gdwg2y3kokkkj5a55z2ilkup5wp5hhxx; d=amazonses.com; t=1744339796; h=From:To:Message-ID:Subject:MIME-Version:Content-Type:Date:Feedback-ID; bh=4Reozc7/aXp9cte+68wtAo1hpN5CTXgkA1GsVrUnq94=; b=WaINBE7lqTbH4fvpLp22pwPO4rRU5sSBg2QQd7tL17G2Aas80OFWhXi4jVaIEEcD MlXSgIR9aWuX1DGhDWHmwAvAxQpUDVQv92/vMxQ2Y5wyC/wx0V05518cXvgR7Q3vjTk OtfysIxCOwJt9pRJaa0cyHIftgWGTw8T5ZXIXANE="
-//         },
-//         {
-//           "name": "From",
-//           "value": "noreply@swiggy.in"
-//         },
-//         {
-//           "name": "To",
-//           "value": "ravi.911kumar@gmail.com"
-//         },
-//         {
-//           "name": "Message-ID",
-//           "value": "<0101019622c0ffcc-d4d8889a-fd02-4744-873d-1c2c0bf88926-000000@us-west-2.amazonses.com>"
-//         },
-//         {
-//           "name": "Subject",
-//           "value": "Your Swiggy Instamart order was successfully delivered"
-//         },
-//         {
-//           "name": "MIME-Version",
-//           "value": "1.0"
-//         },
-//         {
-//           "name": "Content-Type",
-//           "value": "multipart/mixed; boundary=\"----=_Part_547845_1181409714.1744339795809\""
-//         },
-//         {
-//           "name": "Date",
-//           "value": "Fri, 11 Apr 2025 02:49:55 +0000"
-//         },
-//         {
-//           "name": "Feedback-ID",
-//           "value": "::1.us-west-2.75hyjqWebDjudY7ErWu3G8hgzA6Vmd5Tcnb7tnuPJ+8=:AmazonSES"
-//         },
-//         {
-//           "name": "X-SES-Outgoing",
-//           "value": "2025.04.11-54.240.27.113"
-//         }
-//       ],
-//       "parts": [
-//         {
-//           "partId": "0",
-//           "filename": "",
-//           "mimeType": "multipart/alternative",
-//           "body": {
-//             "size": 0
-//           },
-//           "headers": [
-//             {
-//               "name": "Content-Type",
-//               "value": "multipart/alternative; boundary=\"----=_Part_547846_2066137498.1744339795809\""
-//             }
-//           ],
-//           "parts": [
-//             {
-//               "partId": "0.0",
-//               "filename": "",
-//               "mimeType": "text/html",
-//               "body": {
-//                 "data": "PGhlYWQ-PHN0eWxlIHR5cGU9J3RleHQvY3NzJz4qIHttYXJnaW46IDM7Ym9yZGVyOiAxO3BhZGRpbmc6IDE7fSBAcGFnZSB7IHNpemU6IEEzIHBvcnRyYWl0OyBtYXJnaW46IDRtbSA0bW0gNG1tIDRtbTsgfTwvc3R5bGU-PC9oZWFkPiA8Ym9keSBzdHlsZT0nZm9udC1mYW1pbHk6IEFyaWFsO21hcmdpbjo0OyBwYWRkaW5nOiAyOyBiYWNrZ3JvdW5kLWNvbG9yOiAjZmZmZmZmOyc-IDx0YWJsZSBjZWxsc3BhY2luZz0nMCcgY2VsbHBhZGRpbmc9JzAnIHdpZHRoPScxMDAlJyBhbGlnbj0nbGVmdCcgYm9yZGVyPScwJz4gPHRyPiA8dGQgdmFsaWduPSd0b3AnIHN0eWxlPSd3aWR0aDogMTAwJTsgYm9yZGVyOiAwJz4gPHRhYmxlIGNlbGxzcGFjaW5nPScwJyBjZWxscGFkZGluZz0nMCcgd2lkdGg9JzEwMCUnIGFsaWduPSdsZWZ0Jz4gPHRyPiA8dGQ-Jm5ic3A7PC90ZD4gPHRkIHZhbGlnbj0ndG9wJyBhbGlnbj0nY2VudGVyJyB3aWR0aD0nMTAwJyBzdHlsZT0nYmFja2dyb3VuZC1jb2xvcjogI2ZmZmZmZjsnPjxpbWcgYWx0PSdTd2lnZ3knIHN0eWxlPSd3aWR0aDoyMDBweDsnIHNyYz0naHR0cHM6Ly9tZWRpYS1hc3NldHMuc3dpZ2d5LmNvbS93XzUwMC9wb3J0YWwvbS9icmFuZF9sb2dvcy9Td2lnZ3klMjBJbnN0YW1hcnQlMjBPcmFuZ2UucG5nJy8-PC90ZD4gPHRkPiZuYnNwOzwvdGQ-IDwvdHI-IDx0cj4gPHRkIHdpZHRoPSc1Jz4gJm5ic3A7Jm5ic3A7PC90ZD4gPHRkIHZhbGlnbj0ndG9wJz4gPHRhYmxlIGNlbGxzcGFjaW5nPScwJyBjZWxscGFkZGluZz0n",
-//                 "size": 10687
-//               },
-//               "headers": [
-//                 {
-//                   "name": "Content-Type",
-//                   "value": "text/html; charset=UTF-8"
-//                 },
-//                 {
-//                   "name": "Content-Transfer-Encoding",
-//                   "value": "quoted-printable"
-//                 }
-//               ]
-//             }
-//           ]
-//         },
-//         {
-//           "partId": "1",
-//           "filename": "taco/203308138905999_merged.pdf",
-//           "mimeType": "application/octet-stream",
-//           "body": {
-//             "size": 40591,
-//             "attachmentId": "ANGjdJ8crZEKHPRhmDUoX80jPq_iyBFjzGzBX6vhHPtlYi_ekJ8buiDBvZkezbV-8z20IRgZhKYqxTKzAVilj-rtw_PSfjj-c5_2FbyarEfRsGAZIUdJHikuXBwIhlTGdpTws3alwyaqFTzaLzWT8kB4xFZ9TkrM1QLQfDu23KFPM1_cjJgLsBsx8AUQbygVmUKf2NbzA4ow-rvAaf95ahVjLd0Gqv2HFrpVtpKF-ZLh_rOPQXuvDAB-zMm61JeqbTTB1xf2IQVDpFQfLhDPWJ3r68pZTc242gFa0L11b6JZl0fgNq9QywUVsto76ss00wj6dbC3Nm5wApvuvE1XPznU51AVprd2dO-5iYrbssnShqhHrs3p35czAZlvuwiwgzuNl11r62G4g4PDG55O"
-//           },
-//           "headers": [
-//             {
-//               "name": "Content-Type",
-//               "value": "application/octet-stream; name=\"taco/203308138905999_merged.pdf\""
-//             },
-//             {
-//               "name": "Content-Transfer-Encoding",
-//               "value": "base64"
-//             },
-//             {
-//               "name": "Content-Disposition",
-//               "value": "attachment; filename=\"taco/203308138905999_merged.pdf\""
-//             }
-//           ]
-//         }
-//       ]
-//     }
-//   }
-// }

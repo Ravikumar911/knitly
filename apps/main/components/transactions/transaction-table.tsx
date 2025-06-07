@@ -89,22 +89,22 @@ function TransactionTableContent() {
   const getStatusColor = (status: string) => {
     switch (status?.toUpperCase()) {
       case 'COMPLETED':
-        return 'bg-green-100 text-green-800';
+        return 'bg-chart-1/10 text-chart-1 border-chart-1/20';
       case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800';
       case 'FAILED':
-        return 'bg-red-100 text-red-800';
+        return 'bg-destructive/10 text-destructive border-destructive/20';
       case 'CANCELLED':
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-muted text-muted-foreground border-border';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-muted text-muted-foreground border-border';
     }
   };
 
   const getTypeColor = (type: string) => {
     return type === 'DEBIT' 
-      ? 'bg-red-100 text-red-800' 
-      : 'bg-green-100 text-green-800';
+      ? 'bg-destructive/10 text-destructive border-destructive/20' 
+      : 'bg-chart-1/10 text-chart-1 border-chart-1/20';
   };
 
   if (!data || data.transactions.length === 0) {
