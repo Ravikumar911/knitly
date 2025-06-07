@@ -34,6 +34,7 @@ const SYNC_PERIOD_DAYS = 30; // 30 days of email history to process (increased f
 export const processEmailBatch = task({
   id: "process-email-batch",
   maxDuration: 1800,
+  machine: "medium-2x", // 2 vCPU, 4GB RAM
   retry: {
     maxAttempts: 3,
     factor: 2,

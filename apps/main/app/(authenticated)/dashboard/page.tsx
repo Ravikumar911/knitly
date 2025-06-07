@@ -2,14 +2,13 @@ import { DataStatusChecker } from '@/components/onboarding';
 import { HydrateClient } from "@/trpc/server";
 import { Suspense } from "react";
 import { AnalyticsContent } from "@/components/analytics/analytics-content";
-import { DateRangePicker } from "@/components/analytics/date-range-picker";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import { Card, CardContent, CardHeader } from "@workspace/ui/components/card";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 
 // Loading placeholder component
 function DashboardLoading() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 px-4 pb-4">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i}>
@@ -64,21 +63,11 @@ function DashboardLoading() {
 export default function Page() {
   return (
     <DataStatusChecker>
-      {/* Dashboard content for users with synced data */}
-      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-          <div className="flex items-center space-x-2">
-            <DateRangePicker />
-          </div>
-        </div>
-        
         <HydrateClient>
           <Suspense fallback={<DashboardLoading />}>
             <AnalyticsContent />
           </Suspense>
         </HydrateClient>
-      </div>
     </DataStatusChecker>
   );
 }

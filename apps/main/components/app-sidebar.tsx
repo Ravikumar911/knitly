@@ -3,9 +3,9 @@
 import * as React from "react"
 import {
   LayoutDashboard,
-  Wallet,
   Command,
   Send,
+  Settings,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -34,25 +34,15 @@ const data = {
           url: "/dashboard",
         },
         {
-          title: "Analytics",
-          url: "/dashboard/analytics",
+          title: "Transactions",
+          url: "/dashboard/transactions",
         },
       ],
     },
     {
-      title: "Accounts",
-      url: "/accounts",
-      icon: Wallet,
-      items: [
-        {
-          title: "All Accounts",
-          url: "/accounts",
-        },
-        {
-          title: "Link Account",
-          url: "/accounts/link",
-        },
-      ],
+      title: "Settings",
+      url: "/settings",
+      icon: Settings,
     },
   ],
   navSecondary: [

@@ -1,20 +1,11 @@
 "use client";
-
-import { useTransactionFilters } from "@/store/transaction-filters";
 import { AnalyticsOverview } from "./overview";
 import { AnalyticsBehavior } from "./behavior";
 import { AnalyticsInsights } from "./insights";
 
 export function AnalyticsContent() {
-  const { startDate, endDate } = useTransactionFilters();
-
-  // Wait for DateRangePicker to initialize the store before rendering analytics
-  if (!startDate || !endDate) {
-    return <div>Initializing analytics...</div>;
-  }
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 px-4 pb-4">
       {/* Core Spending Overview */}
       <AnalyticsOverview />
       
