@@ -4,7 +4,7 @@ import { useTRPC } from "@/trpc/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Badge } from "@workspace/ui/components/badge";
-import { TrendingUp, TrendingDown, Clock, Receipt, MapPin } from "lucide-react";
+import { TrendingUp, Clock, Receipt, MapPin } from "lucide-react";
 import { useTransactionFilters } from "@/store/transaction-filters";
 import { useMemo } from "react";
 
@@ -47,12 +47,6 @@ export function AnalyticsInsights() {
     }).format(amount);
   };
 
-  // Format percentage change
-  const formatPercentage = (value: number) => {
-    const sign = value >= 0 ? '+' : '';
-    return `${sign}${value.toFixed(1)}%`;
-  };
-
   // Format time 
   const formatHour = (hour: number) => {
     if (hour === 0) return '12:00 AM';
@@ -63,6 +57,7 @@ export function AnalyticsInsights() {
 
   // Format date
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'Unknown Date';
     return new Date(dateString).toLocaleDateString('en-IN', {
       day: 'numeric',
       month: 'short',
@@ -79,36 +74,6 @@ export function AnalyticsInsights() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Cost Per Meal */}
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <Receipt className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Cost Per Meal</span>
-          </div>
-          <div className="text-2xl font-bold">{formatCurrency(insights.costPerMeal)}</div>
-          <p className="text-xs text-muted-foreground">
-            Average cost per order
-          </p>
-        </div>
-
-        {/* Month-over-Month Change */}
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            {insights.monthOverMonthChange >= 0 ? (
-              <TrendingUp className="h-4 w-4 text-chart-1" />
-            ) : (
-              <TrendingDown className="h-4 w-4 text-destructive" />
-            )}
-            <span className="text-sm font-medium">Month-over-Month</span>
-          </div>
-          <div className={`text-2xl font-bold ${insights.monthOverMonthChange >= 0 ? 'text-chart-1' : 'text-destructive'}`}>
-            {formatPercentage(insights.monthOverMonthChange)}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Spending change from last month
-          </p>
-        </div>
-
         {/* Peak Ordering Hour */}
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
@@ -124,6 +89,8 @@ export function AnalyticsInsights() {
             </span>
           </div>
         </div>
+
+        <div className="border-t border-border/40"></div>
 
         {/* Most Expensive Order */}
         <div className="space-y-2">
@@ -141,6 +108,8 @@ export function AnalyticsInsights() {
             </div>
           </div>
         </div>
+
+        <div className="border-t border-border/40"></div>
 
         {/* Top Delivery Area */}
         <div className="space-y-2">

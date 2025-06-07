@@ -4,10 +4,11 @@ import { useTRPC } from "@/trpc/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Badge } from "@workspace/ui/components/badge";
-import { Progress } from "@workspace/ui/components/progress";
-import { Calendar, Clock, TrendingDown, Truck } from "lucide-react";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@workspace/ui/components/chart";
+import { Calendar, Clock, Truck } from "lucide-react";
 import { useTransactionFilters } from "@/store/transaction-filters";
 import { useMemo } from "react";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 
 // Stable fallback dates to prevent cache invalidation
 const FALLBACK_END_DATE = new Date();
@@ -48,9 +49,21 @@ export function AnalyticsBehavior() {
     }).format(amount);
   };
 
-  // Calculate percentage for weekend vs weekday
-  const totalSpending = behavior.weekendVsWeekday.weekend + behavior.weekendVsWeekday.weekday;
-  const weekendPercentage = totalSpending > 0 ? (behavior.weekendVsWeekday.weekend / totalSpending) * 100 : 0;
+  // Chart configuration for day-wise spending
+  const chartConfig = {
+    spend: {
+      label: "Spending",
+      color: "var(--chart-1)",
+    },
+  };
+
+  // Prepare chart data with short day names - add safety check
+  const chartData = behavior.dayWiseSpending?.map(day => ({
+    day: day.day.substring(0, 3), // Convert to Mon, Tue, Wed format
+    spend: day.spend,
+    fullDay: day.day,
+    orders: day.orders,
+  })) || [];
 
   return (
     <Card>
@@ -61,25 +74,56 @@ export function AnalyticsBehavior() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Weekend vs Weekday */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Weekend vs Weekday Spending</span>
-            </div>
+        {/* Day-wise Spending Chart */}
+        <div className="space-y-3">
+          <div className="flex items-center space-x-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Day-wise Spending</span>
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center text-xs">
-              <span>Weekend: {formatCurrency(behavior.weekendVsWeekday.weekend)}</span>
-              <span>Weekday: {formatCurrency(behavior.weekendVsWeekday.weekday)}</span>
+          {chartData.length > 0 ? (
+            <>
+              <ChartContainer config={chartConfig} className="h-[200px]">
+                <BarChart data={chartData}>
+                  <XAxis 
+                    dataKey="day" 
+                    tickLine={false}
+                    axisLine={false}
+                    className="text-xs"
+                  />
+                  <YAxis hide />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        formatter={(value, name) => [
+                          formatCurrency(Number(value)),
+                          "Spending"
+                        ]}
+                        labelFormatter={(label) => {
+                          const dayData = chartData.find(d => d.day === label);
+                          return `${dayData?.fullDay} • ${dayData?.orders} orders`;
+                        }}
+                      />
+                    }
+                  />
+                  <Bar 
+                    dataKey="spend" 
+                    fill="var(--color-spend)" 
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
+              <p className="text-xs text-muted-foreground">
+                Your spending pattern across days of the week
+              </p>
+            </>
+          ) : (
+            <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+              <p>No day-wise spending data available</p>
             </div>
-            <Progress value={weekendPercentage} className="h-2" />
-            <p className="text-xs text-muted-foreground">
-              You spend {weekendPercentage.toFixed(0)}% of your Swiggy budget on weekends
-            </p>
-          </div>
+          )}
         </div>
+
+        <div className="border-t border-border/40"></div>
 
         {/* Most Expensive Day */}
         <div className="space-y-2">
@@ -97,6 +141,8 @@ export function AnalyticsBehavior() {
           </div>
         </div>
 
+        <div className="border-t border-border/40"></div>
+
         {/* Delivery Fees */}
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
@@ -109,22 +155,12 @@ export function AnalyticsBehavior() {
           </p>
         </div>
 
-        {/* Total Savings */}
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Total Savings</span>
-          </div>
-          <div className="text-2xl font-bold text-chart-1">{formatCurrency(behavior.totalSavings)}</div>
-          <p className="text-xs text-muted-foreground">
-            From discounts and offers
-          </p>
-        </div>
+        <div className="border-t border-border/40"></div>
 
         {/* Monthly Trend */}
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
+            <Calendar className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">Monthly Trend (Last 6 Months)</span>
           </div>
           <div className="space-y-2">

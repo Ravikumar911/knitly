@@ -26,7 +26,7 @@ configure({
 const BATCH_SIZE = 20; // Process 20 emails per batch
 const MAX_CONCURRENT_BATCHES = 5; // Run 5 batches in parallel
 const RATE_LIMIT_DELAY = 0.1; // 0.1 seconds delay between API calls
-const SYNC_PERIOD_DAYS = 30; // 30 days of email history to process (increased for better testing)
+const SYNC_PERIOD_DAYS = 180; // 180 days of email history to process (increased for better testing)
 
 /**
  * Worker task that processes a batch of emails
@@ -153,7 +153,6 @@ export const processEmailBatch = task({
 
         // Process with V2 AI
         let finwiseV2Result: any = null;
-        let v2Success = false;
 
         try {
           logger.log("Processing email with AI", {
@@ -205,7 +204,7 @@ export const processEmailBatch = task({
       }
     }
 
-    await updateSyncProgress(payload.userId, stats.processedCount);
+    await updateSyncProgress(payload.userId, stats.processedCount+stats.skippedCount+stats.errorCount);
 
     logger.log("Batch processing completed", {
       userId: payload.userId,

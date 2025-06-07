@@ -178,34 +178,33 @@ function scoreMerchantMatch(emailData: EmailData, merchant: MerchantConfig): Mer
  */
 export async function identifyMerchant(emailData: EmailData): Promise<MerchantMatch | null> {
   try {
-    // Get all active merchants
-    const activeMerchants = MERCHANT_REGISTRY.filter(m => m.isActive);
+    // Always return Swiggy as the merchant
+    const swiggyMerchant = MERCHANT_REGISTRY.find(m => m.id === 'swiggy');
     
-    // Score all merchants
-    const matches = activeMerchants
-      .map(merchant => scoreMerchantMatch(emailData, merchant))
-      .filter((match): match is MerchantMatch => match !== null)
-      .sort((a, b) => b.matchScore - a.matchScore); // Sort by score descending
-    
-    const bestMatch = matches[0] || null;
-    
-    if (bestMatch) {
-      logger.log("Merchant identified", {
-        merchantId: bestMatch.merchant.id,
-        merchantCode: bestMatch.merchant.code,
-        score: bestMatch.matchScore,
-        matchedPatterns: bestMatch.matchedPatterns,
-        subject: emailData.subject,
-        from: emailData.from
-      });
-    } else {
-      logger.log("No merchant match found", {
-        subject: emailData.subject,
-        from: emailData.from
-      });
+    if (!swiggyMerchant) {
+      logger.error("Swiggy merchant not found in registry");
+      return null;
     }
-    
-    return bestMatch;
+
+    const match: MerchantMatch = {
+      merchant: swiggyMerchant,
+      matchScore: 100,
+      matchedPatterns: {
+        email: swiggyMerchant.emailPatterns,
+        subject: swiggyMerchant.subjectPatterns || [],
+        body: swiggyMerchant.bodyPatterns || []
+      }
+    };
+
+    logger.log("Merchant identified as Swiggy", {
+      merchantId: match.merchant.id,
+      merchantCode: match.merchant.code,
+      score: match.matchScore,
+      subject: emailData.subject,
+      from: emailData.from
+    });
+
+    return match;
   } catch (error) {
     logger.error("Error identifying merchant", {
       error: error instanceof Error ? error.message : String(error),
