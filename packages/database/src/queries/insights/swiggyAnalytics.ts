@@ -12,6 +12,11 @@ export interface SwiggySpendingOverview {
     instamart: number;
     dineout: number;
   };
+  orderBreakdown: {
+    food: number;
+    instamart: number;
+    dineout: number;
+  };
   topRestaurants: Array<{
     name: string;
     orders: number;
@@ -31,11 +36,15 @@ export interface SwiggyBehaviorInsights {
   }>;
   avgDeliveryFee: number;
   totalSavings: number;
+  dayWiseSpending: Array<{
+    day: string;
+    dayNumber: number;
+    spend: number;
+    orders: number;
+  }>;
 }
 
 export interface SwiggySmartInsights {
-  costPerMeal: number;
-  monthOverMonthChange: number;
   peakOrderingHour: number;
   mostExpensiveOrder: {
     amount: number;
@@ -109,7 +118,6 @@ export async function getSwiggySpendingOverview(
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, startDate),
         lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`,
         sql`${transactionsV2.merchantData}->'transaction'->>'restaurantName' IS NOT NULL`
       )
     )
@@ -124,14 +132,23 @@ export async function getSwiggySpendingOverview(
     dineout: 0,
   };
 
+  const orderBreakdown = {
+    food: 0,
+    instamart: 0,
+    dineout: 0,
+  };
+
   serviceResult.forEach((service) => {
     const serviceName = service.service?.toLowerCase();
     if (serviceName === 'food_delivery') {
       serviceBreakdown.food = service.spend || 0;
+      orderBreakdown.food = service.orderCount || 0;
     } else if (serviceName === 'instamart') {
       serviceBreakdown.instamart = service.spend || 0;
+      orderBreakdown.instamart = service.orderCount || 0;
     } else if (serviceName === 'genie' || serviceName === 'dineout') {
       serviceBreakdown.dineout = service.spend || 0;
+      orderBreakdown.dineout = service.orderCount || 0;
     }
   });
 
@@ -140,6 +157,7 @@ export async function getSwiggySpendingOverview(
     orderCount: overviewResult[0]?.orderCount || 0,
     avgOrderValue: overviewResult[0]?.avgOrderValue || 0,
     serviceBreakdown,
+    orderBreakdown,
     topRestaurants: restaurantsResult.map((r) => ({
       name: r.restaurant || 'Unknown',
       orders: r.orders || 0,
@@ -150,7 +168,7 @@ export async function getSwiggySpendingOverview(
 
 /**
  * Get Swiggy behavioral insights
- * Returns: weekend vs weekday, most expensive day, monthly trends, delivery fees, savings
+ * Returns: weekend vs weekday, most expensive day, monthly trends, delivery fees, savings, day-wise spending
  */
 export async function getSwiggyBehaviorInsights(
   userId: string,
@@ -176,6 +194,26 @@ export async function getSwiggyBehaviorInsights(
       )
     )
     .groupBy(sql`CASE WHEN EXTRACT(DOW FROM ${transactionsV2.transactionDate}) IN (0,6) THEN 'weekend' ELSE 'weekday' END`);
+
+  // Day-wise spending breakdown for the selected period
+  const dayWiseResult = await db
+    .select({
+      dayOfWeek: sql<number>`EXTRACT(DOW FROM ${transactionsV2.transactionDate})`.as('day_of_week'),
+      totalSpend: sql<number>`SUM(${transactionsV2.amount}::numeric)`.as('total_spend'),
+      orderCount: sql<number>`COUNT(*)`.as('order_count'),
+    })
+    .from(transactionsV2)
+    .where(
+      and(
+        eq(transactionsV2.merchantId, 'swiggy'),
+        eq(transactionsV2.userId, userId),
+        gte(transactionsV2.transactionDate, startDate),
+        lte(transactionsV2.transactionDate, endDate),
+        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
+      )
+    )
+    .groupBy(sql`EXTRACT(DOW FROM ${transactionsV2.transactionDate})`)
+    .orderBy(sql`EXTRACT(DOW FROM ${transactionsV2.transactionDate})`);
 
   // Most expensive day analysis
   const dayResult = await db
@@ -252,7 +290,18 @@ export async function getSwiggyBehaviorInsights(
     }
   });
 
+  // Process day-wise spending
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const dayWiseSpending = dayNames.map((dayName, index) => {
+    const dayData = dayWiseResult.find(d => Number(d.dayOfWeek) === index);
+    return {
+      day: dayName,
+      dayNumber: index,
+      spend: Number(dayData?.totalSpend) || 0,
+      orders: Number(dayData?.orderCount) || 0,
+    };
+  });
+
   const mostExpensiveDay = dayNames[dayResult[0]?.dayOfWeek || 0] || 'Monday';
 
   return {
@@ -264,82 +313,19 @@ export async function getSwiggyBehaviorInsights(
     })),
     avgDeliveryFee: savingsResult[0]?.avgDeliveryFee || 0,
     totalSavings: (savingsResult[0]?.totalDiscounts || 0) + (savingsResult[0]?.membershipSavings || 0),
+    dayWiseSpending,
   };
 }
 
 /**
  * Get Swiggy smart insights
- * Returns: cost per meal, MoM change, peak hours, most expensive order, top delivery area
+ * Returns: peak hours, most expensive order, top delivery area (removed cost per meal and month-over-month)
  */
 export async function getSwiggySmartInsights(
   userId: string,
   startDate: Date,
   endDate: Date
 ): Promise<SwiggySmartInsights> {
-  // Cost per meal (same as avg order value from overview)
-  const costResult = await db
-    .select({
-      costPerMeal: sql<number>`AVG(${transactionsV2.amount}::numeric)`.as('cost_per_meal'),
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, startDate),
-        lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
-      )
-    );
-
-  // Month-over-month comparison - using separate queries instead of raw SQL
-  const currentMonth = new Date();
-  currentMonth.setDate(1); // First day of current month
-  currentMonth.setHours(0, 0, 0, 0); // Set to start of day
-
-  const previousMonth = new Date(currentMonth);
-  previousMonth.setMonth(previousMonth.getMonth() - 1);
-
-  const nextMonth = new Date(currentMonth);
-  nextMonth.setMonth(nextMonth.getMonth() + 1);
-
-  // Current month spending
-  const currentMonthResult = await db
-    .select({
-      currentSpend: sql<number>`SUM(${transactionsV2.amount}::numeric)`.as('current_spend'),
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, currentMonth),
-        lte(transactionsV2.transactionDate, nextMonth),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
-      )
-    );
-
-  // Previous month spending  
-  const previousMonthResult = await db
-    .select({
-      prevSpend: sql<number>`SUM(${transactionsV2.amount}::numeric)`.as('prev_spend'),
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, previousMonth),
-        lte(transactionsV2.transactionDate, currentMonth),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
-      )
-    );
-
-  // Calculate month-over-month change
-  const currentSpend = currentMonthResult[0]?.currentSpend || 0;
-  const prevSpend = previousMonthResult[0]?.prevSpend || 0;
-  const monthOverMonthChange = prevSpend > 0 ? ((currentSpend / prevSpend) * 100 - 100) : 0;
-
   // Peak ordering hours
   const hoursResult = await db
     .select({
@@ -360,11 +346,11 @@ export async function getSwiggySmartInsights(
     .orderBy(sql`COUNT(*) DESC`)
     .limit(1);
 
-  // Most expensive order
+  // Most expensive order - fixed to ensure we get proper restaurant names
   const expensiveResult = await db
     .select({
       maxOrderAmount: sql<number>`${transactionsV2.amount}::numeric`.as('max_order_amount'),
-      restaurant: sql<string>`${transactionsV2.merchantData}->'transaction'->>'restaurantName'`.as('restaurant'),
+      restaurant: sql<string>`COALESCE(${transactionsV2.merchantData}->'transaction'->>'restaurantName', ${transactionsV2.merchantData}->'transaction'->>'merchantName', 'Unknown Restaurant')`.as('restaurant'),
       transactionDate: transactionsV2.transactionDate,
     })
     .from(transactionsV2)
@@ -406,12 +392,10 @@ export async function getSwiggySmartInsights(
     .limit(1);
 
   return {
-    costPerMeal: costResult[0]?.costPerMeal || 0,
-    monthOverMonthChange: monthOverMonthChange,
     peakOrderingHour: hoursResult[0]?.hour || 12,
     mostExpensiveOrder: {
       amount: expensiveResult[0]?.maxOrderAmount || 0,
-      restaurant: expensiveResult[0]?.restaurant || 'Unknown',
+      restaurant: expensiveResult[0]?.restaurant || 'Unknown Restaurant',
       date: expensiveResult[0]?.transactionDate?.toISOString().split('T')[0] || '',
     },
     topDeliveryArea: {

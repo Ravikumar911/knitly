@@ -89,8 +89,14 @@ export const finwiseAIV2Agent = async (emailData: EmailData): Promise<FinwiseAIV
     // Step 1: Identify merchant
     const merchantMatch = await identifyMerchant(emailData);
 
+    logger.log("Merchant match", {
+      merchantId: merchantMatch?.merchant.id,
+      merchantCode: merchantMatch?.merchant.code,
+      matchScore: merchantMatch?.matchScore,
+    });
+
     // Step 2: Select appropriate schema based on merchant
-    const { schema, schemaType } = selectSchema('swiggy');
+    const { schema, schemaType } = selectSchema(merchantMatch?.merchant.id);
     const prompt = merchantMatch?.merchant.prompt || "Extract financial data from this email.";
 
     logger.log("Using schema", {

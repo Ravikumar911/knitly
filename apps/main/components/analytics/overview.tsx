@@ -125,37 +125,72 @@ export function AnalyticsOverview() {
         </Card>
       </div>
 
-      {/* Top Restaurants */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Top Restaurants</CardTitle>
-          <CardDescription>
-            Your most ordered restaurants by total spend
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {overview.topRestaurants.map((restaurant: { name: string; orders: number; spend: number }, index: number) => (
-              <div key={restaurant.name} className="flex items-center space-x-4">
-                <Badge variant="secondary" className="min-w-[24px] h-6 flex items-center justify-center">
-                  {index + 1}
-                </Badge>
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    {restaurant.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {restaurant.orders} orders
-                  </p>
+      {/* Bottom Row - Two Cards */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Top Restaurants */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Restaurants</CardTitle>
+            <CardDescription>
+              Your most ordered restaurants by total spend
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {overview.topRestaurants.map((restaurant: { name: string; orders: number; spend: number }, index: number) => (
+                <div key={restaurant.name} className="flex items-center space-x-4">
+                  <Badge variant="secondary" className="min-w-[24px] h-6 flex items-center justify-center">
+                    {index + 1}
+                  </Badge>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {restaurant.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {restaurant.orders} orders
+                    </p>
+                  </div>
+                  <div className="text-sm font-medium">
+                    {formatCurrency(restaurant.spend)}
+                  </div>
                 </div>
-                <div className="text-sm font-medium">
-                  {formatCurrency(restaurant.spend)}
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Orders by Service */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Orders by Service</CardTitle>
+            <CardDescription>
+              Your order distribution across Swiggy services
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Food Delivery</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-muted-foreground">{overview.orderBreakdown.food} orders</span>
                 </div>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Instamart</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-muted-foreground">{overview.orderBreakdown.instamart} orders</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Dineout</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-muted-foreground">{overview.orderBreakdown.dineout} orders</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 } 
