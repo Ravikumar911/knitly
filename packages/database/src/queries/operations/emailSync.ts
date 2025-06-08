@@ -129,8 +129,8 @@ export async function initializeSync(userId: string, totalEmails: number): Promi
     .limit(1);
 
   const estimatedCompletion = new Date();
-  // ~7 emails per minute based on observed performance (20 emails taking 3 minutes)
-  estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + Math.ceil(totalEmails / 7));
+  // ~35 emails per minute based on parallel processing (5 batches × 20 emails = 100 emails concurrently, ~3 minutes per batch group)
+  estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + Math.ceil(totalEmails / 35));
 
   if (existing.length > 0) {
     await db.update(emailSyncStatus)
@@ -173,8 +173,8 @@ export async function updateSyncProgress(userId: string, processedEmails: number
 
   const progressPercentage = (processedEmails / current.totalEmails) * 100;
   const remainingEmails = current.totalEmails - processedEmails;
-  // ~7 emails per minute based on observed performance (20 emails taking 3 minutes)
-  const estimatedMinutesRemaining = Math.ceil(remainingEmails / 7);
+  // ~35 emails per minute based on parallel processing (5 concurrent batches × 20 emails = 100 emails per batch group)
+  const estimatedMinutesRemaining = Math.ceil(remainingEmails / 35);
   
   const estimatedCompletion = new Date();
   estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + estimatedMinutesRemaining);
@@ -222,8 +222,8 @@ export async function incrementSyncProgress(userId: string, incrementBy: number)
   // Calculate new progress percentage and completion estimate
   const progressPercentage = (processedEmails / totalEmails) * 100;
   const remainingEmails = Math.max(0, totalEmails - processedEmails);
-  // ~7 emails per minute based on observed performance
-  const estimatedMinutesRemaining = Math.ceil(remainingEmails / 7);
+  // ~35 emails per minute based on parallel processing (5 concurrent batches × 20 emails = 100 emails per batch group)
+  const estimatedMinutesRemaining = Math.ceil(remainingEmails / 35);
   
   const estimatedCompletion = new Date();
   estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + estimatedMinutesRemaining);
