@@ -49,6 +49,8 @@ export interface TransactionFilters {
   searchQuery?: string;
   minAmount?: number;
   maxAmount?: number;
+  sortBy?: 'date' | 'amount' | 'merchant';
+  sortOrder?: 'asc' | 'desc';
 }
 
 /**
@@ -101,6 +103,20 @@ export async function getTransactionsWithEmails(
     );
   }
 
+  // Determine the sort column and order
+  const sortOrder = filters?.sortOrder === 'asc' ? 'asc' : 'desc'; // Default to desc
+
+  // Build the orderBy clause based on sortBy and sortOrder
+  let orderByClause;
+  if (filters?.sortBy === 'amount') {
+    orderByClause = sortOrder === 'asc' ? sql`${transactionsV2.amount}::numeric ASC` : sql`${transactionsV2.amount}::numeric DESC`;
+  } else if (filters?.sortBy === 'merchant') {
+    orderByClause = sortOrder === 'asc' ? transactionsV2.merchantName : desc(transactionsV2.merchantName);
+  } else {
+    // Default to date sorting
+    orderByClause = sortOrder === 'asc' ? transactionsV2.transactionDate : desc(transactionsV2.transactionDate);
+  }
+
   const result = await db
     .select({
       // Transaction fields
@@ -140,7 +156,7 @@ export async function getTransactionsWithEmails(
     .from(transactionsV2)
     .leftJoin(parsedEmails, eq(transactionsV2.parsedEmailId, parsedEmails.id))
     .where(conditions.length === 1 ? conditions[0] : and(...conditions))
-    .orderBy(desc(transactionsV2.transactionDate))
+    .orderBy(orderByClause)
     .limit(limit)
     .offset(offset);
 
