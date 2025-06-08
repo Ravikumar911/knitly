@@ -90,7 +90,7 @@ export function SyncInitiator({ dataStatus }: SyncInitiatorProps) {
     if (isCountingEmails) return 'Analyzing Your Gmail';
     if (isInProgress) return 'Preparing to Process';
     if (isSyncing) return 'Processing Your Emails';
-    return 'Welcome to Knitly';
+    return 'Welcome to Slash';
   };
 
   const getStatusDescription = () => {
