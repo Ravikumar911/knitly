@@ -8,10 +8,28 @@ import { IndianRupee, ShoppingCart, TrendingUp, Utensils } from "lucide-react";
 import { useTransactionFilters } from "@/store/transaction-filters";
 import { useMemo } from "react";
 import { DateRangePicker } from "./date-range-picker";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@workspace/ui/components/chart";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 // Stable fallback dates to prevent cache invalidation
 const FALLBACK_END_DATE = new Date();
 const FALLBACK_START_DATE = new Date(FALLBACK_END_DATE.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+// Chart configuration
+const ORDER_BREAKDOWN_CHART_CONFIG = {
+  food: {
+    label: "Food Delivery",
+    color: "var(--chart-1)",
+  },
+  instamart: {
+    label: "Instamart",
+    color: "var(--chart-2)",
+  },
+  dineout: {
+    label: "Dineout",
+    color: "var(--chart-3)",
+  },
+} as const;
 
 export function AnalyticsOverview() {
   const trpc = useTRPC();
@@ -125,14 +143,14 @@ export function AnalyticsOverview() {
         </Card>
       </div>
 
-      {/* Bottom Row - Two Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Bottom Row - Three Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
         {/* Top Restaurants */}
         <Card>
           <CardHeader>
             <CardTitle>Top Restaurants</CardTitle>
             <CardDescription>
-              Your most ordered restaurants by total spend
+              Restaurants where you've spent the most (excludes groceries)
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -168,25 +186,86 @@ export function AnalyticsOverview() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+
+              <div>
+                <ChartContainer
+                  config={ORDER_BREAKDOWN_CHART_CONFIG}
+                >
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: "food", value: overview.orderBreakdown.food },
+                        { name: "instamart", value: overview.orderBreakdown.instamart },
+                        { name: "dineout", value: overview.orderBreakdown.dineout },
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      <Cell fill="var(--color-food)" />
+                      <Cell fill="var(--color-instamart)" />
+                      <Cell fill="var(--color-dineout)" />
+                    </Pie>
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value, name) => [
+                            `${value} orders `,
+                            typeof name === "string" 
+                              ? (name === "food" ? "Food Delivery" : name.charAt(0).toUpperCase() + name.slice(1))
+                              : String(name)
+                          ]}
+                        />
+                      }
+                    />
+                    <ChartLegend
+                      content={
+                        <ChartLegendContent
+                          payload={[
+                            { value: "Food Delivery", color: "var(--color-food)" },
+                            { value: "Instamart", color: "var(--color-instamart)" },
+                            { value: "Dineout", color: "var(--color-dineout)" },
+                          ]}
+                        />
+                      }
+                    />
+                  </PieChart>
+                </ChartContainer>
+              </div>
+          </CardContent>
+        </Card>
+
+        {/* Top Instamart Items */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Instamart Items</CardTitle>
+            <CardDescription>
+              Your most frequently ordered grocery items
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Food Delivery</span>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-muted-foreground">{overview.orderBreakdown.food} orders</span>
+              {overview.topInstamartItems.map((item: { name: string; count: number; amount: number }, index: number) => (
+                <div key={item.name} className="flex items-center space-x-4">
+                  <Badge variant="secondary" className="min-w-[24px] h-6 flex items-center justify-center">
+                    {index + 1}
+                  </Badge>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {item.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.count} orders
+                    </p>
+                  </div>
+                  <div className="text-sm font-medium">
+                    {formatCurrency(item.amount)}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Instamart</span>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-muted-foreground">{overview.orderBreakdown.instamart} orders</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Dineout</span>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-muted-foreground">{overview.orderBreakdown.dineout} orders</span>
-                </div>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
