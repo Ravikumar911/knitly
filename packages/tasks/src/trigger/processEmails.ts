@@ -13,7 +13,7 @@ import {
   isEmailProcessed, 
   storeEmailData,
   updateEmailData,
-  updateSyncProgress,
+  incrementSyncProgress,
   getSyncProgress,
   initializeSync
 } from "@workspace/database";
@@ -204,8 +204,6 @@ export const processEmailBatch = task({
       }
     }
 
-    await updateSyncProgress(payload.userId, stats.processedCount+stats.skippedCount+stats.errorCount);
-
     logger.log("Batch processing completed", {
       userId: payload.userId,
       batchStats: stats,
@@ -381,7 +379,6 @@ export const processEmails = task({
 
       // Process batches in parallel with concurrency limit
       const results = [];
-      let cumulativeProcessed = 0;
       
       for (let i = 0; i < batches.length; i += MAX_CONCURRENT_BATCHES) {
         const batchNumber = Math.floor(i / MAX_CONCURRENT_BATCHES) + 1;
@@ -399,10 +396,29 @@ export const processEmails = task({
         const batchResults = await batch.triggerByTaskAndWait(batchSlice);
         results.push(...batchResults.runs);
         
-        // Update progress
+        // Update progress atomically after each batch group completes
+        let batchGroupProgress = 0;
         for (const result of batchResults.runs) {
           if (result.ok) {
-            cumulativeProcessed += result.output.processedCount;
+            batchGroupProgress += result.output.processedCount + result.output.skippedCount + result.output.errorCount;
+          }
+        }
+        
+        if (batchGroupProgress > 0) {
+          try {
+            await incrementSyncProgress(payload.userId, batchGroupProgress);
+            logger.log("Progress updated", {
+              userId: payload.userId,
+              batchGroup: batchNumber,
+              batchGroupProgress,
+              totalGroupsRemaining: totalBatchGroups - batchNumber
+            });
+          } catch (error) {
+            logger.error("Failed to update progress", {
+              userId: payload.userId,
+              batchGroup: batchNumber,
+              error: error instanceof Error ? error.message : String(error)
+            });
           }
         }
       }
