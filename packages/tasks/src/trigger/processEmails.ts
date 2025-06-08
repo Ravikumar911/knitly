@@ -281,31 +281,77 @@ export const processEmails = task({
       // Step 3: Fetch all messages  
       let allMessages: Array<{id: string; threadId?: string}> = [];
       let nextPageToken = null;
+      let pageCount = 0;
+
+      logger.log("Starting Gmail message fetch", {
+        userId: payload.userId,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        searchQuery
+      });
 
       while (true) {
-        const gmailData = await fetchGmailMessages(providerToken, {
-          after: startDate,
-          before: endDate,
-          pageToken: nextPageToken || undefined,
-          query: searchQuery || undefined
+        pageCount++;
+        logger.log("Fetching Gmail page", {
+          userId: payload.userId,
+          pageNumber: pageCount,
+          hasNextPageToken: !!nextPageToken
         });
 
-        if (!gmailData) {
-          await markSyncFailed(payload.userId, "Failed to fetch Gmail messages");
-          return { success: false, message: "Failed to fetch Gmail messages", error: "GMAIL_FETCH_FAILED" };
-        }
+        try {
+          const gmailData = await fetchGmailMessages(providerToken, {
+            after: startDate,
+            before: endDate,
+            pageToken: nextPageToken || undefined,
+            query: searchQuery || undefined
+          });
 
-        if (gmailData.messages) {
-          const validMessages = gmailData.messages
-            .filter((msg): msg is {id: string; threadId?: string} => 
-              typeof msg.id === 'string'
-            );
-          allMessages = [...allMessages, ...validMessages];
-        }
+          if (!gmailData) {
+            const error = `Failed to fetch Gmail messages at page ${pageCount}`;
+            logger.error("Gmail fetch failed", {
+              userId: payload.userId,
+              pageNumber: pageCount,
+              error
+            });
+            await markSyncFailed(payload.userId, error);
+            return { success: false, message: error, error: "GMAIL_FETCH_FAILED" };
+          }
 
-        if (!gmailData.nextPageToken) break;
-        nextPageToken = gmailData.nextPageToken;
-        await wait.for({ seconds: RATE_LIMIT_DELAY });
+          if (gmailData.messages) {
+            const validMessages = gmailData.messages
+              .filter((msg): msg is {id: string; threadId?: string} => 
+                typeof msg.id === 'string'
+              );
+            allMessages = [...allMessages, ...validMessages];
+            
+            logger.log("Gmail page processed", {
+              userId: payload.userId,
+              pageNumber: pageCount,
+              messagesInPage: validMessages.length,
+              totalMessagesSoFar: allMessages.length
+            });
+          }
+
+          if (!gmailData.nextPageToken) break;
+          nextPageToken = gmailData.nextPageToken;
+          await wait.for({ seconds: RATE_LIMIT_DELAY });
+          
+        } catch (error) {
+          const errorMessage = `Gmail API error at page ${pageCount}: ${error instanceof Error ? error.message : String(error)}`;
+          logger.error("Gmail API error during fetch", {
+            userId: payload.userId,
+            pageNumber: pageCount,
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined
+          });
+          await markSyncFailed(payload.userId, errorMessage);
+          return { 
+            success: false, 
+            message: errorMessage, 
+            error: "GMAIL_API_ERROR",
+            errorType: "GMAIL_FETCH_ERROR"
+          };
+        }
       }
 
       // Mark as counting emails and initialize sync with total count
@@ -366,7 +412,8 @@ export const processEmails = task({
         processedCount: 0,
         skippedCount: 0,
         errorCount: 0,
-        totalFound: allMessages.length
+        totalFound: allMessages.length,
+        batchFailures: 0
       };
 
       for (const result of results) {
@@ -374,10 +421,39 @@ export const processEmails = task({
           totalStats.processedCount += result.output.processedCount;
           totalStats.skippedCount += result.output.skippedCount;
           totalStats.errorCount += result.output.errorCount;
+        } else {
+          totalStats.batchFailures++;
+          logger.error("Batch processing failed", {
+            userId: payload.userId,
+            batchError: result.error,
+            runId: result.id
+          });
         }
       }
 
-      // Update sync completion
+      // Check if there were any critical failures that should prevent sync completion
+      if (totalStats.batchFailures > 0) {
+        const error = `Sync partially failed: ${totalStats.batchFailures} batch(es) failed out of ${results.length} total batches`;
+        logger.error("Partial sync failure detected", {
+          userId: payload.userId,
+          batchFailures: totalStats.batchFailures,
+          totalBatches: results.length,
+          processedEmails: totalStats.processedCount
+        });
+        
+        await markSyncFailed(payload.userId, error);
+        
+        return {
+          success: false,
+          message: error,
+          error: "PARTIAL_BATCH_FAILURE",
+          ...totalStats,
+          syncStartDate: startDate,
+          isFirstSync
+        };
+      }
+
+      // Only update sync completion if all batches succeeded
       await updateLastSyncTime(payload.userId, new Date());
       await markSyncComplete(payload.userId);
 
@@ -391,22 +467,33 @@ export const processEmails = task({
           ...totalStats,
           successRate: `${((totalStats.processedCount / totalStats.totalFound) * 100).toFixed(1)}%`,
           errorRate: `${((totalStats.errorCount / totalStats.totalFound) * 100).toFixed(1)}%`,
-          skipRate: `${((totalStats.skippedCount / totalStats.totalFound) * 100).toFixed(1)}%`
+          skipRate: `${((totalStats.skippedCount / totalStats.totalFound) * 100).toFixed(1)}%`,
+          batchFailureRate: `${((totalStats.batchFailures / results.length) * 100).toFixed(1)}%`
         },
         syncPeriod: {
           start: startDate.toISOString(),
           end: new Date().toISOString(),
           isFirstSync
+        },
+        batchInfo: {
+          totalBatches: results.length,
+          successfulBatches: results.length - totalStats.batchFailures,
+          failedBatches: totalStats.batchFailures
         }
       });
 
       return {
         success: true,
-        message: `Processed ${totalStats.processedCount} emails, skipped ${totalStats.skippedCount} already processed emails, encountered ${totalStats.errorCount} errors, out of ${totalStats.totalFound} total emails found since ${startDate.toISOString()}`,
+        message: `Processed ${totalStats.processedCount} emails, skipped ${totalStats.skippedCount} already processed emails, encountered ${totalStats.errorCount} errors, out of ${totalStats.totalFound} total emails found since ${startDate.toISOString()}. All ${results.length} batches completed successfully.`,
         ...totalStats,
         syncStartDate: startDate,
         isFirstSync,
-        reconciliationTriggered: true
+        reconciliationTriggered: true,
+        batchInfo: {
+          totalBatches: results.length,
+          successfulBatches: results.length,
+          failedBatches: 0
+        }
       };
 
     } catch (error) {
