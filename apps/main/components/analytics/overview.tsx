@@ -247,26 +247,38 @@ export function AnalyticsOverview() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {overview.topInstamartItems.map((item: { name: string; count: number; amount: number }, index: number) => (
-                <div key={item.name} className="flex items-center space-x-4">
-                  <Badge variant="secondary" className="min-w-[24px] h-6 flex items-center justify-center">
-                    {index + 1}
-                  </Badge>
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {item.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.count} orders
-                    </p>
+            {overview.topInstamartItems.length > 0 ? (
+              <div className="space-y-4">
+                {overview.topInstamartItems.map((item: { name: string; count: number; amount: number }, index: number) => (
+                  <div key={item.name} className="flex items-center space-x-4">
+                    <Badge variant="secondary" className="min-w-[24px] h-6 flex items-center justify-center">
+                      {index + 1}
+                    </Badge>
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {item.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.count} items
+                      </p>
+                    </div>
+                    <div className="text-sm font-medium">
+                      {formatCurrency(item.amount)}
+                    </div>
                   </div>
-                  <div className="text-sm font-medium">
-                    {formatCurrency(item.amount)}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <ShoppingCart className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="text-sm font-medium text-muted-foreground mb-1">
+                  No grocery orders found
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Start ordering from Instamart to see your top items here
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
