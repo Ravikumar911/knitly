@@ -22,6 +22,11 @@ export interface SwiggySpendingOverview {
     orders: number;
     spend: number;
   }>;
+  topInstamartItems: Array<{
+    name: string;
+    count: number;
+    amount: number;
+  }>;
 }
 
 export interface SwiggyBehaviorInsights {
@@ -104,7 +109,29 @@ export async function getSwiggySpendingOverview(
     )
     .groupBy(sql`${transactionsV2.merchantData}->'swiggyMetadata'->>'service'`);
 
-  // Top restaurants query
+  // Process service breakdown
+  const serviceBreakdown = {
+    food: 0,
+    instamart: 0,
+    dineout: 0,
+  };
+
+  serviceResult.forEach((result) => {
+    const spend = Number(result.spend) || 0;
+    switch (result.service) {
+      case 'FOOD_DELIVERY':
+        serviceBreakdown.food += spend;
+        break;
+      case 'INSTAMART':
+        serviceBreakdown.instamart += spend;
+        break;
+      case 'DINEOUT':
+        serviceBreakdown.dineout += spend;
+        break;
+    }
+  });
+
+  // Top restaurants query (Food Delivery and Dineout, exclude Instamart)
   const restaurantsResult = await db
     .select({
       restaurant: sql<string>`${transactionsV2.merchantData}->'transaction'->>'restaurantName'`.as('restaurant'),
@@ -118,37 +145,60 @@ export async function getSwiggySpendingOverview(
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, startDate),
         lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'transaction'->>'restaurantName' IS NOT NULL`
+        sql`${transactionsV2.merchantData}->'transaction'->>'restaurantName' IS NOT NULL`,
+        sql`${transactionsV2.merchantData}->'swiggyMetadata'->>'service' IN ('FOOD_DELIVERY', 'DINEOUT')`
       )
     )
     .groupBy(sql`${transactionsV2.merchantData}->'transaction'->>'restaurantName'`)
     .orderBy(sql`SUM(${transactionsV2.amount}::numeric) DESC`)
     .limit(3);
 
-  // Process service breakdown
-  const serviceBreakdown = {
-    food: 0,
-    instamart: 0,
-    dineout: 0,
-  };
+  // Top Instamart items query - extract individual grocery items from orderItems array
+  const instamartItemsResult = await db
+    .select({
+      itemName: sql<string>`item_data->>'name'`.as('item_name'),
+      count: sql<number>`SUM(COALESCE((item_data->>'quantity')::numeric, 1))`.as('count'),
+      totalAmount: sql<number>`SUM(COALESCE((item_data->>'price')::numeric, 0) * COALESCE((item_data->>'quantity')::numeric, 1))`.as('total_amount'),
+    })
+    .from(sql`
+      ${transactionsV2},
+      jsonb_array_elements(${transactionsV2.merchantData}->'transaction'->'orderItems') as item_data
+    `)
+    .where(
+      and(
+        eq(transactionsV2.merchantId, 'swiggy'),
+        eq(transactionsV2.userId, userId),
+        gte(transactionsV2.transactionDate, startDate),
+        lte(transactionsV2.transactionDate, endDate),
+        sql`${transactionsV2.merchantData}->'swiggyMetadata'->>'service' = 'INSTAMART'`,
+        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`,
+        sql`jsonb_array_length(${transactionsV2.merchantData}->'transaction'->'orderItems') > 0`,
+        sql`item_data->>'name' IS NOT NULL AND item_data->>'name' != ''`
+      )
+    )
+    .groupBy(sql`item_data->>'name'`)
+    .orderBy(sql`SUM(COALESCE((item_data->>'quantity')::numeric, 1)) DESC`)
+    .limit(3);
 
+  // Process order breakdown
   const orderBreakdown = {
     food: 0,
     instamart: 0,
     dineout: 0,
   };
 
-  serviceResult.forEach((service) => {
-    const serviceName = service.service?.toLowerCase();
-    if (serviceName === 'food_delivery') {
-      serviceBreakdown.food = service.spend || 0;
-      orderBreakdown.food = service.orderCount || 0;
-    } else if (serviceName === 'instamart') {
-      serviceBreakdown.instamart = service.spend || 0;
-      orderBreakdown.instamart = service.orderCount || 0;
-    } else if (serviceName === 'genie' || serviceName === 'dineout') {
-      serviceBreakdown.dineout = service.spend || 0;
-      orderBreakdown.dineout = service.orderCount || 0;
+  serviceResult.forEach((result) => {
+    const count = Number(result.orderCount) || 0;
+    switch (result.service) {
+      case 'FOOD_DELIVERY':
+        orderBreakdown.food += count;
+        break;
+      case 'INSTAMART':
+        orderBreakdown.instamart += count;
+        break;
+      case 'DINEOUT':
+        orderBreakdown.dineout += count;
+        break;
     }
   });
 
@@ -159,9 +209,14 @@ export async function getSwiggySpendingOverview(
     serviceBreakdown,
     orderBreakdown,
     topRestaurants: restaurantsResult.map((r) => ({
-      name: r.restaurant || 'Unknown',
-      orders: r.orders || 0,
-      spend: r.totalSpend || 0,
+      name: r.restaurant,
+      orders: r.orders,
+      spend: r.totalSpend,
+    })),
+    topInstamartItems: instamartItemsResult.map((item) => ({
+      name: item.itemName,
+      count: item.count,
+      amount: item.totalAmount,
     })),
   };
 }
@@ -326,7 +381,7 @@ export async function getSwiggySmartInsights(
   startDate: Date,
   endDate: Date
 ): Promise<SwiggySmartInsights> {
-  // Peak ordering hours
+  // Peak ordering hour query
   const hoursResult = await db
     .select({
       hour: sql<number>`EXTRACT(HOUR FROM ${transactionsV2.transactionDate})`.as('hour'),
@@ -346,11 +401,11 @@ export async function getSwiggySmartInsights(
     .orderBy(sql`COUNT(*) DESC`)
     .limit(1);
 
-  // Most expensive order - fixed to ensure we get proper restaurant names
+  // Most expensive order query
   const expensiveResult = await db
     .select({
       maxOrderAmount: sql<number>`${transactionsV2.amount}::numeric`.as('max_order_amount'),
-      restaurant: sql<string>`COALESCE(${transactionsV2.merchantData}->'transaction'->>'restaurantName', ${transactionsV2.merchantData}->'transaction'->>'merchantName', 'Unknown Restaurant')`.as('restaurant'),
+      restaurant: sql<string>`${transactionsV2.merchantData}->'transaction'->>'restaurantName'`.as('restaurant'),
       transactionDate: transactionsV2.transactionDate,
     })
     .from(transactionsV2)
@@ -366,7 +421,7 @@ export async function getSwiggySmartInsights(
     .orderBy(sql`${transactionsV2.amount}::numeric DESC`)
     .limit(1);
 
-  // Top delivery areas
+  // Top delivery area query
   const areaResult = await db
     .select({
       area: sql<string>`${transactionsV2.merchantData}->'transaction'->'deliveryAddress'->>'area'`.as('area'),
@@ -392,15 +447,15 @@ export async function getSwiggySmartInsights(
     .limit(1);
 
   return {
-    peakOrderingHour: hoursResult[0]?.hour || 12,
+    peakOrderingHour: hoursResult[0]?.hour || 0,
     mostExpensiveOrder: {
       amount: expensiveResult[0]?.maxOrderAmount || 0,
       restaurant: expensiveResult[0]?.restaurant || 'Unknown Restaurant',
       date: expensiveResult[0]?.transactionDate?.toISOString().split('T')[0] || '',
     },
     topDeliveryArea: {
-      area: areaResult[0]?.area || 'Unknown',
-      pincode: areaResult[0]?.pincode || 'Unknown',
+      area: areaResult[0]?.area || '',
+      pincode: areaResult[0]?.pincode || '',
       orderCount: areaResult[0]?.orderCount || 0,
     },
   };
