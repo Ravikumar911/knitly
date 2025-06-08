@@ -18,7 +18,10 @@ import { Badge } from '@workspace/ui/components/badge';
 import { 
   FileText, 
   ChevronLeft, 
-  ChevronRight
+  ChevronRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { TransactionPDFViewer } from './transaction-pdf-viewer';
 
@@ -63,20 +66,29 @@ function TransactionTableContent() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [selectedTransaction, setSelectedTransaction] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const trpc = useTRPC();
 
-  // Create query options without any filters
+  // Create query options with sorting
   const queryOptions = useMemo(() => {
     return trpc.transactions.list.queryOptions({
       page,
       pageSize,
-      filters: {}, // Empty filters object
+      filters: {
+        sortBy: 'date',
+        sortOrder: sortDirection,
+      },
     });
-  }, [trpc.transactions.list, page, pageSize]);
+  }, [trpc.transactions.list, page, pageSize, sortDirection]);
 
   // Fetch transactions using proper tRPC pattern
   const { data } = useSuspenseQuery(queryOptions);
+
+  // Toggle sort direction
+  const handleSortToggle = () => {
+    setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+  };
 
   const formatCurrency = (amount: string, currency: string = 'INR') => {
     const numAmount = parseFloat(amount);
@@ -123,13 +135,27 @@ function TransactionTableContent() {
           <Table>
             <TableHeader>
               <TableRow className="border-b">
-                <TableHead className="h-8 text-xs font-medium">Date</TableHead>
-                <TableHead className="h-8 text-xs font-medium">Merchant</TableHead>
-                <TableHead className="h-8 text-xs font-medium">Description</TableHead>
-                <TableHead className="h-8 text-xs font-medium">Amount</TableHead>
-                <TableHead className="h-8 text-xs font-medium">Type</TableHead>
-                <TableHead className="h-8 text-xs font-medium">Status</TableHead>
-                <TableHead className="h-8 text-xs font-medium">PDF</TableHead>
+                <TableHead className="h-9 text-sm font-medium">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 -ml-2 font-medium text-sm"
+                    onClick={handleSortToggle}
+                  >
+                    Date
+                    {sortDirection === 'asc' ? (
+                      <ArrowUp className="ml-1 h-3 w-3" />
+                    ) : (
+                      <ArrowDown className="ml-1 h-3 w-3" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead className="h-9 text-sm font-medium">Merchant</TableHead>
+                <TableHead className="h-9 text-sm font-medium">Description</TableHead>
+                <TableHead className="h-9 text-sm font-medium">Amount</TableHead>
+                <TableHead className="h-9 text-sm font-medium">Type</TableHead>
+                <TableHead className="h-9 text-sm font-medium">Status</TableHead>
+                <TableHead className="h-9 text-sm font-medium">PDF</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -137,45 +163,45 @@ function TransactionTableContent() {
                 const t = transaction as TransactionFromTRPC;
                 return (
                   <TableRow key={t.id}>
-                    <TableCell className="py-2 text-xs">
+                    <TableCell className="py-2.5 text-xs">
                       {format(new Date(t.transactionDate), 'MMM dd, yyyy')}
                     </TableCell>
-                    <TableCell className="py-2">
+                    <TableCell className="py-2.5">
                       <div>
                         <div className="font-medium text-xs">
                           {t.merchantName || 'Unknown'}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="py-2">
+                    <TableCell className="py-2.5">
                       <div className="max-w-xs truncate text-xs" title={t.description || ''}>
                         {t.description || 'No description'}
                       </div>
                     </TableCell>
-                    <TableCell className="py-2">
+                    <TableCell className="py-2.5">
                       <div className="font-medium text-xs">
                         {formatCurrency(t.amount, t.currency || 'INR')}
                       </div>
                     </TableCell>
-                    <TableCell className="py-2">
-                      <Badge className={`${getTypeColor(t.type)} text-xs px-1 py-0`}>
+                    <TableCell className="py-2.5">
+                      <Badge className={`${getTypeColor(t.type)} text-xs px-1.5 py-0.5`}>
                         {t.type}
                       </Badge>
                     </TableCell>
-                    <TableCell className="py-2">
-                      <Badge className={`${getStatusColor(t.status || '')} text-xs px-1 py-0`}>
+                    <TableCell className="py-2.5">
+                      <Badge className={`${getStatusColor(t.status || '')} text-xs px-1.5 py-0.5`}>
                         {t.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="py-2">
+                    <TableCell className="py-2.5">
                       {t.attachmentStoragePath ? (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setSelectedTransaction(t.id)}
-                          className="h-6 w-6 p-0"
+                          className="h-7 w-7 p-0"
                         >
-                          <FileText className="h-3 w-3" />
+                          <FileText className="h-3.5 w-3.5" />
                         </Button>
                       ) : (
                         <span className="text-gray-400 text-xs">No PDF</span>
@@ -201,7 +227,7 @@ function TransactionTableContent() {
               size="sm"
               onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={!data.pagination?.hasPrev}
-              className="h-6 px-2 text-xs"
+              className="h-7 px-2 text-xs"
             >
               <ChevronLeft className="h-3 w-3" />
             </Button>
@@ -213,7 +239,7 @@ function TransactionTableContent() {
               size="sm"
               onClick={() => setPage(p => p + 1)}
               disabled={!data.pagination?.hasNext}
-              className="h-6 px-2 text-xs"
+              className="h-7 px-2 text-xs"
             >
               <ChevronRight className="h-3 w-3" />
             </Button>
@@ -223,12 +249,10 @@ function TransactionTableContent() {
 
       {/* PDF Viewer Modal */}
       {selectedTransaction && (
-        <Suspense fallback={<div>Loading...</div>}>
-          <TransactionPDFViewer
-            transactionId={selectedTransaction}
-            onClose={() => setSelectedTransaction(null)}
-          />
-        </Suspense>
+        <TransactionPDFViewer
+          transactionId={selectedTransaction}
+          onClose={() => setSelectedTransaction(null)}
+        />
       )}
     </div>
   );

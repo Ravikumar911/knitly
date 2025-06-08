@@ -18,6 +18,8 @@ const transactionFiltersSchema = z.object({
   startDate: z.date().optional(),
   endDate: z.date().optional(),
   searchQuery: z.string().optional(),
+  sortBy: z.enum(['date', 'amount', 'merchant']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
 });
 
 export const transactionsRouter = createTRPCRouter({

@@ -19,7 +19,11 @@ type BreadcrumbItem = {
 
 // Define exact breadcrumb paths for each route
 const ROUTE_BREADCRUMBS: Record<string, BreadcrumbItem[]> = {
-  "/dashboard": [{ href: "/", label: "Dashboard" }],
+  "/dashboard": [{ href: "/dashboard", label: "Dashboard" }],
+  "/dashboard/transactions": [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/dashboard/transactions", label: "Transactions" },
+  ],
   "/transactions": [
     { href: "/", label: "Dashboard" },
     { href: "/transactions", label: "Transactions" },

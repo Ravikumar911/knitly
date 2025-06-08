@@ -27,6 +27,7 @@ export function TransactionPDFViewer({ transactionId, onClose }: TransactionPDFV
   const trpc = useTRPC();
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const { data: transaction } = useSuspenseQuery(
     trpc.transactions.getById.queryOptions({
@@ -39,10 +40,14 @@ export function TransactionPDFViewer({ transactionId, onClose }: TransactionPDFV
     const generateSignedUrl = async () => {
       if (!transaction?.attachmentStoragePath) {
         setPdfUrl(null);
+        setIsLoading(false);
+        setPdfError('No PDF attachment available for this transaction');
         return;
       }
 
       try {
+        setIsLoading(true);
+        setPdfError(null);
         const supabase = createClient();
         const attachmentPaths = parseAttachmentStoragePaths(transaction.attachmentStoragePath);
         
@@ -59,19 +64,32 @@ export function TransactionPDFViewer({ transactionId, onClose }: TransactionPDFV
             if (error) {
               console.error('Error creating signed URL:', error);
               setPdfError(`Failed to generate PDF access URL: ${error.message}`);
+              setIsLoading(false);
             } else {
               setPdfUrl(data.signedUrl);
+              setIsLoading(false);
+              // Automatically open PDF in new tab
+              window.open(data.signedUrl, '_blank');
+              // Close the modal after opening PDF
+              setTimeout(() => onClose(), 500);
             }
+          } else {
+            setPdfError('No PDF file found in attachments');
+            setIsLoading(false);
           }
+        } else {
+          setPdfError('No attachment paths found');
+          setIsLoading(false);
         }
       } catch (err) {
         console.error('Exception in generateSignedUrl:', err);
         setPdfError('Failed to load PDF attachment');
+        setIsLoading(false);
       }
     };
 
     generateSignedUrl();
-  }, [transaction?.attachmentStoragePath]);
+  }, [transaction?.attachmentStoragePath, onClose]);
 
   const parseAttachmentStoragePaths = (attachmentStoragePath: any): string[] => {
     if (!attachmentStoragePath) return [];
@@ -90,13 +108,32 @@ export function TransactionPDFViewer({ transactionId, onClose }: TransactionPDFV
     }
   };
 
-  const renderPDFViewer = () => {
-    if (!transaction?.attachmentStoragePath) {
+  const handleDownload = () => {
+    if (pdfUrl) {
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `invoice-${transaction?.id}.pdf`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handleOpenAgain = () => {
+    if (pdfUrl) {
+      window.open(pdfUrl, '_blank');
+    }
+  };
+
+  const renderContent = () => {
+    if (isLoading) {
       return (
-        <div className="p-6">
+        <div className="p-8">
           <div className="text-center text-gray-500">
-            <FileText className="mx-auto h-12 w-12 mb-4 text-gray-300" />
-            <p className="text-sm">No PDF attachment available for this transaction</p>
+            <FileText className="mx-auto h-12 w-12 mb-4 text-gray-400 animate-pulse" />
+            <p className="text-lg font-medium mb-2">Opening PDF...</p>
+            <p className="text-sm text-gray-500">Please wait while we load your invoice</p>
           </div>
         </div>
       );
@@ -104,63 +141,44 @@ export function TransactionPDFViewer({ transactionId, onClose }: TransactionPDFV
 
     if (pdfError) {
       return (
-        <div className="p-6">
+        <div className="p-8">
           <div className="text-center text-destructive">
             <AlertCircle className="mx-auto h-12 w-12 mb-4" />
-            <p className="text-sm">{pdfError}</p>
+            <p className="text-lg font-medium mb-2">Unable to Open PDF</p>
+            <p className="text-sm mb-4">{pdfError}</p>
           </div>
         </div>
       );
     }
 
-    if (!pdfUrl) {
-      return (
-        <div className="p-6">
-          <div className="text-center text-gray-500">
-            <FileText className="mx-auto h-12 w-12 mb-4 text-gray-300" />
-            <p className="text-sm">PDF URL not available</p>
-          </div>
-        </div>
-      );
-    }
-
+    // PDF opened successfully
     return (
-      <div className="h-full">
-        <div className="flex flex-row items-center justify-between pb-4">
-          <h3 className="text-sm font-medium">Invoice PDF</h3>
-          <div className="flex gap-2">
+      <div className="p-8">
+        <div className="text-center">
+          <FileText className="mx-auto h-12 w-12 mb-4 text-green-500" />
+          <p className="text-lg font-medium mb-2">PDF Opened Successfully!</p>
+          <p className="text-sm text-gray-500 mb-6">
+            The invoice PDF has been opened in a new tab. You can also download it or open it again.
+          </p>
+          
+          <div className="flex gap-3 justify-center">
             <Button
               variant="outline"
-              size="sm"
-              onClick={() => window.open(pdfUrl, '_blank')}
-              className="text-xs h-7"
+              onClick={handleOpenAgain}
+              className="text-sm"
             >
-              <ExternalLink className="h-3 w-3 mr-1" />
-              Open
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open Again
             </Button>
             <Button
               variant="outline"
-              size="sm"
-              onClick={() => {
-                const link = document.createElement('a');
-                link.href = pdfUrl;
-                link.download = `invoice-${transaction.id}.pdf`;
-                link.click();
-              }}
-              className="text-xs h-7"
+              onClick={handleDownload}
+              className="text-sm"
             >
-              <Download className="h-3 w-3 mr-1" />
+              <Download className="h-4 w-4 mr-2" />
               Download
             </Button>
           </div>
-        </div>
-        <div className="w-full h-[70vh] border rounded-lg overflow-hidden">
-          <iframe
-            src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&page=1&zoom=page-width`}
-            className="w-full h-full"
-            title="Transaction PDF"
-            onError={() => setPdfError('Failed to load PDF viewer')}
-          />
         </div>
       </div>
     );
@@ -168,14 +186,14 @@ export function TransactionPDFViewer({ transactionId, onClose }: TransactionPDFV
 
   return (
     <Sheet open={true} onOpenChange={onClose}>
-      <SheetContent className="w-[90vw] sm:max-w-[800px] p-0">
+      <SheetContent className="w-[90vw] sm:max-w-[500px] p-0">
         <div className="h-full flex flex-col">
           <SheetHeader className="p-4 pb-2">
-            <SheetTitle className="text-lg">Transaction PDF</SheetTitle>
+            <SheetTitle className="text-lg">Transaction Invoice</SheetTitle>
           </SheetHeader>
 
-          <div className="flex-1 overflow-auto p-4 pt-0">
-            {renderPDFViewer()}
+          <div className="flex-1">
+            {renderContent()}
           </div>
         </div>
       </SheetContent>
