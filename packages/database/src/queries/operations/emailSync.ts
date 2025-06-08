@@ -1,7 +1,7 @@
 import { db } from '../../index';
 import { emailSyncStatus } from '../../schema/emailSyncStatus';
 import { parsedEmails } from '../../schema/parsedEmails';
-import { eq, count, and, or, isNotNull, isNull, lt, not, inArray } from 'drizzle-orm';
+import { eq, count, and, or, isNotNull, isNull, lt, not, inArray, sql } from 'drizzle-orm';
 import { userGoogleTokens } from '../../schema/tokens';
 
 interface SyncStatus {
@@ -129,8 +129,8 @@ export async function initializeSync(userId: string, totalEmails: number): Promi
     .limit(1);
 
   const estimatedCompletion = new Date();
-  // ~7 emails per minute based on observed performance (20 emails taking 3 minutes)
-  estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + Math.ceil(totalEmails / 7));
+  // ~35 emails per minute based on parallel processing (5 batches × 20 emails = 100 emails concurrently, ~3 minutes per batch group)
+  estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + Math.ceil(totalEmails / 35));
 
   if (existing.length > 0) {
     await db.update(emailSyncStatus)
@@ -173,8 +173,8 @@ export async function updateSyncProgress(userId: string, processedEmails: number
 
   const progressPercentage = (processedEmails / current.totalEmails) * 100;
   const remainingEmails = current.totalEmails - processedEmails;
-  // ~7 emails per minute based on observed performance (20 emails taking 3 minutes)
-  const estimatedMinutesRemaining = Math.ceil(remainingEmails / 7);
+  // ~35 emails per minute based on parallel processing (5 concurrent batches × 20 emails = 100 emails per batch group)
+  const estimatedMinutesRemaining = Math.ceil(remainingEmails / 35);
   
   const estimatedCompletion = new Date();
   estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + estimatedMinutesRemaining);
@@ -186,6 +186,55 @@ export async function updateSyncProgress(userId: string, processedEmails: number
       estimatedCompletion,
       syncStatus: processedEmails >= current.totalEmails ? 'complete' : 'syncing',
       hasInitialSync: processedEmails >= current.totalEmails ? true : current.hasInitialSync,
+      updatedAt: new Date()
+    })
+    .where(eq(emailSyncStatus.userId, userId));
+}
+
+/**
+ * Atomically increment sync progress during email processing (concurrency-safe)
+ */
+export async function incrementSyncProgress(userId: string, incrementBy: number): Promise<void> {
+  if (incrementBy <= 0) return;
+
+  // Use SQL to atomically increment processed emails
+  const result = await db.update(emailSyncStatus)
+    .set({
+      processedEmails: sql`${emailSyncStatus.processedEmails} + ${incrementBy}`,
+      updatedAt: new Date()
+    })
+    .where(eq(emailSyncStatus.userId, userId))
+    .returning({
+      processedEmails: emailSyncStatus.processedEmails,
+      totalEmails: emailSyncStatus.totalEmails
+    });
+
+  if (!result[0]) {
+    throw new Error('Failed to increment sync progress - user not found');
+  }
+
+  const { processedEmails, totalEmails } = result[0];
+  
+  if (!totalEmails || processedEmails === null) {
+    throw new Error('Cannot calculate progress without valid email counts');
+  }
+
+  // Calculate new progress percentage and completion estimate
+  const progressPercentage = (processedEmails / totalEmails) * 100;
+  const remainingEmails = Math.max(0, totalEmails - processedEmails);
+  // ~35 emails per minute based on parallel processing (5 concurrent batches × 20 emails = 100 emails per batch group)
+  const estimatedMinutesRemaining = Math.ceil(remainingEmails / 35);
+  
+  const estimatedCompletion = new Date();
+  estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + estimatedMinutesRemaining);
+
+  // Update progress percentage, completion estimate, and status
+  await db.update(emailSyncStatus)
+    .set({
+      progressPercentage: progressPercentage.toFixed(2),
+      estimatedCompletion,
+      syncStatus: processedEmails >= totalEmails ? 'complete' : 'syncing',
+      hasInitialSync: processedEmails >= totalEmails ? true : sql`${emailSyncStatus.hasInitialSync}`,
       updatedAt: new Date()
     })
     .where(eq(emailSyncStatus.userId, userId));
