@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import { useTRPC } from '@/trpc/client';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { Suspense } from 'react';
 import {
   Table,
   TableBody,
@@ -19,7 +18,6 @@ import {
   FileText, 
   ChevronLeft, 
   ChevronRight,
-  ArrowUpDown,
   ArrowUp,
   ArrowDown
 } from 'lucide-react';

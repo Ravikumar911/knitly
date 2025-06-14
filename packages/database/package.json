@@ -8,6 +8,8 @@
   "scripts": {
     "dev": "tsc --watch ",
     "build": "tsc",
+    "lint": "echo 'Linting not configured for database package'",
+    "lint:fix": "echo 'Linting not configured for database package'",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
     "check": "drizzle-kit check",

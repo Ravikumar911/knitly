@@ -6,6 +6,7 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
+    "lint:fix": "turbo lint:fix",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "typecheck": "turbo typecheck"
   },
@@ -50,7 +51,7 @@
     "@workspace/typescript-config": "workspace:*",
     "autoprefixer": "^10.0.1",
     "drizzle-kit": "^0.30.6",
-    "eslint": "^8",
+    "eslint": "^9.20.1",
     "prettier": "^3.5.1",
     "tsx": "^4.19.3",
     "turbo": "^2.4.2",
@@ -65,7 +66,7 @@
     "node": ">=20"
   },
   "description": "A modern, type-safe, and scalable monorepo built with Next.js, Supabase, shadcn/ui, Drizzle ORM, tRPC, and TriggerDev. Features strict separation of concerns and centralized database management.",
-  "main": ".eslintrc.js",
+  "main": "eslint.config.mjs",
   "keywords": [],
   "author": "",
   "license": "ISC"
