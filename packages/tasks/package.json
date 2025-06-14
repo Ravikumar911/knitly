@@ -2,6 +2,8 @@
   "name": "@workspace/tasks",
   "scripts": {
     "build": "tsc",
+    "lint": "echo 'Linting not configured for tasks package'",
+    "lint:fix": "echo 'Linting not configured for tasks package'",
     "dev": "NODE_TLS_REJECT_UNAUTHORIZED=0 pnpm dlx trigger.dev@latest dev",
     "deploy": "NODE_TLS_REJECT_UNAUTHORIZED=0 pnpm dlx trigger.dev@latest deploy"
   },

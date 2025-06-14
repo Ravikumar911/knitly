@@ -12,7 +12,6 @@ import {
   getSortedRowModel,
   useReactTable,
   type Table,
-  type OnChangeFn,
   type Updater,
 } from "@tanstack/react-table"
 

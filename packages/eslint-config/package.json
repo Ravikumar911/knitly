@@ -3,6 +3,10 @@
   "version": "0.0.0",
   "type": "module",
   "private": true,
+  "scripts": {
+    "lint": "echo 'No linting required for config files'",
+    "lint:fix": "echo 'No linting required for config files'"
+  },
   "exports": {
     "./base": "./base.js",
     "./next-js": "./next.js",

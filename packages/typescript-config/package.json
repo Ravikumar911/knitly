@@ -3,6 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "license": "PROPRIETARY",
+  "scripts": {
+    "lint": "echo 'No linting required for config files'",
+    "lint:fix": "echo 'No linting required for config files'"
+  },
   "publishConfig": {
     "access": "public"
   }
