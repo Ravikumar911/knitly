@@ -55,9 +55,8 @@ export function LoginForm() {
     setError("")
 
     try {
-        
       const supabase = createClient();
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email: form.getValues("email"),
         password: form.getValues("password")
       })
@@ -93,10 +92,9 @@ export function LoginForm() {
         throw error
       }
       if(data.url) {
-       router.push(data.url)
+        router.push(data.url)
       }
-      
-    } catch (err) {
+    } catch (error) {
       setError("Failed to sign in with Google")
     } finally {
       setIsGoogleLoading(false)

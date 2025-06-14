@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { TRPCClientError } from "@trpc/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
@@ -238,7 +237,7 @@ export default function FeedbackPage() {
                 className="mt-1"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Provide your email if you'd like us to follow up with you
+                Provide your email if you&apos;d like us to follow up with you
               </p>
             </div>
           </CardContent>

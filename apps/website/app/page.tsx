@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/componen
 import { Badge } from "@workspace/ui/components/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@workspace/ui/components/carousel"
+import Image from "next/image"
 
 export default function HomePage() {
   return (
@@ -28,11 +29,13 @@ export default function HomePage() {
           <div className="text-sm text-muted-foreground font-medium mb-8">No credit card required</div>
           {/* Hero Imagery Placeholder */}
           <div className="flex justify-center mt-8">
-            <img
+            <Image
               src="/images/hero-illustration.jpg"
               alt="Person cutting a credit card bill in half or dashboard screenshot"
               className="w-full max-w-xl rounded-xl shadow-lg object-cover"
-              loading="lazy"
+              width={640}
+              height={360}
+              priority
               style={{ aspectRatio: '16/9' }}
             />
           </div>
@@ -80,9 +83,9 @@ export default function HomePage() {
               </CardHeader>
               <CardContent className="text-muted-foreground text-sm">
                 Chat interface for questions like:<br />
-                "How much did I spend on food last month?"<br />
-                "Which subscriptions are active?"<br />
-                "How much interest am I paying in total?"<br />
+                &quot;How much did I spend on food last month?&quot;<br />
+                &quot;Which subscriptions are active?&quot;<br />
+                &quot;How much interest am I paying in total?&quot;<br />
                 Slash replies with accurate, data-backed answers.
               </CardContent>
             </Card>
@@ -181,7 +184,7 @@ export default function HomePage() {
                       <AvatarImage src="/avatars/aarav.png" alt="Aarav" />
                       <AvatarFallback>AR</AvatarFallback>
                     </Avatar>
-                    <div className="text-lg font-medium mb-2">"I had 12 subscriptions I didn't even realize were active. Slash saved me ₹9,000+ in two months."</div>
+                    <div className="text-lg font-medium mb-2">&quot;I had 12 subscriptions I didn&apos;t even realize were active. Slash saved me ₹9,000+ in two months.&quot;</div>
                     <div className="text-muted-foreground text-sm">— Aarav, Hyderabad</div>
                   </CardContent>
                 </Card>
@@ -193,7 +196,7 @@ export default function HomePage() {
                       <AvatarImage src="/avatars/meena.png" alt="Meena" />
                       <AvatarFallback>MN</AvatarFallback>
                     </Avatar>
-                    <div className="text-lg font-medium mb-2">"Slash helped me understand my true credit card interest cost. I immediately switched to EMI conversion."</div>
+                    <div className="text-lg font-medium mb-2">&quot;Slash helped me understand my true credit card interest cost. I immediately switched to EMI conversion.&quot;</div>
                     <div className="text-muted-foreground text-sm">— Meena, Mumbai</div>
                   </CardContent>
                 </Card>
@@ -205,7 +208,7 @@ export default function HomePage() {
                       <AvatarImage src="/avatars/rahul.png" alt="Rahul" />
                       <AvatarFallback>RH</AvatarFallback>
                     </Avatar>
-                    <div className="text-lg font-medium mb-2">"Now I ask Slash every week—'where did my money go?' and it tells me with brutal honesty."</div>
+                    <div className="text-lg font-medium mb-2">&quot;Now I ask Slash every week—&apos;where did my money go?&apos; and it tells me with brutal honesty.&quot;</div>
                     <div className="text-muted-foreground text-sm">— Rahul, Bengaluru</div>
                   </CardContent>
                 </Card>
