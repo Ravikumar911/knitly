@@ -1,4 +1,4 @@
-import { eq, isNull } from 'drizzle-orm';
+import { eq, isNull, and } from 'drizzle-orm';
 import { db } from '../../index';
 import { transactionsV2 } from '../../schema/transactionsV2';
 import { Transaction } from '../../types';
@@ -73,7 +73,7 @@ export async function markDuplicates(transactions: Transaction[]): Promise<Trans
 
 /**
  * Groups transactions by blocking key
- * Blocking key format: ${amount}|${date.slice(0,10)}|${payment.last4 ?? ''}
+ * Blocking key format: ${amount}|${date.slice(0,10)}|${merchantId ?? merchantCode ?? ''}|${payment.last4 ?? ''}
  */
 function groupTransactionsByBlockingKey(transactions: Transaction[]): Record<string, Transaction[]> {
   const blocks: Record<string, Transaction[]> = {};
@@ -82,9 +82,12 @@ function groupTransactionsByBlockingKey(transactions: Transaction[]): Record<str
     const paymentMethod = txn.paymentMethod as { last4?: string } | null | undefined;
     const last4 = paymentMethod?.last4 ?? '';
     
-    // Create blocking key using amount, date (without time), and payment method last4
+    // Use merchantId or merchantCode as part of blocking key for better grouping
+    const merchantKey = txn.merchantId ?? txn.merchantCode ?? '';
+    
+    // Create blocking key using amount, date (without time), merchant, and payment method last4
     const date = txn.transactionDate.toString().slice(0, 10); // YYYY-MM-DD
-    const blockingKey = `${txn.amount}|${date}|${last4}`;
+    const blockingKey = `${txn.amount}|${date}|${merchantKey}|${last4}`;
     
     if (!blocks[blockingKey]) {
       blocks[blockingKey] = [];
@@ -127,7 +130,7 @@ function checkPaymentMethodLast4Match(tx1: Transaction, tx2: Transaction): boole
 
 /**
  * Compute the log-odds score for field similarities between transactions
- * score = Σ log2(m/u) where m,u = { amount: .98/.01, merchant: .92/.08, desc: .85/.15, ±1day: .97/.10, refId: .99/.02 }
+ * Enhanced for transactionsV2 schema: amount, merchantId/merchantCode, merchantName, description, date, referenceIds
  */
 function computeLogOddsScore(tx1: Transaction, tx2: Transaction): number {
   let score = 0;
@@ -137,10 +140,20 @@ function computeLogOddsScore(tx1: Transaction, tx2: Transaction): number {
     score += Math.log2(0.98 / 0.01);
   }
   
-  // Merchant match
+  // Merchant ID match (highest confidence)
+  if (tx1.merchantId && tx2.merchantId && tx1.merchantId === tx2.merchantId) {
+    score += Math.log2(0.95 / 0.05);
+  }
+  
+  // Merchant Code match (high confidence)
+  if (tx1.merchantCode && tx2.merchantCode && tx1.merchantCode === tx2.merchantCode) {
+    score += Math.log2(0.92 / 0.08);
+  }
+  
+  // Merchant Name match (medium confidence)
   if (tx1.merchantName && tx2.merchantName && 
       tx1.merchantName.toLowerCase() === tx2.merchantName.toLowerCase()) {
-    score += Math.log2(0.92 / 0.08);
+    score += Math.log2(0.88 / 0.12);
   }
   
   // Description similarity
@@ -148,7 +161,7 @@ function computeLogOddsScore(tx1: Transaction, tx2: Transaction): number {
     const desc1 = tx1.description.toLowerCase();
     const desc2 = tx2.description.toLowerCase();
     
-    // Simple string similarity check (could be improved with more sophisticated methods)
+    // Exact match
     if (desc1 === desc2) {
       score += Math.log2(0.85 / 0.15);
     } else if (desc1.includes(desc2) || desc2.includes(desc1)) {
@@ -157,7 +170,7 @@ function computeLogOddsScore(tx1: Transaction, tx2: Transaction): number {
     }
   }
   
-  // Date proximity (±1 day)
+  // Date proximity (±1 day) - already matched by blocking key for same day
   const date1 = new Date(tx1.transactionDate);
   const date2 = new Date(tx2.transactionDate);
   const daysDiff = Math.abs(date1.getTime() - date2.getTime()) / (1000 * 60 * 60 * 24);
@@ -166,17 +179,29 @@ function computeLogOddsScore(tx1: Transaction, tx2: Transaction): number {
     score += Math.log2(0.97 / 0.10);
   }
   
-  // Reference ID match
+  // Reference ID match (very high confidence for exact matches)
   if (tx1.referenceIds && tx2.referenceIds) {
     const refs1 = tx1.referenceIds as Record<string, string | undefined>;
     const refs2 = tx2.referenceIds as Record<string, string | undefined>;
     
+    let hasReferenceMatch = false;
     for (const key of Object.keys(refs1)) {
       if (refs1[key] && refs2[key] && refs1[key] === refs2[key]) {
         score += Math.log2(0.99 / 0.02);
+        hasReferenceMatch = true;
         break; // Only count one reference ID match
       }
     }
+    
+    // If no exact reference match but both have reference IDs, slight penalty
+    if (!hasReferenceMatch && Object.keys(refs1).length > 0 && Object.keys(refs2).length > 0) {
+      score -= Math.log2(2.0); // Small penalty for different reference IDs
+    }
+  }
+  
+  // Schema used match (transactions from same extraction schema are more likely duplicates)
+  if (tx1.schemaUsed && tx2.schemaUsed && tx1.schemaUsed === tx2.schemaUsed) {
+    score += Math.log2(0.80 / 0.20);
   }
   
   return score;
@@ -195,6 +220,38 @@ async function updateDuplicateReferences(duplicates: Record<string, string>): Pr
       .set({ duplicateOf: canonicalId })
       .where(eq(transactionsV2.id, duplicateId));
   }
+}
+
+/**
+ * Find and mark duplicates for a specific user's transactions that don't already have duplicate_of set
+ * Returns the number of new duplicates found for that user
+ */
+export async function markDuplicatesForUser(userId: string): Promise<number> {
+  // Get all transactions for this user without duplicate_of set
+  const userTransactions = await db.select()
+    .from(transactionsV2)
+    .where(and(
+      eq(transactionsV2.userId, userId),
+      isNull(transactionsV2.duplicateOf)
+    ))
+    .orderBy(transactionsV2.transactionDate);
+  
+  if (userTransactions.length === 0) {
+    console.log(`User ${userId}: No transactions to process for duplicates`);
+    return 0;
+  }
+  
+  console.log(`User ${userId}: Processing ${userTransactions.length} transactions for duplicates`);
+  
+  // Process this user's transactions
+  const beforeCount = userTransactions.length;
+  const updatedTransactions = await markDuplicates(userTransactions);
+  const afterCount = updatedTransactions.filter(txn => !txn.duplicateOf).length;
+  
+  const duplicatesFound = beforeCount - afterCount;
+  console.log(`User ${userId}: Found ${duplicatesFound} duplicates out of ${beforeCount} transactions`);
+  
+  return duplicatesFound;
 }
 
 /**

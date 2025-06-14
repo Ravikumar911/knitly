@@ -2,7 +2,7 @@ import { logger, task, wait, configure, batch } from "@trigger.dev/sdk/v3";
 import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, extractEmailMetadata, buildMerchantBasedGmailSearchQuery, extractAttachments } from "../utils";
 import { finwiseAIV2Agent } from "../agents/finwiseAIV2";
 import { processAttachments } from "../utils/emailStorage";
-import { detectDuplicateTransactions } from "./duplicateDetector";
+import { detectDuplicateTransactionsForUser } from "./duplicateDetector";
 import { 
   getLastSyncTime, 
   updateLastSyncTime, 
@@ -457,8 +457,8 @@ export const processEmails = task({
       await updateLastSyncTime(payload.userId, new Date());
       await markSyncComplete(payload.userId);
 
-      // Trigger duplicate detection
-      await detectDuplicateTransactions.trigger();
+      // Trigger duplicate detection for this specific user
+      await detectDuplicateTransactionsForUser.trigger({ userId: payload.userId });
 
       logger.log("Email sync completed successfully", {
         userId: payload.userId,
