@@ -1,14 +1,6 @@
 import { ManualSyncCard } from "@/components/settings/manual-sync-card";
 
 export default function SettingsPage() {
-  // Mock data status for settings - user already has synced before
-  const settingsDataStatus = {
-    hasEmails: true,
-    hasInitialSync: true,
-    emailCount: 0, // Not used for manual sync
-    needsSync: false
-  };
-
   return (
     <div className="container px-4 grid grid-cols-1 md:grid-cols-2 gap-4">
       <div className="max-w-2xl">

@@ -6,6 +6,7 @@ import { Badge } from "@workspace/ui/components/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
 import { Progress } from "@workspace/ui/components/progress";
 import { AlertCircle, ArrowRight, BrainCircuit, CreditCard, LineChart, PiggyBank, TrendingUp, BarChart4 } from "lucide-react";
+import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "The Hidden Psychology Behind Spending | Slash",
@@ -111,9 +112,9 @@ export default function SpendingPsychologyPage() {
                   <BrainCircuit className="w-8 h-8 text-primary" />
                   <h2 className="text-3xl font-bold">Why We Spend More Than We Should</h2>
                 </div>
-                <p className="text-lg mb-4">It's not just math. It's psychology.</p>
-                <p className="mb-4">Most of us don't overspend because we're bad with numbers—we overspend because we're wired to seek pleasure, avoid discomfort, and follow habits we don't even notice.</p>
-                <p className="mb-6">From treating yourself on a bad day to blindly swiping your credit card because "you'll figure it out later," the way we spend is more emotional than rational.</p>
+                <p className="text-lg mb-4">It&apos;s not just math. It&apos;s psychology.</p>
+                <p className="mb-4">Most of us don&apos;t overspend because we&apos;re bad with numbers—we overspend because we&apos;re wired to seek pleasure, avoid discomfort, and follow habits we don&apos;t even notice.</p>
+                <p className="mb-6">From treating yourself on a bad day to blindly swiping your credit card because &quot;you&apos;ll figure it out later,&quot; the way we spend is more emotional than rational.</p>
                 <Card className="bg-primary/5 border-primary/20 mb-6">
                   <CardContent className="pt-6">
                     <div className="flex items-start gap-3">
@@ -130,10 +131,13 @@ export default function SpendingPsychologyPage() {
               </div>
               <div className="relative">
                 <div className="relative rounded-xl overflow-hidden shadow-xl">
-                  <img 
+                  <Image 
                     src="/images/brain-money-decision.png" 
                     alt="Brain making financial decisions" 
                     className="w-full h-full object-cover"
+                    width={600}
+                    height={400}
+                    priority
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
                     <div className="text-white text-xl font-medium">Your brain on spending decisions</div>
@@ -178,13 +182,13 @@ export default function SpendingPsychologyPage() {
                     <CardContent className="pt-6">
                       <div className="flex flex-col items-center text-center gap-2">
                         <span className="text-4xl">💸</span>
-                        <p className="font-medium">"Buy Now, Pay Later" sounds like a gift</p>
+                        <p className="font-medium">&quot;Buy Now, Pay Later&quot; sounds like a gift</p>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
                 <div className="mt-6 bg-muted/30 p-4 rounded-lg border border-muted-foreground/10">
-                  <p className="italic text-muted-foreground">These micro-decisions stack up until you check your credit card bill and wonder, "How did this happen?"</p>
+                  <p className="italic text-muted-foreground">These micro-decisions stack up until you check your credit card bill and wonder, &quot;How did this happen?&quot;</p>
                 </div>
               </div>
               <div className="order-1 md:order-2">
@@ -221,14 +225,14 @@ export default function SpendingPsychologyPage() {
                   <CreditCard className="w-8 h-8 text-primary" />
                   <h2 className="text-3xl font-bold">Small Charges, Big Impact</h2>
                 </div>
-                <p className="text-lg mb-4">It's not just the big-ticket items.</p>
-                <p className="mb-6">Often, it's the ₹199 here and ₹49 there—the tiny charges that are forgettable until they silently drain ₹5,000+ a month.</p>
+                <p className="text-lg mb-4">It&apos;s not just the big-ticket items.</p>
+                <p className="mb-6">Often, it&apos;s the ₹199 here and ₹49 there—the tiny charges that are forgettable until they silently drain ₹5,000+ a month.</p>
                 
                 <Card className="bg-primary/5 border-primary/20 shadow-md">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <span className="text-xl">👩🏽‍💻</span> 
-                      Real-life Example: Priya's Story
+                      Real-life Example: Priya&apos;s Story
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -342,7 +346,7 @@ export default function SpendingPsychologyPage() {
 
             <div className="mt-10 text-center">
               <p className="text-lg mb-6">
-                It turns "how much" into why and how often—so you can change behavior, not just log expenses.
+                It turns &quot;how much&quot; into why and how often—so you can change behavior, not just log expenses.
               </p>
             </div>
           </div>
@@ -353,7 +357,7 @@ export default function SpendingPsychologyPage() {
           <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
             <h2 className="text-3xl font-bold mb-6">✅ Takeaway</h2>
             <p className="text-xl mb-10">
-              Money isn't just spent with your wallet—it's spent with your emotions and attention.<br />
+              Money isn&apos;t just spent with your wallet—it&apos;s spent with your emotions and attention.<br />
               Slash helps you regain both.
             </p>
             

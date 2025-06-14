@@ -3,6 +3,7 @@ import { Inter } from "next/font/google"
 import { ThemeProvider } from "next-themes"
 import { Analytics } from "@vercel/analytics/react"
 import Script from "next/script"
+import Link from "next/link"
 
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from "@workspace/ui/components/navigation-menu"
 import { Button } from "@workspace/ui/components/button"
@@ -73,33 +74,33 @@ function FooterNav() {
       <div>
         <h3 className="font-medium mb-3">Platform</h3>
         <ul className="space-y-2 text-sm text-muted-foreground">
-          <li><a href="/" className="hover:underline">Home</a></li>
-          <li><a href="/#features" className="hover:underline">Features</a></li>
-          <li><a href="/#pricing" className="hover:underline">Pricing</a></li>
+          <li><Link href="/" className="hover:underline">Home</Link></li>
+          <li><Link href="/#features" className="hover:underline">Features</Link></li>
+          <li><Link href="/#pricing" className="hover:underline">Pricing</Link></li>
         </ul>
       </div>
       
       <div>
         <h3 className="font-medium mb-3">Blog</h3>
         <ul className="space-y-2 text-sm text-muted-foreground">
-          <li><a href="/spending-psychology" className="hover:underline">Spending Psychology</a></li>
-          <li><a href="/#blog" className="hover:underline">All Articles</a></li>
+          <li><Link href="/spending-psychology" className="hover:underline">Spending Psychology</Link></li>
+          <li><Link href="/#blog" className="hover:underline">All Articles</Link></li>
         </ul>
       </div>
       
       <div>
         <h3 className="font-medium mb-3">Support</h3>
         <ul className="space-y-2 text-sm text-muted-foreground">
-          <li><a href="/#contact" className="hover:underline">Contact</a></li>
-          <li><a href="/#faq" className="hover:underline">FAQ</a></li>
+          <li><Link href="/#contact" className="hover:underline">Contact</Link></li>
+          <li><Link href="/#faq" className="hover:underline">FAQ</Link></li>
         </ul>
       </div>
       
       <div>
         <h3 className="font-medium mb-3">Legal</h3>
         <ul className="space-y-2 text-sm text-muted-foreground">
-          <li><a href="/#privacy" className="hover:underline">Privacy Policy</a></li>
-          <li><a href="/#terms" className="hover:underline">Terms of Service</a></li>
+          <li><Link href="/#privacy" className="hover:underline">Privacy Policy</Link></li>
+          <li><Link href="/#terms" className="hover:underline">Terms of Service</Link></li>
         </ul>
       </div>
     </div>
@@ -211,9 +212,9 @@ export default function RootLayout({
           <header className="fixed top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <nav className="container flex h-16 items-center justify-between mx-auto">
               <div className="flex items-center gap-6">
-                <a href="/" className="flex items-center space-x-2">
+                <Link href="/" className="flex items-center space-x-2">
                   <span className="font-bold text-xl">slash.cash</span>
-                </a>
+                </Link>
                 <NavigationMenu>
                   <NavigationMenuList>
                     <NavigationMenuItem>
@@ -221,12 +222,12 @@ export default function RootLayout({
                       <NavigationMenuContent>
                         <div className="grid gap-3 p-6 w-[400px]">
                           <NavigationMenuLink asChild>
-                            <a href="#features" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
+                            <Link href="#features" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
                               <div className="text-sm font-medium leading-none">AI Finance Assistant</div>
                               <p className="line-clamp-2 text-sm leading-snug text-muted-foreground mt-1">
                                 Track spending and save money automatically
                               </p>
-                            </a>
+                            </Link>
                           </NavigationMenuLink>
                         </div>
                       </NavigationMenuContent>
@@ -236,12 +237,12 @@ export default function RootLayout({
                       <NavigationMenuContent>
                         <div className="grid gap-3 p-6 w-[400px]">
                           <NavigationMenuLink asChild>
-                            <a href="#how-it-works" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
+                            <Link href="#how-it-works" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
                               <div className="text-sm font-medium leading-none">Get Started</div>
                               <p className="line-clamp-2 text-sm leading-snug text-muted-foreground mt-1">
                                 Connect Gmail and start tracking your expenses
                               </p>
-                            </a>
+                            </Link>
                           </NavigationMenuLink>
                         </div>
                       </NavigationMenuContent>

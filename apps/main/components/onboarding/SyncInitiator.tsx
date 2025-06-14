@@ -10,16 +10,7 @@ import { Alert, AlertDescription } from '@workspace/ui/components/alert';
 import { Progress } from '@workspace/ui/components/progress';
 import { Mail, Zap, BarChart3, Shield, Loader2, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 
-interface SyncInitiatorProps {
-  dataStatus: {
-    hasEmails: boolean;
-    hasInitialSync: boolean;
-    emailCount: number;
-    needsSync: boolean;
-  };
-}
-
-export function SyncInitiator({ dataStatus }: SyncInitiatorProps) {
+export function SyncInitiator() {
   const [error, setError] = useState<string | null>(null);
   const [syncTriggered, setSyncTriggered] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
@@ -276,7 +267,7 @@ export function SyncInitiator({ dataStatus }: SyncInitiatorProps) {
                   </Button>
                   <Alert>
                     <AlertDescription className="text-sm text-center">
-                      We'll analyze your emails to extract transaction data and insights. 
+                      We&apos;ll analyze your emails to extract transaction data and insights. 
                       This process is secure and typically takes a few minutes.
                     </AlertDescription>
                   </Alert>

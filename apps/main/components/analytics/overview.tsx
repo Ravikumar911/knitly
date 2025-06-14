@@ -4,7 +4,7 @@ import { useTRPC } from "@/trpc/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Badge } from "@workspace/ui/components/badge";
-import { IndianRupee, ShoppingCart, TrendingUp, Utensils } from "lucide-react";
+import { IndianRupee, ShoppingCart, TrendingUp, Utensils, Clock, MapPin } from "lucide-react";
 import { useTransactionFilters } from "@/store/transaction-filters";
 import { useMemo } from "react";
 import { DateRangePicker } from "./date-range-picker";
@@ -150,7 +150,7 @@ export function AnalyticsOverview() {
           <CardHeader>
             <CardTitle>Top Restaurants</CardTitle>
             <CardDescription>
-              Restaurants where you've spent the most (excludes groceries)
+              Restaurants where you&apos;ve spent the most (excludes groceries)
             </CardDescription>
           </CardHeader>
           <CardContent>
