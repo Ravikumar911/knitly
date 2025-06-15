@@ -45,7 +45,7 @@ export function RegisterForm() {
       // TODO: Implement registration logic with Supabase
       console.log("Register data:", data)
       router.push("/dashboard")
-    } catch (error) {
+    } catch {
       setError("Something went wrong. Please try again.")
     } finally {
       setIsLoading(false)

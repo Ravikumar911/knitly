@@ -64,7 +64,7 @@ export function LoginForm() {
         throw error
       }
       router.push("/dashboard")
-    } catch (err) {
+    } catch {
       setError("Invalid email or password")
     } finally {
       setIsLoading(false)
@@ -77,7 +77,7 @@ export function LoginForm() {
 
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { data } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: getURL() + 'auth/callback',
@@ -88,13 +88,10 @@ export function LoginForm() {
           }
         }
       })
-      if (error) {
-        throw error
-      }
       if(data.url) {
         router.push(data.url)
       }
-    } catch (error) {
+    } catch {
       setError("Failed to sign in with Google")
     } finally {
       setIsGoogleLoading(false)
