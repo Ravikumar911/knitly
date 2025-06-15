@@ -24,13 +24,7 @@ export interface SimpleError {
 }
 
 interface SyncState {
-  // User State
-  userState: UserState;
-  hasEmails: boolean;
-  emailCount: number;
-  hasInitialSync: boolean;
-  
-  // Sync Progress
+  // Sync Progress - main focus now
   totalEmails: number | null;
   processedEmails: number;
   progressPercentage: number;
@@ -54,16 +48,7 @@ interface SyncState {
 }
 
 interface SyncActions {
-  // Data updates from tRPC
-  updateDataStatus: (data: {
-    userState: UserState;
-    hasEmails: boolean;
-    emailCount: number;
-    hasInitialSync: boolean;
-    syncStatus: string | null;
-    oauthError: OAuthError;
-  }) => void;
-  
+  // Main sync progress update
   updateSyncProgress: (progress: {
     totalEmails: number | null;
     processedEmails: number;
@@ -96,18 +81,11 @@ interface SyncActions {
   setInitiating: (initiating: boolean) => void;
   setError: (error: string | null) => void;
   
-  // Manual state updates
-  setUserState: (state: UserState) => void;
-  
   // Reset
   reset: () => void;
 }
 
 const initialState: SyncState = {
-  userState: 'new_user',
-  hasEmails: false,
-  emailCount: 0,
-  hasInitialSync: false,
   totalEmails: null,
   processedEmails: 0,
   progressPercentage: 0,
@@ -127,27 +105,6 @@ export const useSyncStore = create<SyncState & SyncActions>()(
     (set, get) => ({
       ...initialState,
 
-      // Update data status from tRPC
-      updateDataStatus: (data) => {
-        set({
-          userState: data.userState,
-          hasEmails: data.hasEmails,
-          emailCount: data.emailCount,
-          hasInitialSync: data.hasInitialSync,
-          syncStatus: data.syncStatus,
-          oauthError: data.oauthError,
-        });
-
-        // Auto-set error state based on user state
-        if (data.userState === 'oauth_error' && data.oauthError) {
-          get().setOAuthError(data.oauthError);
-        } else if (data.userState === 'sync_failed') {
-          get().setSyncError('Sync failed. Please try again.');
-        } else if (data.userState === 'has_data') {
-          get().clearError();
-        }
-      },
-
       // Update sync progress from tRPC
       updateSyncProgress: (progress) => {
         set({
@@ -159,26 +116,15 @@ export const useSyncStore = create<SyncState & SyncActions>()(
           oauthError: progress.oauthError,
         });
 
-        // Update user state based on sync status
-        const currentState = get();
-        let newUserState: UserState = currentState.userState;
-
+        // Handle OAuth errors
         if (progress.oauthError?.requiresReauth) {
-          newUserState = 'oauth_error';
           get().setOAuthError(progress.oauthError);
         } else if (progress.syncStatus === 'failed') {
-          newUserState = 'sync_failed';
           get().setSyncError('Sync failed during processing');
         } else if (progress.syncStatus && ['counting_emails', 'in_progress', 'syncing'].includes(progress.syncStatus)) {
-          newUserState = 'sync_in_progress';
           get().clearError();
-        } else if (progress.syncStatus === 'complete' && currentState.hasEmails) {
-          newUserState = 'has_data';
+        } else if (progress.syncStatus === 'complete') {
           get().clearError();
-        }
-
-        if (newUserState !== currentState.userState) {
-          set({ userState: newUserState });
         }
 
         // Stop polling if sync is complete or failed
@@ -201,7 +147,6 @@ export const useSyncStore = create<SyncState & SyncActions>()(
         set({ 
           currentError: error,
           oauthError,
-          userState: 'oauth_error'
         });
       },
 
@@ -217,7 +162,6 @@ export const useSyncStore = create<SyncState & SyncActions>()(
         
         set({ 
           currentError: error,
-          userState: 'sync_failed'
         });
       },
 
@@ -322,9 +266,6 @@ export const useSyncStore = create<SyncState & SyncActions>()(
       setInitiating: (isInitiating: boolean) => set({ isInitiating }),
       setError: (error: string | null) => set({ error }),
 
-      // Manual state updates
-      setUserState: (userState: UserState) => set({ userState }),
-
       // Reset store to initial state
       reset: () => {
         const { stopPolling } = get();
@@ -338,42 +279,5 @@ export const useSyncStore = create<SyncState & SyncActions>()(
   )
 );
 
-// Memoized selectors to prevent infinite loops
-export const selectSyncState = (state: SyncState & SyncActions) => ({
-  userState: state.userState,
-  isLoading: state.isLoading,
-  isInitiating: state.isInitiating,
-  error: state.error,
-  oauthError: state.oauthError,
-  currentError: state.currentError,
-});
-
-export const selectSyncProgress = (state: SyncState & SyncActions) => ({
-  totalEmails: state.totalEmails,
-  processedEmails: state.processedEmails,
-  progressPercentage: state.progressPercentage,
-  estimatedCompletion: state.estimatedCompletion,
-  syncStatus: state.syncStatus,
-});
-
-// Fixed: Don't call getErrorActions in selector - call it in component
-export const selectErrorState = (state: SyncState & SyncActions) => ({
-  currentError: state.currentError,
-  hasError: !!state.currentError,
-});
-
-export const selectSyncActions = (state: SyncState & SyncActions) => ({
-  updateDataStatus: state.updateDataStatus,
-  updateSyncProgress: state.updateSyncProgress,
-  startPolling: state.startPolling,
-  stopPolling: state.stopPolling,
-  setLoading: state.setLoading,
-  setInitiating: state.setInitiating,
-  setOAuthError: state.setOAuthError,
-  setSyncError: state.setSyncError,
-  setNetworkError: state.setNetworkError,
-  clearError: state.clearError,
-  setError: state.setError,
-  setUserState: state.setUserState,
-  reset: state.reset,
-}); 
+// Note: Removed selector functions to avoid hydration issues with useSyncExternalStore
+// Components now use the store directly: const store = useSyncStore(); 

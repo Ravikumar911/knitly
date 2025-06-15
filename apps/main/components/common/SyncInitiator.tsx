@@ -4,7 +4,7 @@ import { useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useTRPC } from '@/trpc/client';
 import { TRPCClientError } from '@trpc/client';
-import { useSyncStore, selectSyncState, selectSyncProgress } from '@/hooks/useSyncStore';
+import { useSyncStore } from '@/hooks/useSyncStore';
 import { Button } from '@workspace/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import { Alert, AlertDescription } from '@workspace/ui/components/alert';
@@ -17,9 +17,23 @@ export function SyncInitiator() {
   const trpc = useTRPC();
   const router = useRouter();
   
-  const { isInitiating, error, oauthError } = useSyncStore(selectSyncState);
-  const { totalEmails, processedEmails, progressPercentage, estimatedCompletion, syncStatus } = useSyncStore(selectSyncProgress);
-  const { updateSyncProgress, startPolling, setInitiating, setError, clearError } = useSyncStore();
+  // Use store without selectors to avoid hydration issues
+  const syncStore = useSyncStore();
+  const { 
+    isInitiating, 
+    error, 
+    oauthError, 
+    totalEmails, 
+    processedEmails, 
+    progressPercentage, 
+    estimatedCompletion, 
+    syncStatus,
+    updateSyncProgress, 
+    startPolling, 
+    setInitiating, 
+    setError, 
+    clearError 
+  } = syncStore;
 
   // Mutation to start sync
   const initiateSyncMutation = useMutation(trpc.emails.initiateSync.mutationOptions({
@@ -98,8 +112,9 @@ export function SyncInitiator() {
     if (hasOAuthError) return <Lock className="h-8 w-8 text-amber-600 dark:text-amber-500" />;
     if (isComplete) return <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-500" />;
     if (isFailed) return <AlertCircle className="h-8 w-8 text-destructive" />;
-    return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
-  }, [hasOAuthError, isComplete, isFailed]);
+    if (isActiveSyncInProgress || isInitiating) return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
+    return <Zap className="h-8 w-8 text-primary" />;
+  }, [hasOAuthError, isComplete, isFailed, isActiveSyncInProgress, isInitiating]);
 
   const getStatusTitle = useCallback(() => {
     if (hasOAuthError && isPermissionError) return 'Gmail Permission Required';
@@ -145,7 +160,7 @@ export function SyncInitiator() {
   }, [initiateSyncMutation]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
+    <div className="flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl mx-auto shadow-lg">
         <CardHeader className="text-center pb-4">
           <div className="flex justify-center mb-6">

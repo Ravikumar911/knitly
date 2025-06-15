@@ -1,6 +1,6 @@
 'use client';
 
-import { useSyncStore, selectErrorState } from '@/hooks/useSyncStore';
+import { useSyncStore } from '@/hooks/useSyncStore';
 import { Alert, AlertDescription, AlertTitle } from '@workspace/ui/components/alert';
 import { Button } from '@workspace/ui/components/button';
 import { AlertCircle, Lock, RefreshCw, Wifi, MessageCircle } from 'lucide-react';
@@ -18,9 +18,9 @@ export function ErrorDisplay({
   onContactSupport,
   className 
 }: ErrorDisplayProps) {
-  const { currentError, hasError } = useSyncStore(selectErrorState);
-  const clearError = useSyncStore((state) => state.clearError);
-  const getErrorActions = useSyncStore((state) => state.getErrorActions);
+  const syncStore = useSyncStore();
+  const { currentError, clearError, getErrorActions } = syncStore;
+  const hasError = !!currentError;
 
   if (!hasError || !currentError) {
     return null;
