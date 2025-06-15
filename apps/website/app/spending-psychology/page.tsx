@@ -366,8 +366,10 @@ export default function SpendingPsychologyPage() {
                 <CardContent className="p-8">
                   <h3 className="text-2xl font-bold mb-4">Start Building Awareness</h3>
                   <p className="mb-6">Take the first step toward healthier spending habits today.</p>
-                  <Button size="lg" className="w-full h-12 font-semibold text-lg" variant="secondary">
-                    Start Tracking with Slash <ArrowRight className="ml-2 h-5 w-5" />
+                  <Button size="lg" className="w-full h-12 font-semibold text-lg" variant="secondary" asChild>
+                    <a href="https://app.slash.cash" target="_blank" rel="noopener noreferrer">
+                      Start Tracking with Slash <ArrowRight className="ml-2 h-5 w-5" />
+                    </a>
                   </Button>
                 </CardContent>
               </Card>
