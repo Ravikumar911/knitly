@@ -8,13 +8,17 @@ import { Button } from '@workspace/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import { Alert, AlertDescription } from '@workspace/ui/components/alert';
 import { Progress } from '@workspace/ui/components/progress';
-import { Mail, Zap, BarChart3, Shield, Loader2, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Mail, Zap, BarChart3, Shield, Loader2, CheckCircle, Clock, AlertCircle, LogOut, RefreshCw, Lock } from 'lucide-react';
+import { createClient } from '@/supabase/client';
+import { useRouter } from 'next/navigation';
 
 export function SyncInitiator() {
   const [error, setError] = useState<string | null>(null);
   const [syncTriggered, setSyncTriggered] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const trpc = useTRPC();
+  const router = useRouter();
 
   // Mutation to start sync
   const initiateSyncMutation = useMutation(trpc.emails.initiateSync.mutationOptions({
@@ -32,7 +36,7 @@ export function SyncInitiator() {
     }
   }));
 
-  // Enhanced polling for sync progress
+  // Enhanced polling for sync progress with OAuth error detection
   const { data: progressData } = useQuery({
     ...trpc.emails.getSyncProgress.queryOptions(),
     refetchInterval: (query) => {
@@ -49,6 +53,19 @@ export function SyncInitiator() {
     staleTime: 0,
   });
 
+  // Handle sign out for re-authentication
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      setIsSigningOut(false);
+    }
+  };
+
   // Determine current sync state
   const syncStatus = progressData?.syncStatus;
   const isInitiating = initiateSyncMutation.isPending;
@@ -59,6 +76,12 @@ export function SyncInitiator() {
   const isComplete = syncStatus === 'complete';
   const isFailed = syncStatus === 'failed';
   
+  // OAuth error detection
+  const hasOAuthError = Boolean(progressData?.oauthError);
+  const oauthError = progressData?.oauthError;
+  const requiresReauth = oauthError?.requiresReauth || false;
+  const isPermissionError = oauthError?.type === 'INSUFFICIENT_PERMISSIONS' || oauthError?.type === 'REVOKED_ACCESS';
+  
   const isActiveSyncInProgress = isCountingEmails || isInProgress || isSyncing;
 
   // Reset syncTriggered when sync is complete or failed
@@ -68,12 +91,15 @@ export function SyncInitiator() {
 
   // Helper functions for status display
   const getStatusIcon = () => {
+    if (hasOAuthError) return <Lock className="h-8 w-8 text-amber-600 dark:text-amber-500" />;
     if (isComplete) return <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-500" />;
     if (isFailed) return <AlertCircle className="h-8 w-8 text-destructive" />;
     return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
   };
 
   const getStatusTitle = () => {
+    if (hasOAuthError && isPermissionError) return 'Gmail Permission Required';
+    if (hasOAuthError) return 'Authentication Issue';
     if (isComplete) return 'Sync Complete!';
     if (isFailed) return 'Sync Failed';
     if (isInitiating) return 'Starting Email Analysis';
@@ -85,64 +111,107 @@ export function SyncInitiator() {
   };
 
   const getStatusDescription = () => {
-    if (isComplete) return 'Your emails have been successfully analyzed and insights are ready!';
-    if (isFailed) return 'Email sync failed. Please try starting the sync again.';
-    if (isInitiating) return 'Initializing the sync process...';
-    if (syncTriggered && !isActiveSyncInProgress) return 'Your sync request is being processed. This may take a moment...';
-    if (isCountingEmails) return 'We\'re analyzing your Gmail account to see how many emails need processing';
-    if (isInProgress) return 'Preparing to process your emails...';
-    if (isSyncing) return 'Processing emails in the background. You can safely close this page and return later.';
-    return 'Get powerful insights from your email transactions and communication patterns';
-  };
-
-  const formatTimeRemaining = (estimatedCompletion: string | null) => {
-    if (!estimatedCompletion) return null;
-    
-    const now = new Date();
-    const completion = new Date(estimatedCompletion);
-    const diffMs = completion.getTime() - now.getTime();
-    
-    if (diffMs <= 0) return 'Almost done...';
-    
-    const diffMinutes = Math.ceil(diffMs / (1000 * 60));
-    if (diffMinutes < 60) {
-      return `~${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} remaining`;
+    if (hasOAuthError && isPermissionError) {
+      return 'We need access to your Gmail to analyze your transactions. Please sign in again and grant the necessary permissions.';
     }
-    
-    const hours = Math.floor(diffMinutes / 60);
-    const minutes = diffMinutes % 60;
-    return `~${hours}h ${minutes}m remaining`;
+    if (hasOAuthError) {
+      return 'There was an issue with your Google account connection. Please sign in again to continue.';
+    }
+    if (isComplete) return 'Your emails have been successfully analyzed and imported.';
+    if (isFailed && !hasOAuthError) return 'Something went wrong during the sync process. Please try again.';
+    if (isInitiating) return 'Setting up the email analysis process...';
+    if (syncTriggered && !isActiveSyncInProgress) return 'Your sync request is being processed...';
+    if (isCountingEmails) return 'We\'re counting your emails to estimate processing time...';
+    if (isInProgress) return 'Getting everything ready to process your emails...';
+    if (isSyncing) return 'Analyzing your emails for transaction data...';
+    return 'Let\'s analyze your Gmail to discover your financial transactions and spending patterns.';
   };
 
-  // Show dashboard when user clicks the button
-  if (showDashboard) {
-    window.location.reload(); // This will trigger DataStatusChecker to show dashboard
-    return null;
-  }
+  // Format time remaining
+  const formatTimeRemaining = (estimatedCompletion: Date) => {
+    const now = new Date();
+    const remaining = estimatedCompletion.getTime() - now.getTime();
+    const minutes = Math.ceil(remaining / (1000 * 60));
+    
+    if (minutes <= 0) return 'Almost done...';
+    if (minutes === 1) return 'About 1 minute remaining';
+    return `About ${minutes} minutes remaining`;
+  };
 
   return (
-    <div className="flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl mx-auto">
-        {/* Main Sync Card - Fixed dimensions to prevent CLS */}
-        <Card className="w-full min-h-[600px] shadow-lg border bg-card backdrop-blur-sm">
-          <CardHeader className="text-center pb-6">
-            <div className="flex justify-center mb-4">
-              {(isInitiating || syncTriggered || isActiveSyncInProgress) ? (
-                getStatusIcon()
-              ) : (
-                <Mail className="h-8 w-8 text-primary" />
-              )}
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
+      <Card className="w-full max-w-2xl mx-auto shadow-lg">
+        <CardHeader className="text-center pb-4">
+          <div className="flex justify-center mb-6">
+            {getStatusIcon()}
+          </div>
+          <CardTitle className="text-2xl font-bold">
+            {getStatusTitle()}
+          </CardTitle>
+          <CardDescription className="text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
+            {getStatusDescription()}
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent className="space-y-6">
+          {/* OAuth Permission Error Section */}
+          {hasOAuthError && (
+            <div className="space-y-4">
+              <Alert variant={isPermissionError ? "default" : "destructive"} className={isPermissionError ? "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950" : ""}>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="space-y-3">
+                  <div className="font-medium">
+                    {oauthError?.userFriendlyMessage || 'Authentication error occurred'}
+                  </div>
+                  
+                  {isPermissionError && (
+                    <div className="text-sm space-y-2">
+                      <p>To continue, you'll need to:</p>
+                      <ul className="list-disc list-inside space-y-1 ml-2">
+                        <li>Sign out and sign in again</li>
+                        <li>Make sure to click "Allow" when Google asks for Gmail permissions</li>
+                        <li>Grant access to read your Gmail messages</li>
+                      </ul>
+                      <p className="text-muted-foreground italic">
+                        Don't worry - we only read transaction-related emails and never access personal messages.
+                      </p>
+                    </div>
+                  )}
+                </AlertDescription>
+              </Alert>
+              
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button 
+                  onClick={handleSignOut}
+                  disabled={isSigningOut}
+                  className="flex items-center gap-2"
+                  size="lg"
+                >
+                  {isSigningOut ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <LogOut className="h-4 w-4" />
+                  )}
+                  {isSigningOut ? 'Signing Out...' : 'Sign Out & Try Again'}
+                </Button>
+                
+                {!requiresReauth && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => initiateSyncMutation.mutate()}
+                    disabled={isInitiating}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Retry Sync
+                  </Button>
+                )}
+              </div>
             </div>
-            <CardTitle className="text-2xl font-bold">
-              {getStatusTitle()}
-            </CardTitle>
-            <CardDescription className="text-base text-muted-foreground">
-              {getStatusDescription()}
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent className="space-y-6">
-            {/* Progress Section - Always reserve space */}
+          )}
+
+          {/* Progress Section - Always reserve space */}
+          {!hasOAuthError && (
             <div className="min-h-[120px] flex flex-col justify-center">
               {(isActiveSyncInProgress || isComplete) && (
                 <div className="space-y-4">
@@ -168,7 +237,7 @@ export function SyncInitiator() {
                   {progressData?.estimatedCompletion && !isComplete && (
                     <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
-                      {formatTimeRemaining(progressData.estimatedCompletion)}
+                      {formatTimeRemaining(new Date(progressData.estimatedCompletion))}
                     </div>
                   )}
 
@@ -182,117 +251,89 @@ export function SyncInitiator() {
                   )}
                 </div>
               )}
-
-              {/* Welcome Features - Only show when not syncing */}
-              {!syncTriggered && !isActiveSyncInProgress && !isComplete && !isFailed && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-lg bg-primary/10 border border-primary/20 text-center">
-                    <BarChart3 className="h-6 w-6 text-primary mx-auto mb-2" />
-                    <h4 className="font-semibold text-sm">Transaction Analytics</h4>
-                    <p className="text-xs text-muted-foreground mt-1">Track spending patterns</p>
-                  </div>
-                  <div className="p-4 rounded-lg bg-chart-2/10 border border-chart-2/20 text-center">
-                    <Zap className="h-6 w-6 text-chart-2 mx-auto mb-2" />
-                    <h4 className="font-semibold text-sm">Smart Processing</h4>
-                    <p className="text-xs text-muted-foreground mt-1">AI-powered analysis</p>
-                  </div>
-                  <div className="p-4 rounded-lg bg-chart-3/10 border border-chart-3/20 text-center">
-                    <Shield className="h-6 w-6 text-chart-3 mx-auto mb-2" />
-                    <h4 className="font-semibold text-sm">Secure & Private</h4>
-                    <p className="text-xs text-muted-foreground mt-1">Data stays protected</p>
-                  </div>
-                </div>
-              )}
             </div>
+          )}
 
-            {/* Action Section - Always reserve space */}
-            <div className="min-h-[80px] flex flex-col justify-center">
-              {isComplete ? (
-                <div className="space-y-4">
-                  <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
-                    <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    <AlertDescription className="text-green-800 dark:text-green-200">
-                      Your emails have been successfully analyzed! Ready to explore your insights.
-                    </AlertDescription>
-                  </Alert>
-                  <Button 
-                    onClick={() => setShowDashboard(true)}
-                    size="lg"
-                    className="w-full"
-                  >
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    View Your Dashboard
-                  </Button>
-                </div>
-              ) : isFailed ? (
-                <div className="space-y-4">
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      Email sync failed. Please try starting the sync again.
-                    </AlertDescription>
-                  </Alert>
-                  <Button 
-                    onClick={() => {
-                      setError(null);
-                      setSyncTriggered(false);
-                      initiateSyncMutation.mutate();
-                    }}
-                    variant="outline"
-                    size="lg"
-                    className="w-full"
-                  >
-                    Try Again
-                  </Button>
-                </div>
-              ) : !syncTriggered && !isActiveSyncInProgress ? (
-                <div className="space-y-4">
-                  <Button 
-                    onClick={() => initiateSyncMutation.mutate()}
-                    disabled={initiateSyncMutation.isPending}
-                    size="lg"
-                    className="w-full"
-                  >
-                    {initiateSyncMutation.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Starting Analysis...
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="h-4 w-4 mr-2" />
-                        Start Email Analysis
-                      </>
-                    )}
-                  </Button>
-                  <Alert>
-                    <AlertDescription className="text-sm text-center">
-                      We&apos;ll analyze your emails to extract transaction data and insights. 
-                      This process is secure and typically takes a few minutes.
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <div className="text-sm text-muted-foreground">
-                    {isSyncing ? 'Processing emails in background...' : 'Starting sync process...'}
+          {/* Error Section */}
+          {error && !hasOAuthError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Action Buttons */}
+          {!hasOAuthError && !isActiveSyncInProgress && !isComplete && (
+            <div className="flex flex-col gap-4">
+              <Button 
+                onClick={() => initiateSyncMutation.mutate()}
+                disabled={isInitiating}
+                size="lg"
+                className="w-full"
+              >
+                {isInitiating ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Starting Analysis...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-5 w-5" />
+                    <span>Start Email Analysis</span>
+                  </div>
+                )}
+              </Button>
+
+              {/* Benefits Section */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+                  <Mail className="h-8 w-8 text-primary shrink-0" />
+                  <div>
+                    <h3 className="font-medium text-sm">Smart Email Analysis</h3>
+                    <p className="text-xs text-muted-foreground">Automatically finds transaction emails</p>
                   </div>
                 </div>
-              )}
+                <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+                  <BarChart3 className="h-8 w-8 text-primary shrink-0" />
+                  <div>
+                    <h3 className="font-medium text-sm">Spending Insights</h3>
+                    <p className="text-xs text-muted-foreground">Track patterns and trends</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg">
+                  <Shield className="h-8 w-8 text-primary shrink-0" />
+                  <div>
+                    <h3 className="font-medium text-sm">Secure & Private</h3>
+                    <p className="text-xs text-muted-foreground">Your data stays protected</p>
+                  </div>
+                </div>
+              </div>
             </div>
+          )}
 
-            {/* Error Display */}
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {error}
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          {/* Completion Actions */}
+          {isComplete && (
+            <div className="text-center space-y-4">
+              <div className="p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+                <p className="text-green-800 dark:text-green-200 font-medium">
+                  🎉 Your emails have been successfully analyzed!
+                </p>
+                <p className="text-green-600 dark:text-green-400 text-sm mt-1">
+                  You can now explore your financial insights and transaction history.
+                </p>
+              </div>
+              <Button 
+                onClick={() => setShowDashboard(true)}
+                size="lg"
+                className="w-full"
+              >
+                <BarChart3 className="h-5 w-5 mr-2" />
+                View Your Dashboard
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 } 

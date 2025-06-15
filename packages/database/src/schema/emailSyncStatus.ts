@@ -9,6 +9,12 @@ export const emailSyncStatus = pgTable("email_sync_status", {
   syncStatus: varchar("sync_status", { length: 50 }).default("complete"),
   errorDetails: text("error_details"),
   
+  // OAuth/Permission error tracking
+  oauthErrorType: varchar("oauth_error_type", { length: 50 }), // 'INSUFFICIENT_PERMISSIONS', 'REVOKED_ACCESS', etc.
+  oauthErrorCode: varchar("oauth_error_code", { length: 100 }), // Specific error code from Google
+  requiresReauth: boolean("requires_reauth").default(false), // Whether user needs to re-authenticate
+  userFriendlyError: text("user_friendly_error"), // Message to show to users
+  
   // New progress tracking fields
   totalEmails: integer("total_emails"),
   processedEmails: integer("processed_emails").default(0),

@@ -8,6 +8,13 @@
       "when": 1749956733365,
       "tag": "0000_motionless_chronomancer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1749971341925,
+      "tag": "0001_yielding_the_santerians",
+      "breakpoints": true
     }
   ]
 }
