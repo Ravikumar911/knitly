@@ -4,12 +4,12 @@ import { useTRPC } from "@/trpc/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Badge } from "@workspace/ui/components/badge";
-import { IndianRupee, ShoppingCart, TrendingUp, Utensils, Clock, MapPin } from "lucide-react";
+import { IndianRupee, ShoppingCart, TrendingUp, Utensils } from "lucide-react";
 import { useTransactionFilters } from "@/store/transaction-filters";
 import { useMemo } from "react";
 import { DateRangePicker } from "./date-range-picker";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@workspace/ui/components/chart";
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell } from "recharts";
 
 // Stable fallback dates to prevent cache invalidation
 const FALLBACK_END_DATE = new Date();

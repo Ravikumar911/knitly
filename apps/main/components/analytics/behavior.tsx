@@ -94,7 +94,7 @@ export function AnalyticsBehavior() {
                   <ChartTooltip
                     content={
                       <ChartTooltipContent
-                        formatter={(value, name) => [
+                        formatter={(value) => [
                           formatCurrency(Number(value)),
                           "Spending"
                         ]}
