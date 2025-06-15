@@ -16,11 +16,11 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   metadataBase: new URL('https://slash.cash'),
   title: {
-    default: "Slash - Slash Your Spendings Effortlessly",
+    default: "Slash - Your AI Finance Assistant",
     template: "%s | Slash"
   },
-  description: "Take control of your expenses with Slash. Track Food & Grocery, Travel, and Subscriptions. Slash your spendings, not your lifestyle.",
-  keywords: ["spending tracker", "budget app", "expense management", "food and grocery tracking", "travel expenses", "subscription management", "personal finance", "slash app"],
+  description: "AI-powered personal finance that starts with Swiggy analytics and expands to track all your expenses automatically through email analysis.",
+  keywords: ["AI finance", "expense tracking", "swiggy analytics", "personal finance", "automatic expense tracking", "email analysis", "budget app"],
   authors: [
     {
       name: "slash.cash",
@@ -39,8 +39,8 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     siteName: "Slash",
-    title: "Slash - Slash Your Spendings Effortlessly",
-    description: "Take control of your expenses with Slash. Track Food & Grocery, Travel, and Subscriptions. Slash your spendings, not your lifestyle.",
+    title: "Slash - Your AI Finance Assistant",
+    description: "AI-powered personal finance that starts with Swiggy analytics and expands to track all your expenses automatically through email analysis.",
     url: "https://slash.cash",
     images: [
       {
@@ -53,8 +53,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Slash - Slash Your Spendings Effortlessly",
-    description: "Take control of your expenses with Slash. Track Food & Grocery, Travel, and Subscriptions. Slash your spendings, not your lifestyle.",
+    title: "Slash - Your AI Finance Assistant",
+    description: "AI-powered personal finance that starts with Swiggy analytics and expands to track all your expenses automatically through email analysis.",
     site: "@slashcash",
     creator: "@slashcash",
     images: ["/og-image.png"]
@@ -70,29 +70,19 @@ export const metadata: Metadata = {
 function FooterNav() {
   
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
       <div>
-        <h3 className="font-medium mb-3">Platform</h3>
+        <h3 className="font-medium mb-3">Product</h3>
         <ul className="space-y-2 text-sm text-muted-foreground">
           <li><Link href="/" className="hover:underline">Home</Link></li>
-          <li><Link href="/#features" className="hover:underline">Features</Link></li>
-          <li><Link href="/#pricing" className="hover:underline">Pricing</Link></li>
+          <li><Link href="/swiggy" className="hover:underline">Swiggy Analytics</Link></li>
         </ul>
       </div>
       
       <div>
-        <h3 className="font-medium mb-3">Blog</h3>
+        <h3 className="font-medium mb-3">Resources</h3>
         <ul className="space-y-2 text-sm text-muted-foreground">
           <li><Link href="/spending-psychology" className="hover:underline">Spending Psychology</Link></li>
-          <li><Link href="/#blog" className="hover:underline">All Articles</Link></li>
-        </ul>
-      </div>
-      
-      <div>
-        <h3 className="font-medium mb-3">Support</h3>
-        <ul className="space-y-2 text-sm text-muted-foreground">
-          <li><Link href="/#contact" className="hover:underline">Contact</Link></li>
-          <li><Link href="/#faq" className="hover:underline">FAQ</Link></li>
         </ul>
       </div>
       
@@ -143,7 +133,7 @@ export default function RootLayout({
               "url": "https://slash.cash/",
               "applicationCategory": "FinanceApplication",
               "operatingSystem": "All",
-              "description": "Slash helps you automatically track and categorize your spendings across Food & Grocery, Travel, and Subscriptions. Get instant insights and start saving.",
+              "description": "AI-powered personal finance assistant that automatically tracks expenses through email analysis, starting with Swiggy analytics.",
               "offers": {
                 "@type": "Offer",
                 "price": "0",
@@ -157,55 +147,11 @@ export default function RootLayout({
             })
           }}
         />
-        <Script
-          id="structured-data-faq"
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "FAQPage",
-              "mainEntity": [
-                {
-                  "@type": "Question",
-                  "name": "How does Slash track my expenses?",
-                  "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": "Slash automatically imports and categorizes your transactions from connected accounts or imported statements. No manual entry required."
-                  }
-                },
-                {
-                  "@type": "Question",
-                  "name": "What categories does Slash support?",
-                  "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": "Slash supports Food Delivery, Groceries, Travel & Transport, Subscriptions, and more."
-                  }
-                },
-                {
-                  "@type": "Question",
-                  "name": "Is Slash free to use?",
-                  "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": "Yes, Slash offers a free plan for all users."
-                  }
-                },
-                {
-                  "@type": "Question",
-                  "name": "Can I track subscriptions with Slash?",
-                  "acceptedAnswer": {
-                    "@type": "Answer",
-                    "text": "Yes, Slash automatically finds and tracks all your recurring subscriptions."
-                  }
-                }
-              ]
-            })
-          }}
-        />
       </head>
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
@@ -218,43 +164,20 @@ export default function RootLayout({
                 <NavigationMenu>
                   <NavigationMenuList>
                     <NavigationMenuItem>
-                      <NavigationMenuTrigger className="h-9">Features</NavigationMenuTrigger>
-                      <NavigationMenuContent>
-                        <div className="grid gap-3 p-6 w-[400px]">
-                          <NavigationMenuLink asChild>
-                            <Link href="#features" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
-                              <div className="text-sm font-medium leading-none">AI Finance Assistant</div>
-                              <p className="line-clamp-2 text-sm leading-snug text-muted-foreground mt-1">
-                                Track spending and save money automatically
-                              </p>
-                            </Link>
-                          </NavigationMenuLink>
-                        </div>
-                      </NavigationMenuContent>
-                    </NavigationMenuItem>
-                    <NavigationMenuItem>
-                      <NavigationMenuTrigger className="h-9">How It Works</NavigationMenuTrigger>
-                      <NavigationMenuContent>
-                        <div className="grid gap-3 p-6 w-[400px]">
-                          <NavigationMenuLink asChild>
-                            <Link href="#how-it-works" className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
-                              <div className="text-sm font-medium leading-none">Get Started</div>
-                              <p className="line-clamp-2 text-sm leading-snug text-muted-foreground mt-1">
-                                Connect Gmail and start tracking your expenses
-                              </p>
-                            </Link>
-                          </NavigationMenuLink>
-                        </div>
-                      </NavigationMenuContent>
+                      <NavigationMenuLink asChild>
+                        <Link href="/swiggy" className="text-sm font-medium hover:text-primary transition-colors">
+                          Swiggy Analytics
+                        </Link>
+                      </NavigationMenuLink>
                     </NavigationMenuItem>
                   </NavigationMenuList>
                 </NavigationMenu>
               </div>
               <div className="flex items-center gap-4">
                 <a href="https://app.slash.cash" target="_blank" rel="noopener noreferrer">
-                  <Button variant="ghost" size="sm" className="h-9">Sign In</Button>
+                  <Button variant="default" size="sm" className="h-9">Sign In</Button>
                 </a>
-                <Button size="sm" className="h-9">Join Beta</Button>
+                <ThemeSwitcher />
               </div>
             </nav>
           </header>
@@ -264,18 +187,7 @@ export default function RootLayout({
               <FooterNav />
               
               <div className="border-t border-muted-foreground/10 pt-6 flex flex-col md:flex-row items-center justify-between">
-                <div className="text-xs text-muted-foreground">© 2025 Slash. Built with 💰 in India.</div>
-                <div className="flex items-center space-x-4 mt-4 md:mt-0">
-                  <ThemeSwitcher />
-                  <a href="#" className="text-muted-foreground hover:text-primary">
-                    <span className="sr-only">Twitter</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-twitter"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/></svg>
-                  </a>
-                  <a href="#" className="text-muted-foreground hover:text-primary">
-                    <span className="sr-only">Instagram</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-instagram"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>
-                  </a>
-                </div>
+                <div className="text-xs text-muted-foreground">© 2025 Slash. Your AI Finance Assistant.</div>
               </div>
             </div>
           </footer>
