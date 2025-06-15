@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 // The client you created from the Server-Side Auth instructions
 import { createClient } from '@/supabase/server'
+import { forceClearOAuthErrors } from '@workspace/database'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -30,6 +31,15 @@ export async function GET(request: Request) {
 
       if (dbError) {
         console.error("Failed to store Google tokens:", dbError);
+      } else {
+        // Clear any existing OAuth errors since user has successfully authenticated
+        try {
+          await forceClearOAuthErrors(user.id);
+          console.log(`Cleared OAuth errors for user ${user.id} after successful authentication`);
+        } catch (clearError) {
+          console.error("Failed to clear OAuth errors:", clearError);
+          // Don't fail the auth flow if clearing errors fails
+        }
       }
     }
     

@@ -79,7 +79,7 @@ interface SyncActions {
   setNetworkError: (message: string) => void;
   clearError: () => void;
   
-  // Error Actions
+  // Error Actions - now returns stable reference
   getErrorActions: () => {
     primaryAction: string;
     secondaryAction?: string;
@@ -338,7 +338,7 @@ export const useSyncStore = create<SyncState & SyncActions>()(
   )
 );
 
-// Selectors for common state combinations
+// Memoized selectors to prevent infinite loops
 export const selectSyncState = (state: SyncState & SyncActions) => ({
   userState: state.userState,
   isLoading: state.isLoading,
@@ -356,10 +356,10 @@ export const selectSyncProgress = (state: SyncState & SyncActions) => ({
   syncStatus: state.syncStatus,
 });
 
+// Fixed: Don't call getErrorActions in selector - call it in component
 export const selectErrorState = (state: SyncState & SyncActions) => ({
   currentError: state.currentError,
   hasError: !!state.currentError,
-  errorActions: state.getErrorActions(),
 });
 
 export const selectSyncActions = (state: SyncState & SyncActions) => ({

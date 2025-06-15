@@ -17,9 +17,9 @@ export function SyncInitiator() {
   const trpc = useTRPC();
   const router = useRouter();
   
-  const { userState, isInitiating, error, oauthError } = useSyncStore(selectSyncState);
+  const { isInitiating, error, oauthError } = useSyncStore(selectSyncState);
   const { totalEmails, processedEmails, progressPercentage, estimatedCompletion, syncStatus } = useSyncStore(selectSyncProgress);
-  const { updateSyncProgress, startPolling, stopPolling, setInitiating, setError, clearError } = useSyncStore();
+  const { updateSyncProgress, startPolling, setInitiating, setError, clearError } = useSyncStore();
 
   // Mutation to start sync
   const initiateSyncMutation = useMutation(trpc.emails.initiateSync.mutationOptions({

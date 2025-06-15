@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTRPC } from '@/trpc/client';
 import { useSyncStore, selectSyncState } from '@/hooks/useSyncStore';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
-import { SyncInitiator } from '../onboarding/SyncInitiator';
+import { SyncInitiator } from './SyncInitiator';
 import { ErrorDisplay } from './ErrorDisplay';
 import { Button } from '@workspace/ui/components/button';
 import { Alert, AlertDescription, AlertTitle } from '@workspace/ui/components/alert';
@@ -16,7 +16,7 @@ interface DataStatusCheckerProps {
 
 export function DataStatusChecker({ children }: DataStatusCheckerProps) {
   const trpc = useTRPC();
-  const { userState, isLoading, error, oauthError, currentError } = useSyncStore(selectSyncState);
+  const { userState, currentError } = useSyncStore(selectSyncState);
   const { updateDataStatus, setLoading, setNetworkError, clearError } = useSyncStore();
 
   // Query to check if user has data
@@ -73,7 +73,7 @@ export function DataStatusChecker({ children }: DataStatusCheckerProps) {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Unable to Load</AlertTitle>
           <AlertDescription className="mt-2">
-            <p className="mb-4">We couldn't check your account status. Please try again.</p>
+            <p className="mb-4">We couldn&apos;t check your account status. Please try again.</p>
             <Button onClick={() => refetch()} variant="outline" size="sm">
               <RefreshCw className="h-3 w-3 mr-1" />
               Try Again

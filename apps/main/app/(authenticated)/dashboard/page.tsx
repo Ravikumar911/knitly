@@ -1,4 +1,4 @@
-import { DataStatusChecker } from '@/components/onboarding';
+import { DataStatusChecker } from '@/components/common/DataStatusChecker';
 import { HydrateClient } from "@/trpc/server";
 import { Suspense } from "react";
 import { AnalyticsContent } from "@/components/analytics/analytics-content";

@@ -18,12 +18,16 @@ export function ErrorDisplay({
   onContactSupport,
   className 
 }: ErrorDisplayProps) {
-  const { currentError, hasError, errorActions } = useSyncStore(selectErrorState);
+  const { currentError, hasError } = useSyncStore(selectErrorState);
   const clearError = useSyncStore((state) => state.clearError);
+  const getErrorActions = useSyncStore((state) => state.getErrorActions);
 
   if (!hasError || !currentError) {
     return null;
   }
+
+  // Get error actions from store function
+  const errorActions = getErrorActions();
 
   // Get appropriate icon for error type
   const getErrorIcon = () => {
