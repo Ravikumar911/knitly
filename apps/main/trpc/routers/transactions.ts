@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { baseProcedure, createTRPCRouter } from "../init";
+import { baseProcedure, protectedProcedure, createTRPCRouter } from "../init";
 import { 
   getTransactionsWithEmails, 
   getTransactionsCount, 
@@ -24,7 +24,7 @@ const transactionFiltersSchema = z.object({
 
 export const transactionsRouter = createTRPCRouter({
   // Get transactions with filtering and pagination
-  list: baseProcedure
+  list: protectedProcedure
     .input(
       z.object({
         page: z.number().min(1).default(1),
@@ -33,24 +33,17 @@ export const transactionsRouter = createTRPCRouter({
       })
     )
     .query(async ({ input, ctx }) => {
-      if (!ctx.userId) {
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message: "User not authenticated",
-        });
-      }
-
       const { page, pageSize, filters } = input;
       const offset = (page - 1) * pageSize;
 
       const [transactions, totalCount] = await Promise.all([
         getTransactionsWithEmails(
-          ctx.userId,
+          ctx.userId!,
           filters as TransactionFilters,
           pageSize,
           offset
         ),
-        getTransactionsCount(ctx.userId, filters as TransactionFilters),
+        getTransactionsCount(ctx.userId!, filters as TransactionFilters),
       ]);
 
       const totalPages = Math.ceil(totalCount / pageSize);
@@ -69,17 +62,10 @@ export const transactionsRouter = createTRPCRouter({
     }),
 
   // Get a specific transaction with email data
-  getById: baseProcedure
+  getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ input, ctx }) => {
-      if (!ctx.userId) {
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message: "User not authenticated",
-        });
-      }
-
-      const transaction = await getTransactionWithEmail(input.id, ctx.userId);
+      const transaction = await getTransactionWithEmail(input.id, ctx.userId!);
 
       if (!transaction) {
         throw new TRPCError({
@@ -92,15 +78,8 @@ export const transactionsRouter = createTRPCRouter({
     }),
 
   // Get user's merchants for filter dropdown
-  getMerchants: baseProcedure.query(async ({ ctx }) => {
-    if (!ctx.userId) {
-      throw new TRPCError({
-        code: "UNAUTHORIZED",
-        message: "User not authenticated",
-      });
-    }
-
-    const merchants = await getUserMerchants(ctx.userId);
+  getMerchants: protectedProcedure.query(async ({ ctx }) => {
+    const merchants = await getUserMerchants(ctx.userId!);
     return merchants;
   }),
 
