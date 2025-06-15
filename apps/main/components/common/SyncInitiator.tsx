@@ -42,7 +42,10 @@ export function SyncInitiator() {
       clearError();
     },
     onSuccess: () => {
-      setInitiating(false);
+      // Don't immediately set initiating to false
+      // Keep it true until we detect the background process has started
+      // The background process will update syncStatus which we'll detect below
+      
       // Start polling for progress after sync is initiated
       startPolling(() => {
         refetchProgress();
@@ -81,6 +84,20 @@ export function SyncInitiator() {
     }
   }, [progressData, updateSyncProgress]);
 
+  // Handle transition from initiating to background processing
+  useEffect(() => {
+    // If we're initiating and detect that background processing has started,
+    // we can stop showing the "initiating" state
+    if (isInitiating && syncStatus && ['counting_emails', 'in_progress', 'syncing'].includes(syncStatus)) {
+      setInitiating(false);
+    }
+    
+    // Also clear initiating state if sync completes or fails
+    if (isInitiating && syncStatus && ['complete', 'failed'].includes(syncStatus)) {
+      setInitiating(false);
+    }
+  }, [isInitiating, syncStatus, setInitiating]);
+
   // Handle sign out for re-authentication
   const handleSignOut = useCallback(async () => {
     try {
@@ -105,16 +122,17 @@ export function SyncInitiator() {
   const requiresReauth = oauthError?.requiresReauth || false;
   const isPermissionError = oauthError?.type === 'INSUFFICIENT_PERMISSIONS' || oauthError?.type === 'REVOKED_ACCESS';
   
-  const isActiveSyncInProgress = isCountingEmails || isInProgress || isSyncing;
+  // Updated to include initiating state
+  const isActiveSyncInProgress = isInitiating || isCountingEmails || isInProgress || isSyncing;
 
   // Helper functions for status display
   const getStatusIcon = useCallback(() => {
     if (hasOAuthError) return <Lock className="h-8 w-8 text-amber-600 dark:text-amber-500" />;
     if (isComplete) return <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-500" />;
     if (isFailed) return <AlertCircle className="h-8 w-8 text-destructive" />;
-    if (isActiveSyncInProgress || isInitiating) return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
+    if (isActiveSyncInProgress) return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
     return <Zap className="h-8 w-8 text-primary" />;
-  }, [hasOAuthError, isComplete, isFailed, isActiveSyncInProgress, isInitiating]);
+  }, [hasOAuthError, isComplete, isFailed, isActiveSyncInProgress]);
 
   const getStatusTitle = useCallback(() => {
     if (hasOAuthError && isPermissionError) return 'Gmail Permission Required';
@@ -239,17 +257,18 @@ export function SyncInitiator() {
             </Alert>
           )}
 
-          {/* Progress Section */}
+          {/* Progress Section - now includes initiating state */}
           {isActiveSyncInProgress && (
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
-                  {hasTotalEmails 
+                  {isInitiating ? 'Preparing analysis...' :
+                   hasTotalEmails 
                     ? `${processedEmails} of ${totalEmails} emails processed`
                     : `${processedEmails} emails processed`
                   }
                 </span>
-                {estimatedCompletion && (
+                {estimatedCompletion && !isInitiating && (
                   <span className="text-muted-foreground">
                     <Clock className="h-3 w-3 inline mr-1" />
                     {formatTimeRemaining(estimatedCompletion)}
@@ -257,10 +276,10 @@ export function SyncInitiator() {
                 )}
               </div>
               <Progress 
-                value={progressPercentage || 0} 
+                value={isInitiating ? 0 : (progressPercentage || 0)} 
                 className="w-full h-2"
               />
-              {progressPercentage > 0 && (
+              {!isInitiating && progressPercentage > 0 && (
                 <div className="text-center text-sm text-muted-foreground">
                   {Math.round(progressPercentage)}% complete
                 </div>
