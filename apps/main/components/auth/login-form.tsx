@@ -3,9 +3,6 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 
-// External libraries
-import { useForm } from "react-hook-form"
-
 // Internal utilities
 import { createClient } from "@/supabase/client"
 
@@ -13,17 +10,7 @@ import { createClient } from "@/supabase/client"
 import { Alert, AlertDescription } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@workspace/ui/components/form"
-import { Input } from "@workspace/ui/components/input"
 import { Separator } from "@workspace/ui/components/separator"
-
 
 function getURL() {
   let url =
@@ -40,36 +27,7 @@ function getURL() {
 export function LoginForm() {
   const router = useRouter()
   const [error, setError] = React.useState<string>("")
-  const [isLoading, setIsLoading] = React.useState<boolean>(false)
   const [isGoogleLoading, setIsGoogleLoading] = React.useState<boolean>(false)
-
-  const form = useForm({
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-  })
-
-  async function onSubmit() {  
-    setIsLoading(true)
-    setError("")
-
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({
-        email: form.getValues("email"),
-        password: form.getValues("password")
-      })
-      if (error) {
-        throw error
-      }
-      router.push("/dashboard")
-    } catch {
-      setError("Invalid email or password")
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   async function signInWithGoogle() {
     setIsGoogleLoading(true)
@@ -101,9 +59,9 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Welcome back</CardTitle>
+        <CardTitle>Sign in to your account</CardTitle>
         <CardDescription>
-          Enter your email and password to access your account
+          Use your Google account to continue
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -157,89 +115,13 @@ export function LoginForm() {
               </div>
             )}
           </Button>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Enter your email" 
-                        type="email" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Enter your password" 
-                        type="password" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              <Button 
-                type="submit" 
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? "Signing in..." : "Sign in with email"}
-              </Button>
-            </form>
-          </Form>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
         </div>
       </CardContent>
-      <CardFooter className="flex flex-col space-y-4">
-        <div className="text-sm text-muted-foreground text-center">
-          Don't have an account?{" "}
-          <Button 
-            variant="link" 
-            className="p-0 h-auto font-normal"
-            onClick={() => router.push("/register")}
-          >
-            Create one
-          </Button>
-        </div>
-        <Button 
-          variant="outline" 
-          className="w-full"
-          onClick={() => router.push("/reset-password")}
-        >
-          Forgot password?
-        </Button>
-      </CardFooter>
     </Card>
   )
 } 
