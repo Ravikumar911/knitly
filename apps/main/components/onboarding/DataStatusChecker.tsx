@@ -60,7 +60,7 @@ export function DataStatusChecker({ children }: DataStatusCheckerProps) {
 
   // If user needs sync (no data or no initial sync completed)
   if (dataStatus?.needsSync) {
-    return <SyncInitiator dataStatus={dataStatus} />;
+    return <SyncInitiator />;
   }
 
   // User has data - show the dashboard
