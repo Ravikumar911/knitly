@@ -15,7 +15,9 @@ import {
   updateEmailData,
   updateSyncProgress,
   getSyncProgress,
-  initializeSync
+  initializeSync,
+  markSyncFailedWithOAuthError,
+  clearOAuthErrors
 } from "@workspace/database";
 
 configure({
@@ -258,22 +260,39 @@ export const processEmails = task({
         searchQuery
       });
       
-      const providerToken = await refreshGoogleToken(payload.userId);
-      if (!providerToken) {
-        const error = "Failed to refresh provider token";
-        logger.error("Token refresh failed", {
+      // Enhanced token refresh with OAuth error handling
+      const tokenResult = await refreshGoogleToken(payload.userId);
+      if (!tokenResult.success) {
+        logger.error("Token refresh failed with OAuth error", {
           userId: payload.userId,
+          errorType: tokenResult.error?.type,
+          errorCode: tokenResult.error?.code,
+          requiresReauth: tokenResult.error?.requiresReauth,
           timestamp: new Date().toISOString()
         });
-        await markSyncFailed(payload.userId, error);
+        
+        // Store OAuth error details in the database
+        if (tokenResult.error) {
+          await markSyncFailedWithOAuthError(payload.userId, tokenResult.error);
+        } else {
+          await markSyncFailed(payload.userId, "Failed to refresh provider token - unknown error");
+        }
+        
         return {
           success: false,
-          message: error,
-          error: "PROVIDER_TOKEN_REFRESH_FAILED"
+          message: tokenResult.error?.userFriendlyMessage || "Failed to refresh provider token",
+          error: tokenResult.error?.type || "PROVIDER_TOKEN_REFRESH_FAILED",
+          errorType: tokenResult.error?.type,
+          requiresReauth: tokenResult.error?.requiresReauth || false,
+          userFriendlyMessage: tokenResult.error?.userFriendlyMessage
         };
       }
-  
+
+      const providerToken = tokenResult.token!;
       const endDate = new Date();
+      
+      // Clear any previous OAuth errors since token refresh succeeded
+      await clearOAuthErrors(payload.userId);
       
       // Mark sync as starting
       await markSyncInProgress(payload.userId);
@@ -456,6 +475,9 @@ export const processEmails = task({
       // Only update sync completion if all batches succeeded
       await updateLastSyncTime(payload.userId, new Date());
       await markSyncComplete(payload.userId);
+
+      // Clear any OAuth errors since sync completed successfully
+      await clearOAuthErrors(payload.userId);
 
       // Trigger duplicate detection for this specific user
       await detectDuplicateTransactionsForUser.trigger({ userId: payload.userId });

@@ -64,7 +64,7 @@ export const emailsRouter = createTRPCRouter({
       }
     }),
 
-  // Get real-time sync progress
+  // Get real-time sync progress with OAuth error handling
   getSyncProgress: protectedProcedure
     .query(async ({ ctx }) => {
       try {
@@ -77,7 +77,14 @@ export const emailsRouter = createTRPCRouter({
           estimatedCompletion: progress.estimatedCompletion,
           syncStatus: progress.syncStatus,
           hasInitialSync: progress.hasInitialSync,
-          statusMessage: getSyncStatusMessage(progress)
+          statusMessage: getSyncStatusMessage(progress),
+          // OAuth error information
+          oauthError: progress.oauthErrorType ? {
+            type: progress.oauthErrorType,
+            code: progress.oauthErrorCode,
+            requiresReauth: progress.requiresReauth,
+            userFriendlyMessage: progress.userFriendlyError
+          } : null
         };
       } catch (error) {
         console.error("Error getting sync progress:", error);
@@ -120,7 +127,7 @@ export const emailsRouter = createTRPCRouter({
       }
     }),
 
-  // Get the current email sync status for the user
+  // Get the current email sync status for the user with OAuth error details
   getSyncStatus: protectedProcedure
     .query(async ({ ctx }) => {
       try {
@@ -131,7 +138,14 @@ export const emailsRouter = createTRPCRouter({
           nextPageToken: status.nextPageToken,
           syncStatus: status.syncStatus,
           errorDetails: status.errorDetails,
-          hasSynced: status.lastSyncedAt !== null
+          hasSynced: status.lastSyncedAt !== null,
+          // OAuth error information
+          oauthError: status.oauthErrorType ? {
+            type: status.oauthErrorType,
+            code: status.oauthErrorCode,
+            requiresReauth: status.requiresReauth,
+            userFriendlyMessage: status.userFriendlyError
+          } : null
         };
       } catch (error) {
         console.error("Error getting sync status:", error);
@@ -148,12 +162,19 @@ export const emailsRouter = createTRPCRouter({
     }),
 });
 
-// Helper function to generate user-friendly status messages
+// Helper function to generate user-friendly status messages with OAuth awareness
 function getSyncStatusMessage(progress: {
   syncStatus: string | null;
   processedEmails: number;
   totalEmails: number | null;
+  oauthErrorType: string | null;
+  userFriendlyError: string | null;
 }): string {
+  // If there's an OAuth error, prioritize that message
+  if (progress.oauthErrorType && progress.userFriendlyError) {
+    return progress.userFriendlyError;
+  }
+
   if (!progress.syncStatus) {
     return "No sync in progress";
   }
@@ -170,6 +191,10 @@ function getSyncStatusMessage(progress: {
     case 'complete':
       return "Email sync completed successfully!";
     case 'failed':
+      // Check if it's an OAuth error
+      if (progress.oauthErrorType) {
+        return progress.userFriendlyError || "Authentication error occurred";
+      }
       return "Email sync failed. Please try again.";
     case 'in_progress':
       return "Email sync in progress...";

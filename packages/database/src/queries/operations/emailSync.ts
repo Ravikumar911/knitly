@@ -9,6 +9,11 @@ interface SyncStatus {
   nextPageToken: string | null;
   syncStatus: string | null;
   errorDetails: string | null;
+  // OAuth error fields
+  oauthErrorType: string | null;
+  oauthErrorCode: string | null;
+  requiresReauth: boolean;
+  userFriendlyError: string | null;
 }
 
 interface SyncProgress {
@@ -18,6 +23,20 @@ interface SyncProgress {
   estimatedCompletion: Date | null;
   syncStatus: string | null;
   hasInitialSync: boolean;
+  // OAuth error fields
+  oauthErrorType: string | null;
+  oauthErrorCode: string | null;
+  requiresReauth: boolean;
+  userFriendlyError: string | null;
+}
+
+// OAuth Error type to match the one from googleAuth.ts
+interface OAuthError {
+  code: string;
+  type: 'INSUFFICIENT_PERMISSIONS' | 'REVOKED_ACCESS' | 'EXPIRED_TOKEN' | 'INVALID_GRANT' | 'OAUTH_ERROR' | 'UNKNOWN_ERROR';
+  message: string;
+  requiresReauth: boolean;
+  userFriendlyMessage: string;
 }
 
 /**
@@ -28,7 +47,11 @@ export async function getSyncStatus(userId: string): Promise<SyncStatus> {
     lastSyncedAt: emailSyncStatus.lastSyncedAt,
     nextPageToken: emailSyncStatus.nextPageToken,
     syncStatus: emailSyncStatus.syncStatus,
-    errorDetails: emailSyncStatus.errorDetails
+    errorDetails: emailSyncStatus.errorDetails,
+    oauthErrorType: emailSyncStatus.oauthErrorType,
+    oauthErrorCode: emailSyncStatus.oauthErrorCode,
+    requiresReauth: emailSyncStatus.requiresReauth,
+    userFriendlyError: emailSyncStatus.userFriendlyError
   })
     .from(emailSyncStatus)
     .where(eq(emailSyncStatus.userId, userId))
@@ -39,7 +62,11 @@ export async function getSyncStatus(userId: string): Promise<SyncStatus> {
       lastSyncedAt: null,
       nextPageToken: null,
       syncStatus: null,
-      errorDetails: null
+      errorDetails: null,
+      oauthErrorType: null,
+      oauthErrorCode: null,
+      requiresReauth: false,
+      userFriendlyError: null
     };
   }
 
@@ -47,7 +74,11 @@ export async function getSyncStatus(userId: string): Promise<SyncStatus> {
     lastSyncedAt: result[0]?.lastSyncedAt || null,
     nextPageToken: result[0]?.nextPageToken || null,
     syncStatus: result[0]?.syncStatus || null,
-    errorDetails: result[0]?.errorDetails || null
+    errorDetails: result[0]?.errorDetails || null,
+    oauthErrorType: result[0]?.oauthErrorType || null,
+    oauthErrorCode: result[0]?.oauthErrorCode || null,
+    requiresReauth: result[0]?.requiresReauth || false,
+    userFriendlyError: result[0]?.userFriendlyError || null
   };
 }
 
@@ -91,7 +122,11 @@ export async function getSyncProgress(userId: string): Promise<SyncProgress> {
     progressPercentage: emailSyncStatus.progressPercentage,
     estimatedCompletion: emailSyncStatus.estimatedCompletion,
     syncStatus: emailSyncStatus.syncStatus,
-    hasInitialSync: emailSyncStatus.hasInitialSync
+    hasInitialSync: emailSyncStatus.hasInitialSync,
+    oauthErrorType: emailSyncStatus.oauthErrorType,
+    oauthErrorCode: emailSyncStatus.oauthErrorCode,
+    requiresReauth: emailSyncStatus.requiresReauth,
+    userFriendlyError: emailSyncStatus.userFriendlyError
   })
     .from(emailSyncStatus)
     .where(eq(emailSyncStatus.userId, userId))
@@ -104,7 +139,11 @@ export async function getSyncProgress(userId: string): Promise<SyncProgress> {
       progressPercentage: 0,
       estimatedCompletion: null,
       syncStatus: null,
-      hasInitialSync: false
+      hasInitialSync: false,
+      oauthErrorType: null,
+      oauthErrorCode: null,
+      requiresReauth: false,
+      userFriendlyError: null
     };
   }
 
@@ -115,7 +154,11 @@ export async function getSyncProgress(userId: string): Promise<SyncProgress> {
     progressPercentage: parseFloat(data.progressPercentage || '0'),
     estimatedCompletion: data.estimatedCompletion,
     syncStatus: data.syncStatus,
-    hasInitialSync: data.hasInitialSync || false
+    hasInitialSync: data.hasInitialSync || false,
+    oauthErrorType: data.oauthErrorType,
+    oauthErrorCode: data.oauthErrorCode,
+    requiresReauth: data.requiresReauth || false,
+    userFriendlyError: data.userFriendlyError
   };
 }
 
@@ -411,4 +454,56 @@ export async function getUsersNeedingSync(): Promise<Array<{
     userId: user.userId,
     lastSyncedAt: user.lastSyncedAt,
   }));
+}
+
+/**
+ * Mark sync as failed with OAuth error details
+ */
+export async function markSyncFailedWithOAuthError(
+  userId: string,
+  oauthError: OAuthError
+): Promise<void> {
+  const existing = await db.select({ id: emailSyncStatus.id })
+    .from(emailSyncStatus)
+    .where(eq(emailSyncStatus.userId, userId))
+    .limit(1);
+
+  const updateData = {
+    syncStatus: 'failed',
+    errorDetails: oauthError.message,
+    oauthErrorType: oauthError.type,
+    oauthErrorCode: oauthError.code,
+    requiresReauth: oauthError.requiresReauth,
+    userFriendlyError: oauthError.userFriendlyMessage,
+    updatedAt: new Date()
+  };
+
+  if (existing.length > 0) {
+    await db.update(emailSyncStatus)
+      .set(updateData)
+      .where(eq(emailSyncStatus.userId, userId));
+  } else {
+    await db.insert(emailSyncStatus)
+      .values({
+        userId,
+        lastSyncedAt: new Date(),
+        ...updateData,
+        createdAt: new Date()
+      });
+  }
+}
+
+/**
+ * Clear OAuth errors when sync succeeds
+ */
+export async function clearOAuthErrors(userId: string): Promise<void> {
+  await db.update(emailSyncStatus)
+    .set({
+      oauthErrorType: null,
+      oauthErrorCode: null,
+      requiresReauth: false,
+      userFriendlyError: null,
+      updatedAt: new Date()
+    })
+    .where(eq(emailSyncStatus.userId, userId));
 } 
