@@ -89,8 +89,8 @@ function FooterNav() {
       <div>
         <h3 className="font-medium mb-3">Legal</h3>
         <ul className="space-y-2 text-sm text-muted-foreground">
-          <li><Link href="/#privacy" className="hover:underline">Privacy Policy</Link></li>
-          <li><Link href="/#terms" className="hover:underline">Terms of Service</Link></li>
+          <li><Link href="/privacy" className="hover:underline">Privacy Policy</Link></li>
+          <li><Link href="/terms" className="hover:underline">Terms of Service</Link></li>
         </ul>
       </div>
     </div>

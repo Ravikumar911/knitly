@@ -51,7 +51,7 @@ export default function HomePage() {
               </AnimatedShinyText>
             </Badge>
           </BlurFade>
-          
+
           <BlurFade delay={0.2} inView>
             <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-4">
               <AnimatedGradientText>
@@ -59,35 +59,15 @@ export default function HomePage() {
               </AnimatedGradientText>
             </h1>
           </BlurFade>
-          
+
           <BlurFade delay={0.3} inView>
             <h2 className="text-xl md:text-2xl font-medium text-muted-foreground mb-6 max-w-3xl mx-auto leading-relaxed">
               Slash automatically tracks your expenses by reading your emails. Starting with Swiggy analytics, expanding to track all your spending across banks, wallets, subscriptions, and more—giving you complete financial visibility.
             </h2>
           </BlurFade>
-          
+
           <BlurFade delay={0.4} inView>
             <div className="text-sm text-muted-foreground font-medium mb-8">Connect Gmail • Smart expense tracking • No manual entry</div>
-          </BlurFade>
-          
-          {/* Hero Imagery with enhanced effects */}
-          <BlurFade delay={0.5} inView>
-            <div className="flex justify-center mt-8">
-              <MagicCard className="cursor-pointer border-0 bg-transparent" gradientColor="#262626">
-                <div className="relative">
-                  <Image
-                    src="/images/hero-illustration.jpg"
-                    alt="AI-powered personal finance dashboard with comprehensive expense tracking"
-                    className="w-full max-w-xl rounded-xl shadow-2xl object-cover"
-                    width={640}
-                    height={360}
-                    priority
-                    style={{ aspectRatio: '16/9' }}
-                  />
-                  <Meteors number={20} />
-                </div>
-              </MagicCard>
-            </div>
           </BlurFade>
         </div>
       </section>
@@ -111,7 +91,7 @@ export default function HomePage() {
               </p>
             </div>
           </BlurFade>
-          
+
           <div className="grid md:grid-cols-3 gap-8">
             {[
               {
@@ -140,16 +120,23 @@ export default function HomePage() {
               </BlurFade>
             ))}
           </div>
-          
-                     <BlurFade delay={0.5} inView>
-             <div className="flex justify-center mt-12">
-               <ShimmerButton className="shadow-2xl h-12 px-8 text-lg">
-                 <Link href="/swiggy" className="whitespace-pre-wrap text-center font-medium leading-none tracking-tight text-white dark:from-white dark:to-slate-900/10">
-                   🍽️ Explore Swiggy Analytics →
-                 </Link>
-               </ShimmerButton>
-             </div>
-           </BlurFade>
+
+          <BlurFade delay={0.5} inView>
+            <div className="flex justify-center mt-12">
+              <a 
+                href="https://app.slash.cash"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block"
+              >
+                <ShimmerButton className="shadow-2xl h-12 px-8 text-lg">
+                  <span className="whitespace-pre-wrap text-center font-medium leading-none tracking-tight text-white dark:from-white dark:to-slate-900/10">
+                    🍽️ Explore Swiggy Analytics →
+                  </span>
+                </ShimmerButton>
+              </a>
+            </div>
+          </BlurFade>
         </div>
       </section>
 
@@ -171,28 +158,28 @@ export default function HomePage() {
               </p>
             </div>
           </BlurFade>
-          
-                     <div className="grid md:grid-cols-4 gap-8 auto-rows-fr">
-             {[
-               { icon: "🏦", title: "Bank Transactions", desc: "Automatic tracking of all bank account debits and credits with smart categorization.", delay: 0.2 },
-               { icon: "💳", title: "Credit Card Analytics", desc: "Track spending across all cards, interest charges, due dates, and payment patterns.", delay: 0.3 },
-               { icon: "📱", title: "UPI & Wallet Tracking", desc: "Monitor PhonePe, GPay, Paytm transactions with merchant identification and categorization.", delay: 0.4 },
-               { icon: "🔄", title: "Subscription Management", desc: "Track all recurring payments, renewal dates, and forgotten subscriptions across services.", delay: 0.5 },
-               { icon: "🛒", title: "E-commerce Tracking", desc: "Amazon, Flipkart, and other online shopping with detailed product categorization.", delay: 0.6 },
-               { icon: "🚗", title: "Transportation & Travel", desc: "Uber, Ola, flight bookings, and travel expenses with location-based insights.", delay: 0.7 },
-               { icon: "💡", title: "Bills & Utilities", desc: "Electricity, internet, mobile bills with usage patterns and cost optimization tips.", delay: 0.8 },
-               { icon: "🎯", title: "Smart Budgeting", desc: "AI-powered budget recommendations based on your historical spending patterns.", delay: 0.9 }
-             ].map((feature, index) => (
-               <BlurFade key={index} delay={feature.delay} inView>
-                 <MagicCard className="cursor-pointer text-center p-6 h-full">
-                   <div className="h-full flex flex-col">
-                     <span className="text-4xl mb-4 block">{feature.icon}</span>
-                     <h3 className="font-semibold mb-2">{feature.title}</h3>
-                     <p className="text-muted-foreground text-sm flex-1">{feature.desc}</p>
-                   </div>
-                 </MagicCard>
-               </BlurFade>
-             ))}
+
+          <div className="grid md:grid-cols-4 gap-8 auto-rows-fr">
+            {[
+              { icon: "🏦", title: "Bank Transactions", desc: "Automatic tracking of all bank account debits and credits with smart categorization.", delay: 0.2 },
+              { icon: "💳", title: "Credit Card Analytics", desc: "Track spending across all cards, interest charges, due dates, and payment patterns.", delay: 0.3 },
+              { icon: "📱", title: "UPI & Wallet Tracking", desc: "Monitor PhonePe, GPay, Paytm transactions with merchant identification and categorization.", delay: 0.4 },
+              { icon: "🔄", title: "Subscription Management", desc: "Track all recurring payments, renewal dates, and forgotten subscriptions across services.", delay: 0.5 },
+              { icon: "🛒", title: "E-commerce Tracking", desc: "Amazon, Flipkart, and other online shopping with detailed product categorization.", delay: 0.6 },
+              { icon: "🚗", title: "Transportation & Travel", desc: "Uber, Ola, flight bookings, and travel expenses with location-based insights.", delay: 0.7 },
+              { icon: "💡", title: "Bills & Utilities", desc: "Electricity, internet, mobile bills with usage patterns and cost optimization tips.", delay: 0.8 },
+              { icon: "🎯", title: "Smart Budgeting", desc: "AI-powered budget recommendations based on your historical spending patterns.", delay: 0.9 }
+            ].map((feature, index) => (
+              <BlurFade key={index} delay={feature.delay} inView>
+                <MagicCard className="cursor-pointer text-center p-6 h-full">
+                  <div className="h-full flex flex-col">
+                    <span className="text-4xl mb-4 block">{feature.icon}</span>
+                    <h3 className="font-semibold mb-2">{feature.title}</h3>
+                    <p className="text-muted-foreground text-sm flex-1">{feature.desc}</p>
+                  </div>
+                </MagicCard>
+              </BlurFade>
+            ))}
           </div>
         </div>
       </section>
@@ -205,39 +192,39 @@ export default function HomePage() {
               <AnimatedGradientText>How Slash's AI Finance Tracking Works</AnimatedGradientText>
             </h2>
           </BlurFade>
-          
-                     <div className="grid md:grid-cols-4 gap-8 auto-rows-fr">
-             {[
-               {
-                 title: "1. Connect Gmail Securely",
-                 content: "OAuth 2.0 access to scan only financial transaction emails. Banks, UPI, wallets, credit cards, subscriptions, and services. Zero access to personal or non-financial emails.",
-                 delay: 0.2
-               },
-               {
-                 title: "2. AI Extracts & Categorizes",
-                 content: "Advanced AI parses transaction amounts, merchants, and categories. Smart deduplication prevents double-counting across platforms. Automatic merchant normalization and spending categorization.",
-                 delay: 0.3
-               },
-               {
-                 title: "3. Rich Analytics Dashboard",
-                 content: "Complete financial overview with spending breakdowns, trends, and insights. Category-wise analysis, monthly comparisons, and behavioral patterns. Beautiful charts and visualizations for all your financial data.",
-                 delay: 0.4
-               },
-               {
-                 title: "4. Chat with Your Money",
-                 content: "Ask natural language questions about your finances: \"How much did I spend on food this month?\" \"Which subscriptions can I cancel?\" \"Am I spending more than last year?\"",
-                 delay: 0.5
-               }
-             ].map((item, index) => (
-               <BlurFade key={index} delay={item.delay} inView>
-                 <MagicCard className="cursor-pointer bg-background/60 backdrop-blur-sm h-full">
-                   <div className="p-6 h-full flex flex-col">
-                     <h3 className="text-xl font-semibold mb-3">{item.title}</h3>
-                     <p className="text-muted-foreground text-sm leading-relaxed flex-1">{item.content}</p>
-                   </div>
-                 </MagicCard>
-               </BlurFade>
-             ))}
+
+          <div className="grid md:grid-cols-4 gap-8 auto-rows-fr">
+            {[
+              {
+                title: "1. Connect Gmail Securely",
+                content: "OAuth 2.0 access to scan only financial transaction emails. Banks, UPI, wallets, credit cards, subscriptions, and services. Zero access to personal or non-financial emails.",
+                delay: 0.2
+              },
+              {
+                title: "2. AI Extracts & Categorizes",
+                content: "Advanced AI parses transaction amounts, merchants, and categories. Smart deduplication prevents double-counting across platforms. Automatic merchant normalization and spending categorization.",
+                delay: 0.3
+              },
+              {
+                title: "3. Rich Analytics Dashboard",
+                content: "Complete financial overview with spending breakdowns, trends, and insights. Category-wise analysis, monthly comparisons, and behavioral patterns. Beautiful charts and visualizations for all your financial data.",
+                delay: 0.4
+              },
+              {
+                title: "4. Chat with Your Money",
+                content: "Ask natural language questions about your finances: \"How much did I spend on food this month?\" \"Which subscriptions can I cancel?\" \"Am I spending more than last year?\"",
+                delay: 0.5
+              }
+            ].map((item, index) => (
+              <BlurFade key={index} delay={item.delay} inView>
+                <MagicCard className="cursor-pointer bg-background/60 backdrop-blur-sm h-full">
+                  <div className="p-6 h-full flex flex-col">
+                    <h3 className="text-xl font-semibold mb-3">{item.title}</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed flex-1">{item.content}</p>
+                  </div>
+                </MagicCard>
+              </BlurFade>
+            ))}
           </div>
         </div>
       </section>
@@ -250,24 +237,24 @@ export default function HomePage() {
               <AnimatedGradientText>Perfect For Modern Spenders</AnimatedGradientText>
             </h2>
           </BlurFade>
-          
-                     <div className="grid md:grid-cols-4 gap-8 auto-rows-fr">
-             {[
-               { icon: "💼", title: "Busy Professionals", desc: "No time for manual expense tracking", delay: 0.2 },
-               { icon: "📱", title: "Digital-First Users", desc: "Most transactions via apps and cards", delay: 0.3 },
-               { icon: "💰", title: "Budget-Conscious People", desc: "Want to understand spending patterns", delay: 0.4 },
-               { icon: "🎯", title: "Goal-Oriented Savers", desc: "Need insights to optimize spending", delay: 0.5 }
-             ].map((item, index) => (
-               <BlurFade key={index} delay={item.delay} inView>
-                 <MagicCard className="cursor-pointer text-center p-6 h-full">
-                   <div className="h-full flex flex-col">
-                     <span className="text-4xl mb-4 block">{item.icon}</span>
-                     <h3 className="font-semibold mb-2">{item.title}</h3>
-                     <p className="text-muted-foreground text-sm flex-1">{item.desc}</p>
-                   </div>
-                 </MagicCard>
-               </BlurFade>
-             ))}
+
+          <div className="grid md:grid-cols-4 gap-8 auto-rows-fr">
+            {[
+              { icon: "💼", title: "Busy Professionals", desc: "No time for manual expense tracking", delay: 0.2 },
+              { icon: "📱", title: "Digital-First Users", desc: "Most transactions via apps and cards", delay: 0.3 },
+              { icon: "💰", title: "Budget-Conscious People", desc: "Want to understand spending patterns", delay: 0.4 },
+              { icon: "🎯", title: "Goal-Oriented Savers", desc: "Need insights to optimize spending", delay: 0.5 }
+            ].map((item, index) => (
+              <BlurFade key={index} delay={item.delay} inView>
+                <MagicCard className="cursor-pointer text-center p-6 h-full">
+                  <div className="h-full flex flex-col">
+                    <span className="text-4xl mb-4 block">{item.icon}</span>
+                    <h3 className="font-semibold mb-2">{item.title}</h3>
+                    <p className="text-muted-foreground text-sm flex-1">{item.desc}</p>
+                  </div>
+                </MagicCard>
+              </BlurFade>
+            ))}
           </div>
         </div>
       </section>
@@ -280,7 +267,7 @@ export default function HomePage() {
               <AnimatedGradientText>Early Users Love Slash</AnimatedGradientText>
             </h2>
           </BlurFade>
-          
+
           <BlurFade delay={0.2} inView>
             <Carousel>
               <CarouselContent>
@@ -335,27 +322,29 @@ export default function HomePage() {
               </AnimatedGradientText>
             </h2>
           </BlurFade>
-          
+
           <BlurFade delay={0.2} inView>
             <p className="text-lg text-muted-foreground mb-8">
               Start with Swiggy analytics today and be first in line for complete expense tracking when we expand.
             </p>
           </BlurFade>
-          
-                     <BlurFade delay={0.3} inView>
-             <div className="flex justify-center">
-               <ShimmerButton className="shadow-2xl h-12 px-8 text-lg">
-                 <a 
-                   href="https://app.slash.cash" 
-                   target="_blank" 
-                   rel="noopener noreferrer"
-                   className="whitespace-pre-wrap text-center font-medium leading-none tracking-tight text-white dark:from-white dark:to-slate-900/10"
-                 >
-                   🤖 Get Started with AI Finance Tracking →
-                 </a>
-               </ShimmerButton>
-             </div>
-           </BlurFade>
+
+          <BlurFade delay={0.3} inView>
+            <div className="flex justify-center">
+              <a 
+                href="https://app.slash.cash"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block"
+              >
+                <ShimmerButton className="shadow-2xl h-12 px-8">
+                  <span className="whitespace-pre-wrap text-center font-medium leading-none tracking-tight text-white dark:from-white dark:to-slate-900/10">
+                    ✨ Get Started with AI Finance Tracking →
+                  </span>
+                </ShimmerButton>
+              </a>
+            </div>
+          </BlurFade>
         </div>
       </section>
     </div>
