@@ -47,7 +47,7 @@ export default function HomePage() {
           <BlurFade delay={0.1} inView>
             <Badge variant="secondary" className="mb-6 text-sm px-4 py-1 bg-black/10 backdrop-blur-sm">
               <AnimatedShinyText className="inline-flex items-center justify-center transition ease-out hover:text-neutral-600 hover:duration-300 hover:dark:text-neutral-400">
-                <span>🤖 AI-Powered Personal Finance</span>
+                <span>✨ AI-Powered Personal Finance</span>
               </AnimatedShinyText>
             </Badge>
           </BlurFade>
@@ -327,7 +327,6 @@ export default function HomePage() {
 
       {/* Final Call to Action */}
       <section className="py-16 bg-background relative">
-        <Ripple />
         <div className="max-w-[700px] mx-auto px-4 text-center">
           <BlurFade delay={0.1} inView>
             <h2 className="text-3xl md:text-4xl font-bold mb-6">

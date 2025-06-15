@@ -7,7 +7,7 @@ import Link from "next/link"
 
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from "@workspace/ui/components/navigation-menu"
 import { Button } from "@workspace/ui/components/button"
-import { ThemeSwitcher } from "@/components/theme-switcher"
+
 
 import "./globals.css"
 
@@ -177,7 +177,6 @@ export default function RootLayout({
                 <a href="https://app.slash.cash" target="_blank" rel="noopener noreferrer">
                   <Button variant="default" size="sm" className="h-9">Sign In</Button>
                 </a>
-                <ThemeSwitcher />
               </div>
             </nav>
           </header>
