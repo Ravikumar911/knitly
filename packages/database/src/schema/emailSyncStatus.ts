@@ -4,7 +4,8 @@ import { profiles } from "./users";
 export const emailSyncStatus = pgTable("email_sync_status", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
-  lastSyncedAt: timestamp("last_synced_at").notNull(),
+  lastSyncedAt: timestamp("last_synced_at"),
+  lastSyncAttemptAt: timestamp("last_sync_attempt_at"),
   nextPageToken: varchar("next_page_token", { length: 255 }),
   syncStatus: varchar("sync_status", { length: 50 }).default("complete"),
   errorDetails: text("error_details"),

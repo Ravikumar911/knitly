@@ -49,3 +49,6 @@ export * from "./queries/insights/swiggyAnalytics"
 
 // Export feedback functions
 export * from "./queries/feedback"
+
+// Export unified error types and utilities
+export * from './types/errors';

@@ -21,7 +21,10 @@ export const emailsRouter = createTRPCRouter({
           hasEmails: dataStatus.hasEmails,
           hasInitialSync: dataStatus.hasInitialSync,
           emailCount: dataStatus.emailCount,
-          needsSync: !dataStatus.hasInitialSync || dataStatus.emailCount === 0
+          userState: dataStatus.userState,
+          syncStatus: dataStatus.syncStatus,
+          needsSync: dataStatus.userState !== 'has_data',
+          oauthError: dataStatus.oauthError
         };
       } catch (error) {
         console.error("Error checking user data:", error);

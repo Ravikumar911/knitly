@@ -1,9 +1,9 @@
-import { DataStatusChecker } from '@/components/onboarding';
-import { HydrateClient } from "@/trpc/server";
+import { HydrateClient, prefetch, trpc } from "@/trpc/server";
 import { Suspense } from "react";
 import { AnalyticsContent } from "@/components/analytics/analytics-content";
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card";
 import { Skeleton } from "@workspace/ui/components/skeleton";
+import { DataStatusRouter } from "@/components/common/DataStatusRouter";
 
 // Loading placeholder component
 function DashboardLoading() {
@@ -60,14 +60,17 @@ function DashboardLoading() {
   );
 }
 
-export default function Page() {
-  return (
-    <DataStatusChecker>
-        <HydrateClient>
+export default async function Page() {
+  // Prefetch data status check on the server
+  prefetch(trpc.emails.checkDataExists.queryOptions());
+  
+      return (
+      <HydrateClient>
+        <DataStatusRouter>
           <Suspense fallback={<DashboardLoading />}>
             <AnalyticsContent />
           </Suspense>
-        </HydrateClient>
-    </DataStatusChecker>
-  );
+        </DataStatusRouter>
+      </HydrateClient>
+    );
 }
