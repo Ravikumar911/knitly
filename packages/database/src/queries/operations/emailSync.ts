@@ -6,6 +6,7 @@ import { userGoogleTokens } from '../../schema/tokens';
 
 interface SyncStatus {
   lastSyncedAt: Date | null;
+  lastSyncAttemptAt: Date | null;
   nextPageToken: string | null;
   syncStatus: string | null;
   errorDetails: string | null;
@@ -45,6 +46,7 @@ interface OAuthError {
 export async function getSyncStatus(userId: string): Promise<SyncStatus> {
   const result = await db.select({
     lastSyncedAt: emailSyncStatus.lastSyncedAt,
+    lastSyncAttemptAt: emailSyncStatus.lastSyncAttemptAt,
     nextPageToken: emailSyncStatus.nextPageToken,
     syncStatus: emailSyncStatus.syncStatus,
     errorDetails: emailSyncStatus.errorDetails,
@@ -60,6 +62,7 @@ export async function getSyncStatus(userId: string): Promise<SyncStatus> {
   if (result.length === 0) {
     return {
       lastSyncedAt: null,
+      lastSyncAttemptAt: null,
       nextPageToken: null,
       syncStatus: null,
       errorDetails: null,
@@ -72,6 +75,7 @@ export async function getSyncStatus(userId: string): Promise<SyncStatus> {
 
   return {
     lastSyncedAt: result[0]?.lastSyncedAt || null,
+    lastSyncAttemptAt: result[0]?.lastSyncAttemptAt || null,
     nextPageToken: result[0]?.nextPageToken || null,
     syncStatus: result[0]?.syncStatus || null,
     errorDetails: result[0]?.errorDetails || null,
@@ -83,12 +87,20 @@ export async function getSyncStatus(userId: string): Promise<SyncStatus> {
 }
 
 /**
- * Check if user has any synced email data
+ * Check if user has any synced email data with detailed state information
  */
 export async function checkUserHasData(userId: string): Promise<{
   hasEmails: boolean;
   hasInitialSync: boolean;
   emailCount: number;
+  userState: 'new_user' | 'oauth_error' | 'sync_failed' | 'sync_in_progress' | 'has_data';
+  syncStatus: string | null;
+  oauthError: {
+    type: string | null;
+    code: string | null;
+    requiresReauth: boolean;
+    userFriendlyMessage: string | null;
+  } | null;
 }> {
   // Check if user has any parsed emails
   const emailCountResult = await db.select({ count: count() })
@@ -97,18 +109,62 @@ export async function checkUserHasData(userId: string): Promise<{
   
   const emailCount = emailCountResult[0]?.count || 0;
   
-  // Check sync status
+  // Check sync status with OAuth error information
   const syncResult = await db.select({
-    hasInitialSync: emailSyncStatus.hasInitialSync
+    hasInitialSync: emailSyncStatus.hasInitialSync,
+    syncStatus: emailSyncStatus.syncStatus,
+    oauthErrorType: emailSyncStatus.oauthErrorType,
+    oauthErrorCode: emailSyncStatus.oauthErrorCode,
+    requiresReauth: emailSyncStatus.requiresReauth,
+    userFriendlyError: emailSyncStatus.userFriendlyError,
+    lastSyncAttemptAt: emailSyncStatus.lastSyncAttemptAt
   })
     .from(emailSyncStatus)
     .where(eq(emailSyncStatus.userId, userId))
     .limit(1);
   
+  const syncData = syncResult[0];
+  const hasInitialSync = syncData?.hasInitialSync || false;
+  const syncStatus = syncData?.syncStatus || null;
+  
+  // Determine user state based on data
+  let userState: 'new_user' | 'oauth_error' | 'sync_failed' | 'sync_in_progress' | 'has_data';
+  
+  if (!syncData || !syncData.lastSyncAttemptAt) {
+    // User has never attempted sync
+    userState = 'new_user';
+  } else if (syncData.oauthErrorType && syncData.requiresReauth) {
+    // User has OAuth errors requiring reauth
+    userState = 'oauth_error';
+  } else if (syncStatus === 'failed') {
+    // User has failed sync (non-OAuth error)
+    userState = 'sync_failed';
+  } else if (syncStatus && ['in_progress', 'syncing', 'counting_emails'].includes(syncStatus)) {
+    // User has sync in progress
+    userState = 'sync_in_progress';
+  } else if (hasInitialSync && emailCount > 0) {
+    // User has successfully synced data
+    userState = 'has_data';
+  } else {
+    // Fallback for edge cases - treat as new user
+    userState = 'new_user';
+  }
+  
+  // Prepare OAuth error information
+  const oauthError = syncData?.oauthErrorType ? {
+    type: syncData.oauthErrorType,
+    code: syncData.oauthErrorCode,
+    requiresReauth: syncData.requiresReauth || false,
+    userFriendlyMessage: syncData.userFriendlyError
+  } : null;
+  
   return {
     hasEmails: emailCount > 0,
-    hasInitialSync: syncResult[0]?.hasInitialSync || false,
-    emailCount
+    hasInitialSync,
+    emailCount,
+    userState,
+    syncStatus,
+    oauthError
   };
 }
 
@@ -183,6 +239,7 @@ export async function initializeSync(userId: string, totalEmails: number): Promi
         progressPercentage: '0.00',
         estimatedCompletion,
         syncStatus: 'syncing', // Changed to syncing since we're about to start processing
+        lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
         updatedAt: new Date()
       })
       .where(eq(emailSyncStatus.userId, userId));
@@ -190,7 +247,7 @@ export async function initializeSync(userId: string, totalEmails: number): Promi
     await db.insert(emailSyncStatus)
       .values({
         userId,
-        lastSyncedAt: new Date(),
+        lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
         totalEmails,
         processedEmails: 0,
         progressPercentage: '0.00',
@@ -290,22 +347,23 @@ export async function updateSyncStatus(userId: string, data: {
       .where(eq(emailSyncStatus.userId, userId))
       .returning();
   } else {
-    // Ensure lastSyncedAt is set for new records
-    if (!updateData.lastSyncedAt) {
-      updateData.lastSyncedAt = new Date();
+    // Only set lastSyncedAt if explicitly provided via syncTime
+    const insertData: any = {
+      userId,
+      nextPageToken: updateData.nextPageToken || null,
+      syncStatus: updateData.syncStatus || 'complete',
+      errorDetails: updateData.errorDetails || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    // Only set lastSyncedAt if syncTime was provided
+    if (data.syncTime) {
+      insertData.lastSyncedAt = data.syncTime;
     }
 
-    // Make sure all required fields are set
     return await db.insert(emailSyncStatus)
-      .values({
-        userId,
-        lastSyncedAt: updateData.lastSyncedAt,
-        nextPageToken: updateData.nextPageToken || null,
-        syncStatus: updateData.syncStatus || 'complete',
-        errorDetails: updateData.errorDetails || null,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      })
+      .values(insertData)
       .returning();
   }
 }
@@ -353,7 +411,7 @@ export async function markSyncInProgress(userId: string, nextPageToken?: string)
     await db.insert(emailSyncStatus)
       .values({
         userId,
-        lastSyncedAt: new Date(),
+        lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
         syncStatus: 'in_progress',
         nextPageToken: nextPageToken || null,
         hasInitialSync: false,
@@ -367,10 +425,33 @@ export async function markSyncInProgress(userId: string, nextPageToken?: string)
  * Marks a sync as failed
  */
 export async function markSyncFailed(userId: string, errorDetails?: string) {
-  return updateSyncStatus(userId, {
-    syncStatus: 'failed',
-    errorDetails: errorDetails || null
-  });
+  const existing = await db.select({ id: emailSyncStatus.id })
+    .from(emailSyncStatus)
+    .where(eq(emailSyncStatus.userId, userId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    return await db.update(emailSyncStatus)
+      .set({
+        syncStatus: 'failed',
+        errorDetails: errorDetails || null,
+        lastSyncAttemptAt: new Date(), // Track attempt time
+        updatedAt: new Date()
+      })
+      .where(eq(emailSyncStatus.userId, userId))
+      .returning();
+  } else {
+    return await db.insert(emailSyncStatus)
+      .values({
+        userId,
+        lastSyncAttemptAt: new Date(), // Track attempt time
+        syncStatus: 'failed',
+        errorDetails: errorDetails || null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+  }
 }
 
 /**
@@ -386,7 +467,7 @@ export async function markSyncCountingEmails(userId: string): Promise<void> {
     await db.update(emailSyncStatus)
       .set({ 
         syncStatus: 'counting_emails',
-        lastSyncedAt: new Date(),
+        lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
         updatedAt: new Date()
       })
       .where(eq(emailSyncStatus.userId, userId));
@@ -394,7 +475,7 @@ export async function markSyncCountingEmails(userId: string): Promise<void> {
     await db.insert(emailSyncStatus)
       .values({
         userId,
-        lastSyncedAt: new Date(),
+        lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
         syncStatus: 'counting_emails',
         hasInitialSync: false,
         createdAt: new Date(),
@@ -475,6 +556,7 @@ export async function markSyncFailedWithOAuthError(
     oauthErrorCode: oauthError.code,
     requiresReauth: oauthError.requiresReauth,
     userFriendlyError: oauthError.userFriendlyMessage,
+    lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
     updatedAt: new Date()
   };
 
@@ -486,7 +568,6 @@ export async function markSyncFailedWithOAuthError(
     await db.insert(emailSyncStatus)
       .values({
         userId,
-        lastSyncedAt: new Date(),
         ...updateData,
         createdAt: new Date()
       });
@@ -494,9 +575,37 @@ export async function markSyncFailedWithOAuthError(
 }
 
 /**
- * Clear OAuth errors when sync succeeds
+ * Clear OAuth errors when sync succeeds or user takes corrective action
+ * Only clears errors if the sync status indicates success
  */
 export async function clearOAuthErrors(userId: string): Promise<void> {
+  // First check if we should clear errors - only clear if sync is completing successfully
+  const currentStatus = await getSyncStatus(userId);
+  
+  // Don't clear OAuth errors if sync is still in progress or failed
+  // This prevents race conditions where errors get cleared prematurely
+  if (currentStatus.syncStatus && 
+      ['in_progress', 'syncing', 'counting_emails', 'failed'].includes(currentStatus.syncStatus)) {
+    console.log(`Not clearing OAuth errors for user ${userId} - sync status is ${currentStatus.syncStatus}`);
+    return;
+  }
+
+  await db.update(emailSyncStatus)
+    .set({
+      oauthErrorType: null,
+      oauthErrorCode: null,
+      requiresReauth: false,
+      userFriendlyError: null,
+      updatedAt: new Date()
+    })
+    .where(eq(emailSyncStatus.userId, userId));
+}
+
+/**
+ * Force clear OAuth errors when user takes corrective action (like re-authentication)
+ * This bypasses the status check and always clears errors
+ */
+export async function forceClearOAuthErrors(userId: string): Promise<void> {
   await db.update(emailSyncStatus)
     .set({
       oauthErrorType: null,

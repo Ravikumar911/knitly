@@ -17,7 +17,8 @@ import {
   getSyncProgress,
   initializeSync,
   markSyncFailedWithOAuthError,
-  clearOAuthErrors
+  clearOAuthErrors,
+  forceClearOAuthErrors
 } from "@workspace/database";
 
 configure({
@@ -291,9 +292,6 @@ export const processEmails = task({
       const providerToken = tokenResult.token!;
       const endDate = new Date();
       
-      // Clear any previous OAuth errors since token refresh succeeded
-      await clearOAuthErrors(payload.userId);
-      
       // Mark sync as starting
       await markSyncInProgress(payload.userId);
       
@@ -355,7 +353,39 @@ export const processEmails = task({
           nextPageToken = gmailData.nextPageToken;
           await wait.for({ seconds: RATE_LIMIT_DELAY });
           
-        } catch (error) {
+        } catch (error: any) {
+          // Check if this is an OAuth permission error
+          if (error?.isOAuthError) {
+            const oauthError = {
+              code: error.status?.toString() || 'UNKNOWN',
+              type: error.type || 'OAUTH_ERROR',
+              message: error.message,
+              requiresReauth: true,
+              userFriendlyMessage: error.type === 'INSUFFICIENT_PERMISSIONS' 
+                ? 'You haven\'t granted permission to access your Gmail. Please sign in again and allow email access.'
+                : 'Your Google account access is no longer valid. Please sign in again.'
+            };
+            
+            logger.error("Gmail API OAuth error during fetch", {
+              userId: payload.userId,
+              pageNumber: pageCount,
+              oauthErrorType: oauthError.type,
+              oauthErrorCode: oauthError.code,
+              requiresReauth: oauthError.requiresReauth
+            });
+            
+            await markSyncFailedWithOAuthError(payload.userId, oauthError);
+            return { 
+              success: false, 
+              message: oauthError.userFriendlyMessage,
+              error: oauthError.type,
+              errorType: "OAUTH_PERMISSION_ERROR",
+              requiresReauth: oauthError.requiresReauth,
+              userFriendlyMessage: oauthError.userFriendlyMessage
+            };
+          }
+          
+          // Handle other Gmail API errors
           const errorMessage = `Gmail API error at page ${pageCount}: ${error instanceof Error ? error.message : String(error)}`;
           logger.error("Gmail API error during fetch", {
             userId: payload.userId,

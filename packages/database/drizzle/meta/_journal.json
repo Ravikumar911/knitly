@@ -15,6 +15,13 @@
       "when": 1749971341925,
       "tag": "0001_yielding_the_santerians",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1749977440498,
+      "tag": "0002_busy_maverick",
+      "breakpoints": true
     }
   ]
 }

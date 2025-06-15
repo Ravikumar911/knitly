@@ -140,10 +140,33 @@ export const fetchGmailMessages = async (
     });
     
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error fetching Gmail messages:', { 
-      error: error instanceof Error ? error.message : String(error) 
+      error: error instanceof Error ? error.message : String(error),
+      status: error?.status || error?.code,
+      details: error?.response?.data || error?.details
     });
+    
+    // Check if this is an OAuth permission error that should be propagated
+    if (error?.status === 403 || error?.code === 403) {
+      // This is likely an insufficient permissions error
+      const oauthError = new Error(`Gmail API permission error: ${error.message || 'Insufficient permissions to access Gmail'}`);
+      (oauthError as any).isOAuthError = true;
+      (oauthError as any).status = 403;
+      (oauthError as any).type = 'INSUFFICIENT_PERMISSIONS';
+      throw oauthError;
+    }
+    
+    if (error?.status === 401 || error?.code === 401) {
+      // This is likely an authentication error
+      const oauthError = new Error(`Gmail API authentication error: ${error.message || 'Invalid or expired token'}`);
+      (oauthError as any).isOAuthError = true;
+      (oauthError as any).status = 401;
+      (oauthError as any).type = 'REVOKED_ACCESS';
+      throw oauthError;
+    }
+    
+    // For other errors, return null (existing behavior)
     return null;
   }
 };
@@ -162,11 +185,34 @@ export const fetchGmailMessage = async (providerToken: string, messageId: string
     });
 
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error fetching Gmail message details:', { 
       messageId,
-      error: error instanceof Error ? error.message : String(error) 
+      error: error instanceof Error ? error.message : String(error),
+      status: error?.status || error?.code,
+      details: error?.response?.data || error?.details
     });
+    
+    // Check if this is an OAuth permission error that should be propagated
+    if (error?.status === 403 || error?.code === 403) {
+      // This is likely an insufficient permissions error
+      const oauthError = new Error(`Gmail API permission error: ${error.message || 'Insufficient permissions to access Gmail'}`);
+      (oauthError as any).isOAuthError = true;
+      (oauthError as any).status = 403;
+      (oauthError as any).type = 'INSUFFICIENT_PERMISSIONS';
+      throw oauthError;
+    }
+    
+    if (error?.status === 401 || error?.code === 401) {
+      // This is likely an authentication error
+      const oauthError = new Error(`Gmail API authentication error: ${error.message || 'Invalid or expired token'}`);
+      (oauthError as any).isOAuthError = true;
+      (oauthError as any).status = 401;
+      (oauthError as any).type = 'REVOKED_ACCESS';
+      throw oauthError;
+    }
+    
+    // For other errors, return null (existing behavior)
     return null;
   }
 };

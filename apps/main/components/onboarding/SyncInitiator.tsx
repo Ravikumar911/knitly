@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { TRPCClientError } from '@trpc/client';
 import { useTRPC } from '@/trpc/client';
@@ -15,7 +15,6 @@ import { useRouter } from 'next/navigation';
 export function SyncInitiator() {
   const [error, setError] = useState<string | null>(null);
   const [syncTriggered, setSyncTriggered] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const trpc = useTRPC();
   const router = useRouter();
@@ -39,7 +38,7 @@ export function SyncInitiator() {
   // Enhanced polling for sync progress with OAuth error detection
   const { data: progressData } = useQuery({
     ...trpc.emails.getSyncProgress.queryOptions(),
-    refetchInterval: (query) => {
+    refetchInterval: useCallback((query: { state: { data: any } }) => {
       const data = query.state.data;
       const syncStatus = data?.syncStatus;
       
@@ -47,14 +46,14 @@ export function SyncInitiator() {
       const shouldPoll = syncTriggered || (syncStatus && activeSyncStates.includes(syncStatus));
       
       return shouldPoll ? 1000 : false;
-    },
+    }, [syncTriggered]), // Stable dependency array
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     staleTime: 0,
   });
 
   // Handle sign out for re-authentication
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     setIsSigningOut(true);
     try {
       const supabase = createClient();
@@ -64,7 +63,7 @@ export function SyncInitiator() {
       console.error('Error signing out:', error);
       setIsSigningOut(false);
     }
-  };
+  }, [router]);
 
   // Determine current sync state
   const syncStatus = progressData?.syncStatus;
@@ -84,20 +83,22 @@ export function SyncInitiator() {
   
   const isActiveSyncInProgress = isCountingEmails || isInProgress || isSyncing;
 
-  // Reset syncTriggered when sync is complete or failed
-  if (syncTriggered && (isComplete || isFailed)) {
-    setSyncTriggered(false);
-  }
+  // ✅ FIXED: Move side effect from render to useEffect
+  useEffect(() => {
+    if (syncTriggered && (isComplete || isFailed)) {
+      setSyncTriggered(false);
+    }
+  }, [syncTriggered, isComplete, isFailed]);
 
   // Helper functions for status display
-  const getStatusIcon = () => {
+  const getStatusIcon = useCallback(() => {
     if (hasOAuthError) return <Lock className="h-8 w-8 text-amber-600 dark:text-amber-500" />;
     if (isComplete) return <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-500" />;
     if (isFailed) return <AlertCircle className="h-8 w-8 text-destructive" />;
     return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
-  };
+  }, [hasOAuthError, isComplete, isFailed]);
 
-  const getStatusTitle = () => {
+  const getStatusTitle = useCallback(() => {
     if (hasOAuthError && isPermissionError) return 'Gmail Permission Required';
     if (hasOAuthError) return 'Authentication Issue';
     if (isComplete) return 'Sync Complete!';
@@ -108,9 +109,9 @@ export function SyncInitiator() {
     if (isInProgress) return 'Preparing to Process';
     if (isSyncing) return 'Processing Your Emails';
     return 'Welcome to Slash';
-  };
+  }, [hasOAuthError, isPermissionError, isComplete, isFailed, isInitiating, syncTriggered, isActiveSyncInProgress, isCountingEmails, isInProgress, isSyncing]);
 
-  const getStatusDescription = () => {
+  const getStatusDescription = useCallback(() => {
     if (hasOAuthError && isPermissionError) {
       return 'We need access to your Gmail to analyze your transactions. Please sign in again and grant the necessary permissions.';
     }
@@ -125,10 +126,10 @@ export function SyncInitiator() {
     if (isInProgress) return 'Getting everything ready to process your emails...';
     if (isSyncing) return 'Analyzing your emails for transaction data...';
     return 'Let\'s analyze your Gmail to discover your financial transactions and spending patterns.';
-  };
+  }, [hasOAuthError, isPermissionError, isComplete, isFailed, isInitiating, syncTriggered, isActiveSyncInProgress, isCountingEmails, isInProgress, isSyncing]);
 
   // Format time remaining
-  const formatTimeRemaining = (estimatedCompletion: Date) => {
+  const formatTimeRemaining = useCallback((estimatedCompletion: Date) => {
     const now = new Date();
     const remaining = estimatedCompletion.getTime() - now.getTime();
     const minutes = Math.ceil(remaining / (1000 * 60));
@@ -136,7 +137,7 @@ export function SyncInitiator() {
     if (minutes <= 0) return 'Almost done...';
     if (minutes === 1) return 'About 1 minute remaining';
     return `About ${minutes} minutes remaining`;
-  };
+  }, []);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-4">
@@ -166,14 +167,14 @@ export function SyncInitiator() {
                   
                   {isPermissionError && (
                     <div className="text-sm space-y-2">
-                      <p>To continue, you'll need to:</p>
+                      <p>To continue, you&apos;ll need to:</p>
                       <ul className="list-disc list-inside space-y-1 ml-2">
                         <li>Sign out and sign in again</li>
-                        <li>Make sure to click "Allow" when Google asks for Gmail permissions</li>
+                        <li>Make sure to click &quot;Allow&quot; when Google asks for Gmail permissions</li>
                         <li>Grant access to read your Gmail messages</li>
                       </ul>
                       <p className="text-muted-foreground italic">
-                        Don't worry - we only read transaction-related emails and never access personal messages.
+                        Don&apos;t worry - we only read transaction-related emails and never access personal messages.
                       </p>
                     </div>
                   )}
@@ -186,6 +187,7 @@ export function SyncInitiator() {
                   disabled={isSigningOut}
                   className="flex items-center gap-2"
                   size="lg"
+                  aria-label={isSigningOut ? 'Signing out...' : 'Sign out and try again'}
                 >
                   {isSigningOut ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -201,6 +203,7 @@ export function SyncInitiator() {
                     onClick={() => initiateSyncMutation.mutate()}
                     disabled={isInitiating}
                     className="flex items-center gap-2"
+                    aria-label="Retry sync"
                   >
                     <RefreshCw className="h-4 w-4" />
                     Retry Sync
@@ -323,7 +326,7 @@ export function SyncInitiator() {
                 </p>
               </div>
               <Button 
-                onClick={() => setShowDashboard(true)}
+                onClick={() => router.push('/dashboard')}
                 size="lg"
                 className="w-full"
               >
