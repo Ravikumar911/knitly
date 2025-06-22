@@ -27,6 +27,26 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "inputs": ["e2e/**/*", "playwright.config.ts"],
+      "outputs": ["test-results/**", "playwright-report/**"],
+      "cache": false
+    },
+    "test:e2e:ui": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "test:e2e:headed": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "test:e2e:debug": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
     }
   }
 }
