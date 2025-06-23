@@ -2,160 +2,138 @@
 
 ## ✅ What Was Implemented
 
-You're absolutely right about the industry standard! I've restructured the e2e testing to follow **Turborepo best practices** with a dedicated e2e app instead of embedding tests within individual applications.
+I've restructured the e2e testing to follow **industry best practices** with dedicated e2e apps for each application instead of a single centralized e2e app.
 
-## 📁 New Structure (Industry Standard)
+## 📁 New Structure (App-Specific E2E)
 
 ```
 knitly/
 ├── apps/
 │   ├── main/                    # Core Next.js app (port 3000)
 │   ├── website/                 # Marketing site (port 3001)  
-│   └── e2e/                     # 🎯 Dedicated E2E testing app
-│       ├── tests/
-│       │   ├── main/            # Tests for apps/main
-│       │   │   └── auth.spec.ts
-│       │   ├── website/         # Tests for apps/website
-│       │   │   └── pages.spec.ts
-│       │   └── utils/           # Shared utilities
-│       │       └── test-helpers.ts
-│       ├── playwright.config.ts # Multi-app configuration
-│       ├── package.json         # E2E-specific dependencies
-│       └── README.md           # Comprehensive documentation
-└── packages/
-    └── ...                      # Shared packages
+│   ├── e2e-main/                # 🎯 E2E testing for main app
+│   │   ├── tests/
+│   │   │   ├── auth.spec.ts     # Authentication flow tests
+│   │   │   └── utils/           # Shared test utilities
+│   │   │       └── test-helpers.ts
+│   │   ├── playwright.config.ts
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── README.md
+│   └── e2e-website/            # 🚀 Future: E2E for website
+│
+└── .github/workflows/
+    └── e2e-main.yml            # 🤖 GitHub Actions for PR testing
 ```
 
-## 🏆 Benefits of This Structure
+## � Benefits of App-Specific E2E
 
-### 1. **Separation of Concerns**
-- E2E tests are completely independent from application code
-- Each app focuses on its core functionality
-- Testing infrastructure is centralized and reusable
+1. **Better Separation**: Each app has its own e2e tests
+2. **Independent Testing**: Can test apps separately
+3. **Scalable**: Easy to add e2e for new apps
+4. **Focused Configuration**: Each e2e app has its own Playwright config
+5. **Independent CI/CD**: Separate workflows per app
 
-### 2. **Multi-App Testing**
-- Single e2e app can test multiple applications (`main`, `website`, future apps)
-- Shared utilities and patterns across all test suites
-- Consistent testing approaches across the monorepo
+## 🧪 What's Included (Main App E2E)
 
-### 3. **Independent Deployment**
-- E2E app can be deployed separately for CI/CD pipelines
-- Different scaling and resource requirements
-- Independent versioning and updates
+### Test Coverage
+- ✅ **Authentication Flow**: Login, register, redirects
+- ✅ **Page Navigation**: Inter-page routing
+- ✅ **Form Validation**: Login/register forms
+- ✅ **Responsive Testing**: Desktop, tablet, mobile viewports
 
-### 4. **Better CI/CD Integration**
-- Single command to run all e2e tests: `pnpm turbo test:e2e`
-- Can run in parallel with other build tasks
-- Clear separation of test artifacts and reports
+### Browser Support
+- ✅ **Desktop**: Chrome, Firefox, Safari
+- ✅ **Mobile**: Chrome Mobile, Safari Mobile
 
-## 🚀 How to Use
+### Test Utilities
+- ✅ **Page Load Helpers**: Wait for network idle
+- ✅ **Screenshot Capture**: Visual verification
+- ✅ **URL/Title Assertions**: Navigation verification
+- ✅ **Element Visibility**: Form/content checks
+- ✅ **Responsive Testing**: Multi-viewport testing
 
-### Running Tests
+## 🚀 GitHub Actions Integration
 
+### Workflow: `.github/workflows/e2e-main.yml`
+- **Triggers**: PRs to main/develop, manual dispatch
+- **Path Filtering**: Only runs when relevant files change
+- **Environment**: Ubuntu, Node 20, pnpm
+- **Process**:
+  1. Install dependencies
+  2. Install Playwright browsers
+  3. Build main app
+  4. Start app on port 3000
+  5. Run e2e tests
+  6. Upload test results and screenshots
+
+### CI Features
+- ✅ **Artifact Upload**: Test reports and screenshots
+- ✅ **Concurrency Control**: Cancel previous runs
+- ✅ **Timeout Protection**: 15-minute limit
+- ✅ **Failure Handling**: Screenshot capture on failure
+
+## 🏃‍♂️ Quick Start
+
+### Development Setup
 ```bash
-# From monorepo root - run all e2e tests
+# Install dependencies
+pnpm install
+
+# Install Playwright browsers
+pnpm --filter e2e-main run install-browsers
+
+# Start main app (separate terminal)
+pnpm --filter main dev
+
+# Run e2e tests
+pnpm --filter e2e-main test
+```
+
+### From Monorepo Root
+```bash
+# Run all e2e tests
 pnpm turbo test:e2e
 
-# From e2e app - various test modes
-cd apps/e2e
-pnpm test              # All tests
-pnpm test:ui           # Interactive UI mode
-pnpm test:main         # Only main app tests (@main tagged)
-pnpm test:website      # Only website tests (@website tagged)
+# Run specific app e2e
+pnpm --filter e2e-main test
 ```
 
-### Development Workflow
+## 🔧 Configuration Details
 
-1. **Write Tests**: Add new tests in `apps/e2e/tests/[app-name]/`
-2. **Use Tags**: Tag tests with `@main` or `@website` for selective running
-3. **Shared Utils**: Leverage utilities in `tests/utils/test-helpers.ts`
-4. **Multi-Browser**: Tests automatically run across Chrome, Firefox, Safari, Mobile
+### Main App E2E (`apps/e2e-main/`)
+- **Target**: `http://localhost:3000`
+- **Config**: Separate Playwright config
+- **CI Mode**: Uses built app with `pnpm start`
+- **Dev Mode**: Expects running dev server
+- **Retries**: 2 on CI, 0 locally
 
-### Auto-Starting Apps
+## � Next Steps
 
-The Playwright config automatically starts the required dev servers:
-- `apps/main` on port 3000
-- `apps/website` on port 3001
+1. **Add More Tests**: Dashboard, transactions, settings
+2. **Website E2E**: Create `apps/e2e-website/` when needed
+3. **Visual Testing**: Add screenshot comparisons
+4. **Performance Testing**: Add Lighthouse integration
+5. **API Testing**: Add backend API tests
 
-No manual setup required - just run tests!
+## 🎯 Key Files Created
 
-## 🔧 Configuration Highlights
+- `apps/e2e-main/package.json` - E2E app dependencies
+- `apps/e2e-main/playwright.config.ts` - Playwright configuration
+- `apps/e2e-main/tests/auth.spec.ts` - Authentication tests
+- `apps/e2e-main/tests/utils/test-helpers.ts` - Shared utilities
+- `.github/workflows/e2e-main.yml` - CI/CD workflow
+- Updated `turbo.json` with e2e tasks
+- Added `wait-on` dependency for CI
 
-### Multi-App Support
-```typescript
-// playwright.config.ts
-projects: [
-  {
-    name: 'main-app-chromium',
-    use: { baseURL: 'http://localhost:3000' },
-    testMatch: '**/main/**/*.spec.ts',
-  },
-  {
-    name: 'website-chromium', 
-    use: { baseURL: 'http://localhost:3001' },
-    testMatch: '**/website/**/*.spec.ts',
-  }
-]
-```
+## ✨ Industry Standards Followed
 
-### Auto Server Startup
-```typescript
-webServer: [
-  {
-    command: 'pnpm --filter main dev',
-    url: 'http://localhost:3000',
-  },
-  {
-    command: 'pnpm --filter website dev',
-    url: 'http://localhost:3001', 
-  }
-]
-```
+- ✅ **App-Specific E2E**: Each app has its own e2e testing
+- ✅ **Monorepo Structure**: Proper workspace organization
+- ✅ **CI/CD Integration**: Automated testing on PRs
+- ✅ **Artifact Management**: Test reports and screenshots
+- ✅ **Path-Based Triggers**: Only test when relevant files change
+- ✅ **Browser Matrix**: Multi-browser testing
+- ✅ **Mobile Testing**: Responsive viewport testing
 
-## 📋 Current Test Coverage
-
-### Main App (`@main` tagged tests)
-- ✅ Authentication flows (login, register, redirects)
-- ✅ Page loading and basic functionality
-- 🔄 Dashboard flows (ready to add)
-
-### Website (`@website` tagged tests)  
-- ✅ Marketing page loading (home, privacy, terms)
-- ✅ Responsive design testing
-- 🔄 SEO and performance testing (ready to add)
-
-## 🎯 Example Test
-
-```typescript
-// apps/e2e/tests/main/auth.spec.ts
-import { test, expect } from '@playwright/test';
-import { waitForPageLoad, takeScreenshot } from '../utils/test-helpers';
-
-test.describe('Main App - Authentication', () => {
-  test('should display login page @main', async ({ page }) => {
-    await page.goto('/login');
-    await waitForPageLoad(page);
-    
-    await expect(page.locator('h1')).toContainText('Welcome to Slash');
-    await takeScreenshot(page, 'main-login-page');
-  });
-});
-```
-
-## 🚀 Next Steps
-
-1. **Add More Tests**: Expand coverage for both apps
-2. **CI Integration**: Set up in GitHub Actions/CI pipeline  
-3. **Performance Testing**: Add Lighthouse/performance tests
-4. **Visual Testing**: Consider Percy or Chromatic integration
-5. **API Testing**: Add API endpoint testing alongside UI tests
-
-## 📚 Industry Examples
-
-This structure follows the same patterns used by:
-- **Vercel** (Next.js monorepo)
-- **Turborepo** official examples
-- **Nx** monorepo recommendations
-- **Large-scale monorepos** like Babel, Jest, React
-
-Thank you for pointing out the industry standard - this structure is much more scalable and maintainable! 🎉
+This setup provides a solid foundation for comprehensive e2e testing that scales with your monorepo growth!

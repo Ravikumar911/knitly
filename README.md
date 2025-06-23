@@ -118,19 +118,21 @@ Authentication is handled in `apps/main`:
 
 ### End-to-End Testing
 
-E2E testing is centralized in `apps/e2e`:
-- Tests multiple applications from a single location
+E2E testing is organized per application:
+- `apps/e2e-main`: Tests for the main application
+- `apps/e2e-website`: Tests for the marketing website (future)
 - Uses Playwright for cross-browser testing
-- Automatically starts dev servers during testing
-- Organized by application with tags (`@main`, `@website`)
+- Runs automatically on PRs via GitHub Actions
 
 ```bash
+# Run main app e2e tests
+pnpm --filter e2e-main test
+
 # Run all e2e tests
 pnpm turbo test:e2e
 
-# Run tests for specific apps
-pnpm --filter e2e test:main
-pnpm --filter e2e test:website
+# Install browsers (first time setup)
+pnpm --filter e2e-main run install-browsers
 ```
 
 ## 🏗️ Building for Production

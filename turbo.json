@@ -30,8 +30,8 @@
     },
     "test:e2e": {
       "dependsOn": [],
-      "inputs": ["apps/e2e/**/*"],
-      "outputs": ["apps/e2e/test-results/**", "apps/e2e/playwright-report/**"],
+      "inputs": ["apps/e2e-main/**/*"],
+      "outputs": ["apps/e2e-main/test-results/**", "apps/e2e-main/playwright-report/**"],
       "cache": false
     }
   }
