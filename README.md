@@ -9,7 +9,7 @@ A modern, type-safe, and scalable monorepo built with Next.js, Supabase, shadcn/
 ├── apps/
 │   ├── main/               # Core Next.js app with Supabase Auth SSR and tRPC
 │   ├── website/           # Marketing website (Next.js, static)
-│   └── e2e/               # End-to-end testing (Playwright)
+│   └── e2e-main/          # End-to-end testing for main app (Playwright)
 │
 └── packages/
     ├── database/          # Centralized database schema and queries
@@ -118,22 +118,31 @@ Authentication is handled in `apps/main`:
 
 ### End-to-End Testing
 
-E2E testing is organized per application:
-- `apps/e2e-main`: Tests for the main application
-- `apps/e2e-website`: Tests for the marketing website (future)
-- Uses Playwright for cross-browser testing
-- Runs automatically on PRs via GitHub Actions
+E2E testing is organized per application following industry best practices:
+
+- **`apps/e2e-main`**: Dedicated e2e tests for the main application
+- **Playwright**: Cross-browser testing (Chrome, Firefox, Safari, Mobile)
+- **GitHub Actions**: Automated testing on pull requests
+- **Multi-browser support**: Desktop and mobile viewports
 
 ```bash
-# Run main app e2e tests
+# First time setup
+pnpm --filter e2e-main run install-browsers
+
+# Run main app e2e tests (requires main app running on port 3000)
+pnpm --filter main dev  # In separate terminal
 pnpm --filter e2e-main test
 
-# Run all e2e tests
-pnpm turbo test:e2e
+# Interactive mode
+pnpm --filter e2e-main test:ui
 
-# Install browsers (first time setup)
-pnpm --filter e2e-main run install-browsers
+# Run all e2e tests via turbo
+pnpm turbo test:e2e
 ```
+
+**Test Coverage**: Login/register pages, navigation, dashboard access, responsive design
+
+**CI/CD**: Tests run automatically on PRs to `main`/`develop` branches with artifact upload for failures.
 
 ## 🏗️ Building for Production
 
