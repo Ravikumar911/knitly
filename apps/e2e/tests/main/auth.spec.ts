@@ -4,10 +4,10 @@ import {
   takeScreenshot, 
   expectPageTitle, 
   expectElementVisible 
-} from './utils/test-helpers';
+} from '../utils/test-helpers';
 
-test.describe('Authentication Flow', () => {
-  test('should display login page correctly', async ({ page }) => {
+test.describe('Main App - Authentication Flow', () => {
+  test('should display login page correctly @main', async ({ page }) => {
     // Navigate to login page
     await page.goto('/login');
     await waitForPageLoad(page);
@@ -23,10 +23,10 @@ test.describe('Authentication Flow', () => {
     await expectElementVisible(page, 'form');
     
     // Take a screenshot for visual verification
-    await takeScreenshot(page, 'login-page');
+    await takeScreenshot(page, 'main-login-page');
   });
 
-  test('should redirect to dashboard from home page', async ({ page }) => {
+  test('should redirect to dashboard from home page @main', async ({ page }) => {
     // Navigate to home page
     await page.goto('/');
     
@@ -38,10 +38,10 @@ test.describe('Authentication Flow', () => {
     expect(currentUrl).not.toContain('localhost:3000/');
     expect(currentUrl).toMatch(/\/(login|dashboard)/);
     
-    await takeScreenshot(page, 'home-redirect');
+    await takeScreenshot(page, 'main-home-redirect');
   });
 
-  test('should show register page', async ({ page }) => {
+  test('should show register page @main', async ({ page }) => {
     // Navigate to register page
     await page.goto('/register');
     await waitForPageLoad(page);
@@ -52,6 +52,6 @@ test.describe('Authentication Flow', () => {
     // Check that register form is present
     await expectElementVisible(page, 'form');
     
-    await takeScreenshot(page, 'register-page');
+    await takeScreenshot(page, 'main-register-page');
   });
 });

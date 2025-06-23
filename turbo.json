@@ -29,24 +29,10 @@
       "persistent": true
     },
     "test:e2e": {
-      "dependsOn": ["^build"],
-      "inputs": ["e2e/**/*", "playwright.config.ts"],
-      "outputs": ["test-results/**", "playwright-report/**"],
+      "dependsOn": [],
+      "inputs": ["apps/e2e/**/*"],
+      "outputs": ["apps/e2e/test-results/**", "apps/e2e/playwright-report/**"],
       "cache": false
-    },
-    "test:e2e:ui": {
-      "dependsOn": ["^build"],
-      "cache": false,
-      "persistent": true
-    },
-    "test:e2e:headed": {
-      "dependsOn": ["^build"],
-      "cache": false
-    },
-    "test:e2e:debug": {
-      "dependsOn": ["^build"],
-      "cache": false,
-      "persistent": true
     }
   }
 }

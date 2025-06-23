@@ -9,11 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "typecheck": "tsc --noEmit",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed",
-    "test:e2e:debug": "playwright test --debug"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@tanstack/react-table": "^8.21.2",
@@ -24,8 +20,6 @@
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:^",
-    "@workspace/typescript-config": "workspace:*",
-    "@playwright/test": "^1.48.0",
-    "@types/node": "^20"
+    "@workspace/typescript-config": "workspace:*"
   }
 }

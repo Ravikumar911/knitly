@@ -12,7 +12,7 @@ export async function waitForPageLoad(page: Page) {
  */
 export async function takeScreenshot(page: Page, name: string) {
   await page.screenshot({ 
-    path: `e2e/screenshots/${name}.png`,
+    path: `test-results/screenshots/${name}.png`,
     fullPage: true 
   });
 }
@@ -66,4 +66,21 @@ export async function clickAndWaitForNavigation(page: Page, selector: string) {
     page.waitForNavigation(),
     page.click(selector)
   ]);
+}
+
+/**
+ * Test responsive design by checking different viewport sizes
+ */
+export async function testResponsive(page: Page, callback: (page: Page) => Promise<void>) {
+  const viewports = [
+    { width: 375, height: 667, name: 'mobile' },   // iPhone SE
+    { width: 768, height: 1024, name: 'tablet' },  // iPad
+    { width: 1920, height: 1080, name: 'desktop' } // Desktop
+  ];
+
+  for (const viewport of viewports) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await callback(page);
+    await takeScreenshot(page, `responsive-${viewport.name}`);
+  }
 }

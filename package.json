@@ -9,8 +9,7 @@
     "lint:fix": "turbo lint:fix",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "typecheck": "turbo typecheck",
-    "test:e2e": "turbo test:e2e",
-    "test:e2e:ui": "turbo test:e2e:ui"
+    "test:e2e": "turbo test:e2e"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.6",

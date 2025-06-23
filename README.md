@@ -8,7 +8,8 @@ A modern, type-safe, and scalable monorepo built with Next.js, Supabase, shadcn/
 .
 ├── apps/
 │   ├── main/               # Core Next.js app with Supabase Auth SSR and tRPC
-│   └── website/           # Marketing website (Next.js, static)
+│   ├── website/           # Marketing website (Next.js, static)
+│   └── e2e/               # End-to-end testing (Playwright)
 │
 └── packages/
     ├── database/          # Centralized database schema and queries
@@ -115,6 +116,23 @@ Authentication is handled in `apps/main`:
 - Middleware in `apps/main/middleware.ts`
 - Uses `@supabase/ssr` for cookie management
 
+### End-to-End Testing
+
+E2E testing is centralized in `apps/e2e`:
+- Tests multiple applications from a single location
+- Uses Playwright for cross-browser testing
+- Automatically starts dev servers during testing
+- Organized by application with tags (`@main`, `@website`)
+
+```bash
+# Run all e2e tests
+pnpm turbo test:e2e
+
+# Run tests for specific apps
+pnpm --filter e2e test:main
+pnpm --filter e2e test:website
+```
+
 ## 🏗️ Building for Production
 
 ```bash
@@ -135,6 +153,7 @@ pnpm --filter website build
 - **UI**: shadcn/ui + Tailwind CSS
 - **Authentication**: Supabase Auth
 - **Background Jobs**: TriggerDev
+- **Testing**: Playwright (E2E)
 - **Package Manager**: pnpm
 - **Build Tool**: Turborepo
 
