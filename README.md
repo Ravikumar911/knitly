@@ -8,7 +8,8 @@ A modern, type-safe, and scalable monorepo built with Next.js, Supabase, shadcn/
 .
 ├── apps/
 │   ├── main/               # Core Next.js app with Supabase Auth SSR and tRPC
-│   └── website/           # Marketing website (Next.js, static)
+│   ├── website/           # Marketing website (Next.js, static)
+│   └── e2e-main/          # End-to-end testing for main app (Playwright)
 │
 └── packages/
     ├── database/          # Centralized database schema and queries
@@ -115,6 +116,34 @@ Authentication is handled in `apps/main`:
 - Middleware in `apps/main/middleware.ts`
 - Uses `@supabase/ssr` for cookie management
 
+### End-to-End Testing
+
+E2E testing is organized per application following industry best practices:
+
+- **`apps/e2e-main`**: Dedicated e2e tests for the main application
+- **Playwright**: Cross-browser testing (Chrome, Firefox, Safari, Mobile)
+- **GitHub Actions**: Automated testing on pull requests
+- **Multi-browser support**: Desktop and mobile viewports
+
+```bash
+# First time setup
+pnpm --filter e2e-main run install-browsers
+
+# Run main app e2e tests (requires main app running on port 3000)
+pnpm --filter main dev  # In separate terminal
+pnpm --filter e2e-main test
+
+# Interactive mode
+pnpm --filter e2e-main test:ui
+
+# Run all e2e tests via turbo
+pnpm turbo test:e2e
+```
+
+**Test Coverage**: Login/register pages, navigation, dashboard access, responsive design
+
+**CI/CD**: Tests run automatically on PRs to `main`/`develop` branches with artifact upload for failures.
+
 ## 🏗️ Building for Production
 
 ```bash
@@ -135,6 +164,7 @@ pnpm --filter website build
 - **UI**: shadcn/ui + Tailwind CSS
 - **Authentication**: Supabase Auth
 - **Background Jobs**: TriggerDev
+- **Testing**: Playwright (E2E)
 - **Package Manager**: pnpm
 - **Build Tool**: Turborepo
 

@@ -27,6 +27,12 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "test:e2e": {
+      "dependsOn": [],
+      "inputs": ["apps/e2e-main/**/*"],
+      "outputs": ["apps/e2e-main/test-results/**", "apps/e2e-main/playwright-report/**"],
+      "cache": false
     }
   }
 }
