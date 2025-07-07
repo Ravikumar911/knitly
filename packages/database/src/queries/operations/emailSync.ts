@@ -264,31 +264,45 @@ export async function initializeSync(userId: string, totalEmails: number): Promi
  * Update sync progress during email processing
  */
 export async function updateSyncProgress(userId: string, processedEmails: number): Promise<void> {
-  const current = await getSyncProgress(userId);
-  let previousProcessedEmails = current.processedEmails;
-  processedEmails = previousProcessedEmails + processedEmails;
-  if (!current.totalEmails) {
-    throw new Error('Cannot update progress without total email count');
-  }
+  if (processedEmails <= 0) return;
 
-  const progressPercentage = (processedEmails / current.totalEmails) * 100;
-  const remainingEmails = current.totalEmails - processedEmails;
-  // ~35 emails per minute based on observed performance (20 emails taking 3 minutes)
-  const estimatedMinutesRemaining = Math.ceil(remainingEmails / 35);
-  
-  const estimatedCompletion = new Date();
-  estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + estimatedMinutesRemaining);
+  await db.transaction(async (tx) => {
+    // Atomically increment processedEmails and fetch current progress
+    const [status] = await tx
+      .update(emailSyncStatus)
+      .set({
+        processedEmails: sql`${emailSyncStatus.processedEmails} + ${processedEmails}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(emailSyncStatus.userId, userId))
+      .returning({
+        processedEmails: emailSyncStatus.processedEmails,
+        totalEmails: emailSyncStatus.totalEmails,
+        hasInitialSync: emailSyncStatus.hasInitialSync,
+      });
 
-  await db.update(emailSyncStatus)
-    .set({
-      processedEmails,
-      progressPercentage: progressPercentage.toFixed(2),
-      estimatedCompletion,
-      syncStatus: processedEmails >= current.totalEmails ? 'complete' : 'syncing',
-      hasInitialSync: processedEmails >= current.totalEmails ? true : current.hasInitialSync,
-      updatedAt: new Date()
-    })
-    .where(eq(emailSyncStatus.userId, userId));
+    if (!status || !status.totalEmails) {
+      throw new Error('Cannot update progress without total email count');
+    }
+
+    const progressPercentage = (status.processedEmails / status.totalEmails) * 100;
+    const remainingEmails = status.totalEmails - status.processedEmails;
+    // ~35 emails per minute based on observed performance (20 emails taking 3 minutes)
+    const estimatedMinutesRemaining = Math.ceil(remainingEmails / 35);
+
+    const estimatedCompletion = new Date();
+    estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + estimatedMinutesRemaining);
+
+    await tx.update(emailSyncStatus)
+      .set({
+        progressPercentage: progressPercentage.toFixed(2),
+        estimatedCompletion,
+        syncStatus: status.processedEmails >= status.totalEmails ? 'complete' : 'syncing',
+        hasInitialSync: status.processedEmails >= status.totalEmails ? true : status.hasInitialSync,
+        updatedAt: new Date(),
+      })
+      .where(eq(emailSyncStatus.userId, userId));
+  });
 }
 
 /**
