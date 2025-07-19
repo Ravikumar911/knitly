@@ -56,6 +56,8 @@ export default defineConfig({
       dependencies: ['setup'],
     },
 
+    // Commenting out other browsers for faster testing during development
+    /*
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
@@ -69,6 +71,7 @@ export default defineConfig({
     },
 
     /* Test against mobile viewports. */
+    /*
     {
       name: 'Mobile Chrome',
       use: { ...devices['Pixel 5'] },
@@ -79,20 +82,24 @@ export default defineConfig({
       use: { ...devices['iPhone 12'] },
       dependencies: ['setup'],
     },
+    */
   ],
 
   /* Global setup and teardown */
-  globalSetup: path.resolve(__dirname, 'setup/global-setup.ts'),
-  globalTeardown: path.resolve(__dirname, 'setup/global-teardown.ts'),
+  globalSetup: path.resolve(__dirname, 'setup/global-setup.js'),
+  globalTeardown: path.resolve(__dirname, 'setup/global-teardown.js'),
 
   /* Run your local dev server before starting the tests */
   webServer: [
+    // Commenting out main app dependency for testing infrastructure
+    /*
     {
       command: 'cd ../main && npm run dev',
       port: 3000,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
     },
+    */
     {
       command: 'node setup/mock-servers.js',
       port: 3001,

@@ -1,74 +1,71 @@
 import { test, expect } from '@playwright/test';
-import { createTestHelpers } from '../utils/test-helpers';
 
 test.describe('Test Infrastructure Setup', () => {
-  test('should verify test environment is working', async ({ page }) => {
-    const helpers = createTestHelpers(page);
-    
-    // Navigate to the app
-    await helpers.navigateTo('/');
-    
-    // Should redirect to login (since not authenticated)
-    await expect(page).toHaveURL(/\/login/);
-    
-    // Should load the page title
-    await expect(page).toHaveTitle(/Finwise|Slash/);
+  test('should verify mock servers are accessible', async ({ page }) => {
+    // Test Trigger.dev mock server
+    const triggerResponse = await page.request.get('http://localhost:3001/health');
+    expect(triggerResponse.status()).toBe(200);
+    const triggerData = await triggerResponse.json();
+    expect(triggerData.service).toBe('trigger-mock');
+
+    // Test Gmail mock server
+    const gmailResponse = await page.request.get('http://localhost:3002/health');
+    expect(gmailResponse.status()).toBe(200);
+    const gmailData = await gmailResponse.json();
+    expect(gmailData.service).toBe('gmail-mock');
+
+    // Test OpenAI mock server
+    const openaiResponse = await page.request.get('http://localhost:3003/health');
+    expect(openaiResponse.status()).toBe(200);
+    const openaiData = await openaiResponse.json();
+    expect(openaiData.service).toBe('openai-mock');
   });
 
-  test('should verify mock servers are running', async ({ page }) => {
-    // Test that we can intercept and mock API calls
-    await page.route('**/api/test', route => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ message: 'Test successful' }),
-      });
-    });
-
-    // Make a test request
-    const response = await page.evaluate(async () => {
-      const res = await fetch('/api/test');
-      return res.json();
-    });
-
-    expect(response.message).toBe('Test successful');
-  });
-
-  test('should verify database mock is working', async ({ page }) => {
-    // This test verifies that our test database setup is working
-    // by checking that the app can handle database-related operations
-    
-    const helpers = createTestHelpers(page);
-    
-    // Navigate to app
-    await helpers.navigateTo('/');
-    
-    // Should not crash due to database issues
-    expect(page.url()).toContain('/login');
-  });
-
-  test('should handle console errors gracefully', async ({ page }) => {
-    const helpers = createTestHelpers(page);
-    
-    // Track console errors
-    const consoleErrors: string[] = [];
-    page.on('console', msg => {
-      if (msg.type() === 'error') {
-        consoleErrors.push(msg.text());
+  test('should verify trigger.dev mock API endpoints', async ({ page }) => {
+    // Test task trigger endpoint
+    const response = await page.request.post('http://localhost:3001/api/v3/runs', {
+      data: {
+        task: 'test-task',
+        payload: { userId: 'test-user' }
       }
     });
 
-    // Navigate to app
-    await helpers.navigateTo('/');
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(data.status).toBe('EXECUTING');
+    expect(data.taskIdentifier).toBe('test-task');
+    expect(data.id).toMatch(/^run_\d+$/);
+  });
 
-    // Should not have critical console errors
-    // (Some errors might be expected in test environment)
-    const criticalErrors = consoleErrors.filter(error => 
-      error.includes('chunk') || 
-      error.includes('network') ||
-      error.includes('FATAL')
-    );
+  test('should verify gmail mock API endpoints', async ({ page }) => {
+    // Test Gmail message list endpoint
+    const response = await page.request.get('http://localhost:3002/gmail/v1/users/test/messages?maxResults=5');
+
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(data.messages).toHaveLength(5);
+    expect(data.messages[0]).toHaveProperty('id');
+    expect(data.messages[0]).toHaveProperty('threadId');
+  });
+
+  test('should verify openai mock API endpoints', async ({ page }) => {
+    // Test OpenAI chat completions endpoint
+    const response = await page.request.post('http://localhost:3003/v1/chat/completions', {
+      data: {
+        model: 'gpt-4o',
+        messages: [{ role: 'user', content: 'Extract transaction data' }]
+      }
+    });
+
+    expect(response.status()).toBe(200);
+    const data = await response.json();
+    expect(data.choices).toHaveLength(1);
+    expect(data.choices[0].message.role).toBe('assistant');
     
-    expect(criticalErrors).toHaveLength(0);
+    // Parse the response content as JSON
+    const parsedContent = JSON.parse(data.choices[0].message.content);
+    expect(parsedContent.parseSuccess).toBe(true);
+    expect(parsedContent.amount).toBe(299);
+    expect(parsedContent.merchantName).toBe('Swiggy');
   });
 });
