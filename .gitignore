@@ -15,6 +15,12 @@ node_modules
 # Testing
 coverage
 
+# E2E Test Results
+test-results/
+playwright-report/
+*.webm
+test-failed-*.png
+
 # Turbo
 .turbo
 
