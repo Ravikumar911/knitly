@@ -228,6 +228,6 @@ function startOpenAIMockServer(): Promise<void> {
 }
 
 // Export for CLI usage
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   startMockServers().catch(console.error);
 }

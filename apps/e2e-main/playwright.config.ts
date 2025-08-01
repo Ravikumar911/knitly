@@ -86,8 +86,8 @@ export default defineConfig({
   ],
 
   /* Global setup and teardown */
-  globalSetup: path.resolve(__dirname, 'setup/global-setup.js'),
-  globalTeardown: path.resolve(__dirname, 'setup/global-teardown.js'),
+  globalSetup: path.resolve(__dirname, 'setup/global-setup.ts'),
+  globalTeardown: path.resolve(__dirname, 'setup/global-teardown.ts'),
 
   /* Run your local dev server before starting the tests */
   webServer: [
