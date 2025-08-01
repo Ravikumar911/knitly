@@ -1,0 +1,628 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Vercel AI SDK Development Guidelines
+
+## Overview
+- **Use ONLY Vercel AI SDK** for all AI/agent-related code following [AI SDK documentation](mdc:https:/ai-sdk.dev/docs/introduction)
+- **Standardized API** across all model providers (OpenAI, Anthropic, Google, xAI, etc.)
+- **Type-safe** implementations with proper TypeScript support
+- **Framework-agnostic** hooks for React, Next.js, Vue, Svelte
+- **Streaming-first** approach for better user experience
+
+## Core Libraries
+
+### AI SDK Core
+- **Purpose**: Unified API for generating text, structured objects, tool calls, and building agents
+- **Use for**: Server-side AI operations, API routes, background tasks
+
+### AI SDK UI  
+- **Purpose**: Framework-agnostic hooks for chat and generative user interfaces
+- **Use for**: Client-side AI interactions, real-time streaming UIs
+
+## 🚨 CRITICAL IMPLEMENTATION RULES 🚨
+
+### ✅ ALWAYS Use These Patterns
+
+```typescript
+// ✅ Text Generation (Server-side)
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+const { text } = await generateText({
+  model: openai('gpt-4o'),
+  prompt: 'What is love?',
+});
+
+// ✅ Streaming Text (Server-side)
+import { streamText } from 'ai';
+import { anthropic } from '@ai-sdk/anthropic';
+
+const { textStream } = await streamText({
+  model: anthropic('claude-3-5-sonnet-20241022'),
+  prompt: 'Write a story about...',
+});
+
+// ✅ Structured Object Generation
+import { generateObject } from 'ai';
+import { z } from 'zod';
+
+const { object } = await generateObject({
+  model: openai('gpt-4o'),
+  schema: z.object({
+    name: z.string(),
+    age: z.number(),
+  }),
+  prompt: 'Generate a person',
+});
+
+// ✅ Tool Calling
+import { generateText, tool } from 'ai';
+
+const { text } = await generateText({
+  model: openai('gpt-4o'),
+  prompt: 'What is the weather in San Francisco?',
+  tools: {
+    getWeather: tool({
+      description: 'Get weather for a location',
+      parameters: z.object({
+        location: z.string(),
+      }),
+      execute: async ({ location }) => {
+        // Implementation
+        return { temperature: 72, condition: 'sunny' };
+      },
+    }),
+  },
+});
+```
+
+### ❌ NEVER Use These Anti-Patterns
+
+```typescript
+// ❌ Direct model provider SDKs
+import OpenAI from 'openai'; // Don't use directly
+import Anthropic from '@anthropic-ai/sdk'; // Don't use directly
+
+// ❌ Manual streaming implementation
+const response = await fetch('/api/openai', {
+  method: 'POST',
+  body: JSON.stringify({ prompt }),
+}); // Use AI SDK streaming instead
+
+// ❌ Custom chat implementations
+const [messages, setMessages] = useState([]); // Use useChat hook instead
+```
+
+## Model Provider Configuration
+
+### Supported Providers
+```typescript
+// OpenAI
+import { openai } from '@ai-sdk/openai';
+const model = openai('gpt-4o');
+
+// Anthropic
+import { anthropic } from '@ai-sdk/anthropic';
+const model = anthropic('claude-3-5-sonnet-20241022');
+
+// Google
+import { google } from '@ai-sdk/google';
+const model = google('gemini-1.5-pro');
+
+// xAI
+import { xai } from '@ai-sdk/xai';
+const model = xai('grok-3-beta');
+
+// Custom/Local models
+import { createOpenAI } from '@ai-sdk/openai';
+const customProvider = createOpenAI({
+  baseURL: 'http://localhost:11434/v1',
+  apiKey: 'ollama',
+});
+```
+
+### Environment Variables
+```bash
+# Required API keys (choose based on provider)
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_GENERATIVE_AI_API_KEY=...
+XAI_API_KEY=...
+```
+
+## Next.js Integration Patterns
+
+### API Routes (App Router)
+```typescript
+// app/api/chat/route.ts
+import { streamText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = await streamText({
+    model: openai('gpt-4o'),
+    messages,
+  });
+
+  return result.toDataStreamResponse();
+}
+```
+
+### Server Components with Prefetching
+```typescript
+// app/chat/page.tsx
+import { prefetch, HydrateClient } from '@/lib/ai';
+import { ChatInterface } from './chat-interface';
+
+export default function ChatPage() {
+  // Prefetch initial data if needed
+  prefetch(/* initial data */);
+  
+  return (
+    <HydrateClient>
+      <div className="flex flex-col gap-4 p-4">
+        <h1 className="text-3xl font-bold">AI Chat</h1>
+        <ChatInterface />
+      </div>
+    </HydrateClient>
+  );
+}
+```
+
+### Client Components with Hooks
+```typescript
+// components/chat-interface.tsx
+'use client';
+import { useChat } from 'ai/react';
+
+export function ChatInterface() {
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    api: '/api/chat',
+  });
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex-1 space-y-4">
+        {messages.map((message) => (
+          <div key={message.id} className={`p-4 rounded ${
+            message.role === 'user' ? 'bg-blue-100' : 'bg-gray-100'
+          }`}>
+            <strong>{message.role}:</strong> {message.content}
+          </div>
+        ))}
+      </div>
+      
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          value={input}
+          onChange={handleInputChange}
+          placeholder="Type your message..."
+          className="flex-1 p-2 border rounded"
+          disabled={isLoading}
+        />
+        <button 
+          type="submit" 
+          disabled={isLoading}
+          className="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
+        >
+          {isLoading ? 'Sending...' : 'Send'}
+        </button>
+      </form>
+    </div>
+  );
+}
+```
+
+## Advanced Patterns
+
+### Structured Object Streaming
+```typescript
+'use client';
+import { useObject } from 'ai/react';
+import { z } from 'zod';
+
+const schema = z.object({
+  recipe: z.object({
+    name: z.string(),
+    ingredients: z.array(z.string()),
+    steps: z.array(z.string()),
+  }),
+});
+
+export function RecipeGenerator() {
+  const { object, submit, isLoading } = useObject({
+    api: '/api/generate-recipe',
+    schema,
+  });
+
+  return (
+    <div>
+      <button onClick={() => submit('Generate a pasta recipe')}>
+        Generate Recipe
+      </button>
+      
+      {object && (
+        <div>
+          <h2>{object.recipe?.name}</h2>
+          <ul>
+            {object.recipe?.ingredients?.map((ingredient, i) => (
+              <li key={i}>{ingredient}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+### Multi-Modal Chat
+```typescript
+'use client';
+import { useChat } from 'ai/react';
+import { useState } from 'react';
+
+export function MultiModalChat() {
+  const [files, setFiles] = useState<FileList | undefined>(undefined);
+  const { messages, input, handleInputChange, handleSubmit } = useChat({
+    api: '/api/chat',
+  });
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="file"
+        onChange={(e) => setFiles(e.target.files ?? undefined)}
+        multiple
+        accept="image/*"
+      />
+      <input
+        value={input}
+        onChange={handleInputChange}
+        placeholder="Describe the images..."
+      />
+      <button type="submit">Send</button>
+    </form>
+  );
+}
+```
+
+### Agent with Tools
+```typescript
+// app/api/agent/route.ts
+import { streamText, tool } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { z } from 'zod';
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = await streamText({
+    model: openai('gpt-4o'),
+    messages,
+    tools: {
+      getWeather: tool({
+        description: 'Get current weather for a location',
+        parameters: z.object({
+          location: z.string().describe('The city and state'),
+        }),
+        execute: async ({ location }) => {
+          // Call weather API
+          return { temperature: 72, condition: 'sunny' };
+        },
+      }),
+      
+      searchWeb: tool({
+        description: 'Search the web for information',
+        parameters: z.object({
+          query: z.string().describe('Search query'),
+        }),
+        execute: async ({ query }) => {
+          // Call search_files API
+          return { results: ['Result 1', 'Result 2'] };
+        },
+      }),
+    },
+    maxToolRoundtrips: 5,
+  });
+
+  return result.toDataStreamResponse();
+}
+```
+
+## Error Handling
+
+### Client-Side Error Handling
+```typescript
+'use client';
+import { useChat } from 'ai/react';
+
+export function ChatWithErrorHandling() {
+  const { messages, input, handleInputChange, handleSubmit, error, isLoading } = useChat({
+    api: '/api/chat',
+    onError: (error) => {
+      console.error('Chat error:', error);
+      // Handle error (show toast, etc.)
+    },
+  });
+
+  if (error) {
+    return (
+      <div className="p-4 bg-red-100 border border-red-400 rounded">
+        <p className="text-red-700">Error: {error.message}</p>
+        <button onClick={() => window.location.reload()}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  // Rest of component...
+}
+```
+
+### Server-Side Error Handling
+```typescript
+// app/api/chat/route.ts
+import { streamText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+export async function POST(req: Request) {
+  try {
+    const { messages } = await req.json();
+
+    const result = await streamText({
+      model: openai('gpt-4o'),
+      messages,
+    });
+
+    return result.toDataStreamResponse();
+  } catch (error) {
+    console.error('API error:', error);
+    
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+}
+```
+
+## Performance Best Practices
+
+### Streaming for Better UX
+```typescript
+// ✅ Always use streaming for long responses
+const result = await streamText({
+  model: openai('gpt-4o'),
+  prompt: 'Write a long story...',
+});
+
+// ✅ Stream to client immediately
+return result.toDataStreamResponse();
+```
+
+### Efficient Model Selection
+```typescript
+// ✅ Use appropriate model for task
+const fastModel = openai('gpt-4o-mini'); // For simple tasks
+const powerfulModel = openai('gpt-4o'); // For complex reasoning
+const visionModel = openai('gpt-4o'); // For image analysis
+
+// ✅ Configure model parameters
+const result = await generateText({
+  model: openai('gpt-4o'),
+  temperature: 0.1, // Lower for factual content
+  maxTokens: 1000, // Limit response length
+  prompt: 'Explain quantum physics',
+});
+```
+
+### Caching and Optimization
+```typescript
+// ✅ Cache expensive operations
+import { unstable_cache } from 'next/cache';
+
+const getCachedResponse = unstable_cache(
+  async (prompt: string) => {
+    return await generateText({
+      model: openai('gpt-4o'),
+      prompt,
+    });
+  },
+  ['ai-response'],
+  { revalidate: 3600 } // Cache for 1 hour
+);
+```
+
+## Testing Patterns
+
+### Unit Testing AI Functions
+```typescript
+// __tests__/ai-functions.test.ts
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+// Mock the AI SDK
+jest.mock('ai', () => ({
+  generateText: jest.fn(),
+}));
+
+describe('AI Functions', () => {
+  it('should generate appropriate response', async () => {
+    const mockGenerateText = generateText as jest.MockedFunction<typeof generateText>;
+    mockGenerateText.mockResolvedValue({
+      text: 'Mocked response',
+      usage: { totalTokens: 100 },
+    });
+
+    const result = await myAIFunction('test prompt');
+    
+    expect(result).toBe('Mocked response');
+    expect(mockGenerateText).toHaveBeenCalledWith({
+      model: openai('gpt-4o'),
+      prompt: 'test prompt',
+    });
+  });
+});
+```
+
+## Security Best Practices
+
+### Input Validation
+```typescript
+import { z } from 'zod';
+
+const ChatRequestSchema = z.object({
+  messages: z.array(z.object({
+    role: z.enum(['user', 'assistant', 'system']),
+    content: z.string().max(10000), // Limit message length
+  })).max(50), // Limit conversation length
+});
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { messages } = ChatRequestSchema.parse(body);
+    
+    // Process validated messages...
+  } catch (error) {
+    return new Response('Invalid request', { status: 400 });
+  }
+}
+```
+
+### Rate Limiting
+```typescript
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+
+const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(10, '1 m'), // 10 requests per minute
+});
+
+export async function POST(req: Request) {
+  const ip = req.headers.get('x-forwarded-for') ?? 'anonymous';
+  const { success } = await ratelimit.limit(ip);
+  
+  if (!success) {
+    return new Response('Rate limit exceeded', { status: 429 });
+  }
+  
+  // Process request...
+}
+```
+
+## File Organization
+
+### Recommended Structure
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── chat/route.ts          # Chat API endpoint
+│   │   ├── generate/route.ts      # Text generation
+│   │   └── analyze/route.ts       # Analysis endpoint
+│   └── (pages)/
+│       ├── chat/page.tsx          # Chat interface
+│       └── generate/page.tsx      # Generation interface
+├── lib/
+│   ├── ai/
+│   │   ├── models.ts              # Model configurations
+│   │   ├── prompts.ts             # Prompt templates
+│   │   ├── tools.ts               # Tool definitions
+│   │   └── utils.ts               # AI utilities
+│   └── utils.ts
+└── components/
+    ├── ai/
+    │   ├── chat-interface.tsx     # Chat components
+    │   ├── message.tsx            # Message components
+    │   └── typing-indicator.tsx   # Loading states
+    └── ui/                        # Shared UI components
+```
+
+## Integration with Existing Stack
+
+### With tRPC
+```typescript
+// server/api/routers/ai.ts
+import { z } from 'zod';
+import { createTRPCRouter, protectedProcedure } from '@/server/api/trpc';
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+export const aiRouter = createTRPCRouter({
+  generateResponse: protectedProcedure
+    .input(z.object({
+      prompt: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      const { text } = await generateText({
+        model: openai('gpt-4o'),
+        prompt: input.prompt,
+      });
+      
+      return { response: text };
+    }),
+});
+```
+
+### With Database Integration
+```typescript
+// Store AI interactions in database
+import { storeAIAnalysis } from '@workspace/database';
+
+export async function POST(req: Request) {
+  const { prompt } = await req.json();
+  
+  const { text } = await generateText({
+    model: openai('gpt-4o'),
+    prompt,
+  });
+  
+  // Store in database
+  await storeAIAnalysis({
+    userId: 'user-id',
+    prompt,
+    response: text,
+    model: 'gpt-4o',
+  });
+  
+  return Response.json({ text });
+}
+```
+
+## Verification Checklist
+
+Before implementing AI features, verify:
+
+1. ✅ Using `ai` package from Vercel AI SDK
+2. ✅ Importing from correct provider packages (`@ai-sdk/openai`, etc.)
+3. ✅ Using streaming APIs (`streamText`, `useChat`) for better UX
+4. ✅ Proper error handling and loading states
+5. ✅ Input validation and rate limiting
+6. ✅ Type safety with Zod schemas
+7. ✅ Following monorepo separation of concerns
+8. ✅ Environment variables properly configured
+
+## Common Pitfalls to Avoid
+
+- ❌ Don't use provider SDKs directly (OpenAI, Anthropic SDKs)
+- ❌ Don't implement custom streaming logic
+- ❌ Don't forget error handling and loading states
+- ❌ Don't skip input validation
+- ❌ Don't use blocking operations in UI components
+- ❌ Don't expose API keys in client-side code
+- ❌ Don't forget to implement rate limiting
+- ❌ Don't use synchronous APIs for long-running operations
+
+Remember: The AI SDK provides a unified, type-safe interface across all providers. Always prefer AI SDK patterns over direct provider integrations.

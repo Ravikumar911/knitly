@@ -1,0 +1,82 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+Description: Guidelines for the Knitly monorepo to enforce separation of concerns, centralize database queries in packages/database, and implement Supabase Auth SSR in apps/main.
+Globs: **/*.ts, **/*.tsx
+---
+
+# Knitly Monorepo Rules
+
+## Overview
+- Enforce strict **separation of concerns (SoC)**: each app and package has a single role.
+- ALL Supabase and Drizzle ORM queries MUST be defined in packages/database/src/queries/*/*.ts and reused via exports (e.g., getUser). No queries elsewhere.
+- Supabase Auth SSR is implemented ONLY in @apps/main using @supabase/ssr, with exact cookie patterns (getAll/setAll).
+- Use @packages/ui for all UI components (shadcn/ui).
+- Follow @packages/eslint-config and @packages/typescript-config for code quality.
+
+## Module Roles and Rules
+
+### apps/main
+- **Role**: Core Next.js app for UI rendering, tRPC client calls, Supabase Auth SSR, and user interactions.
+- **Rules**:
+  - Use @workspace/ui/components/* for UI (e.g., @workspace/ui/components/button, @workspace/ui/components/accordion ).
+  - Fetch data via tRPC (@apps/main/trpc/*) or @packages/database/queries/* (e.g., getUser).
+  - Never write db.select() or Supabase queries; use @workspace/database exports.
+  - Implement Supabase Auth SSR in @apps/main/lib/auth.ts and @apps/main/middleware.ts per patterns below.
+  - Place tRPC routers in @apps/main/trpc/*.
+  - No imports from @apps/website.
+- **Allowed Imports**:
+  - @workspace/ui/*
+  - @workspace/database
+  - @supabase/ssr
+  - next/*
+  - react
+  - @trpc/client
+- **Disallowed Imports**:
+  - @supabase/auth-helpers-nextjs
+  - @packages/database/src/schema/*
+- **File Placement**:
+  - Auth: @apps/main/lib/auth.ts, @apps/main/middleware.ts
+  - tRPC: @apps/main/trpc/*
+  - Pages: @apps/main/app/**/*.tsx
+
+### apps/website
+- **Role**: Static Next.js marketing site for SEO-friendly pages.
+- **Rules**:
+  - Use @packages/ui/components/* for UI.
+  - No Supabase Auth, database queries, or tRPC.
+  - No imports from @apps/main, @packages/database, or @packages/tasks.
+  - Keep pages stateless and lightweight.
+- **Allowed Imports**:
+  - @workspace/ui/*
+  - next/*
+  - react
+- **Disallowed Imports**:
+  - @supabase/*
+  - @trpc/*
+  - @packages/database/*
+- **File Placement**:
+  - Pages: @apps/website/app/**/*.tsx
+
+### packages/database
+- **Role**: Centralized Supabase database management with Drizzle ORM schemas and all queries.
+- **Rules**:
+  - Define schemas in @packages/database/src/schema/*/*.ts.
+  - Write ALL queries in @packages/database/src/queries/* (e.g., getUser, createUser).
+  - Export reusable, type-safe functions for @apps/main (via tRPC) and @packages/tasks.
+  - No UI components, tRPC, or app logic.
+  - Use @supabase/ssr for query-related auth checks (e.g., user ID).
+  - Always use generate and migrate scripts from package.json. don't change from the packages/databases/drizzle
+- **Allowed Imports**:
+  - drizzle-orm/*
+  - @supabase/ssr
+- **Disallowed Imports**:
+  - @workspace/ui/*
+  - @trpc/*
+  - apps/*
+- **File Placement**:
+  - Schemas: @packages/database/src/schema/*ts
+  - Queries: @packages/database/src/[feature]/[feature.ts]
