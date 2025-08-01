@@ -73,56 +73,93 @@ export function createMockSession(user?: MockUser): MockSession {
   };
 }
 
-/**
- * Mock Supabase authentication responses
- */
+  /**
+   * Mock Supabase authentication responses
+   */
 export class AuthMock {
   constructor(private page: Page) {}
+
+  /**
+   * Set up comprehensive Supabase auth mocking
+   */
+  async setupSupabaseMocks(session?: MockSession): Promise<void> {
+    const mockSession = session || createMockSession();
+
+    // Mock all Supabase auth endpoints
+    await this.page.route('**/auth/v1/**', route => {
+      const url = new URL(route.request().url());
+      const pathname = url.pathname;
+      
+      console.log('🔐 Mocking Supabase auth call:', pathname);
+
+      if (pathname.includes('/token')) {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            access_token: mockSession.access_token,
+            refresh_token: mockSession.refresh_token,
+            expires_in: 3600,
+            expires_at: mockSession.expires_at,
+            token_type: 'bearer',
+            user: mockSession.user,
+            provider_token: mockSession.provider_token,
+            provider_refresh_token: mockSession.provider_refresh_token,
+          }),
+        });
+      } else if (pathname.includes('/user')) {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mockSession.user),
+        });
+      } else if (pathname.includes('/session')) {
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            access_token: mockSession.access_token,
+            refresh_token: mockSession.refresh_token,
+            expires_at: mockSession.expires_at,
+            user: mockSession.user,
+          }),
+        });
+      } else if (pathname.includes('/authorize')) {
+        // Mock OAuth authorize endpoint
+        const redirectTo = url.searchParams.get('redirect_to') || '/';
+        route.fulfill({
+          status: 302,
+          headers: {
+            'Location': `${redirectTo}?code=mock-auth-code&state=mock-state`,
+          },
+        });
+      } else {
+        // Default successful response for other auth endpoints
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ success: true }),
+        });
+      }
+    });
+
+    // Also mock the callback route
+    await this.page.route('**/auth/callback**', route => {
+      route.fulfill({
+        status: 302,
+        headers: {
+          'Location': '/dashboard',
+        },
+      });
+    });
+  }
 
   /**
    * Mock successful login flow
    */
   async mockSuccessfulLogin(user?: MockUser): Promise<MockSession> {
     const session = createMockSession(user);
-
-    // Mock Supabase auth endpoints
-    await this.page.route('**/auth/v1/token**', route => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-          expires_in: 3600,
-          token_type: 'bearer',
-          user: session.user,
-        }),
-      });
-    });
-
-    // Mock user endpoint
-    await this.page.route('**/auth/v1/user**', route => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify(session.user),
-      });
-    });
-
-    // Mock session endpoint
-    await this.page.route('**/auth/v1/session**', route => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-          expires_at: session.expires_at,
-          user: session.user,
-        }),
-      });
-    });
-
+    await this.setupSupabaseMocks(session);
     return session;
   }
 
@@ -131,44 +168,10 @@ export class AuthMock {
    */
   async mockGoogleOAuth(user?: MockUser): Promise<MockSession> {
     const session = createMockSession(user);
-
-    // Mock OAuth URL generation
-    await this.page.route('**/auth/v1/authorize**', route => {
-      const url = new URL(route.request().url());
-      const redirectTo = url.searchParams.get('redirect_to') || '/';
-      
-      // Simulate OAuth redirect with code
-      route.fulfill({
-        status: 302,
-        headers: {
-          'Location': `${redirectTo}?code=test-oauth-code`,
-        },
-      });
-    });
-
-    // Mock code exchange
-    await this.page.route('**/auth/v1/token**', route => {
-      const body = route.request().postData();
-      
-      if (body?.includes('authorization_code')) {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            expires_in: 3600,
-            token_type: 'bearer',
-            user: session.user,
-            provider_token: session.provider_token,
-            provider_refresh_token: session.provider_refresh_token,
-          }),
-        });
-      } else {
-        route.continue();
-      }
-    });
-
+    
+    // Set up comprehensive auth mocking
+    await this.setupSupabaseMocks(session);
+    
     return session;
   }
 
@@ -177,6 +180,7 @@ export class AuthMock {
    */
   async mockAuthFailure(errorMessage: string = 'Authentication failed'): Promise<void> {
     await this.page.route('**/auth/v1/**', route => {
+      console.log('🔐 Mocking auth failure for:', route.request().url());
       route.fulfill({
         status: 401,
         contentType: 'application/json',
@@ -218,26 +222,34 @@ export class AuthMock {
   }
 
   /**
-   * Set authenticated session in browser storage
+   * Set authenticated session in browser storage and set up mocks
    */
   async setAuthenticatedSession(session: MockSession): Promise<void> {
+    // First set up the auth mocks
+    await this.setupSupabaseMocks(session);
+    
+    // Then set the browser state
     await this.page.addInitScript((sessionData) => {
-      // Mock Supabase session in localStorage
-      const supabaseSession = {
-        access_token: sessionData.access_token,
-        refresh_token: sessionData.refresh_token,
-        expires_at: sessionData.expires_at,
-        user: sessionData.user,
-      };
+      try {
+        // Mock Supabase session in localStorage
+        const supabaseSession = {
+          access_token: sessionData.access_token,
+          refresh_token: sessionData.refresh_token,
+          expires_at: sessionData.expires_at,
+          user: sessionData.user,
+        };
 
-      localStorage.setItem(
-        'sb-test-auth-token',
-        JSON.stringify(supabaseSession)
-      );
+        localStorage.setItem(
+          'sb-test-auth-token',
+          JSON.stringify(supabaseSession)
+        );
 
-      // Set cookies for SSR
-      document.cookie = `sb-access-token=${sessionData.access_token}; path=/`;
-      document.cookie = `sb-refresh-token=${sessionData.refresh_token}; path=/`;
+        // Set cookies for SSR
+        document.cookie = `sb-access-token=${sessionData.access_token}; path=/; domain=localhost`;
+        document.cookie = `sb-refresh-token=${sessionData.refresh_token}; path=/; domain=localhost`;
+      } catch (e) {
+        console.log('Storage access restricted, relying on mocks');
+      }
     }, session);
   }
 

@@ -91,17 +91,20 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: [
-    // Commenting out main app dependency for testing infrastructure
-    /*
     {
       command: 'cd ../main && npm run dev',
       port: 3000,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
+      env: {
+        // Use test environment variables for the main app
+        NODE_ENV: 'test',
+        NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0',
+      },
     },
-    */
     {
-      command: 'node setup/mock-servers.js',
+      command: 'npx tsx setup/mock-servers.ts',
       port: 3001,
       reuseExistingServer: !process.env.CI,
     }

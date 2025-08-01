@@ -11,10 +11,10 @@ async function globalSetup(config: FullConfig) {
   console.log('🚀 Starting global setup for e2e tests...');
 
   try {
-    // Step 1: Setup test database (temporarily disabled)
-    console.log('📦 Skipping test database setup for now...');
-    // await setupTestDatabase();
-    console.log('✅ Test database skipped');
+    // Step 1: Setup test database
+    console.log('📦 Setting up test database...');
+    await setupTestDatabase();
+    console.log('✅ Test database setup complete');
 
     // Step 2: Start mock servers (handled by webServer config)
     console.log('🔧 Mock servers will be started by webServer config...');

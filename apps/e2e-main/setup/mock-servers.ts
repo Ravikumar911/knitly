@@ -53,6 +53,11 @@ function startTriggerMockServer(): Promise<void> {
     app.use(cors());
     app.use(express.json());
 
+    // Health check endpoint
+    app.get('/health', (req, res) => {
+      res.json({ status: 'ok', service: 'trigger-mock' });
+    });
+
     // Mock task trigger endpoint
     app.post('/api/v3/runs', (req, res) => {
       const { task, payload } = req.body;
@@ -120,6 +125,11 @@ function startGmailMockServer(): Promise<void> {
     app.use(cors());
     app.use(express.json());
 
+    // Health check endpoint
+    app.get('/health', (req, res) => {
+      res.json({ status: 'ok', service: 'gmail-mock' });
+    });
+
     // Mock Gmail message list
     app.get('/gmail/v1/users/:userId/messages', (req, res) => {
       const { q, maxResults = 10 } = req.query;
@@ -176,6 +186,11 @@ function startOpenAIMockServer(): Promise<void> {
     app.use(cors());
     app.use(express.json());
 
+    // Health check endpoint
+    app.get('/health', (req, res) => {
+      res.json({ status: 'ok', service: 'openai-mock' });
+    });
+
     // Mock OpenAI chat completions
     app.post('/v1/chat/completions', (req, res) => {
       const { messages } = req.body;
@@ -228,6 +243,6 @@ function startOpenAIMockServer(): Promise<void> {
 }
 
 // Export for CLI usage
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (typeof require !== 'undefined' && require.main === module) {
   startMockServers().catch(console.error);
 }

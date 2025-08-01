@@ -79,8 +79,8 @@ export function AnalyticsOverview() {
       </div>
 
       {/* Metric Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" data-testid="analytics-cards">
+        <Card data-testid="analytics-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Spend</CardTitle>
             <IndianRupee className="h-4 w-4 text-muted-foreground" />
@@ -93,7 +93,7 @@ export function AnalyticsOverview() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="analytics-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
@@ -106,7 +106,7 @@ export function AnalyticsOverview() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="analytics-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Order Value</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -119,7 +119,7 @@ export function AnalyticsOverview() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="analytics-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Service Split</CardTitle>
             <Utensils className="h-4 w-4 text-muted-foreground" />
