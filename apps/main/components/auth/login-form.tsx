@@ -71,6 +71,7 @@ export function LoginForm() {
             className="w-full"
             onClick={signInWithGoogle}
             disabled={isGoogleLoading}
+            data-testid="google-login-button"
           >
             {isGoogleLoading ? (
               <div className="flex items-center gap-2">
@@ -116,7 +117,7 @@ export function LoginForm() {
             )}
           </Button>
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" data-testid="error-message">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}

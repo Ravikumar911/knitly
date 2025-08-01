@@ -15,6 +15,12 @@ node_modules
 # Testing
 coverage
 
+# E2E Test Results
+test-results/
+playwright-report/
+*.webm
+test-failed-*.png
+
 # Turbo
 .turbo
 
@@ -57,10 +63,15 @@ node_modules/
 *.sln
 *.sw?
 # OS specific
-# Task files
-tasks.json
 tasks/task_*.txt
 tasks/tasks.json.bak
 .taskmaster/
 
 mcp.json
+
+# Task files
+# tasks.json
+# tasks/
+
+# Added by Task Master AI
+tasks.json
