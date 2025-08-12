@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useMutation } from "@tanstack/react-query"
 import { useTRPC } from "@/trpc/client"
 import { TRPCClientError } from "@trpc/client"
@@ -12,7 +12,7 @@ import { Button } from "@workspace/ui/components/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
-import { CheckCircle, Mail, AlertCircle, Loader2 } from "lucide-react"
+import { CheckCircle, Mail, AlertCircle, Loader2, Clock } from "lucide-react"
 
 export function BetaAccessForm() {
   const trpc = useTRPC()
@@ -20,21 +20,139 @@ export function BetaAccessForm() {
   const [error, setError] = useState("")
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+  const [lastSubmitTime, setLastSubmitTime] = useState<number | null>(null)
+  const [cooldownTimeLeft, setCooldownTimeLeft] = useState(0)
+  const [validationError, setValidationError] = useState("")
+  
+  const debounceTimerRef = useRef<NodeJS.Timeout>()
+  const cooldownTimerRef = useRef<NodeJS.Timeout>()
+  
+  const SUBMIT_COOLDOWN_MS = 30000 // 30 seconds between submissions
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setIsMounted(true))
     return () => cancelAnimationFrame(id)
   }, [])
 
+  // Check localStorage for previous submissions to prevent easy bypassing
+  useEffect(() => {
+    const lastSubmit = localStorage.getItem('beta-access-last-submit')
+    if (lastSubmit) {
+      const lastSubmitTime = parseInt(lastSubmit, 10)
+      const timeSince = Date.now() - lastSubmitTime
+      if (timeSince < SUBMIT_COOLDOWN_MS) {
+        setLastSubmitTime(lastSubmitTime)
+        setCooldownTimeLeft(Math.ceil((SUBMIT_COOLDOWN_MS - timeSince) / 1000))
+      }
+    }
+  }, [])
+
+  // Cooldown timer effect
+  useEffect(() => {
+    if (cooldownTimeLeft > 0) {
+      cooldownTimerRef.current = setTimeout(() => {
+        setCooldownTimeLeft(prev => prev - 1)
+      }, 1000)
+    } else if (lastSubmitTime) {
+      setLastSubmitTime(null)
+    }
+    
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current)
+      }
+    }
+  }, [cooldownTimeLeft, lastSubmitTime])
+
+  // Debounced email validation
+  const validateEmail = useCallback((emailValue: string) => {
+    setValidationError("")
+    
+    if (!emailValue.trim()) {
+      return
+    }
+
+    if (emailValue.length < 5) {
+      setValidationError("Email is too short")
+      return
+    }
+
+    if (!emailValue.endsWith('@gmail.com')) {
+      setValidationError("Only Gmail addresses are accepted")
+      return
+    }
+
+    const localPart = emailValue.split('@')[0]
+    if (!localPart || localPart.length < 3) {
+      setValidationError("Please enter a valid Gmail address")
+      return
+    }
+
+    if (/^[0-9]+$/.test(localPart)) {
+      setValidationError("Please enter a valid personal Gmail address")
+      return
+    }
+
+    // Check for suspicious patterns
+    const suspiciousPatterns = [
+      /test[0-9]*@gmail\.com/,
+      /temp[0-9]*@gmail\.com/,
+      /fake[0-9]*@gmail\.com/,
+      /spam[0-9]*@gmail\.com/,
+    ]
+    
+    if (suspiciousPatterns.some(pattern => pattern.test(emailValue.toLowerCase()))) {
+      setValidationError("Please enter a valid personal Gmail address")
+      return
+    }
+  }, [])
+
+  const debouncedValidateEmail = useCallback((emailValue: string) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      validateEmail(emailValue)
+    }, 500)
+  }, [validateEmail])
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current)
+      }
+    }
+  }, [])
+
   const requestBetaAccessMutation = useMutation(
     trpc.feedback.requestBetaAccess.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data) => {
         setIsSubmitted(true)
         setError("")
+        setValidationError("")
+        
+        // Store submission time in localStorage
+        localStorage.setItem('beta-access-last-submit', Date.now().toString())
+        localStorage.setItem('beta-access-email', email.trim().toLowerCase())
+        
+        console.log('✅ Beta access request submitted:', data)
       },
       onError: (err) => {
         if (err instanceof TRPCClientError) {
-          setError(err.message || "Failed to submit beta access request")
+          // Handle specific error types
+          if (err.data?.code === 'TOO_MANY_REQUESTS') {
+            setError(err.message)
+            setLastSubmitTime(Date.now())
+            setCooldownTimeLeft(30) // 30 second cooldown on rate limit
+          } else if (err.data?.code === 'CONFLICT') {
+            setError(err.message)
+          } else {
+            setError(err.message || "Failed to submit beta access request")
+          }
         } else {
           setError("An error occurred while submitting your request")
         }
@@ -42,25 +160,60 @@ export function BetaAccessForm() {
     })
   )
 
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEmail = e.target.value
+    setEmail(newEmail)
+    setError("") // Clear server errors when user types
+    debouncedValidateEmail(newEmail)
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setValidationError("")
     
-    if (!email.trim()) {
+    // Check cooldown
+    if (cooldownTimeLeft > 0) {
+      setError(`Please wait ${cooldownTimeLeft} seconds before submitting again`)
+      return
+    }
+    
+    const trimmedEmail = email.trim().toLowerCase()
+    
+    if (!trimmedEmail) {
       setError("Please enter your email address")
       return
     }
 
-    if (!email.endsWith('@gmail.com')) {
+    // Client-side validation
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
+    if (!trimmedEmail.endsWith('@gmail.com')) {
       setError("Only Gmail addresses are allowed for beta access")
       return
     }
 
+    // Check if they've already submitted this email recently
+    const lastSubmittedEmail = localStorage.getItem('beta-access-email')
+    if (lastSubmittedEmail === trimmedEmail) {
+      setError("You've already requested beta access with this email address")
+      return
+    }
+
+    // Set cooldown immediately to prevent double-submission
+    setLastSubmitTime(Date.now())
+    setCooldownTimeLeft(30)
+
     requestBetaAccessMutation.mutate({
-      email: email.trim(),
+      email: trimmedEmail,
       userAgent: navigator.userAgent,
     })
   }
+
+  const isFormDisabled = requestBetaAccessMutation.isPending || cooldownTimeLeft > 0 || !!validationError
 
   if (isSubmitted) {
     return (
@@ -122,10 +275,19 @@ export function BetaAccessForm() {
                   type="email"
                   placeholder="your.email@gmail.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={requestBetaAccessMutation.isPending}
-                  className={error ? "border-red-300 focus:border-red-500" : ""}
+                  onChange={handleEmailChange}
+                  disabled={isFormDisabled}
+                  className={error || validationError ? "border-red-300 focus:border-red-500" : ""}
                 />
+                {validationError && (
+                  <p className="text-sm text-red-600 mt-1">{validationError}</p>
+                )}
+                {cooldownTimeLeft > 0 && (
+                  <div className="flex items-center gap-2 mt-2 text-sm text-amber-600">
+                    <Clock className="h-4 w-4" />
+                    <span>Please wait {cooldownTimeLeft} seconds before submitting again</span>
+                  </div>
+                )}
               </div>
               {error && (
                 <Alert variant="destructive" className="mt-1">
@@ -139,12 +301,17 @@ export function BetaAccessForm() {
             <Button
               type="submit"
               className="w-full"
-              disabled={requestBetaAccessMutation.isPending}
+              disabled={isFormDisabled}
             >
               {requestBetaAccessMutation.isPending ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Submitting...</span>
+                </div>
+              ) : cooldownTimeLeft > 0 ? (
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span>Wait {cooldownTimeLeft}s</span>
                 </div>
               ) : (
                 "Request Beta Access"
