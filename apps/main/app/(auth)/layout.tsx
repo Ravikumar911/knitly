@@ -1,3 +1,10 @@
+import { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Login - Slash",
+  description: "Sign in to your account or request beta access",
+}
+
 export default function AuthLayout({
   children,
 }: {
