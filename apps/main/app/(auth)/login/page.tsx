@@ -2,7 +2,7 @@ import { Metadata } from "next"
 import { LoginForm } from "@/components/auth/login-form"
 
 export const metadata: Metadata = {
-  title: "Login - Finwise",
+  title: "Login - Slash",
   description: "Login to your account",
 }
 

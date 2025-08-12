@@ -1,6 +1,6 @@
 import { logger, task, wait, configure, batch } from "@trigger.dev/sdk/v3";
 import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, extractEmailMetadata, buildMerchantBasedGmailSearchQuery, extractAttachments } from "../utils";
-import { finwiseAIV2Agent } from "../agents/finwiseAIV2";
+import { slashAIV2Agent } from "../agents/slashAIV2";
 import { processAttachments } from "../utils/emailStorage";
 import { detectDuplicateTransactionsForUser } from "./duplicateDetector";
 import { 
@@ -155,7 +155,7 @@ export const processEmailBatch = task({
         };
 
         // Process with V2 AI
-        let finwiseV2Result: any = null;
+        let slashV2Result: any = null;
 
         try {
           logger.log("Processing email with AI", {
@@ -164,19 +164,19 @@ export const processEmailBatch = task({
             hasAttachments: processedAttachments ? processedAttachments.length : 0
           });
 
-          finwiseV2Result = await finwiseAIV2Agent(emailData);
+          slashV2Result = await slashAIV2Agent(emailData);
           
-          if (finwiseV2Result?.transactionId) {
+          if (slashV2Result?.transactionId) {
             logger.log("Transaction extracted successfully", { 
               emailId,
-              transactionId: finwiseV2Result.transactionId,
-              merchantId: finwiseV2Result.merchantId,
-              schemaUsed: finwiseV2Result.schemaUsed
+              transactionId: slashV2Result.transactionId,
+              merchantId: slashV2Result.merchantId,
+              schemaUsed: slashV2Result.schemaUsed
             });
-          } else if (finwiseV2Result?.parseSuccess) {
+          } else if (slashV2Result?.parseSuccess) {
             logger.log("Email processed but no transaction found", {
               emailId,
-              reason: finwiseV2Result.noTransactionReason || 'Unknown'
+              reason: slashV2Result.noTransactionReason || 'Unknown'
             });
           }
         } catch (error) {
@@ -191,8 +191,8 @@ export const processEmailBatch = task({
 
         // Update email data with V2 results
         await updateEmailData(emailId, {
-          parseSuccess: finwiseV2Result?.parseSuccess || false,
-          parseErrors: finwiseV2Result?.parseErrors?.join(', ') || null,
+          parseSuccess: slashV2Result?.parseSuccess || false,
+          parseErrors: slashV2Result?.parseErrors?.join(', ') || null,
         });
 
         stats.processedCount++;

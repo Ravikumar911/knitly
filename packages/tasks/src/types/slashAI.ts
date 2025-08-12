@@ -14,4 +14,4 @@ export interface EmailData {
     mimeType: string;
     content: string; // Base64 encoded content
   }>;
-} 
+}
