@@ -36,15 +36,30 @@ export const feedbackRouter = createTRPCRouter({
       userAgent: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
-      return await createFeedback({
-        subject: "Beta Access Request",
-        message: `Beta access requested for email: ${input.email}`,
-        type: "beta",
-        priority: "medium",
-        status: "open",
-        userEmail: input.email,
-        userAgent: input.userAgent,
-        userId: null, // No user ID since this is for non-authenticated users
-      });
+      console.log('🚀 Beta access request received:', input);
+      
+      try {
+        const feedbackData = {
+          subject: "Beta Access Request",
+          message: `Beta access requested for email: ${input.email}`,
+          type: "beta",
+          priority: "medium",
+          status: "open",
+          userEmail: input.email,
+          userAgent: input.userAgent,
+          userId: null, // No user ID since this is for non-authenticated users
+        };
+        
+        console.log('📝 Creating feedback with data:', feedbackData);
+        
+        const result = await createFeedback(feedbackData);
+        
+        console.log('✅ Beta access request created successfully:', result);
+        
+        return result;
+      } catch (error) {
+        console.error('❌ Error creating beta access request:', error);
+        throw error;
+      }
     }),
 }); 

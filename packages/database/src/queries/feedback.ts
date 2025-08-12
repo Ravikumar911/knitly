@@ -3,13 +3,26 @@ import { db } from '../index';
 import { feedback, type NewFeedback, type Feedback } from '../schema/feedback';
 
 export async function createFeedback(data: Omit<NewFeedback, 'id' | 'createdAt' | 'updatedAt'>) {
-  const [newFeedback] = await db.insert(feedback).values({
-    ...data,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }).returning();
+  console.log('🗄️ Database: Creating feedback with data:', data);
   
-  return newFeedback;
+  try {
+    const insertData = {
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    console.log('🗄️ Database: Insert data prepared:', insertData);
+    
+    const [newFeedback] = await db.insert(feedback).values(insertData).returning();
+    
+    console.log('✅ Database: Feedback created successfully:', newFeedback);
+    
+    return newFeedback;
+  } catch (error) {
+    console.error('❌ Database: Error creating feedback:', error);
+    throw error;
+  }
 }
 
 export async function getFeedbackById(id: string): Promise<Feedback | null> {
