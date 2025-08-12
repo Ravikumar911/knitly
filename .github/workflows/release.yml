@@ -10,6 +10,7 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 jobs:
   release:
@@ -18,6 +19,9 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
+        with:
+          # This makes Actions fetch all Git history so that Changesets can generate changelogs with the correct commits
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -25,37 +29,56 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: 'pnpm'
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Create Release Pull Request or Publish
+      - name: Build packages
+        run: pnpm build
+
+      - name: Create Release Pull Request or Publish to Registry
         id: changesets
         uses: changesets/action@v1
         with:
+          # This expects you to have a script called release which does a build for your packages and calls changeset publish
           version: pnpm version-packages
           publish: pnpm release
-          title: "Release: Version Application"
-          commit: "chore: release application"
+          title: "chore: release packages"
+          commit: "chore: release packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create GitHub Release and Tag
-        if: steps.changesets.outputs.published == 'true'
+      - name: Create GitHub Release
+        if: steps.changesets.outputs.hasChangesets == 'false'
         run: |
-          # Get the version from package.json
+          # Get the current version from the root package.json
           VERSION=$(node -p "require('./package.json').version")
           
+          # Check if tag already exists
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already exists, skipping release creation"
+            exit 0
+          fi
+          
           # Create and push tag
-          git tag "v$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "Release v$VERSION"
           git push origin "v$VERSION"
+          
+          # Generate changelog from recent commits
+          CHANGELOG=$(git log --oneline --pretty=format:"- %s" $(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~10")..HEAD 2>/dev/null || git log --oneline --pretty=format:"- %s" -10)
           
           # Create GitHub release
           gh release create "v$VERSION" \
             --title "Release v$VERSION" \
-            --generate-notes \
+            --notes "## Changes in this release:
+          
+          $CHANGELOG
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo 'HEAD~10')...v$VERSION" \
             --latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

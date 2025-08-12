@@ -1,5 +1,7 @@
 {
   "name": "@workspace/tasks",
+  "version": "0.1.1",
+  "private": true,
   "scripts": {
     "build": "tsc",
     "lint": "echo 'Linting not configured for tasks package'",

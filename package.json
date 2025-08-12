@@ -10,8 +10,10 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "typecheck": "turbo typecheck",
     "changeset": "changeset",
-    "version-packages": "changeset version",
-    "release": "pnpm build"
+    "changeset:add": "changeset add",
+    "changeset:status": "changeset status",
+    "version-packages": "changeset version && pnpm install --lockfile-only",
+    "release": "turbo build && changeset publish"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.6",
