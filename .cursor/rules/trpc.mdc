@@ -1,0 +1,604 @@
+---
+description: tRPC best practices for Knitly monorepo based on apps/main implementation patterns
+globs: **/*.ts,**/*.tsx
+alwaysApply: true
+---
+
+# tRPC Best Practices for Knitly Monorepo
+
+## Overview
+- **Centralized API Layer**: Use tRPC for type-safe API communication between client and server
+- **Database Separation**: All database queries MUST be in `@workspace/database`, never in tRPC routers
+- **Authentication**: Use Supabase Auth context in tRPC procedures
+- **Server/Client Pattern**: Follow established server-side prefetching and client-side usage patterns
+
+## Architecture Patterns
+
+### 🏗️ File Structure
+```
+apps/main/trpc/
+├── init.ts              # tRPC initialization, context, procedures
+├── server.tsx           # Server-side tRPC utilities, prefetch helpers  
+├── client.tsx           # Client-side provider and hooks
+├── query-client.ts      # React Query configuration
+└── routers/
+    ├── _app.ts          # Main router composition
+    ├── transactions.ts  # Feature-specific routers
+    ├── analytics.ts
+    ├── emails.ts
+    └── feedback.ts
+```
+
+### 🔧 Server Configuration
+
+#### ✅ tRPC Initialization ([init.ts](mdc:apps/main/trpc/init.ts))
+```typescript
+// init.ts - Core tRPC setup
+import { createClient } from '@/supabase/server';
+import { initTRPC } from '@trpc/server';
+import { TRPCError } from '@trpc/server';
+import { cache } from 'react';
+
+export interface Context {
+  userId: string | null;
+}
+
+export const createTRPCContext = cache(async () => {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    return { 
+      userId: user?.id ?? null 
+    } satisfies Context;
+  } catch (error) {
+    console.error('tRPC context creation error:', error);
+    return { userId: null } satisfies Context;
+  }
+});
+
+const t = initTRPC.context<Context>().create({
+  // transformer: superjson, // Add if using complex types
+});
+
+export const createTRPCRouter = t.router;
+export const createCallerFactory = t.createCallerFactory;
+export const baseProcedure = t.procedure;
+
+export const protectedProcedure = baseProcedure.use(async ({ ctx, next }) => {
+  if (!ctx.userId) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  return next({ ctx });
+});
+```
+
+#### ✅ API Route Handler ([route.ts](mdc:apps/main/app/api/trpc/[trpc]/route.ts))
+```typescript
+// app/api/trpc/[trpc]/route.ts
+import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
+import { createTRPCContext } from '@/trpc/init';
+import { appRouter } from '@/trpc/routers/_app';
+
+const handler = (req: Request) =>
+  fetchRequestHandler({
+    endpoint: '/api/trpc',
+    req,
+    router: appRouter,
+    createContext: createTRPCContext,
+  });
+  
+export { handler as GET, handler as POST };
+```
+
+#### ✅ Main Router Composition ([_app.ts](mdc:apps/main/trpc/routers/_app.ts))
+```typescript
+// routers/_app.ts
+import { createTRPCRouter } from '../init';
+import { emailsRouter } from './emails';
+import { analyticsRouter } from './analytics';
+import { transactionsRouter } from './transactions';
+import { feedbackRouter } from './feedback';
+
+export const appRouter = createTRPCRouter({
+  emails: emailsRouter,
+  analytics: analyticsRouter,
+  transactions: transactionsRouter,
+  feedback: feedbackRouter,
+});
+
+export type AppRouter = typeof appRouter;
+```
+
+### 🎯 Router Implementation Patterns
+
+#### ✅ Database Query Integration
+```typescript
+// ✅ DO: Import from @workspace/database
+import { 
+  getTransactionsWithEmails, 
+  getTransactionsCount, 
+  getUserMerchants,
+  type TransactionFilters 
+} from "@workspace/database";
+
+export const transactionsRouter = createTRPCRouter({
+  list: protectedProcedure
+    .input(z.object({
+      page: z.number().min(1).default(1),
+      pageSize: z.number().min(1).max(100).default(20),
+      filters: transactionFiltersSchema.optional(),
+    }))
+    .query(async ({ input, ctx }) => {
+      const { page, pageSize, filters } = input;
+      const offset = (page - 1) * pageSize;
+
+      // ✅ Use database queries from @workspace/database
+      const [transactions, totalCount] = await Promise.all([
+        getTransactionsWithEmails(
+          ctx.userId!,
+          filters as TransactionFilters,
+          pageSize,
+          offset
+        ),
+        getTransactionsCount(ctx.userId!, filters as TransactionFilters),
+      ]);
+
+      return {
+        transactions,
+        pagination: {
+          page, pageSize, totalCount,
+          totalPages: Math.ceil(totalCount / pageSize),
+          hasNext: page < Math.ceil(totalCount / pageSize),
+          hasPrev: page > 1,
+        },
+      };
+    }),
+});
+```
+
+#### ❌ DON'T: Direct Database Queries in Routers
+```typescript
+// ❌ DON'T: Write db queries directly in tRPC routers
+import { db } from '@workspace/database';
+
+export const badRouter = createTRPCRouter({
+  list: protectedProcedure.query(async ({ ctx }) => {
+    // ❌ Never do this - violates separation of concerns
+    return await db.select().from(transactions).where(eq(transactions.userId, ctx.userId));
+  }),
+});
+```
+
+#### ✅ Error Handling
+```typescript
+// ✅ Proper error handling
+getById: protectedProcedure
+  .input(z.object({ id: z.string() }))
+  .query(async ({ input, ctx }) => {
+    const transaction = await getTransactionWithEmail(input.id, ctx.userId!);
+
+    if (!transaction) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Transaction not found",
+      });
+    }
+
+    return transaction;
+  }),
+```
+
+#### ✅ Input Validation with Zod
+```typescript
+// ✅ Comprehensive input validation
+const transactionFiltersSchema = z.object({
+  merchantId: z.string().optional(),
+  merchantName: z.string().optional(),
+  status: z.string().optional(),
+  type: z.string().optional(),
+  category: z.string().optional(),
+  startDate: z.date().optional(),
+  endDate: z.date().optional(),
+  searchQuery: z.string().optional(),
+  sortBy: z.enum(['date', 'amount', 'merchant']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
+});
+```
+
+### 🖥️ Server-Side Usage
+
+#### ✅ Server Components with Prefetching ([server.tsx](mdc:apps/main/trpc/server.tsx))
+```typescript
+// trpc/server.tsx
+import 'server-only';
+import { createTRPCOptionsProxy } from '@trpc/tanstack-react-query';
+import { cache } from 'react';
+import { createTRPCContext } from './init';
+import { makeQueryClient } from './query-client';
+import { appRouter } from './routers/_app';
+import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
+
+export const getQueryClient = cache(makeQueryClient);
+export const trpc = createTRPCOptionsProxy({
+  ctx: createTRPCContext,
+  router: appRouter,
+  queryClient: getQueryClient,
+});
+
+export async function prefetch<T>(queryOptions: T) {
+  const queryClient = getQueryClient();
+  await queryClient.prefetchQuery(queryOptions);
+}
+
+export function HydrateClient({ children }: { children: React.ReactNode }) {
+  const queryClient = getQueryClient();
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      {children}
+    </HydrationBoundary>
+  );
+}
+```
+
+#### ✅ Page-Level Prefetching Pattern
+```typescript
+// ✅ Server component with prefetching
+import { prefetch, HydrateClient, trpc } from '@/trpc/server';
+
+export default function TransactionsPage() {
+  // ✅ Prefetch on server
+  prefetch(trpc.transactions.list.queryOptions({
+    page: 1,
+    pageSize: 10,
+    filters: {
+      sortBy: 'date',
+      sortOrder: 'desc',
+    },
+  }));
+
+  return (
+    <HydrateClient>
+      <div className="flex flex-col gap-4 p-4">
+        <Suspense fallback={<Loading />}>
+          <TransactionTable />
+        </Suspense>
+      </div>
+    </HydrateClient>
+  );
+}
+```
+
+### 💻 Client-Side Usage
+
+#### ✅ Provider Setup ([client.tsx](mdc:apps/main/trpc/client.tsx))
+```typescript
+// trpc/client.tsx
+'use client';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createTRPCClient, httpBatchLink } from '@trpc/client';
+import { createTRPCContext } from '@trpc/tanstack-react-query';
+import { useState } from 'react';
+import { makeQueryClient } from './query-client';
+import type { AppRouter } from './routers/_app';
+
+export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
+
+export function TRPCReactProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = getQueryClient();
+  const [trpcClient] = useState(() =>
+    createTRPCClient<AppRouter>({
+      links: [
+        httpBatchLink({
+          url: getUrl(),
+        }),
+      ],
+    }),
+  );
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
+        {children}
+      </TRPCProvider>
+    </QueryClientProvider>
+  );
+}
+```
+
+#### ✅ Root Layout Provider Integration ([layout.tsx](mdc:apps/main/app/layout.tsx))
+```typescript
+// app/layout.tsx
+import { TRPCReactProvider } from "@/trpc/client";
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <TRPCReactProvider>
+          <Providers>{children}</Providers>
+        </TRPCReactProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+#### ✅ Client Component Usage Patterns
+```typescript
+// ✅ useSuspenseQuery with queryOptions pattern
+'use client';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { useTRPC } from '@/trpc/client';
+
+export function TransactionTable() {
+  const trpc = useTRPC();
+  
+  // ✅ Use queryOptions for consistency with server prefetching
+  const queryOptions = useMemo(() => {
+    return trpc.transactions.list.queryOptions({
+      page,
+      pageSize,
+      filters: { sortBy: 'date', sortOrder: sortDirection },
+    });
+  }, [trpc.transactions.list, page, pageSize, sortDirection]);
+
+  const { data } = useSuspenseQuery(queryOptions);
+  
+  return (
+    <div>
+      {data.transactions.map(transaction => (
+        <div key={transaction.id}>{transaction.merchantName}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+#### ✅ Mutations with Error Handling
+```typescript
+// ✅ Mutation pattern with proper error handling
+import { useMutation } from '@tanstack/react-query';
+import { TRPCClientError } from '@trpc/client';
+
+export function SyncButton() {
+  const trpc = useTRPC();
+  
+  const syncMutation = useMutation(trpc.emails.initiateSync.mutationOptions({
+    onSuccess: () => {
+      // Handle success
+      console.log('Sync started successfully');
+    },
+    onError: (err) => {
+      if (err instanceof TRPCClientError) {
+        setError(err.message || "Failed to start sync");
+      } else {
+        setError("An error occurred");
+      }
+    }
+  }));
+
+  return (
+    <button onClick={() => syncMutation.mutate()}>
+      {syncMutation.isPending ? 'Starting...' : 'Start Sync'}
+    </button>
+  );
+}
+```
+
+#### ✅ Conditional Polling Pattern
+```typescript
+// ✅ Smart polling with conditional refetch
+const { data: progressData } = useQuery({
+  ...trpc.emails.getSyncProgress.queryOptions(),
+  refetchInterval: (query) => {
+    const data = query.state.data;
+    const syncStatus = data?.syncStatus;
+    
+    const activeSyncStates = ['counting_emails', 'in_progress', 'syncing'];
+    const shouldPoll = syncTriggered && syncStatus && activeSyncStates.includes(syncStatus);
+    
+    return shouldPoll ? 1000 : false;
+  },
+  enabled: syncTriggered,
+  staleTime: 0,
+});
+```
+
+### ⚙️ Query Client Configuration
+
+#### ✅ Optimized Query Client ([query-client.ts](mdc:apps/main/trpc/query-client.ts))
+```typescript
+// query-client.ts
+import { defaultShouldDehydrateQuery, QueryClient } from '@tanstack/react-query';
+import superjson from 'superjson';
+
+export function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 30 * 1000, // 30 seconds
+      },
+      dehydrate: {
+        // serializeData: superjson.serialize, // Enable if using complex types
+        shouldDehydrateQuery: (query) =>
+          defaultShouldDehydrateQuery(query) ||
+          query.state.status === 'pending',
+      },
+      hydrate: {
+        // deserializeData: superjson.deserialize,
+      },
+    },
+  });
+}
+```
+
+### 🔒 Authentication Patterns
+
+#### ✅ Protected Procedures
+```typescript
+// ✅ Use protectedProcedure for authenticated routes
+export const transactionsRouter = createTRPCRouter({
+  list: protectedProcedure // ✅ Requires authentication
+    .input(/* ... */)
+    .query(async ({ input, ctx }) => {
+      // ctx.userId is guaranteed to be non-null
+      return getTransactionsWithEmails(ctx.userId!, /* ... */);
+    }),
+    
+  getStatuses: baseProcedure // ✅ Public endpoint
+    .query(async () => {
+      return [
+        { value: "COMPLETED", label: "Completed" },
+        { value: "PENDING", label: "Pending" },
+      ];
+    }),
+});
+```
+
+### 📊 Performance Best Practices
+
+#### ✅ Stable Query Options for Hook Consistency
+```typescript
+// ✅ Use useMemo for stable query options
+const queryOptions = useMemo(() => {
+  if (startDate && endDate) {
+    return trpc.analytics.swiggy.insights.queryOptions({
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    });
+  }
+  
+  // ✅ Use stable fallback dates to prevent cache invalidation
+  return trpc.analytics.swiggy.insights.queryOptions({
+    startDate: FALLBACK_START_DATE.toISOString(),
+    endDate: FALLBACK_END_DATE.toISOString(),
+  });
+}, [trpc.analytics.swiggy.insights, startDate, endDate]);
+```
+
+#### ✅ Parallel Data Fetching
+```typescript
+// ✅ Fetch related data in parallel
+const [transactions, totalCount] = await Promise.all([
+  getTransactionsWithEmails(ctx.userId!, filters, pageSize, offset),
+  getTransactionsCount(ctx.userId!, filters),
+]);
+```
+
+#### ✅ Pagination with Metadata
+```typescript
+// ✅ Include comprehensive pagination metadata
+return {
+  transactions,
+  pagination: {
+    page,
+    pageSize,
+    totalCount,
+    totalPages: Math.ceil(totalCount / pageSize),
+    hasNext: page < totalPages,
+    hasPrev: page > 1,
+  },
+};
+```
+
+### 🚫 Common Anti-Patterns
+
+#### ❌ Direct Database Access in Routers
+```typescript
+// ❌ DON'T: Import database directly
+import { db, transactions } from '@workspace/database/src/schema';
+
+// ❌ DON'T: Write queries in routers
+export const badRouter = createTRPCRouter({
+  list: protectedProcedure.query(async ({ ctx }) => {
+    return await db.select().from(transactions); // ❌ Violates SoC
+  }),
+});
+```
+
+#### ❌ Inconsistent Query Options
+```typescript
+// ❌ DON'T: Use different patterns for server/client
+// Server side
+prefetch(trpc.transactions.list.queryOptions({ page: 1 }));
+
+// Client side - inconsistent!
+const { data } = trpc.transactions.list.useQuery({ page: 1 }); // ❌ Different pattern
+```
+
+#### ❌ Missing Error Boundaries
+```typescript
+// ❌ DON'T: Forget error handling
+const { data } = useSuspenseQuery(queryOptions); // ❌ No error boundary
+```
+
+### 🎯 Integration with Database Package
+
+#### ✅ Proper Database Query Usage
+```typescript
+// routers/transactions.ts
+// ✅ DO: Import only query functions from @workspace/database
+import { 
+  getTransactionsWithEmails, 
+  getTransactionsCount, 
+  getUserMerchants,
+  type TransactionFilters  // ✅ Import types only
+} from "@workspace/database";
+
+// ❌ DON'T: Import schemas or db instance
+// import { db, transactions } from "@workspace/database/src/schema"; // ❌
+```
+
+#### ✅ Type Safety with Database
+```typescript
+// ✅ Use proper TypeScript types from database package
+export const transactionsRouter = createTRPCRouter({
+  list: protectedProcedure
+    .input(z.object({
+      filters: transactionFiltersSchema.optional(),
+    }))
+    .query(async ({ input, ctx }) => {
+      // ✅ Type-safe database query
+      const transactions = await getTransactionsWithEmails(
+        ctx.userId!,
+        input.filters as TransactionFilters, // ✅ Proper type casting
+        pageSize,
+        offset
+      );
+      
+      return transactions;
+    }),
+});
+```
+
+### 📝 Summary Checklist
+
+#### Server Setup
+- ✅ Use `createTRPCContext` with Supabase auth
+- ✅ Define `protectedProcedure` for authenticated routes  
+- ✅ Compose routers in `_app.ts`
+- ✅ Set up API route handler at `/api/trpc/[trpc]`
+
+#### Client Setup  
+- ✅ Wrap app with `TRPCReactProvider` in root layout
+- ✅ Use `useTRPC()` hook in client components
+- ✅ Follow `queryOptions` pattern for consistency
+
+#### Database Integration
+- ✅ Import query functions from `@workspace/database`
+- ❌ Never import `db` instance or schemas in routers
+- ✅ Use `TransactionFilters` and other exported types
+
+#### Performance
+- ✅ Prefetch on server with `HydrateClient`
+- ✅ Use `useMemo` for stable query options
+- ✅ Implement conditional polling for real-time updates
+- ✅ Include pagination metadata
+
+#### Error Handling
+- ✅ Use `TRPCError` with appropriate codes
+- ✅ Handle `TRPCClientError` in mutations
+- ✅ Provide fallback states and error boundaries
+
+Follow these patterns to maintain consistency and type safety across the Knitly monorepo.
