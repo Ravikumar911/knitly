@@ -6,7 +6,7 @@ import Script from "next/script"
 import Link from "next/link"
 
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from "@workspace/ui/components/navigation-menu"
-import { Button } from "@workspace/ui/components/button"
+import { RainbowButton } from "@workspace/ui/components/magicui/rainbow-button"
 
 
 import "./globals.css"
@@ -16,7 +16,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   metadataBase: new URL('https://slash.cash'),
   title: {
-    default: "Slash - Your AI Finance Assistant",
+    default: "Slash - Your Personal Finance Assistant",
     template: "%s | Slash"
   },
   description: "AI-powered personal finance that starts with Swiggy analytics and expands to track all your expenses automatically through email analysis.",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     siteName: "Slash",
-    title: "Slash - Your AI Finance Assistant",
+    title: "Slash - Your Personal Finance Assistant",
     description: "AI-powered personal finance that starts with Swiggy analytics and expands to track all your expenses automatically through email analysis.",
     url: "https://slash.cash",
     images: [
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Slash - Your AI Finance Assistant",
+    title: "Slash - Your Personal Finance Assistant",
     description: "AI-powered personal finance that starts with Swiggy analytics and expands to track all your expenses automatically through email analysis.",
     site: "@slashcash",
     creator: "@slashcash",
@@ -105,6 +105,13 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Favicon links */}
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="manifest" href="/site.webmanifest" />
+        <link rel="shortcut icon" href="/favicon.ico" />
+        
         <Script
           id="structured-data-website"
           type="application/ld+json"
@@ -173,9 +180,9 @@ export default function RootLayout({
                   </NavigationMenuList>
                 </NavigationMenu>
               </div>
-              <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4">
                 <a href="https://app.slash.cash" target="_blank" rel="noopener noreferrer">
-                  <Button variant="default" size="sm" className="h-9">Sign In</Button>
+                  <RainbowButton size="default">Sign In</RainbowButton>
                 </a>
               </div>
             </nav>
@@ -186,7 +193,7 @@ export default function RootLayout({
               <FooterNav />
               
               <div className="border-t border-muted-foreground/10 pt-6 flex flex-col md:flex-row items-center justify-between">
-                <div className="text-xs text-muted-foreground">© 2025 Slash. Your AI Finance Assistant.</div>
+                <div className="text-xs text-muted-foreground">© 2025 Slash. Your Personal Finance Assistant.</div>
               </div>
             </div>
           </footer>

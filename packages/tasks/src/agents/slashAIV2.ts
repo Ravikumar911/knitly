@@ -1,7 +1,7 @@
 import { generateObject, NoObjectGeneratedError } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { logger } from "@trigger.dev/sdk/v3";
-import { EmailData } from "../types/finwiseAI";
+import { EmailData } from "../types/slashAI";
 import { identifyMerchant } from "../merchants";
 import { BaseExtractionSchema } from "../merchants/base/baseSchema";
 import { SwiggyExtractionSchema } from "../merchants/swiggy/schema";
@@ -23,7 +23,7 @@ type SchemaInferMap = {
 };
 
 // Enhanced result interface with proper typing
-export interface FinwiseAIV2Result {
+export interface SlashAIV2Result {
   extractionData: SchemaInferMap[SchemaType]; // Properly typed based on schema
   merchantId?: string;
   merchantCode?: string;
@@ -76,11 +76,11 @@ function processExtractionData(
 }
 
 /**
- * Enhanced FinwiseAI agent with type-safe merchant-specific schema support
+ * Enhanced SlashAI agent with type-safe merchant-specific schema support
  */
-export const finwiseAIV2Agent = async (emailData: EmailData): Promise<FinwiseAIV2Result> => {
+export const slashAIV2Agent = async (emailData: EmailData): Promise<SlashAIV2Result> => {
   try {
-    logger.log("Processing email with FinwiseAI V2", {
+    logger.log("Processing email with SlashAI V2", {
       subject: emailData.subject,
       from: emailData.from,
       hasAttachments: !!emailData.attachments?.length
@@ -223,7 +223,7 @@ export const finwiseAIV2Agent = async (emailData: EmailData): Promise<FinwiseAIV
     };
 
   } catch (error) {
-    logger.error("Error in FinwiseAI V2 extraction", {
+    logger.error("Error in SlashAI V2 extraction", {
       error: error instanceof Error ? error.message : String(error),
       subject: emailData.subject,
       from: emailData.from

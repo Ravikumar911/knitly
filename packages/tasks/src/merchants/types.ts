@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EmailData } from "../types/finwiseAI";
+import { EmailData } from "../types/slashAI";
 
 // Schema type constraint
 export type MerchantSchemaType = 'base' | 'swiggy' | 'phonepe';

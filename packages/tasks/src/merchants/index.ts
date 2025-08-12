@@ -1,4 +1,4 @@
-import { EmailData } from "../types/finwiseAI";
+import { EmailData } from "../types/slashAI";
 import { MerchantConfig, MerchantMatch } from "./types";
 import { logger } from "@trigger.dev/sdk/v3";
 
