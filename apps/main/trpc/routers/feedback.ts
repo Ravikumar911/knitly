@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createTRPCRouter, protectedProcedure } from '../init';
+import { createTRPCRouter, protectedProcedure, baseProcedure } from '../init';
 import { createFeedback, getFeedbackByUserId } from '@workspace/database';
 
 export const feedbackRouter = createTRPCRouter({
@@ -22,5 +22,29 @@ export const feedbackRouter = createTRPCRouter({
   getUserFeedback: protectedProcedure
     .query(async ({ ctx }) => {
       return await getFeedbackByUserId(ctx.userId!);
+    }),
+
+  requestBetaAccess: baseProcedure
+    .input(z.object({
+      email: z
+        .string()
+        .email("Please enter a valid email address")
+        .refine(
+          (email) => email.endsWith('@gmail.com'),
+          "Only Gmail addresses are allowed for beta access"
+        ),
+      userAgent: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      return await createFeedback({
+        subject: "Beta Access Request",
+        message: `Beta access requested for email: ${input.email}`,
+        type: "beta",
+        priority: "medium",
+        status: "open",
+        userEmail: input.email,
+        userAgent: input.userAgent,
+        userId: null, // No user ID since this is for non-authenticated users
+      });
     }),
 }); 
