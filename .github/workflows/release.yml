@@ -31,15 +31,33 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Create Release Pull Request or GitHub Release
+      - name: Create Release Pull Request or Publish
         id: changesets
         uses: changesets/action@v1
         with:
-          # Create GitHub releases without publishing to npm
           version: pnpm version-packages
-          createGithubReleases: true
+          publish: pnpm release
           title: "Release: Version Application"
           commit: "chore: release application"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release and Tag
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          # Get the version from package.json
+          VERSION=$(node -p "require('./package.json').version")
+          
+          # Create and push tag
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+          
+          # Create GitHub release
+          gh release create "v$VERSION" \
+            --title "Release v$VERSION" \
+            --generate-notes \
+            --latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
