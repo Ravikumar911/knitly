@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, gte, and } from 'drizzle-orm';
 import { db } from '../index';
 import { feedback, type NewFeedback, type Feedback } from '../schema/feedback';
 
@@ -48,4 +48,33 @@ export async function updateFeedbackStatus(id: string, status: string) {
     .returning();
     
   return updatedFeedback;
+}
+
+// Beta access specific functions
+export async function checkExistingBetaRequest(email: string): Promise<Feedback | null> {
+  const [existingRequest] = await db
+    .select()
+    .from(feedback)
+    .where(and(
+      eq(feedback.userEmail, email),
+      eq(feedback.type, 'beta')
+    ))
+    .orderBy(desc(feedback.createdAt))
+    .limit(1);
+    
+  return existingRequest || null;
+}
+
+export async function getRecentBetaRequestsCount(timeWindowHours: number = 24): Promise<number> {
+  const timeThreshold = new Date(Date.now() - timeWindowHours * 60 * 60 * 1000);
+  
+  const result = await db
+    .select()
+    .from(feedback)
+    .where(and(
+      eq(feedback.type, 'beta'),
+      gte(feedback.createdAt, timeThreshold)
+    ));
+    
+  return result.length;
 } 
