@@ -224,9 +224,7 @@ export default function TermsOfServicePage() {
             <h2 className="mt-8 mb-4">11. Contact Information</h2>
             <p>For questions about these Terms, please contact us:</p>
             <ul className="ml-6">
-              <li><strong>Email:</strong> legal@slash.cash</li>
-              <li><strong>Support:</strong> support@slash.cash</li>
-              <li><strong>Mailing Address:</strong> [Your Business Address]</li>
+              <li><strong>Email:</strong> contact@slash.cash</li>
             </ul>
           </section>
         </div>
