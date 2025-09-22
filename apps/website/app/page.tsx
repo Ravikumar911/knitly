@@ -2,8 +2,7 @@ export const dynamic = 'force-static';
 import { Badge } from "@workspace/ui/components/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@workspace/ui/components/carousel"
-import Image from "next/image"
-import Link from "next/link"
+
 
 // Magic UI Components
 import { AnimatedShinyText } from "@workspace/ui/components/magicui/animated-shiny-text"
@@ -12,7 +11,6 @@ import { ShimmerButton } from "@workspace/ui/components/magicui/shimmer-button"
 import { MagicCard } from "@workspace/ui/components/magicui/magic-card"
 import { BlurFade } from "@workspace/ui/components/magicui/blur-fade"
 import { Particles } from "@workspace/ui/components/magicui/particles"
-import { cn } from "@workspace/ui/lib/utils"
 
 export default function HomePage() {
   return (
