@@ -10,36 +10,15 @@ import { AnimatedShinyText } from "@workspace/ui/components/magicui/animated-shi
 import { AnimatedGradientText } from "@workspace/ui/components/magicui/animated-gradient-text"
 import { ShimmerButton } from "@workspace/ui/components/magicui/shimmer-button"
 import { MagicCard } from "@workspace/ui/components/magicui/magic-card"
-import { Particles } from "@workspace/ui/components/magicui/particles"
 import { BlurFade } from "@workspace/ui/components/magicui/blur-fade"
-import { Meteors } from "@workspace/ui/components/magicui/meteors"
-import { GridPattern } from "@workspace/ui/components/magicui/grid-pattern"
-import { Ripple } from "@workspace/ui/components/magicui/ripple"
+import { Particles } from "@workspace/ui/components/magicui/particles"
 import { cn } from "@workspace/ui/lib/utils"
 
 export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-background relative overflow-hidden">
-      {/* Background Effects */}
-      <div className="absolute inset-0">
-        <GridPattern
-          width={50}
-          height={50}
-          x={-1}
-          y={-1}
-          strokeDasharray={"4 2"}
-          className={cn(
-            "[mask-image:radial-gradient(300px_circle_at_center,white,transparent)]",
-          )}
-        />
-      </div>
-      <Particles
-        className="absolute inset-0"
-        quantity={100}
-        ease={80}
-        color="#ffffff"
-        refresh
-      />
+      {/* Single global Particles background */}
+      <Particles className="absolute inset-0" quantity={140} ease={80} color="#9ca3af" refresh />
 
       {/* Hero Section */}
       <section className="flex-1 flex flex-col items-center justify-center px-4 py-20 md:py-32 relative">
@@ -73,8 +52,7 @@ export default function HomePage() {
       </section>
 
       {/* Current: Swiggy Analytics */}
-      <section className="py-16 bg-muted/30 relative">
-        <Ripple />
+      <section className="py-16 relative">
         <div className="max-w-[1100px] mx-auto px-4">
           <BlurFade delay={0.1} inView>
             <div className="text-center mb-12">
@@ -111,7 +89,14 @@ export default function HomePage() {
               }
             ].map((item, index) => (
               <BlurFade key={index} delay={item.delay} inView>
-                <MagicCard className="cursor-pointer bg-background/60 backdrop-blur-sm h-full">
+                <MagicCard
+                  className="cursor-pointer h-full rounded-xl border border-white/10 shadow-lg shadow-black/10 hover:shadow-2xl hover:shadow-black/20 transition-transform duration-300 hover:-translate-y-1"
+                  gradientSize={280}
+                  gradientFrom="#22d3ee"
+                  gradientTo="#a78bfa"
+                  gradientOpacity={0.25}
+                  gradientColor="rgba(255,255,255,0.4)"
+                >
                   <div className="p-6 h-full flex flex-col">
                     <h3 className="text-xl font-semibold mb-3">{item.title}</h3>
                     <p className="text-muted-foreground text-sm leading-relaxed flex-1">{item.content}</p>
@@ -141,7 +126,7 @@ export default function HomePage() {
       </section>
 
       {/* The Vision: Complete Personal Finance */}
-      <section className="py-16 bg-background relative">
+      <section className="py-16 relative">
         <div className="max-w-[1100px] mx-auto px-4">
           <BlurFade delay={0.1} inView>
             <div className="text-center mb-12">
@@ -171,8 +156,15 @@ export default function HomePage() {
               { icon: "🎯", title: "Smart Budgeting", desc: "AI-powered budget recommendations based on your historical spending patterns.", delay: 0.9 }
             ].map((feature, index) => (
               <BlurFade key={index} delay={feature.delay} inView>
-                <MagicCard className="cursor-pointer text-center p-6 h-full">
-                  <div className="h-full flex flex-col">
+                <MagicCard
+                  className="cursor-pointer h-full rounded-xl border border-white/10 shadow-lg shadow-black/10 hover:shadow-2xl hover:shadow-black/20 transition-transform duration-300 hover:-translate-y-1"
+                  gradientSize={260}
+                  gradientFrom="#22d3ee"
+                  gradientTo="#a78bfa"
+                  gradientOpacity={0.25}
+                  gradientColor="rgba(255,255,255,0.4)"
+                >
+                  <div className="p-6 h-full flex flex-col text-center">
                     <span className="text-4xl mb-4 block">{feature.icon}</span>
                     <h3 className="font-semibold mb-2">{feature.title}</h3>
                     <p className="text-muted-foreground text-sm flex-1">{feature.desc}</p>
@@ -185,7 +177,7 @@ export default function HomePage() {
       </section>
 
       {/* How Slash Works */}
-      <section className="py-16 bg-muted/30 relative">
+      <section className="py-16 relative">
         <div className="max-w-[1100px] mx-auto px-4">
           <BlurFade delay={0.1} inView>
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
@@ -217,7 +209,14 @@ export default function HomePage() {
               }
             ].map((item, index) => (
               <BlurFade key={index} delay={item.delay} inView>
-                <MagicCard className="cursor-pointer bg-background/60 backdrop-blur-sm h-full">
+                <MagicCard
+                  className="cursor-pointer h-full rounded-xl border border-white/10 shadow-lg shadow-black/10 hover:shadow-2xl hover:shadow-black/20 transition-transform duration-300 hover:-translate-y-1"
+                  gradientSize={280}
+                  gradientFrom="#22d3ee"
+                  gradientTo="#a78bfa"
+                  gradientOpacity={0.25}
+                  gradientColor="rgba(255,255,255,0.4)"
+                >
                   <div className="p-6 h-full flex flex-col">
                     <h3 className="text-xl font-semibold mb-3">{item.title}</h3>
                     <p className="text-muted-foreground text-sm leading-relaxed flex-1">{item.content}</p>
@@ -230,7 +229,7 @@ export default function HomePage() {
       </section>
 
       {/* Perfect For */}
-      <section className="py-16 bg-background relative">
+      <section className="py-16 relative">
         <div className="max-w-[900px] mx-auto px-4">
           <BlurFade delay={0.1} inView>
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-10">
@@ -246,8 +245,15 @@ export default function HomePage() {
               { icon: "🎯", title: "Goal-Oriented Savers", desc: "Need insights to optimize spending", delay: 0.5 }
             ].map((item, index) => (
               <BlurFade key={index} delay={item.delay} inView>
-                <MagicCard className="cursor-pointer text-center p-6 h-full">
-                  <div className="h-full flex flex-col">
+                <MagicCard
+                  className="cursor-pointer h-full rounded-xl border border-white/10 shadow-lg shadow-black/10 hover:shadow-2xl hover:shadow-black/20 transition-transform duration-300 hover:-translate-y-1"
+                  gradientSize={260}
+                  gradientFrom="#22d3ee"
+                  gradientTo="#a78bfa"
+                  gradientOpacity={0.25}
+                  gradientColor="rgba(255,255,255,0.4)"
+                >
+                  <div className="p-6 h-full flex flex-col text-center">
                     <span className="text-4xl mb-4 block">{item.icon}</span>
                     <h3 className="font-semibold mb-2">{item.title}</h3>
                     <p className="text-muted-foreground text-sm flex-1">{item.desc}</p>
@@ -260,7 +266,7 @@ export default function HomePage() {
       </section>
 
       {/* Testimonials */}
-      <section className="py-16 bg-muted/30 relative">
+      <section className="py-16 relative">
         <div className="max-w-[900px] mx-auto px-4">
           <BlurFade delay={0.1} inView>
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-10">
@@ -292,7 +298,14 @@ export default function HomePage() {
                   }
                 ].map((testimonial, index) => (
                   <CarouselItem key={index}>
-                    <MagicCard className="cursor-pointer bg-background/60 backdrop-blur-sm">
+                    <MagicCard
+                      className="cursor-pointer rounded-xl border border-white/10 shadow-lg shadow-black/10 hover:shadow-2xl hover:shadow-black/20 transition-transform duration-300 hover:-translate-y-1"
+                      gradientSize={260}
+                      gradientFrom="#22d3ee"
+                      gradientTo="#a78bfa"
+                      gradientOpacity={0.25}
+                      gradientColor="rgba(255,255,255,0.4)"
+                    >
                       <div className="flex flex-col items-center py-8 px-6">
                         <Avatar className="mb-4 w-16 h-16">
                           <AvatarImage src={testimonial.avatar} alt={testimonial.author} />
@@ -313,7 +326,7 @@ export default function HomePage() {
       </section>
 
       {/* Final Call to Action */}
-      <section className="py-16 bg-background relative">
+      <section className="py-16 relative">
         <div className="max-w-[700px] mx-auto px-4 text-center">
           <BlurFade delay={0.1} inView>
             <h2 className="text-3xl md:text-4xl font-bold mb-6">
