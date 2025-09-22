@@ -112,7 +112,7 @@ export const slashAIV2Agent = async (emailData: EmailData): Promise<SlashAIV2Res
 
     // Step 4: Execute AI extraction with selected schema
     const { object } = await generateObject({
-      model: openai("gpt-4o"),
+      model: openai("gpt-5-nano"),
       prompt: fullPrompt,
       schema: schema,
     }).catch(error => {
