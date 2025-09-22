@@ -1,5 +1,5 @@
 import { generateObject, NoObjectGeneratedError } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { defaultModel } from "../ai/model";
 import { logger } from "@trigger.dev/sdk/v3";
 import { EmailData } from "../types/slashAI";
 import { identifyMerchant } from "../merchants";
@@ -112,9 +112,10 @@ export const slashAIV2Agent = async (emailData: EmailData): Promise<SlashAIV2Res
 
     // Step 4: Execute AI extraction with selected schema
     const { object } = await generateObject({
-      model: openai("gpt-4o"),
+      model: defaultModel(),
       prompt: fullPrompt,
       schema: schema,
+      temperature: 1,
     }).catch(error => {
       if (NoObjectGeneratedError.isInstance(error)) {
         console.log("NoObjectGeneratedError: response did not match schema", {
