@@ -115,6 +115,7 @@ export const slashAIV2Agent = async (emailData: EmailData): Promise<SlashAIV2Res
       model: defaultModel(),
       prompt: fullPrompt,
       schema: schema,
+      temperature: 1,
     }).catch(error => {
       if (NoObjectGeneratedError.isInstance(error)) {
         console.log("NoObjectGeneratedError: response did not match schema", {

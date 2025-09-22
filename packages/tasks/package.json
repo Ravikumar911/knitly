@@ -6,8 +6,8 @@
     "build": "tsc",
     "lint": "echo 'Linting not configured for tasks package'",
     "lint:fix": "echo 'Linting not configured for tasks package'",
-    "dev": "pnpm dlx trigger.dev@latest dev",
-    "deploy": "pnpm dlx trigger.dev@latest deploy"
+    "dev": "pnpm dlx trigger.dev@3.3.17 dev",
+    "deploy": "pnpm dlx trigger.dev@3.3.17 deploy"
   },
   "exports": {
     "./trigger/*": "./src/trigger/*.ts"
