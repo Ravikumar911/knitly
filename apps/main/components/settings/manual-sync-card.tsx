@@ -79,25 +79,7 @@ export function ManualSyncCard() {
     return <RefreshCw className="h-6 w-6 text-primary" />;
   };
 
-  const getStatusTitle = () => {
-    if (isComplete) return 'Sync Complete!';
-    if (isFailed) return 'Sync Failed';
-    if (isInitiating) return 'Starting Email Sync';
-    if (isCountingEmails) return 'Analyzing Your Gmail';
-    if (isInProgress) return 'Preparing to Process';
-    if (isSyncing) return 'Processing Your Emails';
-    return 'Manual Email Sync';
-  };
-
-  const getStatusDescription = () => {
-    if (isComplete) return 'Your emails have been successfully synced and updated!';
-    if (isFailed) return 'Email sync failed. Please try starting the sync again.';
-    if (isInitiating) return 'Initializing the sync process...';
-    if (isCountingEmails) return 'Analyzing your Gmail account for new emails';
-    if (isInProgress) return 'Preparing to process your emails...';
-    if (isSyncing) return 'Processing emails in the background. You can safely navigate away from this page.';
-    return 'Manually sync your emails to update your transaction data with the latest information';
-  };
+  // Titles/descriptions are provided by backend messages
 
   const formatTimeRemaining = (estimatedCompletion: string | null) => {
     if (!estimatedCompletion) return null;
@@ -137,10 +119,10 @@ export function ManualSyncCard() {
           {getStatusIcon()}
         </div>
         <CardTitle className="text-xl font-bold">
-          {getStatusTitle()}
+          {(progressData?.message || lastSyncData?.message)?.title || ''}
         </CardTitle>
         <CardDescription className="text-sm text-muted-foreground">
-          {getStatusDescription()}
+          {(progressData?.message || lastSyncData?.message)?.description || ''}
         </CardDescription>
       </CardHeader>
       
@@ -167,9 +149,7 @@ export function ManualSyncCard() {
             {hasTotalEmails && (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>
-                    {progressData.processedEmails?.toLocaleString() || 0} of {progressData.totalEmails?.toLocaleString() || 0} emails processed
-                  </span>
+                  <span>{progressData?.message?.progressText}</span>
                   <span className="font-medium">
                     {Math.round(progressData.progressPercentage || 0)}%
                   </span>

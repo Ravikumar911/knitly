@@ -52,3 +52,6 @@ export * from "./queries/feedback"
 
 // Export unified error types and utilities
 export * from './types/errors';
+
+// Shared sync status/types and UI message builder
+export * from './types/sync';
