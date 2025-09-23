@@ -414,11 +414,37 @@ export async function updateNextPageToken(userId: string, nextPageToken: string 
  * Marks a sync as complete by clearing the next page token
  */
 export async function markSyncComplete(userId: string) {
-  return updateSyncStatus(userId, {
-    nextPageToken: null,
-    syncStatus: 'complete',
-    syncTime: new Date()
-  });
+  // Ensure we mark the sync as complete and record that an initial sync has occurred
+  const now = new Date();
+  const existing = await db.select({ id: emailSyncStatus.id })
+    .from(emailSyncStatus)
+    .where(eq(emailSyncStatus.userId, userId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    return await db.update(emailSyncStatus)
+      .set({
+        nextPageToken: null,
+        syncStatus: 'complete',
+        lastSyncedAt: now,
+        hasInitialSync: true,
+        updatedAt: now,
+      })
+      .where(eq(emailSyncStatus.userId, userId))
+      .returning();
+  } else {
+    return await db.insert(emailSyncStatus)
+      .values({
+        userId,
+        nextPageToken: null,
+        syncStatus: 'complete',
+        lastSyncedAt: now,
+        hasInitialSync: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+  }
 }
 
 /**

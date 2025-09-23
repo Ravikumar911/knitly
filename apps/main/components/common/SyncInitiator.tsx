@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/trpc/client';
 import { TRPCClientError } from '@trpc/client';
 import { useSyncStore } from '@/hooks/useSyncStore';
@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 export function SyncInitiator() {
   const trpc = useTRPC();
   const router = useRouter();
+  const queryClient = useQueryClient();
   
   // Use store without selectors to avoid hydration issues
   const syncStore = useSyncStore();
@@ -98,6 +99,15 @@ export function SyncInitiator() {
     }
   }, [isInitiating, syncStatus, setInitiating]);
 
+  // If we land on the page while a sync is already active, start polling
+  useEffect(() => {
+    if (syncStatus && ['counting_emails', 'in_progress', 'syncing'].includes(syncStatus)) {
+      startPolling(() => {
+        refetchProgress();
+      });
+    }
+  }, [syncStatus, startPolling, refetchProgress]);
+
   // Handle sign out for re-authentication
   const handleSignOut = useCallback(async () => {
     try {
@@ -125,7 +135,7 @@ export function SyncInitiator() {
   // Updated to include initiating state
   const isActiveSyncInProgress = isInitiating || isCountingEmails || isInProgress || isSyncing;
 
-  // Helper functions for status display
+  // Helper functions for status display (messages from backend)
   const getStatusIcon = useCallback(() => {
     if (hasOAuthError) return <Lock className="h-8 w-8 text-amber-600 dark:text-amber-500" />;
     if (isComplete) return <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-500" />;
@@ -133,34 +143,6 @@ export function SyncInitiator() {
     if (isActiveSyncInProgress) return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
     return <Zap className="h-8 w-8 text-primary" />;
   }, [hasOAuthError, isComplete, isFailed, isActiveSyncInProgress]);
-
-  const getStatusTitle = useCallback(() => {
-    if (hasOAuthError && isPermissionError) return 'Gmail Permission Required';
-    if (hasOAuthError) return 'Authentication Issue';
-    if (isComplete) return 'Sync Complete!';
-    if (isFailed) return 'Sync Failed';
-    if (isInitiating) return 'Starting Email Analysis';
-    if (isCountingEmails) return 'Analyzing Your Gmail';
-    if (isInProgress) return 'Preparing to Process';
-    if (isSyncing) return 'Processing Your Emails';
-    return 'Welcome to Slash';
-  }, [hasOAuthError, isPermissionError, isComplete, isFailed, isInitiating, isCountingEmails, isInProgress, isSyncing]);
-
-  const getStatusDescription = useCallback(() => {
-    if (hasOAuthError && isPermissionError) {
-      return 'We need access to your Gmail to analyze your transactions. Please sign in again and grant the necessary permissions.';
-    }
-    if (hasOAuthError) {
-      return 'There was an issue with your Google account connection. Please sign in again to continue.';
-    }
-    if (isComplete) return 'Your emails have been successfully analyzed and imported.';
-    if (isFailed && !hasOAuthError) return 'Something went wrong during the sync process. Please try again.';
-    if (isInitiating) return 'Setting up the email analysis process...';
-    if (isCountingEmails) return 'We\'re counting your emails to estimate processing time...';
-    if (isInProgress) return 'Getting everything ready to process your emails...';
-    if (isSyncing) return 'Analyzing your emails for transaction data...';
-    return 'Let\'s analyze your Gmail to discover your financial transactions and spending patterns.';
-  }, [hasOAuthError, isPermissionError, isComplete, isFailed, isInitiating, isCountingEmails, isInProgress, isSyncing]);
 
   // Format time remaining
   const formatTimeRemaining = useCallback((estimatedCompletion: Date) => {
@@ -177,6 +159,14 @@ export function SyncInitiator() {
     initiateSyncMutation.mutate();
   }, [initiateSyncMutation]);
 
+  // When sync completes, invalidate data status so router flips to dashboard
+  useEffect(() => {
+    if (isComplete) {
+      const key = trpc.emails.checkDataExists.queryOptions().queryKey;
+      queryClient.invalidateQueries({ queryKey: key });
+    }
+  }, [isComplete, queryClient, trpc.emails.checkDataExists]);
+
   return (
     <div className="flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl mx-auto shadow-lg">
@@ -185,10 +175,10 @@ export function SyncInitiator() {
             {getStatusIcon()}
           </div>
           <CardTitle className="text-2xl font-bold">
-            {getStatusTitle()}
+            {progressData?.message?.title || ''}
           </CardTitle>
           <CardDescription className="text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
-            {getStatusDescription()}
+            {progressData?.message?.description || ''}
           </CardDescription>
         </CardHeader>
         
@@ -257,17 +247,11 @@ export function SyncInitiator() {
             </Alert>
           )}
 
-          {/* Progress Section - now includes initiating state */}
+          {/* Progress Section - text comes from backend */}
           {isActiveSyncInProgress && (
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {isInitiating ? 'Preparing analysis...' :
-                   hasTotalEmails 
-                    ? `${processedEmails} of ${totalEmails} emails processed`
-                    : `${processedEmails} emails processed`
-                  }
-                </span>
+                <span className="text-muted-foreground">{progressData?.message?.progressText}</span>
                 {estimatedCompletion && !isInitiating && (
                   <span className="text-muted-foreground">
                     <Clock className="h-3 w-3 inline mr-1" />
@@ -335,9 +319,6 @@ export function SyncInitiator() {
           {/* Success Section */}
           {isComplete && (
             <div className="text-center space-y-4">
-              <p className="text-green-600 dark:text-green-400 font-medium">
-                🎉 Analysis complete! You can now explore your financial insights.
-              </p>
               <Button 
                 onClick={() => window.location.reload()}
                 size="lg"
