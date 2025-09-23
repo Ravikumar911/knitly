@@ -265,6 +265,8 @@ export async function updateSyncProgress(userId: string, incrementBy: number): P
     totalEmails: emailSyncStatus.totalEmails,
     lastSyncAttemptAt: emailSyncStatus.lastSyncAttemptAt,
     createdAt: emailSyncStatus.createdAt,
+    estimatedCompletion: emailSyncStatus.estimatedCompletion,
+    hasInitialSync: emailSyncStatus.hasInitialSync,
   })
     .from(emailSyncStatus)
     .where(eq(emailSyncStatus.userId, userId))
