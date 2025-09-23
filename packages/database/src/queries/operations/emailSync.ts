@@ -1,7 +1,7 @@
 import { db } from '../../index';
 import { emailSyncStatus } from '../../schema/emailSyncStatus';
 import { parsedEmails } from '../../schema/parsedEmails';
-import { eq, count, and, or, isNotNull, isNull, lt, not, inArray } from 'drizzle-orm';
+import { eq, count, and, or, isNotNull, isNull, lt, not, inArray, sql } from 'drizzle-orm';
 import { userGoogleTokens } from '../../schema/tokens';
 
 interface SyncStatus {
@@ -263,29 +263,28 @@ export async function initializeSync(userId: string, totalEmails: number): Promi
 /**
  * Update sync progress during email processing
  */
-export async function updateSyncProgress(userId: string, processedEmails: number): Promise<void> {
-  const current = await getSyncProgress(userId);
-  let previousProcessedEmails = current.processedEmails;
-  processedEmails = previousProcessedEmails + processedEmails;
-  if (!current.totalEmails) {
-    throw new Error('Cannot update progress without total email count');
-  }
-
-  const progressPercentage = (processedEmails / current.totalEmails) * 100;
-  const remainingEmails = current.totalEmails - processedEmails;
-  // ~35 emails per minute based on observed performance (20 emails taking 3 minutes)
-  const estimatedMinutesRemaining = Math.ceil(remainingEmails / 35);
-  
-  const estimatedCompletion = new Date();
-  estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + estimatedMinutesRemaining);
-
+export async function updateSyncProgress(userId: string, incrementBy: number): Promise<void> {
+  // Perform an atomic, race-safe increment and recompute progress using SQL expressions
   await db.update(emailSyncStatus)
     .set({
-      processedEmails,
-      progressPercentage: progressPercentage.toFixed(2),
-      estimatedCompletion,
-      syncStatus: processedEmails >= current.totalEmails ? 'complete' : 'syncing',
-      hasInitialSync: processedEmails >= current.totalEmails ? true : current.hasInitialSync,
+      // Compute new processed count with cap at totalEmails
+      processedEmails: sql`LEAST(${emailSyncStatus.processedEmails} + ${incrementBy}, COALESCE(${emailSyncStatus.totalEmails}, ${emailSyncStatus.processedEmails} + ${incrementBy}))`,
+      progressPercentage: sql`CASE
+        WHEN COALESCE(${emailSyncStatus.totalEmails}, 0) = 0 THEN '0.00'
+        ELSE ROUND(((LEAST(${emailSyncStatus.processedEmails} + ${incrementBy}, COALESCE(${emailSyncStatus.totalEmails}, ${emailSyncStatus.processedEmails} + ${incrementBy}))::numeric) / NULLIF(${emailSyncStatus.totalEmails}::numeric, 0)) * 100, 2)
+      END`,
+      estimatedCompletion: sql`CASE 
+        WHEN COALESCE(${emailSyncStatus.totalEmails}, 0) = 0 THEN ${emailSyncStatus.estimatedCompletion}
+        ELSE NOW() + make_interval(mins => CEIL((COALESCE(${emailSyncStatus.totalEmails}, 0) - LEAST(${emailSyncStatus.processedEmails} + ${incrementBy}, COALESCE(${emailSyncStatus.totalEmails}, ${emailSyncStatus.processedEmails} + ${incrementBy}))) / 35.0))
+      END`,
+      syncStatus: sql`CASE 
+        WHEN COALESCE(${emailSyncStatus.totalEmails}, 0) > 0 AND LEAST(${emailSyncStatus.processedEmails} + ${incrementBy}, COALESCE(${emailSyncStatus.totalEmails}, ${emailSyncStatus.processedEmails} + ${incrementBy})) >= ${emailSyncStatus.totalEmails} THEN 'complete' 
+        ELSE 'syncing' 
+      END`,
+      hasInitialSync: sql`CASE 
+        WHEN COALESCE(${emailSyncStatus.totalEmails}, 0) > 0 AND LEAST(${emailSyncStatus.processedEmails} + ${incrementBy}, COALESCE(${emailSyncStatus.totalEmails}, ${emailSyncStatus.processedEmails} + ${incrementBy})) >= ${emailSyncStatus.totalEmails} THEN true 
+        ELSE ${emailSyncStatus.hasInitialSync} 
+      END`,
       updatedAt: new Date()
     })
     .where(eq(emailSyncStatus.userId, userId));

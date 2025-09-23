@@ -204,10 +204,20 @@ export const processEmailBatch = task({
           currentStats: stats
         });
         stats.errorCount++;
+      } finally {
+        // Increment progress atomically for each email handled (processed, skipped, or errored)
+        try {
+          await updateSyncProgress(payload.userId, 1);
+        } catch (e) {
+          logger.error("Failed to increment sync progress", {
+            userId: payload.userId,
+            messageId: messageInfo.id,
+            error: e instanceof Error ? e.message : String(e)
+          });
+        }
       }
     }
 
-    await updateSyncProgress(payload.userId, stats.processedCount+stats.skippedCount+stats.errorCount);
 
     logger.log("Batch processing completed", {
       userId: payload.userId,
