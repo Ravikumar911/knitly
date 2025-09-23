@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/trpc/client';
 import { TRPCClientError } from '@trpc/client';
 import { useSyncStore } from '@/hooks/useSyncStore';
@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 export function SyncInitiator() {
   const trpc = useTRPC();
   const router = useRouter();
+  const queryClient = useQueryClient();
   
   // Use store without selectors to avoid hydration issues
   const syncStore = useSyncStore();
@@ -98,6 +99,15 @@ export function SyncInitiator() {
     }
   }, [isInitiating, syncStatus, setInitiating]);
 
+  // If we land on the page while a sync is already active, start polling
+  useEffect(() => {
+    if (syncStatus && ['counting_emails', 'in_progress', 'syncing'].includes(syncStatus)) {
+      startPolling(() => {
+        refetchProgress();
+      });
+    }
+  }, [syncStatus, startPolling, refetchProgress]);
+
   // Handle sign out for re-authentication
   const handleSignOut = useCallback(async () => {
     try {
@@ -148,6 +158,14 @@ export function SyncInitiator() {
   const handleInitiateSync = useCallback(() => {
     initiateSyncMutation.mutate();
   }, [initiateSyncMutation]);
+
+  // When sync completes, invalidate data status so router flips to dashboard
+  useEffect(() => {
+    if (isComplete) {
+      const key = trpc.emails.checkDataExists.queryOptions().queryKey;
+      queryClient.invalidateQueries({ queryKey: key });
+    }
+  }, [isComplete, queryClient, trpc.emails.checkDataExists]);
 
   return (
     <div className="flex items-center justify-center p-4">
