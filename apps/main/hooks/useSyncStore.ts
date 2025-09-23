@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { EmailSyncStatus } from '@workspace/database';
 
 export type UserState = 'new_user' | 'oauth_error' | 'sync_failed' | 'sync_in_progress' | 'has_data';
 
@@ -29,7 +30,7 @@ interface SyncState {
   processedEmails: number;
   progressPercentage: number;
   estimatedCompletion: Date | null;
-  syncStatus: string | null;
+  syncStatus: EmailSyncStatus | null;
   
   // OAuth Errors (keep for compatibility)
   oauthError: OAuthError;
@@ -54,7 +55,7 @@ interface SyncActions {
     processedEmails: number;
     progressPercentage: number;
     estimatedCompletion: Date | null;
-    syncStatus: string | null;
+    syncStatus: EmailSyncStatus | null;
     oauthError: OAuthError;
   }) => void;
   
@@ -119,16 +120,16 @@ export const useSyncStore = create<SyncState & SyncActions>()(
         // Handle OAuth errors
         if (progress.oauthError?.requiresReauth) {
           get().setOAuthError(progress.oauthError);
-        } else if (progress.syncStatus === 'failed') {
+        } else if (progress.syncStatus === EmailSyncStatus.Failed) {
           get().setSyncError('Sync failed during processing');
-        } else if (progress.syncStatus && ['counting_emails', 'in_progress', 'syncing'].includes(progress.syncStatus)) {
+        } else if (progress.syncStatus && [EmailSyncStatus.CountingEmails, EmailSyncStatus.InProgress, EmailSyncStatus.Syncing].includes(progress.syncStatus)) {
           get().clearError();
-        } else if (progress.syncStatus === 'complete') {
+        } else if (progress.syncStatus === EmailSyncStatus.Complete) {
           get().clearError();
         }
 
         // Stop polling if sync is complete or failed
-        if (['complete', 'failed'].includes(progress.syncStatus || '')) {
+        if ([EmailSyncStatus.Complete, EmailSyncStatus.Failed].includes(progress.syncStatus || EmailSyncStatus.Complete)) {
           get().stopPolling();
         }
       },

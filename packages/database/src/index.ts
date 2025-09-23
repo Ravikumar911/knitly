@@ -52,3 +52,5 @@ export * from "./queries/feedback"
 
 // Export unified error types and utilities
 export * from './types/errors';
+export * from './types/emailSync';
+export * from './utils/emailSync';
