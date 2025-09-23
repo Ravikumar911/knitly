@@ -227,35 +227,30 @@ export async function initializeSync(userId: string, totalEmails: number): Promi
     .where(eq(emailSyncStatus.userId, userId))
     .limit(1);
 
-  const estimatedCompletion = new Date();
-  // ~35 emails per minute based on observed performance (20 emails taking 3 minutes)
-  estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + Math.ceil(totalEmails / 35));
+  // We no longer try to "guess" the estimated completion time here.
+  // Instead we set it to null and let `updateSyncProgress` calculate
+  // a dynamic estimate once we have real processing data.
+  const initialData = {
+    totalEmails,
+    processedEmails: 0,
+    progressPercentage: '0.00',
+    estimatedCompletion: null as Date | null,
+    syncStatus: 'syncing' as const, // about to start processing
+    lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
+    updatedAt: new Date(),
+  };
 
   if (existing.length > 0) {
     await db.update(emailSyncStatus)
-      .set({
-        totalEmails,
-        processedEmails: 0,
-        progressPercentage: '0.00',
-        estimatedCompletion,
-        syncStatus: 'syncing', // Changed to syncing since we're about to start processing
-        lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
-        updatedAt: new Date()
-      })
+      .set(initialData)
       .where(eq(emailSyncStatus.userId, userId));
   } else {
     await db.insert(emailSyncStatus)
       .values({
         userId,
-        lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
-        totalEmails,
-        processedEmails: 0,
-        progressPercentage: '0.00',
-        estimatedCompletion,
-        syncStatus: 'syncing', // Changed to syncing since we're about to start processing
         hasInitialSync: false,
         createdAt: new Date(),
-        updatedAt: new Date()
+        ...initialData,
       });
   }
 }
@@ -264,28 +259,60 @@ export async function initializeSync(userId: string, totalEmails: number): Promi
  * Update sync progress during email processing
  */
 export async function updateSyncProgress(userId: string, incrementBy: number): Promise<void> {
-  // Perform an atomic, race-safe increment and recompute progress using SQL expressions
+  // Fetch current status so we can compute a dynamic ETA based on real throughput
+  const currentStatus = await db.select({
+    processedEmails: emailSyncStatus.processedEmails,
+    totalEmails: emailSyncStatus.totalEmails,
+    lastSyncAttemptAt: emailSyncStatus.lastSyncAttemptAt,
+    createdAt: emailSyncStatus.createdAt,
+  })
+    .from(emailSyncStatus)
+    .where(eq(emailSyncStatus.userId, userId))
+    .limit(1);
+
+  if (currentStatus.length === 0) {
+    // No status row yet – initialise to avoid inconsistent state
+    await initializeSync(userId, 0);
+    return;
+  }
+
+  const status = currentStatus[0]!;
+
+  const newProcessed = Math.min(
+    (status.processedEmails || 0) + incrementBy,
+    status.totalEmails ?? (status.processedEmails || 0) + incrementBy,
+  );
+
+  let estimatedCompletion: Date | null = status.estimatedCompletion ?? null;
+
+// We'll calculate ETA only if we know the total email count and haven't completed yet
+  if (status.totalEmails && status.totalEmails > 0 && newProcessed < status.totalEmails) {
+    const startTime = status.lastSyncAttemptAt ?? status.createdAt ?? new Date();
+    const elapsedMs = Date.now() - startTime.getTime();
+    if (elapsedMs > 0) {
+      const emailsPerMs = newProcessed / elapsedMs;
+      if (emailsPerMs > 0) {
+        const remainingEmails = status.totalEmails - newProcessed;
+        const remainingMs = remainingEmails / emailsPerMs;
+        estimatedCompletion = new Date(Date.now() + remainingMs);
+      }
+    }
+  } else if (status.totalEmails && newProcessed >= status.totalEmails) {
+    // If we've reached or exceeded total, set ETA = now
+    estimatedCompletion = new Date();
+  }
+
+  // Perform the update
   await db.update(emailSyncStatus)
     .set({
-      // Compute new processed count with cap at totalEmails
-      processedEmails: sql`LEAST(${emailSyncStatus.processedEmails} + ${incrementBy}, COALESCE(${emailSyncStatus.totalEmails}, ${emailSyncStatus.processedEmails} + ${incrementBy}))`,
-      progressPercentage: sql`CASE
-        WHEN COALESCE(${emailSyncStatus.totalEmails}, 0) = 0 THEN '0.00'
-        ELSE ROUND(((LEAST(${emailSyncStatus.processedEmails} + ${incrementBy}, COALESCE(${emailSyncStatus.totalEmails}, ${emailSyncStatus.processedEmails} + ${incrementBy}))::numeric) / NULLIF(${emailSyncStatus.totalEmails}::numeric, 0)) * 100, 2)
-      END`,
-      estimatedCompletion: sql`CASE 
-        WHEN COALESCE(${emailSyncStatus.totalEmails}, 0) = 0 THEN ${emailSyncStatus.estimatedCompletion}
-        ELSE NOW() + make_interval(mins => CEIL((COALESCE(${emailSyncStatus.totalEmails}, 0) - LEAST(${emailSyncStatus.processedEmails} + ${incrementBy}, COALESCE(${emailSyncStatus.totalEmails}, ${emailSyncStatus.processedEmails} + ${incrementBy}))) / 35.0))
-      END`,
-      syncStatus: sql`CASE 
-        WHEN COALESCE(${emailSyncStatus.totalEmails}, 0) > 0 AND LEAST(${emailSyncStatus.processedEmails} + ${incrementBy}, COALESCE(${emailSyncStatus.totalEmails}, ${emailSyncStatus.processedEmails} + ${incrementBy})) >= ${emailSyncStatus.totalEmails} THEN 'complete' 
-        ELSE 'syncing' 
-      END`,
-      hasInitialSync: sql`CASE 
-        WHEN COALESCE(${emailSyncStatus.totalEmails}, 0) > 0 AND LEAST(${emailSyncStatus.processedEmails} + ${incrementBy}, COALESCE(${emailSyncStatus.totalEmails}, ${emailSyncStatus.processedEmails} + ${incrementBy})) >= ${emailSyncStatus.totalEmails} THEN true 
-        ELSE ${emailSyncStatus.hasInitialSync} 
-      END`,
-      updatedAt: new Date()
+      processedEmails: newProcessed,
+      progressPercentage: status.totalEmails && status.totalEmails > 0
+        ? ((newProcessed / status.totalEmails) * 100).toFixed(2)
+        : '0.00',
+      estimatedCompletion,
+      syncStatus: status.totalEmails && newProcessed >= status.totalEmails ? 'complete' : 'syncing',
+      hasInitialSync: status.totalEmails && newProcessed >= status.totalEmails ? true : status.hasInitialSync,
+      updatedAt: new Date(),
     })
     .where(eq(emailSyncStatus.userId, userId));
 }
