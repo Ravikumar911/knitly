@@ -1,7 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { useTRPC } from '@/trpc/client';
+import { useEmailSync } from '@/hooks/useEmailSync';
 import { SyncInitiator } from './SyncInitiator';
 
 interface DataStatusRouterProps {
@@ -13,16 +12,10 @@ interface DataStatusRouterProps {
  * to either the dashboard or sync flow based on their data status.
  */
 export function DataStatusRouter({ children }: DataStatusRouterProps) {
-  const trpc = useTRPC();
-  
-  // Use the prefetched data from the server (no additional network call)
-  const { data: dataStatus } = useQuery({
-    ...trpc.emails.checkDataExists.queryOptions(),
-    staleTime: 30000, // 30 seconds
-  });
+  const { state } = useEmailSync();
   
   // If user has data, show dashboard
-  if (dataStatus?.userState === 'has_data') {
+  if (state?.state === 'has_data') {
     return <>{children}</>;
   }
   

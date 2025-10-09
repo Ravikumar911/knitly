@@ -6,11 +6,26 @@ import {
   getSyncStatus, 
   checkUserHasData, 
   getSyncProgress, 
-  initializeSync 
+  initializeSync, 
+  getUnifiedSyncState,
+  ensureSyncRow
 } from "@workspace/database";
 
 // Router for email-related operations
 export const emailsRouter = createTRPCRouter({
+  // Unified state endpoint (source of truth)
+  state: protectedProcedure
+    .query(async ({ ctx }) => {
+      try {
+        return await getUnifiedSyncState(ctx.userId!);
+      } catch (error) {
+        console.error("Error getting unified sync state:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Unknown error getting unified sync state",
+        });
+      }
+    }),
   // Check if user has any synced data
   checkDataExists: protectedProcedure
     .query(async ({ ctx }) => {
@@ -40,11 +55,20 @@ export const emailsRouter = createTRPCRouter({
   initiateSync: protectedProcedure
     .mutation(async ({ ctx }) => {
       try {
-        // Just trigger the email processing job
-        // The job itself will:
-        // 1. Get Gmail email count with proper filters
-        // 2. Initialize sync in database with count
-        // 3. Process emails with progress tracking
+        // Idempotency guard: if already actively syncing and not stale, do nothing
+        const unified = await getUnifiedSyncState(ctx.userId!);
+        const activePhases = ['counting_emails', 'in_progress', 'syncing'] as const;
+        if (activePhases.includes(unified.phase as any) && unified.phase !== 'stalled') {
+          return {
+            success: true,
+            message: "Email sync already in progress.",
+          };
+        }
+
+        // Ensure row exists for consistent progress writes
+        await ensureSyncRow(ctx.userId!);
+
+        // Trigger the email processing job (counts + processing)
         await processEmails.trigger({
           userId: ctx.userId!,
         });

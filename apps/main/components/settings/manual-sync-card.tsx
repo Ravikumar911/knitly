@@ -1,9 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { TRPCClientError } from '@trpc/client';
-import { useTRPC } from '@/trpc/client';
+import { useEmailSync } from '@/hooks/useEmailSync';
 import { Button } from '@workspace/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import { Alert, AlertDescription } from '@workspace/ui/components/alert';
@@ -11,78 +8,29 @@ import { Progress } from '@workspace/ui/components/progress';
 import { Mail, Zap, Loader2, CheckCircle, Clock, AlertCircle, RefreshCw } from 'lucide-react';
 
 export function ManualSyncCard() {
-  const [error, setError] = useState<string | null>(null);
-  const [syncTriggered, setSyncTriggered] = useState(false);
-  const trpc = useTRPC();
-
-  // Mutation to start sync
-  const initiateSyncMutation = useMutation(trpc.emails.initiateSync.mutationOptions({
-    onSuccess: () => {
-      setError(null);
-      setSyncTriggered(true);
-    },
-    onError: (err) => {
-      setSyncTriggered(false);
-      if (err instanceof TRPCClientError) {
-        setError(err.message || "Failed to start email sync");
-      } else {
-        setError("An error occurred while starting email sync");
-      }
-    }
-  }));
-
-  // Query sync progress only when sync is triggered
-  const { data: progressData } = useQuery({
-    ...trpc.emails.getSyncProgress.queryOptions(),
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      const syncStatus = data?.syncStatus;
-      
-      const activeSyncStates = ['counting_emails', 'in_progress', 'syncing'];
-      const shouldPoll = syncTriggered && syncStatus && activeSyncStates.includes(syncStatus);
-      
-      return shouldPoll ? 1000 : false;
-    },
-    enabled: syncTriggered,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    staleTime: 0,
-  });
-
-  // Get last sync info
-  const { data: lastSyncData } = useQuery({
-    ...trpc.emails.getSyncStatus.queryOptions(),
-    refetchOnMount: true,
-  });
+  const { state, isLoading, cta, error } = useEmailSync();
 
   // Determine current sync state
-  const syncStatus = progressData?.syncStatus;
-  const isInitiating = initiateSyncMutation.isPending;
-  const isCountingEmails = syncStatus === 'counting_emails';
-  const isInProgress = syncStatus === 'in_progress';
-  const isSyncing = syncStatus === 'syncing';
-  const hasTotalEmails = progressData?.totalEmails && progressData.totalEmails > 0;
-  const isComplete = syncStatus === 'complete';
-  const isFailed = syncStatus === 'failed';
+  const isCountingEmails = state?.phase === 'counting_emails';
+  const isInProgress = state?.phase === 'in_progress';
+  const isSyncing = state?.phase === 'syncing';
+  const hasTotalEmails = !!state?.progress.total && (state.progress.total || 0) > 0;
+  const isComplete = state?.phase === 'complete';
+  const isFailed = state?.phase === 'failed';
   
   const isActiveSyncInProgress = isCountingEmails || isInProgress || isSyncing;
-
-  // Reset syncTriggered when sync is complete or failed
-  if (syncTriggered && (isComplete || isFailed)) {
-    setSyncTriggered(false);
-  }
 
   const getStatusIcon = () => {
     if (isComplete) return <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-500" />;
     if (isFailed) return <AlertCircle className="h-6 w-6 text-destructive" />;
-    if (isActiveSyncInProgress || isInitiating) return <Loader2 className="h-6 w-6 animate-spin text-primary" />;
+    if (isActiveSyncInProgress || isLoading) return <Loader2 className="h-6 w-6 animate-spin text-primary" />;
     return <RefreshCw className="h-6 w-6 text-primary" />;
   };
 
   const getStatusTitle = () => {
     if (isComplete) return 'Sync Complete!';
     if (isFailed) return 'Sync Failed';
-    if (isInitiating) return 'Starting Email Sync';
+    if (isLoading) return 'Starting Email Sync';
     if (isCountingEmails) return 'Analyzing Your Gmail';
     if (isInProgress) return 'Preparing to Process';
     if (isSyncing) return 'Processing Your Emails';
@@ -92,14 +40,14 @@ export function ManualSyncCard() {
   const getStatusDescription = () => {
     if (isComplete) return 'Your emails have been successfully synced and updated!';
     if (isFailed) return 'Email sync failed. Please try starting the sync again.';
-    if (isInitiating) return 'Initializing the sync process...';
+    if (isLoading) return 'Initializing the sync process...';
     if (isCountingEmails) return 'Analyzing your Gmail account for new emails';
     if (isInProgress) return 'Preparing to process your emails...';
     if (isSyncing) return 'Processing emails in the background. You can safely navigate away from this page.';
     return 'Manually sync your emails to update your transaction data with the latest information';
   };
 
-  const formatTimeRemaining = (estimatedCompletion: string | null) => {
+  const formatTimeRemaining = (estimatedCompletion: Date | null) => {
     if (!estimatedCompletion) return null;
     
     const now = new Date();
@@ -118,18 +66,6 @@ export function ManualSyncCard() {
     return `~${hours}h ${minutes}m remaining`;
   };
 
-  const handleStartSync = () => {
-    setError(null);
-    setSyncTriggered(true);
-    initiateSyncMutation.mutate();
-  };
-
-  const handleRetrySync = () => {
-    setError(null);
-    setSyncTriggered(true);
-    initiateSyncMutation.mutate();
-  };
-
   return (
     <Card className="w-full shadow-lg border bg-card">
       <CardHeader className="text-center pb-6">
@@ -145,47 +81,34 @@ export function ManualSyncCard() {
       </CardHeader>
       
       <CardContent className="space-y-6">
-        {/* Last Sync Information */}
-        {!syncTriggered && !isActiveSyncInProgress && lastSyncData?.lastSyncedAt && (
-          <div className="text-center p-4 bg-muted/50 rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              <strong>Last synced:</strong> {new Date(lastSyncData.lastSyncedAt).toLocaleString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </p>
-          </div>
-        )}
+        {/* Last Sync Information (not available via unified state) */}
 
         {/* Progress Section - Only show during sync */}
         {(isActiveSyncInProgress || isComplete) && (
           <div className="space-y-4">
             {/* Progress Bar */}
-            {hasTotalEmails && (
+            {hasTotalEmails && state && (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>
-                    {progressData.processedEmails?.toLocaleString() || 0} of {progressData.totalEmails?.toLocaleString() || 0} emails processed
+                    {state.progress.processed.toLocaleString()} of {(state.progress.total || 0).toLocaleString()} emails processed
                   </span>
                   <span className="font-medium">
-                    {Math.round(progressData.progressPercentage || 0)}%
+                    {Math.round(state.progress.percent || 0)}%
                   </span>
                 </div>
                 <Progress 
-                  value={progressData.progressPercentage || 0} 
+                  value={state.progress.percent || 0} 
                   className="h-3"
                 />
               </div>
             )}
 
             {/* Time Remaining */}
-            {progressData?.estimatedCompletion && !isComplete && (
+            {state?.progress?.eta && !isComplete && (
               <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Clock className="h-4 w-4" />
-                {formatTimeRemaining(progressData.estimatedCompletion)}
+                {formatTimeRemaining(state.progress.eta as any)}
               </div>
             )}
 
@@ -193,7 +116,7 @@ export function ManualSyncCard() {
             {hasTotalEmails && !isComplete && (
               <div className="text-center p-4 bg-primary/10 border border-primary/20 rounded-lg">
                 <p className="text-sm text-primary font-medium">
-                  Found {progressData.totalEmails?.toLocaleString()} emails to process
+                  Found {(state?.progress.total ?? 0).toLocaleString()} emails to process
                 </p>
               </div>
             )}
@@ -211,44 +134,38 @@ export function ManualSyncCard() {
                 </AlertDescription>
               </Alert>
               <Button 
-                onClick={handleStartSync}
+                onClick={() => cta?.action?.()}
                 variant="outline"
                 size="lg"
                 className="w-full"
-                disabled={isInitiating}
+                disabled={isLoading}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Sync Again
+                {cta?.label || 'Sync Again'}
               </Button>
             </div>
           ) : isFailed ? (
             <div className="space-y-4">
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Email sync failed. Please try starting the sync again.
-                </AlertDescription>
-              </Alert>
               <Button 
-                onClick={handleRetrySync}
+                onClick={() => cta?.action?.()}
                 variant="outline"
                 size="lg"
                 className="w-full"
-                disabled={isInitiating}
+                disabled={isLoading}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Try Again
+                {cta?.label || 'Try Again'}
               </Button>
             </div>
-          ) : !syncTriggered && !isActiveSyncInProgress ? (
+          ) : !isActiveSyncInProgress ? (
             <div className="space-y-4">
               <Button 
-                onClick={handleStartSync}
-                disabled={isInitiating}
+                onClick={() => cta?.action?.()}
+                disabled={isLoading}
                 size="lg"
                 className="w-full"
               >
-                {isInitiating ? (
+                {isLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     Starting Sync...
@@ -256,7 +173,7 @@ export function ManualSyncCard() {
                 ) : (
                   <>
                     <Zap className="h-4 w-4 mr-2" />
-                    Start Email Sync
+                    {cta?.label || 'Start Email Sync'}
                   </>
                 )}
               </Button>
@@ -282,7 +199,9 @@ export function ManualSyncCard() {
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {error}
+              {typeof (error as any)?.message === 'string' 
+                ? (error as any).message 
+                : 'An error occurred while fetching sync state'}
             </AlertDescription>
           </Alert>
         )}

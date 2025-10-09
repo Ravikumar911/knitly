@@ -31,6 +31,16 @@ interface SyncProgress {
   userFriendlyError: string | null;
 }
 
+export type UnifiedEmailSyncState = {
+  state: 'new_user' | 'oauth_error' | 'sync_failed' | 'sync_in_progress' | 'has_data';
+  phase: 'idle' | 'counting_emails' | 'in_progress' | 'syncing' | 'complete' | 'failed' | 'stalled';
+  progress: { total: number | null; processed: number; percent: number; eta: Date | null };
+  oauth: { type: string | null; code: string | null; requiresReauth: boolean; userFriendlyMessage: string | null } | null;
+  hasInitialSync: boolean;
+  needsAction: boolean;
+  action: 'reauth' | 'retry' | null;
+};
+
 // OAuth Error type to match the one from googleAuth.ts
 interface OAuthError {
   code: string;
@@ -142,13 +152,15 @@ export async function checkUserHasData(userId: string): Promise<{
   } else if (syncStatus && ['in_progress', 'syncing', 'counting_emails'].includes(syncStatus)) {
     // User has sync in progress
     userState = 'sync_in_progress';
-  } else if (hasInitialSync && emailCount > 0) {
-    // User has successfully synced data
+  } else if (hasInitialSync) {
+    // User completed an initial sync. Even if no emails were imported (emailCount = 0),
+    // treat this as a completed setup so the app can show the dashboard with empty states.
     userState = 'has_data';
-  } else {
-    // Fallback for edge cases - treat as new user
+   } else {
     userState = 'new_user';
-  }
+   } 
+
+  console.log("userState", userState);
   
   // Prepare OAuth error information
   const oauthError = syncData?.oauthErrorType ? {
@@ -215,6 +227,135 @@ export async function getSyncProgress(userId: string): Promise<SyncProgress> {
     oauthErrorCode: data.oauthErrorCode,
     requiresReauth: data.requiresReauth || false,
     userFriendlyError: data.userFriendlyError
+  };
+}
+
+/**
+ * Ensure a status row exists for the user. Idempotent.
+ */
+export async function ensureSyncRow(userId: string): Promise<void> {
+  const existing = await db.select({ id: emailSyncStatus.id })
+    .from(emailSyncStatus)
+    .where(eq(emailSyncStatus.userId, userId))
+    .limit(1);
+
+  if (existing.length === 0) {
+    await db.insert(emailSyncStatus)
+      .values({
+        userId,
+        nextPageToken: null,
+        syncStatus: null,
+        errorDetails: null,
+        processedEmails: 0,
+        progressPercentage: '0.00',
+        hasInitialSync: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+  }
+}
+
+/**
+ * Unified state computation for frontend. Includes staleness detection.
+ */
+export async function getUnifiedSyncState(userId: string): Promise<UnifiedEmailSyncState> {
+  // Fetch status row
+  const statusRows = await db.select({
+    lastSyncedAt: emailSyncStatus.lastSyncedAt,
+    lastSyncAttemptAt: emailSyncStatus.lastSyncAttemptAt,
+    nextPageToken: emailSyncStatus.nextPageToken,
+    syncStatus: emailSyncStatus.syncStatus,
+    errorDetails: emailSyncStatus.errorDetails,
+    oauthErrorType: emailSyncStatus.oauthErrorType,
+    oauthErrorCode: emailSyncStatus.oauthErrorCode,
+    requiresReauth: emailSyncStatus.requiresReauth,
+    userFriendlyError: emailSyncStatus.userFriendlyError,
+    totalEmails: emailSyncStatus.totalEmails,
+    processedEmails: emailSyncStatus.processedEmails,
+    progressPercentage: emailSyncStatus.progressPercentage,
+    estimatedCompletion: emailSyncStatus.estimatedCompletion,
+    hasInitialSync: emailSyncStatus.hasInitialSync,
+    updatedAt: emailSyncStatus.updatedAt,
+  })
+    .from(emailSyncStatus)
+    .where(eq(emailSyncStatus.userId, userId))
+    .limit(1);
+
+  const row = statusRows[0];
+
+  // Default when no row exists yet
+  if (!row) {
+    return {
+      state: 'new_user',
+      phase: 'idle',
+      progress: { total: null, processed: 0, percent: 0, eta: null },
+      oauth: null,
+      hasInitialSync: false,
+      needsAction: false,
+      action: null,
+    };
+  }
+
+  // Determine base phase from syncStatus
+  const rawPhase = (row.syncStatus as UnifiedEmailSyncState['phase']) || 'idle';
+
+  // Staleness detection: if active phase and updatedAt is stale -> stalled
+  const ACTIVE_PHASES: Array<UnifiedEmailSyncState['phase']> = ['counting_emails', 'in_progress', 'syncing'];
+  const STALE_MS = 5 * 60 * 1000; // 5 minutes
+  const updatedAt = row.updatedAt ?? row.lastSyncAttemptAt ?? row.lastSyncedAt ?? null;
+  const isActive = ACTIVE_PHASES.includes(rawPhase);
+  const isStale = isActive && updatedAt ? (Date.now() - updatedAt.getTime()) > STALE_MS : false;
+  const phase: UnifiedEmailSyncState['phase'] = isStale ? 'stalled' : rawPhase;
+
+  // Determine high-level state
+  let state: UnifiedEmailSyncState['state'];
+  if (!row.lastSyncAttemptAt) {
+    state = 'new_user';
+  } else if (row.oauthErrorType && row.requiresReauth) {
+    state = 'oauth_error';
+  } else if (row.syncStatus === 'failed') {
+    state = 'sync_failed';
+  } else if (['in_progress', 'syncing', 'counting_emails'].includes(row.syncStatus || '')) {
+    state = 'sync_in_progress';
+  } else if (row.hasInitialSync) {
+    state = 'has_data';
+  } else {
+    state = 'new_user';
+  }
+
+  // Progress
+  const total = row.totalEmails ?? null;
+  const processed = row.processedEmails || 0;
+  const percent = parseFloat(row.progressPercentage || '0');
+  const eta = row.estimatedCompletion ?? null;
+
+  // OAuth
+  const oauth = row.oauthErrorType ? {
+    type: row.oauthErrorType,
+    code: row.oauthErrorCode,
+    requiresReauth: row.requiresReauth || false,
+    userFriendlyMessage: row.userFriendlyError || null,
+  } : null;
+
+  // Action recommendation
+  let action: UnifiedEmailSyncState['action'] = null;
+  let needsAction = false;
+  if (oauth?.requiresReauth) {
+    action = 'reauth';
+    needsAction = true;
+  } else if (phase === 'failed' || phase === 'stalled') {
+    action = 'retry';
+    needsAction = true;
+  }
+
+  return {
+    state,
+    phase,
+    progress: { total, processed, percent, eta },
+    oauth,
+    hasInitialSync: row.hasInitialSync || false,
+    needsAction,
+    action,
   };
 }
 
@@ -644,3 +785,17 @@ export async function forceClearOAuthErrors(userId: string): Promise<void> {
     })
     .where(eq(emailSyncStatus.userId, userId));
 } 
+
+/**
+ * Reset sync status following a successful OAuth reauthentication.
+ * This clears failure state so UI doesn't remain stuck on "failed".
+ */
+export async function resetSyncStatusAfterReauth(userId: string): Promise<void> {
+  await db.update(emailSyncStatus)
+    .set({
+      syncStatus: null,
+      errorDetails: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(emailSyncStatus.userId, userId));
+}
