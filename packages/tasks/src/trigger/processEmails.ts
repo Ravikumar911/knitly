@@ -18,7 +18,8 @@ import {
   initializeSync,
   markSyncFailedWithOAuthError,
   clearOAuthErrors,
-  forceClearOAuthErrors
+  forceClearOAuthErrors,
+  touchSyncStatus
 } from "@workspace/database";
 
 configure({
@@ -205,15 +206,30 @@ export const processEmailBatch = task({
         });
         stats.errorCount++;
       } finally {
-        // Increment progress atomically for each email handled (processed, skipped, or errored)
-        try {
-          await updateSyncProgress(payload.userId, 1);
-        } catch (e) {
-          logger.error("Failed to increment sync progress", {
-            userId: payload.userId,
-            messageId: messageInfo.id,
-            error: e instanceof Error ? e.message : String(e)
-          });
+        // FIX Issue #5: Increment progress with retry logic to handle race conditions
+        let retries = 3;
+        while (retries > 0) {
+          try {
+            await updateSyncProgress(payload.userId, 1);
+            break; // Success
+          } catch (e) {
+            retries--;
+            if (retries === 0) {
+              logger.error("Failed to increment sync progress after retries", {
+                userId: payload.userId,
+                messageId: messageInfo.id,
+                error: e instanceof Error ? e.message : String(e),
+                attemptsRemaining: 0
+              });
+            } else {
+              logger.warn("Retrying progress update", {
+                userId: payload.userId,
+                messageId: messageInfo.id,
+                attemptsRemaining: retries
+              });
+              await wait.for({ seconds: 0.5 }); // Brief backoff
+            }
+          }
         }
       }
     }
@@ -302,8 +318,20 @@ export const processEmails = task({
       const providerToken = tokenResult.token!;
       const endDate = new Date();
       
-      // Mark sync as starting
-      await markSyncInProgress(payload.userId);
+      // FIX Issue #2: Mark sync as starting (this should succeed since tRPC already checked)
+      const wasMarked = await markSyncInProgress(payload.userId);
+      
+      if (!wasMarked) {
+        // This shouldn't happen if tRPC did its job, but handle it anyway
+        logger.warn("Sync already in progress, task aborting", {
+          userId: payload.userId
+        });
+        return {
+          success: false,
+          message: "Sync already in progress",
+          error: "SYNC_ALREADY_IN_PROGRESS"
+        };
+      }
       
       // Step 3: Fetch all messages  
       let allMessages: Array<{id: string; threadId?: string}> = [];
@@ -324,6 +352,24 @@ export const processEmails = task({
           pageNumber: pageCount,
           hasNextPageToken: !!nextPageToken
         });
+
+        // FIX Issue #1: Update timestamp every 10 pages to prevent staleness detection
+        if (pageCount % 10 === 0) {
+          try {
+            await touchSyncStatus(payload.userId);
+            logger.log("Updated sync timestamp to prevent staleness", {
+              userId: payload.userId,
+              pageNumber: pageCount,
+              totalMessagesSoFar: allMessages.length
+            });
+          } catch (touchError) {
+            logger.warn("Failed to update sync timestamp", {
+              userId: payload.userId,
+              error: touchError instanceof Error ? touchError.message : String(touchError)
+            });
+            // Don't fail the sync just because timestamp update failed
+          }
+        }
 
         try {
           const gmailData = await fetchGmailMessages(providerToken, {

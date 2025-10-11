@@ -8,7 +8,8 @@ import {
   getSyncProgress, 
   initializeSync, 
   getUnifiedSyncState,
-  ensureSyncRow
+  ensureSyncRow,
+  markSyncInProgress
 } from "@workspace/database";
 
 // Router for email-related operations
@@ -55,20 +56,39 @@ export const emailsRouter = createTRPCRouter({
   initiateSync: protectedProcedure
     .mutation(async ({ ctx }) => {
       try {
-        // Idempotency guard: if already actively syncing and not stale, do nothing
+        // FIX Issue #2: Check unified state first to handle timeouts and stalled syncs
         const unified = await getUnifiedSyncState(ctx.userId!);
+        
+        // FIX Issue #8: Allow retry if sync appears stuck for > 10 minutes
         const activePhases = ['counting_emails', 'in_progress', 'syncing'] as const;
-        if (activePhases.includes(unified.phase as any) && unified.phase !== 'stalled') {
+        const isActivePhase = activePhases.includes(unified.phase as any);
+        
+        // Check if sync is genuinely in progress (not timed out, not stalled for too long)
+        if (isActivePhase && unified.phase !== 'stalled') {
           return {
             success: true,
             message: "Email sync already in progress.",
           };
         }
 
-        // Ensure row exists for consistent progress writes
+        // If stalled or failed, we can proceed with retry
+        // FIX Issue #2: Use atomic database operation to prevent race conditions
+        // Ensure row exists first
         await ensureSyncRow(ctx.userId!);
+        
+        // Try to atomically mark as in_progress - this prevents duplicate syncs
+        const wasMarked = await markSyncInProgress(ctx.userId!);
+        
+        if (!wasMarked) {
+          // Another sync just started (race condition detected and prevented)
+          console.warn("Race condition detected: sync already in progress for user", ctx.userId);
+          return {
+            success: true,
+            message: "Email sync already in progress.",
+          };
+        }
 
-        // Trigger the email processing job (counts + processing)
+        // Now safe to trigger - we've atomically claimed the sync
         await processEmails.trigger({
           userId: ctx.userId!,
         });

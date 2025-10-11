@@ -7,7 +7,10 @@ import { createClient } from '@/supabase/client';
 
 type UnifiedState = import('@workspace/database').UnifiedEmailSyncState;
 
-function computeRefetchInterval(state?: UnifiedState): number | false {
+function computeRefetchInterval(state?: UnifiedState, hasError?: boolean): number | false {
+  // FIX Issue #4: Stop polling if there's a query error
+  if (hasError) return false;
+  
   if (!state) return false;
   const active = ['counting_emails', 'in_progress', 'syncing', 'stalled'] as const;
   if (active.includes(state.phase as any)) {
@@ -26,8 +29,16 @@ export function useEmailSync() {
     ...queryOptions,
     refetchInterval: (q) => {
       const s = q.state.data as UnifiedState | undefined;
-      return computeRefetchInterval(s);
+      const hasError = !!q.state.error;
+      return computeRefetchInterval(s, hasError);
     },
+    // FIX Issue #4: Add retry limits to prevent infinite retries
+    retry: (failureCount, error) => {
+      // Stop retrying after 3 consecutive failures
+      if (failureCount >= 3) return false;
+      return true;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     staleTime: 0,
     refetchOnWindowFocus: true,
   });
@@ -43,6 +54,12 @@ export function useEmailSync() {
   }
 
   async function retry() {
+    // FIX Issue #10: Don't allow retry if OAuth error requires reauth
+    if (data?.oauth?.requiresReauth) {
+      console.warn('Cannot retry with OAuth error requiring reauth - user must reconnect');
+      return;
+    }
+    
     await start();
   }
 
@@ -79,9 +96,21 @@ export function useEmailSync() {
 
   const cta = useMemo(() => {
     if (!data) return { label: 'Start', action: start } as const;
-    if (data.oauth?.requiresReauth) return { label: 'Reconnect Google', action: reconnect } as const;
-    if (data.phase === 'failed' || data.phase === 'stalled') return { label: 'Retry', action: retry } as const;
-    if (data.phase === 'idle' || data.state === 'new_user') return { label: 'Start', action: start } as const;
+    
+    // FIX Issue #10: Always prioritize OAuth reauth over retry
+    if (data.oauth?.requiresReauth) {
+      return { label: 'Reconnect Google', action: reconnect } as const;
+    }
+    
+    // Only show retry for non-OAuth failures
+    if (data.phase === 'failed' || data.phase === 'stalled') {
+      return { label: 'Retry', action: retry } as const;
+    }
+    
+    if (data.phase === 'idle' || data.state === 'new_user') {
+      return { label: 'Start', action: start } as const;
+    }
+    
     return null;
   }, [data]);
 
