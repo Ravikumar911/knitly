@@ -11,7 +11,7 @@ import { useEmailSync } from '@/hooks/useEmailSync';
 
 export function SyncInitiator() {
   const router = useRouter();
-  const { state, isLoading, statusLabel, statusDescription, cta } = useEmailSync();
+  const { state, isLoading, statusLabel, statusDescription, cta, error, hasTimedOut } = useEmailSync();
 
   // FIX Issue #6: Auto-navigate to dashboard when sync completes
   useEffect(() => {
@@ -30,10 +30,12 @@ export function SyncInitiator() {
   const isSyncing = state?.phase === 'syncing';
   const isComplete = state?.phase === 'complete';
   const isFailed = state?.phase === 'failed';
+  const hasError = !!error || !!hasTimedOut;
   const requiresReauth = state?.oauth?.requiresReauth || false;
   const isActiveSyncInProgress = isCountingEmails || isInProgress || isSyncing;
 
   const getStatusIcon = () => {
+    if (hasError) return <AlertCircle className="h-8 w-8 text-destructive" />;
     if (requiresReauth) return <Lock className="h-8 w-8 text-amber-600 dark:text-amber-500" />;
     if (isComplete) return <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-500" />;
     if (isFailed) return <AlertCircle className="h-8 w-8 text-destructive" />;
@@ -82,34 +84,51 @@ export function SyncInitiator() {
             </div>
           ) : null}
 
+          {hasError && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {statusDescription}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {cta && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 py-4">
-                <div className="flex items-center space-x-3">
-                  <Mail className="h-5 w-5 text-primary" />
-                  <span className="text-sm">Analyze Gmail transactions</span>
+              {!hasError && (
+                <div className="grid grid-cols-2 gap-4 py-4">
+                  <div className="flex items-center space-x-3">
+                    <Mail className="h-5 w-5 text-primary" />
+                    <span className="text-sm">Analyze Gmail transactions</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Zap className="h-5 w-5 text-primary" />
+                    <span className="text-sm">Automatic categorization</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <BarChart3 className="h-5 w-5 text-primary" />
+                    <span className="text-sm">Spending insights</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <Shield className="h-5 w-5 text-primary" />
+                    <span className="text-sm">Privacy protected</span>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <Zap className="h-5 w-5 text-primary" />
-                  <span className="text-sm">Automatic categorization</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <BarChart3 className="h-5 w-5 text-primary" />
-                  <span className="text-sm">Spending insights</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Shield className="h-5 w-5 text-primary" />
-                  <span className="text-sm">Privacy protected</span>
-                </div>
-              </div>
+              )}
               <Button 
                 onClick={() => cta.action()}
                 size="lg"
                 className="w-full h-12 text-base font-medium"
+                variant={hasError ? "default" : undefined}
               >
                 {requiresReauth ? (
                   <>
                     <Lock className="mr-2 h-4 w-4" />
+                    {cta.label}
+                  </>
+                ) : hasError ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
                     {cta.label}
                   </>
                 ) : (

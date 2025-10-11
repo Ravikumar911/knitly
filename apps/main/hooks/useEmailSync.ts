@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useTRPC } from '@/trpc/client';
 import { createClient } from '@/supabase/client';
@@ -22,6 +22,7 @@ function computeRefetchInterval(state?: UnifiedState, hasError?: boolean): numbe
 export function useEmailSync() {
   const trpc = useTRPC();
   const supabase = createClient();
+  const [hasTimedOut, setHasTimedOut] = useState(false);
 
   const queryOptions = useMemo(() => trpc.emails.state.queryOptions(), [trpc.emails.state]);
 
@@ -42,6 +43,18 @@ export function useEmailSync() {
     staleTime: 0,
     refetchOnWindowFocus: true,
   });
+
+  // FIX: Add timeout detection for stuck loading states
+  useEffect(() => {
+    if (!data && isLoading && !error) {
+      const timeout = setTimeout(() => {
+        setHasTimedOut(true);
+      }, 15000); // 15 seconds timeout
+      return () => clearTimeout(timeout);
+    } else {
+      setHasTimedOut(false);
+    }
+  }, [data, isLoading, error]);
 
   const startMutation = useMutation(trpc.emails.initiateSync.mutationOptions({
     onSuccess: () => {
@@ -69,6 +82,7 @@ export function useEmailSync() {
   }
 
   const statusLabel = useMemo(() => {
+    if (error || hasTimedOut) return 'Connection Error';
     if (!data) return 'Checking status';
     switch (data.phase) {
       case 'idle': return 'Ready';
@@ -80,9 +94,12 @@ export function useEmailSync() {
       case 'stalled': return 'Stalled';
       default: return 'Unknown';
     }
-  }, [data]);
+  }, [data, error, hasTimedOut]);
 
   const statusDescription = useMemo(() => {
+    if (error || hasTimedOut) {
+      return 'Unable to connect to the server. Please check your connection and try again.';
+    }
     if (!data) return 'Loading current sync state...';
     if (data.oauth?.requiresReauth) return data.oauth.userFriendlyMessage || 'Permission required to continue.';
     if (data.phase === 'syncing' && data.progress.total) {
@@ -92,10 +109,20 @@ export function useEmailSync() {
     if (data.phase === 'stalled') return 'Sync appears stalled. You can retry.';
     if (data.phase === 'failed') return 'Sync failed. Please try again.';
     return undefined;
-  }, [data]);
+  }, [data, error, hasTimedOut]);
+
+  async function manualRefetch() {
+    setHasTimedOut(false);
+    await refetch();
+  }
 
   const cta = useMemo(() => {
-    if (!data) return { label: 'Start', action: start } as const;
+    // FIX: Show retry button when there's an error or timeout
+    if (error || hasTimedOut) {
+      return { label: 'Retry Connection', action: manualRefetch } as const;
+    }
+    
+    if (!data) return null; // Show loading state without CTA initially
     
     // FIX Issue #10: Always prioritize OAuth reauth over retry
     if (data.oauth?.requiresReauth) {
@@ -112,12 +139,12 @@ export function useEmailSync() {
     }
     
     return null;
-  }, [data]);
+  }, [data, error, hasTimedOut]);
 
   return {
     state: data,
     isLoading: isLoading || isFetching,
-    error,
+    error: error || (hasTimedOut ? new Error('Connection timeout') : null),
     start,
     retry,
     reconnect,
@@ -125,6 +152,7 @@ export function useEmailSync() {
     statusDescription,
     cta,
     refetch,
+    hasTimedOut,
   };
 }
 
