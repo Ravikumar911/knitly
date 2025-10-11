@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@workspace/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import { Alert, AlertDescription } from '@workspace/ui/components/alert';
@@ -9,7 +10,20 @@ import { Mail, Zap, BarChart3, Shield, Loader2, CheckCircle, Clock, AlertCircle,
 import { useEmailSync } from '@/hooks/useEmailSync';
 
 export function SyncInitiator() {
+  const router = useRouter();
   const { state, isLoading, statusLabel, statusDescription, cta } = useEmailSync();
+
+  // FIX Issue #6: Auto-navigate to dashboard when sync completes
+  useEffect(() => {
+    if (state?.phase === 'complete' && state?.state === 'has_data') {
+      const timer = setTimeout(() => {
+        router.refresh(); // Server-side refetch
+        router.push('/dashboard'); // Navigate to dashboard
+      }, 2000); // 2 second delay to show success message
+
+      return () => clearTimeout(timer);
+    }
+  }, [state?.phase, state?.state, router]);
 
   const isCountingEmails = state?.phase === 'counting_emails';
   const isInProgress = state?.phase === 'in_progress';

@@ -23,6 +23,9 @@ export const emailSyncStatus = pgTable("email_sync_status", {
   progressPercentage: decimal("progress_percentage", { precision: 5, scale: 2 }).default("0.00"),
   hasInitialSync: boolean("has_initial_sync").default(false),
   
+  // Timeout tracking to prevent stuck syncs
+  syncTimeoutAt: timestamp("sync_timeout_at"), // Absolute deadline for sync completion
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }); 

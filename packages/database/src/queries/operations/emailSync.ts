@@ -1,7 +1,7 @@
 import { db } from '../../index';
 import { emailSyncStatus } from '../../schema/emailSyncStatus';
 import { parsedEmails } from '../../schema/parsedEmails';
-import { eq, count, and, or, isNotNull, isNull, lt, not, inArray, sql } from 'drizzle-orm';
+import { eq, count, and, or, isNotNull, isNull, lt, not, inArray, sql, notInArray } from 'drizzle-orm';
 import { userGoogleTokens } from '../../schema/tokens';
 
 interface SyncStatus {
@@ -256,7 +256,7 @@ export async function ensureSyncRow(userId: string): Promise<void> {
 }
 
 /**
- * Unified state computation for frontend. Includes staleness detection.
+ * Unified state computation for frontend. Includes staleness detection and timeout checking.
  */
 export async function getUnifiedSyncState(userId: string): Promise<UnifiedEmailSyncState> {
   // Fetch status row
@@ -276,6 +276,7 @@ export async function getUnifiedSyncState(userId: string): Promise<UnifiedEmailS
     estimatedCompletion: emailSyncStatus.estimatedCompletion,
     hasInitialSync: emailSyncStatus.hasInitialSync,
     updatedAt: emailSyncStatus.updatedAt,
+    syncTimeoutAt: emailSyncStatus.syncTimeoutAt,
   })
     .from(emailSyncStatus)
     .where(eq(emailSyncStatus.userId, userId))
@@ -294,6 +295,24 @@ export async function getUnifiedSyncState(userId: string): Promise<UnifiedEmailS
       needsAction: false,
       action: null,
     };
+  }
+
+  // FIX Issue #8: Check for absolute timeout - if sync has exceeded deadline, mark as failed
+  if (row.syncTimeoutAt && Date.now() > row.syncTimeoutAt.getTime()) {
+    const activePhases = ['counting_emails', 'in_progress', 'syncing'];
+    if (activePhases.includes(row.syncStatus || '')) {
+      // Auto-mark as failed if sync took too long
+      await markSyncFailed(userId, 'Sync timed out after 30 minutes. Please try again.');
+      return {
+        state: 'sync_failed',
+        phase: 'failed',
+        progress: { total: null, processed: 0, percent: 0, eta: null },
+        oauth: null,
+        hasInitialSync: row.hasInitialSync || false,
+        needsAction: true,
+        action: 'retry',
+      };
+    }
   }
 
   // Determine base phase from syncStatus
@@ -361,6 +380,7 @@ export async function getUnifiedSyncState(userId: string): Promise<UnifiedEmailS
 
 /**
  * Initialize sync with total email count
+ * FIX Issue #8: Add timeout tracking to prevent stuck syncs
  */
 export async function initializeSync(userId: string, totalEmails: number): Promise<void> {
   const existing = await db.select({ id: emailSyncStatus.id })
@@ -378,6 +398,7 @@ export async function initializeSync(userId: string, totalEmails: number): Promi
     estimatedCompletion: null as Date | null,
     syncStatus: 'syncing' as const, // about to start processing
     lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
+    syncTimeoutAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minute absolute timeout
     updatedAt: new Date(),
   };
 
@@ -564,34 +585,63 @@ export async function markSyncComplete(userId: string) {
 
 /**
  * Marks a sync as in progress
+ * FIX Issue #2 & #8: Atomic operation to prevent race conditions + Add timeout when starting sync
+ * Only updates if NOT already in an active sync state
+ * @returns true if successfully marked as in_progress, false if already in progress
  */
-export async function markSyncInProgress(userId: string, nextPageToken?: string) {
-  const existing = await db.select({ id: emailSyncStatus.id })
+export async function markSyncInProgress(userId: string, nextPageToken?: string): Promise<boolean> {
+  const existing = await db.select({ id: emailSyncStatus.id, syncStatus: emailSyncStatus.syncStatus })
     .from(emailSyncStatus)
     .where(eq(emailSyncStatus.userId, userId))
     .limit(1);
 
   if (existing.length > 0) {
-    return updateSyncStatus(userId, {
-      syncStatus: 'in_progress',
-      nextPageToken: nextPageToken || null
-    });
+    // FIX Issue #2: Only update if NOT already in active state (atomic check)
+    const activeStates = ['counting_emails', 'in_progress', 'syncing'];
+    
+    const result = await db.update(emailSyncStatus)
+      .set({
+        syncStatus: 'in_progress',
+        nextPageToken: nextPageToken || null,
+        syncTimeoutAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minute timeout
+        lastSyncAttemptAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(emailSyncStatus.userId, userId),
+          // Only update if NOT in active state - this makes it atomic
+          or(
+            isNull(emailSyncStatus.syncStatus),
+            notInArray(emailSyncStatus.syncStatus, activeStates)
+          )
+        )
+      )
+      .returning();
+    
+    // If no rows were updated, sync was already in progress
+    return result.length > 0;
   } else {
+    // No existing row - safe to insert
     await db.insert(emailSyncStatus)
       .values({
         userId,
         lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
         syncStatus: 'in_progress',
         nextPageToken: nextPageToken || null,
+        syncTimeoutAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minute timeout
         hasInitialSync: false,
         createdAt: new Date(),
         updatedAt: new Date()
       });
+    
+    return true;
   }
 }
 
 /**
  * Marks a sync as failed
+ * FIX Issue #7: Clear progress tracking on failure to avoid confusion
  */
 export async function markSyncFailed(userId: string, errorDetails?: string) {
   const existing = await db.select({ id: emailSyncStatus.id })
@@ -604,6 +654,12 @@ export async function markSyncFailed(userId: string, errorDetails?: string) {
       .set({
         syncStatus: 'failed',
         errorDetails: errorDetails || null,
+        // Clear progress on failure
+        totalEmails: null,
+        processedEmails: 0,
+        progressPercentage: '0.00',
+        estimatedCompletion: null,
+        syncTimeoutAt: null, // Clear timeout
         lastSyncAttemptAt: new Date(), // Track attempt time
         updatedAt: new Date()
       })
@@ -624,7 +680,18 @@ export async function markSyncFailed(userId: string, errorDetails?: string) {
 }
 
 /**
+ * Update the timestamp to prevent staleness detection during long-running operations
+ * FIX Issue #1: Call this periodically during email counting to prevent false "stalled" state
+ */
+export async function touchSyncStatus(userId: string): Promise<void> {
+  await db.update(emailSyncStatus)
+    .set({ updatedAt: new Date() })
+    .where(eq(emailSyncStatus.userId, userId));
+}
+
+/**
  * Mark sync as counting emails
+ * FIX Issue #8: Add timeout when counting starts
  */
 export async function markSyncCountingEmails(userId: string): Promise<void> {
   const existing = await db.select({ id: emailSyncStatus.id })
@@ -637,6 +704,7 @@ export async function markSyncCountingEmails(userId: string): Promise<void> {
       .set({ 
         syncStatus: 'counting_emails',
         lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
+        syncTimeoutAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minute timeout
         updatedAt: new Date()
       })
       .where(eq(emailSyncStatus.userId, userId));
@@ -646,6 +714,7 @@ export async function markSyncCountingEmails(userId: string): Promise<void> {
         userId,
         lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
         syncStatus: 'counting_emails',
+        syncTimeoutAt: new Date(Date.now() + 30 * 60 * 1000), // 30 minute timeout
         hasInitialSync: false,
         createdAt: new Date(),
         updatedAt: new Date()
@@ -789,12 +858,19 @@ export async function forceClearOAuthErrors(userId: string): Promise<void> {
 /**
  * Reset sync status following a successful OAuth reauthentication.
  * This clears failure state so UI doesn't remain stuck on "failed".
+ * FIX Issue #3: Clear progress tracking after reauth to avoid confusing mixed state
  */
 export async function resetSyncStatusAfterReauth(userId: string): Promise<void> {
   await db.update(emailSyncStatus)
     .set({
       syncStatus: null,
       errorDetails: null,
+      // Clear progress tracking
+      totalEmails: null,
+      processedEmails: 0,
+      progressPercentage: '0.00',
+      estimatedCompletion: null,
+      syncTimeoutAt: null, // Clear timeout
       updatedAt: new Date(),
     })
     .where(eq(emailSyncStatus.userId, userId));
