@@ -2,8 +2,8 @@
 
 import * as React from "react"
 import { ChevronDown } from "lucide-react"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./collapsible.js"
-import { cn } from "../lib/utils.js"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./collapsible"
+import { cn } from "../lib/utils"
 
 const Task = React.forwardRef<
   React.ElementRef<typeof Collapsible>,
