@@ -16,7 +16,11 @@
     "@workspace/database": "workspace:*",
     "@workspace/tasks": "workspace:*",
     "@workspace/ui": "workspace:*",
-    "date-fns": "^4.1.0"
+    "date-fns": "^4.1.0",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "streamdown": "^1.4.0"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:^",

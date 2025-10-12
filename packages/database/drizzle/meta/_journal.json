@@ -29,6 +29,13 @@
       "when": 1760240052236,
       "tag": "0003_furry_echo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1760262049422,
+      "tag": "0004_striped_scrambler",
+      "breakpoints": true
     }
   ]
 }
