@@ -6,6 +6,7 @@ import {
   Command,
   Send,
   Settings,
+  MessageSquare,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -38,6 +39,11 @@ const data = {
           url: "/dashboard/transactions",
         },
       ],
+    },
+    {
+      title: "Assistant",
+      url: "/assistant",
+      icon: MessageSquare,
     },
     {
       title: "Settings",

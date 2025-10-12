@@ -3,14 +3,17 @@ description:
 globs: 
 alwaysApply: true
 ---
-# Vercel AI SDK Development Guidelines
+# Vercel AI SDK 5.0 Development Guidelines
 
 ## Overview
-- **Use ONLY Vercel AI SDK** for all AI/agent-related code following [AI SDK documentation](mdc:https:/ai-sdk.dev/docs/introduction)
+- **Use ONLY Vercel AI SDK 5.0** for all AI/agent-related code following [AI SDK v5 documentation](https://v5.ai-sdk.dev/docs)
+- **Current Version: 5.0** - AI SDK 4.x patterns are deprecated and removed
+- **Required Package**: `@ai-sdk/react` for React hooks (NOT `ai/react`)
 - **Standardized API** across all model providers (OpenAI, Anthropic, Google, xAI, etc.)
 - **Type-safe** implementations with proper TypeScript support
-- **Framework-agnostic** hooks for React, Next.js, Vue, Svelte
+- **Framework-agnostic** hooks for React, Next.js, Vue, Svelte, Angular
 - **Streaming-first** approach for better user experience
+- **Parts-based message structure** separating UI messages from model messages
 
 ## Core Libraries
 
@@ -82,18 +85,52 @@ const { text } = await generateText({
 ### ❌ NEVER Use These Anti-Patterns
 
 ```typescript
+// ❌ AI SDK 4.x imports (REMOVED in v5)
+import { useChat } from 'ai/react'; // ❌ This package is removed
+import { Message } from 'ai/react'; // ❌ Use UIMessage from @ai-sdk/react
+
+// ❌ AI SDK 4.x patterns (DEPRECATED)
+const { handleSubmit, handleInputChange, input } = useChat(); // ❌ Old API
+const content = message.content; // ❌ Use message.parts instead
+const { initialMessages } = useChat({ initialMessages }); // ❌ Use 'messages'
+
 // ❌ Direct model provider SDKs
-import OpenAI from 'openai'; // Don't use directly
-import Anthropic from '@anthropic-ai/sdk'; // Don't use directly
+import OpenAI from 'openai'; // ❌ Don't use directly
+import Anthropic from '@anthropic-ai/sdk'; // ❌ Don't use directly
 
 // ❌ Manual streaming implementation
 const response = await fetch('/api/openai', {
   method: 'POST',
   body: JSON.stringify({ prompt }),
-}); // Use AI SDK streaming instead
+}); // ❌ Use AI SDK streaming instead
 
 // ❌ Custom chat implementations
-const [messages, setMessages] = useState([]); // Use useChat hook instead
+const [messages, setMessages] = useState([]); // ❌ Use useChat hook instead
+```
+
+### ✅ ALWAYS Use AI SDK 5.0 Patterns
+
+```typescript
+// ✅ Correct v5 imports
+import { useChat, type UIMessage } from '@ai-sdk/react';
+import { streamText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+// ✅ Correct v5 useChat usage
+const { messages, sendMessage, isLoading } = useChat();
+
+// ✅ Correct v5 message rendering
+{messages.map(message => (
+  <div key={message.id}>
+    {message.parts.map((part, i) => {
+      if (part.type === 'text') return <div key={i}>{part.text}</div>;
+      if (part.type === 'tool-call') return <div key={i}>Tool: {part.toolName}</div>;
+    })}
+  </div>
+))}
+
+// ✅ Correct v5 message submission
+sendMessage({ text: userInput });
 ```
 
 ## Model Provider Configuration
@@ -175,34 +212,69 @@ export default function ChatPage() {
 ```
 
 ### Client Components with Hooks
+
+#### ✅ AI SDK 5.0 Pattern (Current - Required)
 ```typescript
 // components/chat-interface.tsx
 'use client';
-import { useChat } from 'ai/react';
+import { useChat } from '@ai-sdk/react';
+import { useState } from 'react';
 
 export function ChatInterface() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: '/api/chat',
-  });
+  const [input, setInput] = useState('');
+  const { messages, sendMessage, isLoading } = useChat();
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col w-full max-w-md py-24 mx-auto">
+      {/* Render messages with parts structure */}
       <div className="flex-1 space-y-4">
-        {messages.map((message) => (
-          <div key={message.id} className={`p-4 rounded ${
-            message.role === 'user' ? 'bg-blue-100' : 'bg-gray-100'
-          }`}>
-            <strong>{message.role}:</strong> {message.content}
+        {messages.map(message => (
+          <div 
+            key={message.id} 
+            className={`p-4 rounded whitespace-pre-wrap ${
+              message.role === 'user' ? 'bg-blue-100' : 'bg-gray-100'
+            }`}
+          >
+            <strong>{message.role === 'user' ? 'User: ' : 'AI: '}</strong>
+            {/* Handle message parts */}
+            {message.parts.map((part, i) => {
+              switch (part.type) {
+                case 'text':
+                  return <div key={`${message.id}-${i}`}>{part.text}</div>;
+                case 'tool-call':
+                  return (
+                    <div key={`${message.id}-${i}`} className="text-sm text-gray-600">
+                      Calling tool: {part.toolName}
+                    </div>
+                  );
+                case 'tool-result':
+                  return (
+                    <div key={`${message.id}-${i}`} className="text-sm text-green-600">
+                      Tool result: {JSON.stringify(part.result)}
+                    </div>
+                  );
+                default:
+                  return null;
+              }
+            })}
           </div>
         ))}
       </div>
-      
-      <form onSubmit={handleSubmit} className="flex gap-2">
+
+      {/* Form with manual submission */}
+      <form
+        onSubmit={e => {
+          e.preventDefault();
+          sendMessage({ text: input });
+          setInput('');
+        }}
+        className="mt-4"
+      >
         <input
+          className="w-full p-2 mb-4 border border-zinc-300 dark:border-zinc-800 rounded"
           value={input}
-          onChange={handleInputChange}
-          placeholder="Type your message..."
-          className="flex-1 p-2 border rounded"
+          placeholder="Say something..."
+          onChange={e => setInput(e.currentTarget.value)}
           disabled={isLoading}
         />
         <button 
@@ -218,12 +290,126 @@ export function ChatInterface() {
 }
 ```
 
+#### 🚨 Important: Package Installation for v5
+```bash
+# Install the AI SDK v5 React package
+npm install @ai-sdk/react
+
+# Install the core AI SDK
+npm install ai
+
+# Install provider packages as needed
+npm install @ai-sdk/openai @ai-sdk/anthropic
+```
+
+#### ⚠️ Deprecated Pattern (AI SDK 4.x - DO NOT USE)
+```typescript
+// ❌ DEPRECATED: ai/react is removed in AI SDK 5.0
+// This pattern is for reference only - do not use in new code
+'use client';
+import { useChat } from 'ai/react'; // ❌ This import path is deprecated
+
+export function OldChatInterface() {
+  // ❌ Old API with message.content and handleSubmit
+  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    api: '/api/chat',
+  });
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex-1 space-y-4">
+        {messages.map((message) => (
+          <div key={message.id}>
+            {/* ❌ message.content no longer exists in v5 */}
+            <strong>{message.role}:</strong> {message.content}
+          </div>
+        ))}
+      </div>
+      
+      <form onSubmit={handleSubmit}>
+        {/* ❌ handleInputChange and handleSubmit are deprecated */}
+        <input value={input} onChange={handleInputChange} />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  );
+}
+```
+
+#### 📋 AI SDK 4.x vs 5.0 Comparison
+
+| Feature | AI SDK 4.x (Deprecated) | AI SDK 5.0 (Current) |
+|---------|------------------------|----------------------|
+| **Package** | `ai/react` ❌ | `@ai-sdk/react` ✅ |
+| **Import** | `import { useChat } from 'ai/react'` | `import { useChat } from '@ai-sdk/react'` |
+| **Message Structure** | `message.content` (string) | `message.parts[]` (array of parts) |
+| **Message Type** | `Message` | `UIMessage` |
+| **Input Handling** | `handleInputChange` + `input` | Manual `useState` + `setInput` |
+| **Submission** | `handleSubmit` (form handler) | `sendMessage({ text })` |
+| **Initial Messages** | `initialMessages` prop | `messages` prop |
+| **Tool Control** | `maxSteps` parameter | `sendAutomaticallyWhen` + `onToolCall` |
+| **Status** | ❌ Removed in v5 | ✅ Current standard |
+
+#### 🎯 Key Changes in AI SDK 5.0
+
+1. **New Message Structure with Parts**
+   ```typescript
+   // v5 message structure
+   interface UIMessage {
+     id: string;
+     role: 'user' | 'assistant' | 'system';
+     parts: Array<
+       | { type: 'text'; text: string }
+       | { type: 'tool-call'; toolName: string; toolCallId: string; args: unknown }
+       | { type: 'tool-result'; toolName: string; toolCallId: string; result: unknown }
+     >;
+     createdAt?: Date;
+   }
+   ```
+
+2. **New Tool Execution Control**
+   ```typescript
+   const { messages, sendMessage, addToolResult } = useChat({
+     // Automatically send when tool calls are complete
+     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+     
+     // Handle tool calls
+     async onToolCall({ toolCall }) {
+       const result = await executeToolCall(toolCall);
+       addToolResult({
+         tool: toolCall.toolName,
+         toolCallId: toolCall.toolCallId,
+         output: result,
+       });
+       // Don't await addToolResult when using sendAutomaticallyWhen
+     },
+   });
+   ```
+
+3. **Shared Chat Instances**
+   ```typescript
+   // Share chat state across components
+   const { chat } = useSharedChat();
+   
+   // Component A
+   const { messages, sendMessage } = useChat({ chat });
+   
+   // Component B (shares same chat)
+   const { messages } = useChat({ chat });
+   ```
+
+#### ✅ When to Use AI SDK 5.0
+- ✅ **All new projects** - Always use `@ai-sdk/react` with v5 API
+- ✅ **Tool calls and multi-step agents** - v5 provides better control
+- ✅ **Complex message rendering** - Parts-based structure is more flexible
+- ✅ **Type safety** - Fully typed messages and tool calls
+
 ## Advanced Patterns
 
-### Structured Object Streaming
+### Structured Object Streaming (AI SDK 5.0)
 ```typescript
 'use client';
-import { useObject } from 'ai/react';
+import { useObject } from '@ai-sdk/react';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -242,18 +428,25 @@ export function RecipeGenerator() {
 
   return (
     <div>
-      <button onClick={() => submit('Generate a pasta recipe')}>
-        Generate Recipe
+      <button onClick={() => submit('Generate a pasta recipe')} disabled={isLoading}>
+        {isLoading ? 'Generating...' : 'Generate Recipe'}
       </button>
       
       {object && (
         <div>
           <h2>{object.recipe?.name}</h2>
+          <h3>Ingredients:</h3>
           <ul>
             {object.recipe?.ingredients?.map((ingredient, i) => (
               <li key={i}>{ingredient}</li>
             ))}
           </ul>
+          <h3>Steps:</h3>
+          <ol>
+            {object.recipe?.steps?.map((step, i) => (
+              <li key={i}>{step}</li>
+            ))}
+          </ol>
         </div>
       )}
     </div>
@@ -261,33 +454,79 @@ export function RecipeGenerator() {
 }
 ```
 
-### Multi-Modal Chat
+### Multi-Modal Chat (AI SDK 5.0)
 ```typescript
 'use client';
-import { useChat } from 'ai/react';
+import { useChat } from '@ai-sdk/react';
 import { useState } from 'react';
 
 export function MultiModalChat() {
+  const [input, setInput] = useState('');
   const [files, setFiles] = useState<FileList | undefined>(undefined);
-  const { messages, input, handleInputChange, handleSubmit } = useChat({
-    api: '/api/chat',
-  });
+  const { messages, sendMessage, isLoading } = useChat();
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        type="file"
-        onChange={(e) => setFiles(e.target.files ?? undefined)}
-        multiple
-        accept="image/*"
-      />
-      <input
-        value={input}
-        onChange={handleInputChange}
-        placeholder="Describe the images..."
-      />
-      <button type="submit">Send</button>
-    </form>
+    <div className="flex flex-col gap-4">
+      {/* Render messages with parts */}
+      <div className="flex-1 space-y-4">
+        {messages.map(message => (
+          <div key={message.id}>
+            {message.parts.map((part, i) => {
+              if (part.type === 'text') {
+                return <div key={i}>{part.text}</div>;
+              }
+              if (part.type === 'image') {
+                return <img key={i} src={part.image} alt="uploaded" />;
+              }
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Input form */}
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        const content = [];
+        
+        // Add text content
+        if (input) {
+          content.push({ type: 'text' as const, text: input });
+        }
+        
+        // Add image content
+        if (files) {
+          Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              content.push({
+                type: 'image' as const,
+                image: reader.result as string,
+              });
+            };
+            reader.readAsDataURL(file);
+          });
+        }
+        
+        sendMessage({ content });
+        setInput('');
+        setFiles(undefined);
+      }}>
+        <input
+          type="file"
+          onChange={(e) => setFiles(e.target.files ?? undefined)}
+          multiple
+          accept="image/*"
+        />
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Describe the images..."
+        />
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? 'Sending...' : 'Send'}
+        </button>
+      </form>
+    </div>
   );
 }
 ```
@@ -308,7 +547,7 @@ export async function POST(req: Request) {
     tools: {
       getWeather: tool({
         description: 'Get current weather for a location',
-        parameters: z.object({
+        inputSchema: z.object({  // ✅ Use inputSchema, not parameters
           location: z.string().describe('The city and state'),
         }),
         execute: async ({ location }) => {
@@ -319,7 +558,7 @@ export async function POST(req: Request) {
       
       searchWeb: tool({
         description: 'Search the web for information',
-        parameters: z.object({
+        inputSchema: z.object({  // ✅ Use inputSchema, not parameters
           query: z.string().describe('Search query'),
         }),
         execute: async ({ query }) => {
@@ -335,16 +574,53 @@ export async function POST(req: Request) {
 }
 ```
 
+#### 🚨 Critical: Tool Function Contract
+
+The `tool()` function from the AI SDK has a specific contract:
+
+```typescript
+import { tool } from 'ai';
+import { z } from 'zod';
+
+// ✅ CORRECT: Use inputSchema
+export const weatherTool = tool({
+  description: 'Get the weather in a location',
+  inputSchema: z.object({
+    location: z.string().describe('The location to get the weather for'),
+  }),
+  execute: async ({ location }) => ({
+    location,
+    temperature: 72 + Math.floor(Math.random() * 21) - 10,
+  }),
+});
+
+// ❌ WRONG: Do not use 'parameters'
+export const wrongTool = tool({
+  description: 'This will cause TypeScript errors',
+  parameters: z.object({ // ❌ This property doesn't exist
+    location: z.string(),
+  }),
+  execute: async ({ location }) => { /* ... */ },
+});
+```
+
+**Key Points:**
+- ✅ Use `inputSchema` (not `parameters`)
+- ✅ Let TypeScript infer the `execute` function's return type
+- ✅ Ensure all code paths in `execute` return consistent types
+- ❌ Don't add explicit return type annotations to `execute`
+
 ## Error Handling
 
-### Client-Side Error Handling
+### Client-Side Error Handling (AI SDK 5.0)
 ```typescript
 'use client';
-import { useChat } from 'ai/react';
+import { useChat } from '@ai-sdk/react';
+import { useState } from 'react';
 
 export function ChatWithErrorHandling() {
-  const { messages, input, handleInputChange, handleSubmit, error, isLoading } = useChat({
-    api: '/api/chat',
+  const [input, setInput] = useState('');
+  const { messages, sendMessage, error, isLoading } = useChat({
     onError: (error) => {
       console.error('Chat error:', error);
       // Handle error (show toast, etc.)
@@ -362,7 +638,37 @@ export function ChatWithErrorHandling() {
     );
   }
 
-  // Rest of component...
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex-1 space-y-4">
+        {messages.map(message => (
+          <div key={message.id}>
+            {message.parts.map((part, i) => {
+              if (part.type === 'text') {
+                return <div key={i}>{part.text}</div>;
+              }
+            })}
+          </div>
+        ))}
+      </div>
+      
+      <form onSubmit={e => {
+        e.preventDefault();
+        sendMessage({ text: input });
+        setInput('');
+      }}>
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          placeholder="Type your message..."
+          disabled={isLoading}
+        />
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? 'Sending...' : 'Send'}
+        </button>
+      </form>
+    </div>
+  );
 }
 ```
 
@@ -605,24 +911,49 @@ export async function POST(req: Request) {
 
 Before implementing AI features, verify:
 
-1. ✅ Using `ai` package from Vercel AI SDK
-2. ✅ Importing from correct provider packages (`@ai-sdk/openai`, etc.)
-3. ✅ Using streaming APIs (`streamText`, `useChat`) for better UX
-4. ✅ Proper error handling and loading states
-5. ✅ Input validation and rate limiting
-6. ✅ Type safety with Zod schemas
-7. ✅ Following monorepo separation of concerns
-8. ✅ Environment variables properly configured
+1. ✅ **Using AI SDK 5.0** - Package version `ai@^5.0.0`
+2. ✅ **Correct imports** - `import { useChat } from '@ai-sdk/react'` (NOT `ai/react`)
+3. ✅ **Provider packages** - Importing from `@ai-sdk/openai`, `@ai-sdk/anthropic`, etc.
+4. ✅ **Message structure** - Using `message.parts[]` array (NOT `message.content`)
+5. ✅ **Message type** - Using `UIMessage` type (NOT `Message`)
+6. ✅ **Submission pattern** - Using `sendMessage({ text })` (NOT `handleSubmit`)
+7. ✅ **Streaming APIs** - Using `streamText`, `useChat` for better UX
+8. ✅ **Error handling** - Proper error handling and loading states
+9. ✅ **Input validation** - Validation and rate limiting implemented
+10. ✅ **Type safety** - Using Zod schemas for validation
+11. ✅ **Monorepo SoC** - Following separation of concerns
+12. ✅ **Environment variables** - API keys properly configured
 
 ## Common Pitfalls to Avoid
 
-- ❌ Don't use provider SDKs directly (OpenAI, Anthropic SDKs)
-- ❌ Don't implement custom streaming logic
-- ❌ Don't forget error handling and loading states
-- ❌ Don't skip input validation
-- ❌ Don't use blocking operations in UI components
-- ❌ Don't expose API keys in client-side code
-- ❌ Don't forget to implement rate limiting
-- ❌ Don't use synchronous APIs for long-running operations
+### ❌ AI SDK Version Issues
+- ❌ **Don't use `ai/react`** - This import path is removed in v5
+- ❌ **Don't use `handleSubmit`/`handleInputChange`** - Use `sendMessage` instead
+- ❌ **Don't access `message.content`** - Use `message.parts[]` in v5
+- ❌ **Don't use `initialMessages`** - It's renamed to `messages` in v5
+- ❌ **Don't use `maxSteps`** - Use `sendAutomaticallyWhen` and server-side `stopWhen`
+- ❌ **Don't use `Message` type** - Use `UIMessage` type in v5
 
-Remember: The AI SDK provides a unified, type-safe interface across all providers. Always prefer AI SDK patterns over direct provider integrations.
+### ❌ General Anti-Patterns
+- ❌ **Don't use provider SDKs directly** - No direct OpenAI/Anthropic SDK imports
+- ❌ **Don't implement custom streaming** - Use AI SDK streaming
+- ❌ **Don't forget error boundaries** - Always handle errors
+- ❌ **Don't skip input validation** - Validate all user inputs
+- ❌ **Don't use blocking operations** - Keep UI responsive
+- ❌ **Don't expose API keys** - Keep secrets server-side only
+- ❌ **Don't skip rate limiting** - Protect your API endpoints
+- ❌ **Don't use sync APIs** - Use async/streaming for long operations
+
+### ✅ Migration Checklist (v4 → v5)
+
+If migrating from AI SDK 4.x:
+1. ✅ Replace `ai/react` with `@ai-sdk/react`
+2. ✅ Update message rendering from `message.content` to `message.parts[]`
+3. ✅ Replace `handleSubmit`/`handleInputChange` with `sendMessage`
+4. ✅ Rename `initialMessages` to `messages`
+5. ✅ Update `Message` type to `UIMessage`
+6. ✅ Replace `maxSteps` with `sendAutomaticallyWhen` + server `stopWhen`
+7. ✅ Update tool call handling to use `onToolCall` + `addToolResult`
+8. ✅ Test all chat interactions thoroughly
+
+Remember: AI SDK 5.0 provides a fully typed, flexible interface with better control over tool calls and message rendering. Always use v5 patterns for new code.

@@ -3,6 +3,7 @@ import { emailsRouter } from './emails';
 import { analyticsRouter } from './analytics';
 import { transactionsRouter } from './transactions';
 import { feedbackRouter } from './feedback';
+import { chatRouter } from './chat';
 
 export const appRouter = createTRPCRouter({
     // Merge the routers
@@ -10,6 +11,7 @@ export const appRouter = createTRPCRouter({
     analytics: analyticsRouter,
     transactions: transactionsRouter,
     feedback: feedbackRouter,
+    chat: chatRouter,
 });
 
 // export type definition of API
