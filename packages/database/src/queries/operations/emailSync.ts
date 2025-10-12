@@ -419,9 +419,10 @@ export async function initializeSync(userId: string, totalEmails: number): Promi
 
 /**
  * Update sync progress during email processing
+ * FIX: Use atomic SQL increment to prevent race conditions from parallel batch processing
  */
 export async function updateSyncProgress(userId: string, incrementBy: number): Promise<void> {
-  // Fetch current status so we can compute a dynamic ETA based on real throughput
+  // First, fetch current status for ETA calculations only
   const currentStatus = await db.select({
     processedEmails: emailSyncStatus.processedEmails,
     totalEmails: emailSyncStatus.totalEmails,
@@ -442,6 +443,7 @@ export async function updateSyncProgress(userId: string, incrementBy: number): P
 
   const status = currentStatus[0]!;
 
+  // Calculate new processed count for conditional logic
   const newProcessed = Math.min(
     (status.processedEmails || 0) + incrementBy,
     status.totalEmails ?? (status.processedEmails || 0) + incrementBy,
@@ -449,7 +451,7 @@ export async function updateSyncProgress(userId: string, incrementBy: number): P
 
   let estimatedCompletion: Date | null = status.estimatedCompletion ?? null;
 
-// We'll calculate ETA only if we know the total email count and haven't completed yet
+  // Calculate ETA only if we know the total email count and haven't completed yet
   if (status.totalEmails && status.totalEmails > 0 && newProcessed < status.totalEmails) {
     const startTime = status.lastSyncAttemptAt ?? status.createdAt ?? new Date();
     const elapsedMs = Date.now() - startTime.getTime();
@@ -466,14 +468,18 @@ export async function updateSyncProgress(userId: string, incrementBy: number): P
     estimatedCompletion = new Date();
   }
 
-  // Perform the update
+  // FIX: Use atomic SQL increment to avoid race conditions
+  // When multiple batches run concurrently, they must not clobber each other's updates
   await db.update(emailSyncStatus)
     .set({
-      processedEmails: newProcessed,
+      // ATOMIC: Use sql operator to increment directly in the database
+      processedEmails: sql`LEAST(COALESCE(${emailSyncStatus.processedEmails}, 0) + ${incrementBy}, COALESCE(${emailSyncStatus.totalEmails}, COALESCE(${emailSyncStatus.processedEmails}, 0) + ${incrementBy}))`,
+      // Calculate percentage based on the new processed count
       progressPercentage: status.totalEmails && status.totalEmails > 0
-        ? ((newProcessed / status.totalEmails) * 100).toFixed(2)
+        ? sql`ROUND((LEAST(COALESCE(${emailSyncStatus.processedEmails}, 0) + ${incrementBy}, ${status.totalEmails})::numeric / ${status.totalEmails}::numeric) * 100, 2)`
         : '0.00',
       estimatedCompletion,
+      // Mark complete and set hasInitialSync when all emails processed
       syncStatus: status.totalEmails && newProcessed >= status.totalEmails ? 'complete' : 'syncing',
       hasInitialSync: status.totalEmails && newProcessed >= status.totalEmails ? true : status.hasInitialSync,
       updatedAt: new Date(),
@@ -574,13 +580,37 @@ export async function updateNextPageToken(userId: string, nextPageToken: string 
 
 /**
  * Marks a sync as complete by clearing the next page token
+ * Always sets hasInitialSync to true to ensure user is marked as having completed setup
  */
 export async function markSyncComplete(userId: string) {
-  return updateSyncStatus(userId, {
+  const existing = await db.select({ id: emailSyncStatus.id })
+    .from(emailSyncStatus)
+    .where(eq(emailSyncStatus.userId, userId))
+    .limit(1);
+
+  const updateData = {
     nextPageToken: null,
     syncStatus: 'complete',
-    syncTime: new Date()
-  });
+    lastSyncedAt: new Date(),
+    hasInitialSync: true, // Always set to true on successful sync completion
+    updatedAt: new Date(),
+    syncTimeoutAt: null, // Clear timeout on successful completion
+  };
+
+  if (existing.length > 0) {
+    return await db.update(emailSyncStatus)
+      .set(updateData)
+      .where(eq(emailSyncStatus.userId, userId))
+      .returning();
+  } else {
+    return await db.insert(emailSyncStatus)
+      .values({
+        userId,
+        ...updateData,
+        createdAt: new Date(),
+      })
+      .returning();
+  }
 }
 
 /**

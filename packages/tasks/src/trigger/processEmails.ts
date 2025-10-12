@@ -7,7 +7,6 @@ import {
   getLastSyncTime, 
   updateLastSyncTime, 
   markSyncComplete,
-  markSyncInProgress,
   markSyncFailed,
   markSyncCountingEmails,
   isEmailProcessed, 
@@ -28,7 +27,7 @@ configure({
 
 // Constants for optimization
 const BATCH_SIZE = 20; // Process 20 emails per batch
-const MAX_CONCURRENT_BATCHES = 5; // Run 5 batches in parallel
+const MAX_CONCURRENT_BATCHES = 10; // Run 10 batches in parallel
 const RATE_LIMIT_DELAY = 0.1; // 0.1 seconds delay between API calls
 const SYNC_PERIOD_DAYS = 180; // 180 days of email history to process (increased for better testing)
 
@@ -318,20 +317,8 @@ export const processEmails = task({
       const providerToken = tokenResult.token!;
       const endDate = new Date();
       
-      // FIX Issue #2: Mark sync as starting (this should succeed since tRPC already checked)
-      const wasMarked = await markSyncInProgress(payload.userId);
-      
-      if (!wasMarked) {
-        // This shouldn't happen if tRPC did its job, but handle it anyway
-        logger.warn("Sync already in progress, task aborting", {
-          userId: payload.userId
-        });
-        return {
-          success: false,
-          message: "Sync already in progress",
-          error: "SYNC_ALREADY_IN_PROGRESS"
-        };
-      }
+      // FIX Issue #2: The tRPC router already marked sync as in_progress atomically,
+      // so we don't need to do it again here. Just proceed with fetching messages.
       
       // Step 3: Fetch all messages  
       let allMessages: Array<{id: string; threadId?: string}> = [];

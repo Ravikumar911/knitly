@@ -1,0 +1,1 @@
+ALTER TABLE "email_sync_status" ADD COLUMN "sync_timeout_at" timestamp;

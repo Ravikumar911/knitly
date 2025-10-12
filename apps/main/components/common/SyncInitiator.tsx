@@ -11,19 +11,20 @@ import { useEmailSync } from '@/hooks/useEmailSync';
 
 export function SyncInitiator() {
   const router = useRouter();
-  const { state, isLoading, statusLabel, statusDescription, cta } = useEmailSync();
+  const { state, isLoading, statusLabel, statusDescription, cta, refetch } = useEmailSync();
 
   // FIX Issue #6: Auto-navigate to dashboard when sync completes
   useEffect(() => {
     if (state?.phase === 'complete' && state?.state === 'has_data') {
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
+        await refetch(); // Ensure latest state
         router.refresh(); // Server-side refetch
         router.push('/dashboard'); // Navigate to dashboard
       }, 2000); // 2 second delay to show success message
 
       return () => clearTimeout(timer);
     }
-  }, [state?.phase, state?.state, router]);
+  }, [state?.phase, state?.state, router, refetch]);
 
   const isCountingEmails = state?.phase === 'counting_emails';
   const isInProgress = state?.phase === 'in_progress';
@@ -82,7 +83,27 @@ export function SyncInitiator() {
             </div>
           ) : null}
 
-          {cta && (
+          {isComplete ? (
+            <div className="text-center space-y-4">
+              <p className="text-green-600 dark:text-green-400 font-medium">
+                🎉 Analysis complete! You can now explore your financial insights.
+              </p>
+              <Button 
+                onClick={async () => {
+                  // Force refetch to ensure state is updated with hasInitialSync: true
+                  await refetch();
+                  // Small delay to ensure state propagates
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                  router.refresh();
+                  router.push('/dashboard');
+                }}
+                size="lg"
+                className="w-full"
+              >
+                View Dashboard
+              </Button>
+            </div>
+          ) : cta ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 py-4">
                 <div className="flex items-center space-x-3">
@@ -120,22 +141,7 @@ export function SyncInitiator() {
                 )}
               </Button>
             </div>
-          )}
-
-          {isComplete && (
-            <div className="text-center space-y-4">
-              <p className="text-green-600 dark:text-green-400 font-medium">
-                🎉 Analysis complete! You can now explore your financial insights.
-              </p>
-              <Button 
-                onClick={() => window.location.reload()}
-                size="lg"
-                className="w-full"
-              >
-                View Dashboard
-              </Button>
-            </div>
-          )}
+          ) : null}
         </CardContent>
       </Card>
     </div>

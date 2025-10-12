@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useTRPC } from '@/trpc/client';
 import { createClient } from '@/supabase/client';
@@ -42,6 +42,16 @@ export function useEmailSync() {
     staleTime: 0,
     refetchOnWindowFocus: true,
   });
+
+  // FIX: Refetch once when sync completes to ensure we have the latest state with hasInitialSync
+  const prevPhase = useRef(data?.phase);
+  useEffect(() => {
+    if (prevPhase.current !== 'complete' && data?.phase === 'complete') {
+      // Transition to complete detected, refetch to get final state
+      setTimeout(() => refetch(), 500);
+    }
+    prevPhase.current = data?.phase;
+  }, [data?.phase, refetch]);
 
   const startMutation = useMutation(trpc.emails.initiateSync.mutationOptions({
     onSuccess: () => {
