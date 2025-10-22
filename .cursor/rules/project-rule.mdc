@@ -1,7 +1,5 @@
 ---
-description: 
-globs: 
-alwaysApply: true
+alwaysApply: false
 ---
 ---
 Description: Guidelines for the Knitly monorepo to enforce separation of concerns, centralize database queries in packages/database, and implement Supabase Auth SSR in apps/main.

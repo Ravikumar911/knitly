@@ -1,9 +1,7 @@
 ---
 description: tRPC best practices for Knitly monorepo based on apps/main implementation patterns
-globs: **/*.ts,**/*.tsx
-alwaysApply: true
+alwaysApply: false
 ---
-
 # tRPC Best Practices for Knitly Monorepo
 
 ## Overview
