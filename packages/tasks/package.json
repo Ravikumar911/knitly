@@ -10,7 +10,10 @@
     "deploy": "pnpm dlx trigger.dev@3.3.17 deploy"
   },
   "exports": {
-    "./trigger/*": "./src/trigger/*.ts"
+    "./trigger/*": "./src/trigger/*.ts",
+    "./agents/*": "./dist/agents/*.js",
+    "./merchants/*": "./dist/merchants/*.js",
+    "./types/*": "./dist/types/*.js"
   },
   "dependencies": {
     "@trigger.dev/sdk": "^3.3.17",

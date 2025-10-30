@@ -16,10 +16,51 @@
       ]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": ["^lint"],
+      "env": ["MODEL_NAME"]
     },
     "lint:fix": {
       "dependsOn": ["^lint:fix"]
+    },
+    "eval": {
+      "cache": false,
+      "env": [
+        "OPENAI_API_KEY",
+        "BRAINTRUST_API_KEY",
+        "MODEL_NAME"
+      ]
+    },
+    "eval:swiggy": {
+      "cache": false,
+      "env": [
+        "OPENAI_API_KEY",
+        "BRAINTRUST_API_KEY",
+        "MODEL_NAME"
+      ]
+    },
+    "eval:swiggy:nano": {
+      "cache": false,
+      "env": [
+        "OPENAI_API_KEY",
+        "BRAINTRUST_API_KEY",
+        "MODEL_NAME"
+      ]
+    },
+    "eval:swiggy:mini": {
+      "cache": false,
+      "env": [
+        "OPENAI_API_KEY",
+        "BRAINTRUST_API_KEY",
+        "MODEL_NAME"
+      ]
+    },
+    "eval:swiggy:ui": {
+      "cache": false,
+      "env": [
+        "OPENAI_API_KEY",
+        "BRAINTRUST_API_KEY",
+        "MODEL_NAME"
+      ]
     },
     "check-types": {
       "dependsOn": ["^check-types"]
