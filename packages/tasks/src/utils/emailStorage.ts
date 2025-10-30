@@ -82,6 +82,7 @@ export const processAttachments = async (
     filename: string;
     mimeType: string;
     content: string;
+    storageUrl: string;
   }>;
 } | null> => {
   try {
@@ -138,17 +139,24 @@ export const processAttachments = async (
         continue;
       }
 
+      // Generate public URL for the attachment
+      const { data: publicUrlData } = supabase.storage
+        .from('email-attachments')
+        .getPublicUrl(storagePath);
+
       logger.log("Attachment processed successfully", {
         messageId,
         filename: attachment.filename,
-        storagePath
+        storagePath,
+        publicUrl: publicUrlData.publicUrl
       });
 
       storagePaths.push(storagePath);
       processedAttachments.push({
         filename: attachment.filename,
         mimeType: attachment.mimeType,
-        content: attachmentData.data
+        content: attachmentData.data,
+        storageUrl: publicUrlData.publicUrl
       });
     }
 
