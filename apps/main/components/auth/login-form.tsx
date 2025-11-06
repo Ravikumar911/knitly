@@ -5,24 +5,13 @@ import { useRouter } from "next/navigation"
 
 // Internal utilities
 import { createClient } from "@/supabase/client"
+import { getOAuthCallbackURL } from "@/lib/oauth"
 
 // UI Components
 import { Alert, AlertDescription } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Separator } from "@workspace/ui/components/separator"
-
-function getURL() {
-  let url =
-    process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this to your site URL in production env.
-    process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel.
-    'http://localhost:3000/'
-  // Make sure to include `https://` when not localhost.
-  url = url.startsWith('http') ? url : `https://${url}`
-  // Make sure to include a trailing `/`.
-  url = url.endsWith('/') ? url : `${url}/`
-  return url
-}
 
 export function LoginForm() {
   const router = useRouter()
@@ -38,7 +27,7 @@ export function LoginForm() {
       const { data } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: getURL() + 'auth/callback',
+          redirectTo: getOAuthCallbackURL(),
           scopes: 'email profile https://www.googleapis.com/auth/gmail.readonly',
           queryParams: {
             access_type: 'offline',

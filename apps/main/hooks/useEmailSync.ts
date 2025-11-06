@@ -2,8 +2,10 @@
 
 import React, { useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { useTRPC } from '@/trpc/client';
 import { createClient } from '@/supabase/client';
+import { getOAuthCallbackURL } from '@/lib/oauth';
 
 type UnifiedState = import('@workspace/database').UnifiedEmailSyncState;
 
@@ -21,6 +23,7 @@ function computeRefetchInterval(state?: UnifiedState, hasError?: boolean): numbe
 
 export function useEmailSync() {
   const trpc = useTRPC();
+  const router = useRouter();
   const supabase = createClient();
 
   const queryOptions = useMemo(() => trpc.emails.state.queryOptions(), [trpc.emails.state]);
@@ -75,7 +78,20 @@ export function useEmailSync() {
 
   async function reconnect() {
     // Launch OAuth on explicit user action only
-    await supabase.auth.signInWithOAuth({ provider: 'google', options: { scopes: 'https://www.googleapis.com/auth/gmail.readonly' } });
+    const { data } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: getOAuthCallbackURL(),
+        scopes: 'email profile https://www.googleapis.com/auth/gmail.readonly',
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
+      }
+    });
+    if (data?.url) {
+      router.push(data.url);
+    }
   }
 
   const statusLabel = useMemo(() => {
