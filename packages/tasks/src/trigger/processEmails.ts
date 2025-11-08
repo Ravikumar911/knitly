@@ -46,7 +46,6 @@ export const processEmailBatch = task({
   },
   run: async (payload: {
     userId: string;
-    providerToken: string;
     messages: Array<{id: string; threadId?: string}>;
   }) => {
     logger.log("Starting batch processing", {
@@ -63,6 +62,19 @@ export const processEmailBatch = task({
       totalFound: payload.messages.length
     };
 
+    // Refresh token once at the start of batch processing
+    const tokenResult = await refreshGoogleToken(payload.userId);
+    if (!tokenResult.success || !tokenResult.token) {
+      logger.error("Failed to refresh token for batch processing", {
+        userId: payload.userId,
+        errorType: tokenResult.error?.type,
+        errorCode: tokenResult.error?.code
+      });
+      throw new Error(`Token refresh failed: ${tokenResult.error?.message || 'Unknown error'}`);
+    }
+
+    let providerToken = tokenResult.token;
+
     // Process messages in batch
     for (const messageInfo of payload.messages) {
       try {
@@ -75,7 +87,48 @@ export const processEmailBatch = task({
 
         // Fetch message with rate limiting
         await wait.for({ seconds: RATE_LIMIT_DELAY });
-        const messageData = await fetchGmailMessage(payload.providerToken, messageInfo.id);
+        
+        let messageData = null;
+        let retryCount = 0;
+        const MAX_RETRIES = 1;
+        
+        // Fetch message with automatic token refresh on auth errors
+        while (retryCount <= MAX_RETRIES) {
+          try {
+            messageData = await fetchGmailMessage(providerToken, messageInfo.id);
+            break; // Success, exit retry loop
+          } catch (error: any) {
+            // Check if this is a 401 auth error
+            if ((error?.status === 401 || error?.code === 401) && retryCount < MAX_RETRIES) {
+              logger.warn("Auth error fetching message, refreshing token and retrying", {
+                userId: payload.userId,
+                messageId: messageInfo.id,
+                attempt: retryCount + 1,
+                error: error.message
+              });
+              
+              // Refresh token and retry
+              const refreshResult = await refreshGoogleToken(payload.userId);
+              if (refreshResult.success && refreshResult.token) {
+                providerToken = refreshResult.token;
+                retryCount++;
+                await wait.for({ seconds: 0.5 }); // Brief delay before retry
+                continue;
+              } else {
+                // Token refresh failed, rethrow error
+                logger.error("Token refresh failed during retry", {
+                  userId: payload.userId,
+                  messageId: messageInfo.id,
+                  errorType: refreshResult.error?.type
+                });
+                throw error;
+              }
+            } else {
+              // Not a 401 or out of retries, rethrow
+              throw error;
+            }
+          }
+        }
         
         if (!messageData) {
           stats.errorCount++;
@@ -99,7 +152,7 @@ export const processEmailBatch = task({
           const attachmentResult = await processAttachments(
             payload.userId,
             messageInfo.id,
-            payload.providerToken,
+            providerToken,
             attachments
           );
 
@@ -465,7 +518,6 @@ export const processEmails = task({
           task: processEmailBatch,
           payload: {
             userId: payload.userId,
-            providerToken,
             messages: batchMessages
           }
         });

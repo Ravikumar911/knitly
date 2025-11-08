@@ -13,5 +13,6 @@ export interface EmailData {
     filename: string;
     mimeType: string;
     content: string; // Base64 encoded content
+    storageUrl?: string; // Supabase public URL for the attachment
   }>;
 }

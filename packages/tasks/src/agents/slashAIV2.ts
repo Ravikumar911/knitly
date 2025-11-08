@@ -1,5 +1,6 @@
 import { generateObject, NoObjectGeneratedError, LanguageModel } from "ai";
-import { defaultModel } from "../ai/model";
+import { defaultModel, mistralOCRModel } from "../ai/model";
+import { createSignedStorageUrl } from "../utils/signedUrls";
 import { logger } from "@trigger.dev/sdk/v3";
 import { EmailData } from "../types/slashAI";
 import { SwiggyMerchant } from "../merchants/swiggy";
@@ -18,6 +19,15 @@ export interface SlashAIV2Result {
   parseSuccess: boolean;
   parseErrors: string[];
   transactionId?: string;
+}
+
+/**
+ * Detect if email has PDF attachments
+ */
+function hasPDFAttachments(emailData: EmailData): boolean {
+  return !!emailData.attachments?.some(
+    attachment => attachment.mimeType === 'application/pdf'
+  );
 }
 
 /**
@@ -46,6 +56,82 @@ function validateExtractionData(
 }
 
 /**
+ * Build prompt for OpenAI - returns a simple string prompt
+ */
+function buildOpenAIPrompt(basePrompt: string, emailData: EmailData): string {
+  let prompt = basePrompt;
+
+  // Add email content
+  prompt += `\n\nEMAIL TO ANALYZE:\n`;
+  prompt += `FROM: ${emailData.from}\n`;
+  prompt += `SUBJECT: ${emailData.subject}\n`;
+  prompt += `DATE: ${emailData.date}\n\n`;
+  prompt += `EMAIL BODY:\n${emailData.body}`;
+
+  // Add attachment information if present
+  if (emailData.attachments && emailData.attachments.length > 0) {
+    prompt += `\n\nATTACHMENTS:\n`;
+    emailData.attachments.forEach(attachment => {
+      prompt += `- ${attachment.filename} (${attachment.mimeType})\n`;
+      if (attachment.mimeType === 'application/pdf' && attachment.content) {
+        prompt += `  PDF Content: ${attachment.content}\n`;
+      }
+    });
+  }
+
+  prompt += `\n\nExtract all relevant financial data according to the schema provided.`;
+
+  return prompt;
+}
+
+/**
+ * Build prompt for Mistral OCR - returns messages content array with file objects
+ */
+async function buildMistralOCRPrompt(basePrompt: string, emailData: EmailData, log: any): Promise<any[]> {
+  const content: any[] = [
+    {
+      type: "text",
+      text: basePrompt
+    },
+    {
+      type: "text",
+      text: `\n\nEMAIL TO ANALYZE:\nFROM: ${emailData.from}\nSUBJECT: ${emailData.subject}\nDATE: ${emailData.date}\n\nEMAIL BODY:\n${emailData.body}\n\nExtract all relevant financial data according to the schema provided.`
+    }
+  ];
+
+  // Add PDF files with their storage URLs
+  if (!emailData.attachments) {
+    return content;
+  }
+
+  for (const attachment of emailData.attachments) {
+    if (attachment.mimeType === 'application/pdf' && attachment.storageUrl) {
+      const signedUrl = await createSignedStorageUrl(attachment.storageUrl, {
+        bucket: "email-attachments",
+        expiresInSeconds: 60,
+        log,
+      });
+
+      const fileData = (() => {
+        try {
+          return new URL(signedUrl);
+        } catch {
+          return signedUrl;
+        }
+      })();
+
+      content.push({
+        type: "file",
+        data: fileData,
+        mediaType: "application/pdf"
+      });
+    }
+  }
+
+  return content;
+}
+
+/**
  * Options for email data extraction
  */
 export interface ExtractEmailDataOptions {
@@ -54,8 +140,76 @@ export interface ExtractEmailDataOptions {
 }
 
 /**
- * Core extraction logic - testable and model-agnostic
+ * Extract email data using OpenAI
+ * Small, focused function for OpenAI-based extraction
+ */
+async function extractWithOpenAI(
+  emailData: EmailData,
+  basePrompt: string,
+  schema: z.ZodSchema,
+  model: LanguageModel,
+  log: any
+): Promise<any> {
+  const prompt = buildOpenAIPrompt(basePrompt, emailData);
+
+  log.log("Extracting with OpenAI", {
+    model: "openai",
+    hasAttachments: !!emailData.attachments?.length
+  });
+
+  const { object } = await generateObject({
+    model: model,
+    prompt: prompt,
+    schema: schema,
+    temperature: 1,
+  });
+
+  return object;
+}
+
+/**
+ * Extract email data using Mistral OCR
+ * Small, focused function for Mistral OCR-based extraction with PDFs
+ */
+async function extractWithMistralOCR(
+  emailData: EmailData,
+  basePrompt: string,
+  schema: z.ZodSchema,
+  log: any
+): Promise<any> {
+  const content = await buildMistralOCRPrompt(basePrompt, emailData, log);
+
+  log.log("Extracting with Mistral OCR", {
+    model: "mistral-ocr-latest",
+    pdfCount: emailData.attachments?.filter(a => a.mimeType === 'application/pdf').length || 0
+  });
+
+  const { object } = await generateObject({
+    model: mistralOCRModel(),
+    messages: [
+      {
+        role: "user",
+        content: content
+      }
+    ],
+    schema: schema,
+    temperature: 0.1,
+    providerOptions: {
+      mistral: {
+        documentImageLimit: 8,
+        documentPageLimit: 10,
+      }
+    },
+    abortSignal: AbortSignal.timeout(20000), // 20s timeout
+  });
+
+  return object;
+}
+
+/**
+ * Core extraction logic - router that chooses between OpenAI and Mistral
  * Extracts email data without side effects (no database storage)
+ * Clean, testable, and model-agnostic
  */
 export async function extractEmailData(
   emailData: EmailData, 
@@ -71,25 +225,41 @@ export async function extractEmailData(
   };
 
   try {
+    // Detect if email has PDF attachments
+    const hasPDFs = hasPDFAttachments(emailData);
+    
     log.log("Processing email with SlashAI V2", {
       subject: emailData.subject,
       from: emailData.from,
       hasAttachments: !!emailData.attachments?.length,
+      hasPDFAttachments: hasPDFs,
+      modelUsed: hasPDFs ? "mistral-ocr-latest" : "openai",
       merchant: SwiggyMerchant.name
     });
 
-    // Step 1: Build prompt with email content using Swiggy's prompt
-    const fullPrompt = buildEmailPrompt(SwiggyMerchant.prompt, emailData);
-
-    // Step 2: Execute AI extraction with Swiggy schema
-    const { object } = await generateObject({
-      model: model,
-      prompt: fullPrompt,
-      schema: SwiggyMerchant.schema,
-      temperature: 1,
-    }).catch(error => {
+    // Route to appropriate extraction function based on PDF presence
+    let object: any;
+    
+    try {
+      if (hasPDFs) {
+        object = await extractWithMistralOCR(
+          emailData,
+          SwiggyMerchant.prompt,
+          SwiggyMerchant.schema,
+          log
+        );
+      } else {
+        object = await extractWithOpenAI(
+          emailData,
+          SwiggyMerchant.prompt,
+          SwiggyMerchant.schema,
+          model,
+          log
+        );
+      }
+    } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
-        console.log("NoObjectGeneratedError: response did not match schema", {
+        log.error("NoObjectGeneratedError: response did not match schema", {
           cause: error.cause,
           text: error.text,
           response: error.response,
@@ -103,9 +273,9 @@ export async function extractEmailData(
         });
       }
       throw error;
-    });
+    }
 
-    // Step 3: Validate extraction results
+    // Validate extraction results
     const { isValid, extractionResult, errors } = validateExtractionData(object);
 
     if (!isValid || !extractionResult) {
@@ -223,31 +393,3 @@ export const slashAIV2Agent = async (emailData: EmailData): Promise<SlashAIV2Res
   };
 };
 
-/**
- * Build the complete prompt with email content
- */
-function buildEmailPrompt(basePrompt: string, emailData: EmailData): string {
-  let prompt = basePrompt;
-
-  // Add email content
-  prompt += `\n\nEMAIL TO ANALYZE:\n`;
-  prompt += `FROM: ${emailData.from}\n`;
-  prompt += `SUBJECT: ${emailData.subject}\n`;
-  prompt += `DATE: ${emailData.date}\n\n`;
-  prompt += `EMAIL BODY:\n${emailData.body}`;
-
-  // Add attachment information if present
-  if (emailData.attachments && emailData.attachments.length > 0) {
-    prompt += `\n\nATTACHMENTS:\n`;
-    emailData.attachments.forEach(attachment => {
-      prompt += `- ${attachment.filename} (${attachment.mimeType})\n`;
-      if (attachment.mimeType === 'application/pdf' && attachment.content) {
-        prompt += `  PDF Content: ${attachment.content}\n`;
-      }
-    });
-  }
-
-  prompt += `\n\nExtract all relevant financial data according to the schema provided.`;
-
-  return prompt;
-}
