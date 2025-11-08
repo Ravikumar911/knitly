@@ -7,6 +7,6 @@ export function defaultModel(): LanguageModel {
 }
 
 export function mistralOCRModel(): LanguageModel {
-	return mistral("mistral-ocr-latest");
+	return mistral("mistral-medium-latest");
 }
 

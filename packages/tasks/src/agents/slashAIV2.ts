@@ -1,5 +1,6 @@
 import { generateObject, NoObjectGeneratedError, LanguageModel } from "ai";
 import { defaultModel, mistralOCRModel } from "../ai/model";
+import { createSignedStorageUrl } from "../utils/signedUrls";
 import { logger } from "@trigger.dev/sdk/v3";
 import { EmailData } from "../types/slashAI";
 import { SwiggyMerchant } from "../merchants/swiggy";
@@ -86,7 +87,7 @@ function buildOpenAIPrompt(basePrompt: string, emailData: EmailData): string {
 /**
  * Build prompt for Mistral OCR - returns messages content array with file objects
  */
-function buildMistralOCRPrompt(basePrompt: string, emailData: EmailData): any[] {
+async function buildMistralOCRPrompt(basePrompt: string, emailData: EmailData, log: any): Promise<any[]> {
   const content: any[] = [
     {
       type: "text",
@@ -99,15 +100,33 @@ function buildMistralOCRPrompt(basePrompt: string, emailData: EmailData): any[] 
   ];
 
   // Add PDF files with their storage URLs
-  emailData.attachments?.forEach(attachment => {
+  if (!emailData.attachments) {
+    return content;
+  }
+
+  for (const attachment of emailData.attachments) {
     if (attachment.mimeType === 'application/pdf' && attachment.storageUrl) {
+      const signedUrl = await createSignedStorageUrl(attachment.storageUrl, {
+        bucket: "email-attachments",
+        expiresInSeconds: 60,
+        log,
+      });
+
+      const fileData = (() => {
+        try {
+          return new URL(signedUrl);
+        } catch {
+          return signedUrl;
+        }
+      })();
+
       content.push({
         type: "file",
-        data: attachment.storageUrl,
+        data: fileData,
         mediaType: "application/pdf"
       });
     }
-  });
+  }
 
   return content;
 }
@@ -158,7 +177,7 @@ async function extractWithMistralOCR(
   schema: z.ZodSchema,
   log: any
 ): Promise<any> {
-  const content = buildMistralOCRPrompt(basePrompt, emailData);
+  const content = await buildMistralOCRPrompt(basePrompt, emailData, log);
 
   log.log("Extracting with Mistral OCR", {
     model: "mistral-ocr-latest",
@@ -177,6 +196,7 @@ async function extractWithMistralOCR(
     temperature: 0.1,
     providerOptions: {
       mistral: {
+        documentImageLimit: 8,
         documentPageLimit: 10,
       }
     },
