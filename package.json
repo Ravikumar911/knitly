@@ -9,6 +9,8 @@
     "lint:fix": "turbo lint:fix",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "test:e2e": "turbo test --filter=@workspace/e2e-tests",
     "changeset": "changeset",
     "changeset:add": "changeset add",
     "changeset:status": "changeset status",
