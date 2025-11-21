@@ -40,3 +40,6 @@ npm-debug.log*
 
 
 mcp.json
+
+# Playwright auth state
+packages/e2e-tests/playwright/.auth/
