@@ -270,12 +270,18 @@ importers:
       '@playwright/test':
         specifier: ^1.48.0
         version: 1.56.1
+      '@types/node':
+        specifier: ^20
+        version: 20.17.19
       '@workspace/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@workspace/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.4.7
 
   packages/eslint-config:
     devDependencies:
