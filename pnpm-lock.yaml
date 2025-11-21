@@ -25,16 +25,16 @@ importers:
         version: 4.1.3(react-hook-form@7.54.2(react@18.3.1))
       '@supabase/ssr':
         specifier: latest
-        version: 0.7.0(@supabase/supabase-js@2.76.1)
+        version: 0.7.0(@supabase/supabase-js@2.80.0)
       '@supabase/supabase-js':
         specifier: latest
-        version: 2.76.1
+        version: 2.80.0
       '@tanstack/react-query':
         specifier: ^5.71.1
         version: 5.71.1(react@18.3.1)
       '@trigger.dev/sdk':
         specifier: latest
-        version: 4.0.4(ai@5.0.26(zod@3.25.76))(zod@3.25.76)
+        version: 4.0.6(ai@5.0.26(zod@3.25.76))(zod@3.25.76)
       '@trpc/client':
         specifier: ^11.0.1
         version: 11.0.1(@trpc/server@11.0.1(typescript@5.7.3))(typescript@5.7.3)
@@ -110,7 +110,7 @@ importers:
         version: 2.29.5
       '@trigger.dev/build':
         specifier: latest
-        version: 4.0.4(typescript@5.7.3)
+        version: 4.0.6(typescript@5.7.3)
       '@types/jsonwebtoken':
         specifier: ^9.0.9
         version: 9.0.9
@@ -349,6 +349,9 @@ importers:
 
   packages/tasks:
     dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.46.1
+        version: 2.80.0
       '@trigger.dev/sdk':
         specifier: ^3.3.17
         version: 3.3.17(zod@3.23.8)
@@ -971,6 +974,9 @@ packages:
 
   '@electric-sql/client@1.0.0-beta.1':
     resolution: {integrity: sha512-Ei9jN3pDoGzc+a/bGqnB5ajb52IvSv7/n2btuyzUlcOHIR2kM9fqtYTJXPwZYKLkGZlHWlpHgWyRtrinkP2nHg==}
+
+  '@electric-sql/client@1.0.14':
+    resolution: {integrity: sha512-LtPAfeMxXRiYS0hyDQ5hue2PjljUiK9stvzsVyVb4nwxWQxfOWTSF42bHTs/o5i3x1T4kAQ7mwHpxa4A+f8X7Q==}
 
   '@emnapi/runtime@1.3.1':
     resolution: {integrity: sha512-kEBmG8KyqtxJZv+ygbEim+KCGtIq1fC22Ms3S4ziXmYKm8uyoLX0MHONVKwp+9opg390VaKRNt4a7A9NwmpNhw==}
@@ -1730,6 +1736,9 @@ packages:
 
   '@mermaid-js/parser@0.6.3':
     resolution: {integrity: sha512-lnjOhe7zyHjc+If7yT4zoedx2vo4sHaTmtkl1+or8BRTnCtDmcTpAjpzDSfCZrshM5bCoz0GyidzadJAH1xobA==}
+
+  '@microsoft/fetch-event-source@2.0.1':
+    resolution: {integrity: sha512-W6CLUJ2eBMw3Rec70qrsEW0jOm/3twwJv21mrmj2yORiaVmVYGS4sSS5yUwvQc1ZlDLYGPnClVWmUUMagKNsfA==}
 
   '@next/env@14.2.33':
     resolution: {integrity: sha512-CgVHNZ1fRIlxkLhIX22flAZI/HmpDaZ8vwyJ/B0SDPTBuLZ1PJ+DWMjCHhqnExfmSQzA/PbZi8OAc7PAq2w9IA==}
@@ -2844,32 +2853,34 @@ packages:
   '@standard-schema/utils@0.3.0':
     resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
 
-  '@supabase/auth-js@2.76.1':
-    resolution: {integrity: sha512-bxmcgPuyjTUBg7+jAohJ15TDh3ph4hXcv7QkRsQgnIpszurD5LYaJPzX638ETQ8zDL4fvHZRHfGrcmHV8C91jA==}
+  '@supabase/auth-js@2.80.0':
+    resolution: {integrity: sha512-q2LyCVJGN4p7d92cOI7scWOoNwxJhZuFRwiimSUGJGI5zX7ubf1WUPznwOmYEn8WVo3Io+MyMinA7era6j5KPw==}
+    engines: {node: '>=20.0.0'}
 
-  '@supabase/functions-js@2.76.1':
-    resolution: {integrity: sha512-+zJym/GC1sofm5QYKGxHSszCpMW4Ao2dj/WC3YlffAGuIlIhUtWTJvKsv5q7sWaSKUKdDhGpWhZ2OD++fW5BtQ==}
+  '@supabase/functions-js@2.80.0':
+    resolution: {integrity: sha512-0S/k8LRtoblrbzy4ir9m4WuvU/XTkb1EwL/33/oJexCUHCXtsqaPJ3eKfr1GWtNqTa1zryv6sXs3Fpv7lKCsMQ==}
+    engines: {node: '>=20.0.0'}
 
-  '@supabase/node-fetch@2.6.15':
-    resolution: {integrity: sha512-1ibVeYUacxWYi9i0cf5efil6adJ9WRyZBLivgjs+AUpewx1F3xPi7gLgaASI2SmIQxPoCEjAsLAzKPgMJVgOUQ==}
-    engines: {node: 4.x || >=6.0.0}
+  '@supabase/postgrest-js@2.80.0':
+    resolution: {integrity: sha512-yKzehXlRbDoXIQefdRQnvaI9BEogoWIp/7+y/m5enZDKW2IP9aAgq5tU72sThcwftDJvknnIpEHAABG3qviEng==}
+    engines: {node: '>=20.0.0'}
 
-  '@supabase/postgrest-js@2.76.1':
-    resolution: {integrity: sha512-QJ1Cwim6L9gzWKP8U4Lgw9x/4lMWkZSVMDRYFCH+vVGitVbtfU885swTiioOjjUe4EYGZm+Xktg90twzSVv6IA==}
-
-  '@supabase/realtime-js@2.76.1':
-    resolution: {integrity: sha512-B5Lfmprea2fx2FS7obp4uAWiRUlEa6j9J3+BvvETGp/2LdkSRBaLEJCBylfcZTXk67ajNPX6ppvKvAZsckqXYg==}
+  '@supabase/realtime-js@2.80.0':
+    resolution: {integrity: sha512-cXK6Gs4UDylN8oz40omi01QK0cSCBVj0efXC1WodpENTuDnrkUs28W8/eslEnAtlawaVtikC1Q92mpz9+o85Mg==}
+    engines: {node: '>=20.0.0'}
 
   '@supabase/ssr@0.7.0':
     resolution: {integrity: sha512-G65t5EhLSJ5c8hTCcXifSL9Q/ZRXvqgXeNo+d3P56f4U1IxwTqjB64UfmfixvmMcjuxnq2yGqEWVJqUcO+AzAg==}
     peerDependencies:
       '@supabase/supabase-js': ^2.43.4
 
-  '@supabase/storage-js@2.76.1':
-    resolution: {integrity: sha512-OJiNT8tocI9tcTjTjv1SBVLabzgEnS1NorZuqivkiJ0gTYmeg2c2PFmqCARhoQ4whF6zR9MVsX/Mtj2oSv4i/w==}
+  '@supabase/storage-js@2.80.0':
+    resolution: {integrity: sha512-Iepod83h2WoMCaLC9pGb3QOT67Kn3RlUdbXpo3uvbDKfPU8EgytS4RVaPmDjhqDjj8AGaiz9mk/ppd2Q2WS+gw==}
+    engines: {node: '>=20.0.0'}
 
-  '@supabase/supabase-js@2.76.1':
-    resolution: {integrity: sha512-dYMh9EsTVXZ6WbQ0QmMGIhbXct5+x636tXXaaxUmwjj3kY1jyBTQU8QehxAIfjyRu1mWGV07hoYmTYakkxdSGQ==}
+  '@supabase/supabase-js@2.80.0':
+    resolution: {integrity: sha512-n8pkXQxuo5zCWXX5cbSNZj1vuWS8IVNGWTmP1m31Iq1k0e8lPZ07PF08TRV79HHq3mEPP/Ko//BQuflHvY2o8w==}
+    engines: {node: '>=20.0.0'}
 
   '@sveltejs/acorn-typescript@1.0.6':
     resolution: {integrity: sha512-4awhxtMh4cx9blePWl10HRHj8Iivtqj+2QdDCSMDzxG+XKa9+VCNupQuCuvzEhYPzZSrX+0gC+0lHA/0fFKKQQ==}
@@ -2984,16 +2995,16 @@ packages:
     resolution: {integrity: sha512-dfreMuVeLAcZypS3kkUA9nWNviiuOPIQ3ldy2ywPCmwmbHyd0BE8tI5D3A4kmVq/f53TdRMls4c+cYafxlwubQ==}
     engines: {node: '>=18.20.0'}
 
-  '@trigger.dev/build@4.0.4':
-    resolution: {integrity: sha512-W3mP+RBkcYOrNYTTmQ/WdU6LB+2Tk1S6r3OjEWqXEPsXLEEw6BzHTHZBirHYX4lWRBL9jVkL+/H74ycyNfzRjg==}
+  '@trigger.dev/build@4.0.6':
+    resolution: {integrity: sha512-NJ7N50mNTW43h7jJ/ynsjX1xT+R7fisxVytmwnjb8ZaCgScNp1zDdzGlJjhIjiIWU7G83qpZE1H8eoqjo7tOyg==}
     engines: {node: '>=18.20.0'}
 
   '@trigger.dev/core@3.3.17':
     resolution: {integrity: sha512-KjnRxCuHq4R+MnE0zPvIQ7EIz4QSpJL+1Yn74n2cCGjyHYgQ/g8rcARn0Nxf2s8jzE38CnyRufjUrwG8k+DJrw==}
     engines: {node: '>=18.20.0'}
 
-  '@trigger.dev/core@4.0.4':
-    resolution: {integrity: sha512-c5myttkNhqaqvLlEz3ttE1qEsULlD6ILBge5FAfEtMv9HVS/pNlgvMKrdFMefaGO/bE4HoxrNGdJsY683Kq32w==}
+  '@trigger.dev/core@4.0.6':
+    resolution: {integrity: sha512-V4w0Wmvw4fst0dbQ7LjmYuaWyLVlwNcLc6f2EB39XqoS7PVQGfRm6KCFWc0sG5x9xa/RBpusXcwmRK0C5QgW9g==}
     engines: {node: '>=18.20.0'}
 
   '@trigger.dev/sdk@3.3.17':
@@ -3002,8 +3013,8 @@ packages:
     peerDependencies:
       zod: ^3.0.0
 
-  '@trigger.dev/sdk@4.0.4':
-    resolution: {integrity: sha512-54krRw9SN1CGm5u17JBzu0hNzRf1u37jKbSFFngPJjUOltOgi/owey5+KNu1rGthabhOBK2VKzvKEd4sn08RCA==}
+  '@trigger.dev/sdk@4.0.6':
+    resolution: {integrity: sha512-jf10/JLoU2Xl8lH5CNM1220PyUHSJiRWfheZBvPh9bu8u0/AvhhJMKqeo3gQyuFjV1xd3BKrMeMULaq2Uy2olQ==}
     engines: {node: '>=18.20.0'}
     peerDependencies:
       ai: ^4.2.0 || ^5.0.0
@@ -7759,7 +7770,7 @@ snapshots:
       '@babel/traverse': 7.27.0
       '@babel/types': 7.27.0
       convert-source-map: 2.0.0
-      debug: 4.4.0
+      debug: 4.4.3
       gensync: 1.0.0-beta.2
       json5: 2.2.3
       semver: 6.3.1
@@ -7930,7 +7941,7 @@ snapshots:
       '@babel/parser': 7.27.0
       '@babel/template': 7.27.0
       '@babel/types': 7.27.0
-      debug: 4.4.0
+      debug: 4.4.3
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
@@ -8129,6 +8140,12 @@ snapshots:
   '@drizzle-team/brocli@0.10.2': {}
 
   '@electric-sql/client@1.0.0-beta.1':
+    optionalDependencies:
+      '@rollup/rollup-darwin-arm64': 4.52.0
+
+  '@electric-sql/client@1.0.14':
+    dependencies:
+      '@microsoft/fetch-event-source': 2.0.1
     optionalDependencies:
       '@rollup/rollup-darwin-arm64': 4.52.0
 
@@ -8776,6 +8793,8 @@ snapshots:
   '@mermaid-js/parser@0.6.3':
     dependencies:
       langium: 3.3.1
+
+  '@microsoft/fetch-event-source@2.0.1': {}
 
   '@next/env@14.2.33': {}
 
@@ -9947,28 +9966,20 @@ snapshots:
 
   '@standard-schema/utils@0.3.0': {}
 
-  '@supabase/auth-js@2.76.1':
+  '@supabase/auth-js@2.80.0':
     dependencies:
-      '@supabase/node-fetch': 2.6.15
       tslib: 2.8.1
 
-  '@supabase/functions-js@2.76.1':
+  '@supabase/functions-js@2.80.0':
     dependencies:
-      '@supabase/node-fetch': 2.6.15
       tslib: 2.8.1
 
-  '@supabase/node-fetch@2.6.15':
+  '@supabase/postgrest-js@2.80.0':
     dependencies:
-      whatwg-url: 5.0.0
-
-  '@supabase/postgrest-js@2.76.1':
-    dependencies:
-      '@supabase/node-fetch': 2.6.15
       tslib: 2.8.1
 
-  '@supabase/realtime-js@2.76.1':
+  '@supabase/realtime-js@2.80.0':
     dependencies:
-      '@supabase/node-fetch': 2.6.15
       '@types/phoenix': 1.6.6
       '@types/ws': 8.18.1
       tslib: 2.8.1
@@ -9977,24 +9988,22 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@supabase/ssr@0.7.0(@supabase/supabase-js@2.76.1)':
+  '@supabase/ssr@0.7.0(@supabase/supabase-js@2.80.0)':
     dependencies:
-      '@supabase/supabase-js': 2.76.1
+      '@supabase/supabase-js': 2.80.0
       cookie: 1.0.2
 
-  '@supabase/storage-js@2.76.1':
+  '@supabase/storage-js@2.80.0':
     dependencies:
-      '@supabase/node-fetch': 2.6.15
       tslib: 2.8.1
 
-  '@supabase/supabase-js@2.76.1':
+  '@supabase/supabase-js@2.80.0':
     dependencies:
-      '@supabase/auth-js': 2.76.1
-      '@supabase/functions-js': 2.76.1
-      '@supabase/node-fetch': 2.6.15
-      '@supabase/postgrest-js': 2.76.1
-      '@supabase/realtime-js': 2.76.1
-      '@supabase/storage-js': 2.76.1
+      '@supabase/auth-js': 2.80.0
+      '@supabase/functions-js': 2.80.0
+      '@supabase/postgrest-js': 2.80.0
+      '@supabase/realtime-js': 2.80.0
+      '@supabase/storage-js': 2.80.0
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -10100,9 +10109,9 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@trigger.dev/build@4.0.4(typescript@5.7.3)':
+  '@trigger.dev/build@4.0.6(typescript@5.7.3)':
     dependencies:
-      '@trigger.dev/core': 4.0.4
+      '@trigger.dev/core': 4.0.6
       pkg-types: 1.3.1
       tinyglobby: 0.2.12
       tsconfck: 3.1.3(typescript@5.7.3)
@@ -10145,10 +10154,10 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@trigger.dev/core@4.0.4':
+  '@trigger.dev/core@4.0.6':
     dependencies:
       '@bugsnag/cuid': 3.2.1
-      '@electric-sql/client': 1.0.0-beta.1
+      '@electric-sql/client': 1.0.14
       '@google-cloud/precise-date': 4.0.0
       '@jsonhero/path': 1.0.21
       '@opentelemetry/api': 1.9.0
@@ -10206,11 +10215,11 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@trigger.dev/sdk@4.0.4(ai@5.0.26(zod@3.25.76))(zod@3.25.76)':
+  '@trigger.dev/sdk@4.0.6(ai@5.0.26(zod@3.25.76))(zod@3.25.76)':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/semantic-conventions': 1.36.0
-      '@trigger.dev/core': 4.0.4
+      '@trigger.dev/core': 4.0.6
       chalk: 5.4.1
       cronstrue: 2.58.0
       debug: 4.4.0
@@ -12363,7 +12372,7 @@ snapshots:
     dependencies:
       basic-ftp: 5.0.5
       data-uri-to-buffer: 6.0.2
-      debug: 4.4.0
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 

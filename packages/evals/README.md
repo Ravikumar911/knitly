@@ -18,31 +18,87 @@ BRAINTRUST_API_KEY=your_braintrust_api_key
 
 ## Available Evaluations
 
-### Hello Eval (Example)
+### Extraction Methods Eval
 
-A simple example evaluation to verify Braintrust setup:
-
-```bash
-pnpm eval          # Run in CLI mode
-pnpm eval:ui       # Run with Braintrust UI
-```
-
-### Swiggy Extraction Eval
-
-Tests Swiggy invoice data extraction accuracy with different AI models.
+Tests the two core extraction functions (`extractWithOpenAI` and `extractWithMistralOCR`) independently to compare their performance on different types of emails.
 
 #### Quick Start
 
 ```bash
-# Run with default model (gpt-5-nano)
-pnpm eval:swiggy
+# Run in CLI mode (shows results in terminal)
+npx tsx src/extraction-methods.eval.ts
 
-# Run with specific models
-pnpm eval:swiggy:nano    # Using gpt-5-nano
-pnpm eval:swiggy:mini    # Using gpt-5-mini
+# Run with Braintrust UI (visual dashboard)
+npx braintrust eval src/extraction-methods.eval.ts
 
-# Run with Braintrust UI for visual comparison
-pnpm eval:swiggy:ui
+# Test with different OpenAI models (for OpenAI extraction only)
+MODEL_NAME=gpt-4o npx tsx src/extraction-methods.eval.ts
+MODEL_NAME=gpt-5-mini npx tsx src/extraction-methods.eval.ts
+```
+
+#### What It Tests
+
+This evaluation provides a **direct comparison** of the two extraction strategies:
+
+**OpenAI Extraction (`extractWithOpenAI`):**
+- Used for: Text-only emails (no PDF attachments)
+- Model: Configurable OpenAI model (default: gpt-5-nano)
+- Input: Email body text with optional inline data
+- Temperature: 1 (more creative)
+
+**Mistral OCR Extraction (`extractWithMistralOCR`):**
+- Used for: Emails with PDF attachments
+- Model: mistral-ocr-latest (fixed)
+- Input: Email text + PDF file attachments
+- Temperature: 0.1 (more deterministic)
+- Timeout: 20 seconds
+- Limits: 8 document images, 10 pages per document
+
+#### Test Cases
+
+The eval automatically splits test cases based on PDF presence:
+- **Text-only cases** → `extractWithOpenAI`
+- **PDF cases** → `extractWithMistralOCR`
+
+From the Supabase test data:
+- OpenAI cases: 0 (all test cases have PDFs)
+- Mistral OCR cases: 10 (all Swiggy orders have invoice PDFs)
+
+#### Why This Eval?
+
+This evaluation helps answer:
+1. How accurate is each extraction method on its intended input type?
+2. What are the failure modes for each method?
+3. Which fields does each method extract better?
+4. Is Mistral OCR worth the extra cost for PDF documents?
+5. Can we improve by adjusting prompts/schemas per method?
+
+#### Comparison with Swiggy Extraction Eval
+
+| Feature | Extraction Methods Eval | Swiggy Extraction Eval |
+|---------|------------------------|------------------------|
+| **Scope** | Tests individual extraction functions | Tests end-to-end extraction pipeline |
+| **Functions** | `extractWithOpenAI`, `extractWithMistralOCR` | `extractEmailData` |
+| **Purpose** | Compare extraction strategies | Test overall accuracy |
+| **Separation** | Splits by extraction method | Automatic routing based on PDF |
+| **Use Case** | Method-specific optimization | Production validation |
+
+### Swiggy Extraction Eval
+
+Tests Swiggy invoice data extraction accuracy with different AI models using production-aligned fixtures. This tests the end-to-end `extractEmailData` function.
+
+#### Quick Start
+
+```bash
+# Run in CLI mode (default: gpt-5-nano)
+npx tsx src/swiggy-extraction.eval.ts
+
+# Run with Braintrust UI
+npx braintrust eval src/swiggy-extraction.eval.ts
+
+# Test with different models
+MODEL_NAME=gpt-4o npx tsx src/swiggy-extraction.eval.ts
+MODEL_NAME=gpt-5-mini npx tsx src/swiggy-extraction.eval.ts
 ```
 
 #### What It Tests
@@ -67,11 +123,11 @@ The evaluation tests extraction of the following fields from Swiggy PDF invoices
 
 #### Test Data
 
-Location: `/Users/ravikumarr/Downloads/swiggy-test-data/`
+Location: `packages/evals/test-data/supabase/`
 
-The evaluation uses 10 sample Swiggy PDF invoices. Test cases are defined in:
-- `src/fixtures/swiggy-samples.ts` - EmailData fixtures with PDF attachments
-- `src/fixtures/swiggy-expected.ts` - Expected extraction outputs
+The evaluation uses 10 Swiggy PDF invoices captured from live ingestion. Test cases are defined in:
+- `src/fixtures/supabase-swiggy-testcases.ts` - Fixtures with inline expectations and base64-encoded attachments
+- `src/fixtures/swiggy-expected.ts` - Shared expected output types and helpers
 
 #### ⚠️ IMPORTANT: Update Expected Outputs
 
@@ -89,7 +145,7 @@ The file currently contains template structures with TODO markers. You need to:
    - Transaction date
    - Service type (FOOD_DELIVERY/INSTAMART)
 
-3. Update the corresponding entry in `SWIGGY_EXPECTED_OUTPUTS` array
+3. Update the corresponding entry inside `src/fixtures/supabase-swiggy-testcases.ts`
 
 Example of a completed entry:
 ```typescript
@@ -191,7 +247,7 @@ To add a new evaluation:
 Ensure `OPENAI_API_KEY` and `BRAINTRUST_API_KEY` are set in your `.env` file.
 
 ### PDF Files Not Found
-Verify the PDF path in `src/fixtures/swiggy-samples.ts` matches your local directory.
+Verify the PDFs exist under `packages/evals/test-data/supabase/` and that filenames referenced in `src/fixtures/supabase-swiggy-testcases.ts` match.
 
 ### TypeScript Errors
 Run `pnpm install` to ensure all workspace dependencies are linked correctly.

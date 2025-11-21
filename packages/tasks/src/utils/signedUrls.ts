@@ -16,8 +16,16 @@ interface CreateSignedUrlOptions {
 export async function createSignedStorageUrl(
   originalUrlOrPath: string,
   { bucket, expiresInSeconds = 60, log }: CreateSignedUrlOptions
-): Promise<string> {
+): Promise<string | null> {
   try {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      log?.warn?.("Supabase environment variables missing, skipping signed URL generation", {
+        bucket,
+        originalUrlOrPath,
+      });
+      return null;
+    }
+
     let objectPath = originalUrlOrPath;
 
     if (originalUrlOrPath.startsWith("http")) {
@@ -42,7 +50,7 @@ export async function createSignedStorageUrl(
         bucket,
         originalUrlOrPath,
       });
-      return originalUrlOrPath;
+      return null;
     }
 
     const supabase = createSupabaseClient();
@@ -56,7 +64,7 @@ export async function createSignedStorageUrl(
         objectPath,
         error: error?.message ?? error,
       });
-      return originalUrlOrPath;
+      return null;
     }
 
     return data.signedUrl;
@@ -66,7 +74,7 @@ export async function createSignedStorageUrl(
       originalUrlOrPath,
       error: error instanceof Error ? error.message : String(error),
     });
-    return originalUrlOrPath;
+    return null;
   }
 }
 

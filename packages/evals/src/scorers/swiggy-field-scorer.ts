@@ -288,17 +288,19 @@ export const schemaValidationScorer: Scorer<
     };
   }
 
+  const provider = output.extractionData?.detectedProvider;
   const validations = {
     hasExtractionData: !!output.extractionData,
     hasParseSuccess: typeof output.parseSuccess === "boolean",
-    hasSchemaUsed: !!output.schemaUsed,
     hasConfidenceScore: typeof output.extractionConfidence === "number",
-    correctSchema: output.schemaUsed === "swiggy",
+    merchantIdMatches: output.merchantId === "swiggy",
+    merchantCodeMatches: output.merchantCode === "SWIGGY",
+    providerMatches: provider ? provider.toLowerCase() === "swiggy" : false,
   };
 
   const passed = Object.values(validations).filter(Boolean).length;
   const total = Object.keys(validations).length;
-  const score = passed / total;
+  const score = total === 0 ? 0 : passed / total;
 
   return {
     name: "schema_validation",
@@ -307,7 +309,9 @@ export const schemaValidationScorer: Scorer<
       validations,
       passed,
       total,
-      schemaUsed: output.schemaUsed,
+      merchantId: output.merchantId,
+      merchantCode: output.merchantCode,
+      detectedProvider: provider,
     },
   };
 };

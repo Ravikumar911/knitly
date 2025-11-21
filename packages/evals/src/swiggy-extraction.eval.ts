@@ -1,22 +1,16 @@
-import { config } from "dotenv";
-import { resolve } from "path";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
 import { Eval } from "braintrust";
 import { openai } from "@ai-sdk/openai";
 import { extractEmailData, SlashAIV2Result } from "@workspace/tasks/agents/slashAIV2";
 import { EmailData } from "@workspace/tasks/types/slashAI";
-import { getAllTestCases } from "./fixtures/swiggy-samples";
-import { SWIGGY_EXPECTED_OUTPUTS } from "./fixtures/swiggy-expected";
+import { config } from "dotenv";
+import { getSupabaseSwiggyTestCases } from "./fixtures/supabase-swiggy-testcases";
+import { type SwiggyExpectedOutput } from "./fixtures/swiggy-expected";
 import { swiggyFieldScorer, schemaValidationScorer } from "./scorers/swiggy-field-scorer";
-
-// Get the directory name in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { resolveEvalsPath } from "./utils/path";
 
 // Load environment variables
-config({ path: resolve(__dirname, "../.env.local") });
-config({ path: resolve(__dirname, "../.env") });
+config({ path: resolveEvalsPath(".env.local") });
+config({ path: resolveEvalsPath(".env") });
 
 /**
  * Get the AI model based on environment variable or experiment name
@@ -42,6 +36,44 @@ function getModel(experimentName?: string) {
   }
 }
 
+type SwiggyEvalCase = {
+  input: {
+    emailData: unknown;
+    expected: SwiggyExpectedOutput;
+  };
+  expected: SwiggyExpectedOutput;
+  metadata: Record<string, unknown>;
+};
+
+function loadTestCases(): SwiggyEvalCase[] {
+  const supabaseCases = getSupabaseSwiggyTestCases();
+  return supabaseCases.map((testCase, index) => {
+    const hasPdfAttachment = !!testCase.emailData.attachments?.some(
+      (attachment) => attachment.mimeType === "application/pdf"
+    );
+
+    return {
+      input: {
+        emailData: testCase.emailData as unknown,
+        expected: testCase.expected,
+      },
+      expected: testCase.expected,
+      metadata: {
+        testCaseIndex: index,
+        parsedEmailId: testCase.parsedEmailId,
+        storageUrl: testCase.storageUrl,
+        pdfFilename: testCase.emailData.attachments?.[0]?.filename || `swiggy-case-${index}`,
+        attachmentCount: testCase.emailData.attachments?.length ?? 0,
+        hasPdfAttachment,
+        modelPath: hasPdfAttachment ? "ocr" : "text-only",
+      },
+    };
+  });
+}
+
+const TEST_CASES = loadTestCases();
+const TOTAL_TEST_CASES = TEST_CASES.length;
+
 /**
  * Swiggy Data Extraction Evaluation
  * 
@@ -53,33 +85,19 @@ Eval("swiggy-extraction", {
   maxConcurrency: 1,
   
   // Load test data: 10 Swiggy PDF invoices with expected outputs
-  data: () => {
-    const testCases = getAllTestCases();
-    
-    return testCases.map((emailData, index) => {
-      const expected = SWIGGY_EXPECTED_OUTPUTS[index];
-      if (!expected) {
-        throw new Error(`Missing expected output for test case ${index}`);
-      }
-      
-      return {
-        input: {
-          emailData: emailData as unknown,
-          expected,
-        },
-        expected,
-        metadata: {
-          testCaseIndex: index,
-          pdfFilename: emailData.attachments?.[0]?.filename || `test-${index}`,
-        },
-      };
-    });
-  },
+  data: () => TEST_CASES,
 
   // Task: Extract data using slashAIV2Agent with specified model
   task: async (input): Promise<SlashAIV2Result> => {
     const model = getModel();
     const emailData = input.emailData as EmailData;
+    const hasPdfAttachment =
+      !!emailData.attachments?.some((attachment) => attachment.mimeType === "application/pdf");
+
+    console.log(
+      "[Swiggy Eval] Model strategy",
+      hasPdfAttachment ? "ocr (PDF attachments detected)" : "text-only (no PDFs)"
+    );
     
     try {
       // Call extraction function with test model
@@ -104,19 +122,22 @@ Eval("swiggy-extraction", {
       console.error("Error in extraction task:", error);
       
       // Return error result with properly typed extractionData
+      const parseErrors = [error instanceof Error ? error.message : "Unknown error"];
+
       return {
         extractionData: {
-          detectedProvider: 'Unknown',
-          emailType: 'OTHER' as const,
-          emailSubject: emailData.subject || '',
+          detectedProvider: "Unknown",
+          emailType: "OTHER",
+          emailSubject: emailData.subject || "",
           parseSuccess: false,
-          parseErrors: [error instanceof Error ? error.message : 'Unknown error'],
+          parseErrors,
           confidenceScore: 0,
         },
+        merchantId: "swiggy",
+        merchantCode: "SWIGGY",
         extractionConfidence: 0,
-        schemaUsed: 'base' as const,
         parseSuccess: false,
-        parseErrors: [error instanceof Error ? error.message : 'Unknown error'],
+        parseErrors,
       };
     }
   },
@@ -132,6 +153,8 @@ Eval("swiggy-extraction", {
     description: "Swiggy invoice extraction accuracy evaluation",
     modelOptions: ["gpt-5-nano", "gpt-5-mini", "gpt-4o", "gpt-4o-mini"],
     criticalFields: ["orderId", "amount", "restaurantName"],
+    dataSource: "swiggy-testcases",
+    totalCases: TOTAL_TEST_CASES,
   },
 });
 
@@ -141,18 +164,20 @@ console.log(`
 ==============================================
 
 Model: ${process.env.MODEL_NAME || "gpt-5-nano (default)"}
-Test Cases: 10 Swiggy PDF invoices
+Data Source: swiggy-testcases
+Test Cases: ${TOTAL_TEST_CASES}
 
-To run with different models:
-- MODEL_NAME=gpt-5-nano pnpm eval:swiggy
-- MODEL_NAME=gpt-5-mini pnpm eval:swiggy
+To run this eval:
 
-Or use the npm scripts:
-- pnpm eval:swiggy:nano
-- pnpm eval:swiggy:mini
+CLI Mode (terminal output):
+  npx tsx src/swiggy-extraction.eval.ts
 
-View results in Braintrust UI:
-- pnpm eval:swiggy:ui
+Braintrust UI (visual dashboard):
+  npx braintrust eval src/swiggy-extraction.eval.ts
+
+With different models:
+  MODEL_NAME=gpt-4o npx tsx src/swiggy-extraction.eval.ts
+  MODEL_NAME=gpt-5-mini npx tsx src/swiggy-extraction.eval.ts
 
 ==============================================
 `);

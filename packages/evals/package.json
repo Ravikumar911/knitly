@@ -4,15 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "eval": "tsx src/hello.eval.ts",
-    "eval:ui": "braintrust eval src/hello.eval.ts",
-    "eval:swiggy": "tsx src/swiggy-extraction.eval.ts",
-    "eval:swiggy:nano": "MODEL_NAME=gpt-5-nano tsx src/swiggy-extraction.eval.ts",
-    "eval:swiggy:mini": "MODEL_NAME=gpt-5-mini tsx src/swiggy-extraction.eval.ts",
-    "eval:swiggy:4o": "MODEL_NAME=gpt-4o tsx src/swiggy-extraction.eval.ts",
-    "eval:swiggy:ui": "braintrust eval src/swiggy-extraction.eval.ts",
     "lint": "eslint . --max-warnings 0",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "eval:swiggy": "tsx src/swiggy-extraction.eval.ts",
+    "eval:extraction-methods": "tsx src/extraction-methods.eval.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.32",

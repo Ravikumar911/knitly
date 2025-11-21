@@ -112,13 +112,31 @@ async function buildMistralOCRPrompt(basePrompt: string, emailData: EmailData, l
         log,
       });
 
-      const fileData = (() => {
+      const resolveFileData = (value: string) => {
         try {
-          return new URL(signedUrl);
+          return new URL(value);
         } catch {
-          return signedUrl;
+          return value;
         }
-      })();
+      };
+
+      let fileData: string | URL | undefined;
+
+      if (signedUrl) {
+        fileData = resolveFileData(signedUrl);
+      } else if (attachment.content) {
+        const dataUrl = `data:${attachment.mimeType};base64,${attachment.content}`;
+        log?.warn?.("Falling back to data URL for PDF attachment", {
+          filename: attachment.filename,
+        });
+        fileData = resolveFileData(dataUrl);
+      } else {
+        log?.warn?.("No accessible URL for PDF attachment", {
+          filename: attachment.filename,
+          storageUrl: attachment.storageUrl,
+        });
+        fileData = resolveFileData(attachment.storageUrl);
+      }
 
       content.push({
         type: "file",
@@ -142,8 +160,9 @@ export interface ExtractEmailDataOptions {
 /**
  * Extract email data using OpenAI
  * Small, focused function for OpenAI-based extraction
+ * Exported for testing purposes
  */
-async function extractWithOpenAI(
+export async function extractWithOpenAI(
   emailData: EmailData,
   basePrompt: string,
   schema: z.ZodSchema,
@@ -170,8 +189,9 @@ async function extractWithOpenAI(
 /**
  * Extract email data using Mistral OCR
  * Small, focused function for Mistral OCR-based extraction with PDFs
+ * Exported for testing purposes
  */
-async function extractWithMistralOCR(
+export async function extractWithMistralOCR(
   emailData: EmailData,
   basePrompt: string,
   schema: z.ZodSchema,
