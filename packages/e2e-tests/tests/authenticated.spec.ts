@@ -65,8 +65,8 @@ test.describe("Authenticated User", () => {
     // Verify we're not redirected to login
     await expect(page).not.toHaveURL(/\/login/, { timeout: 10000 });
     
-    // Check if Supabase session exists in cookies (using @supabase/ssr)
-    // The auth tokens are stored in cookies with format: sb-{project-ref}-auth-token
+    // Check if Supabase session exists in cookies
+    // Auth tokens are stored in cookies with format: sb-{project-ref}-auth-token
     const cookies = await page.context().cookies();
     const hasSupabaseAuthCookie = cookies.some(cookie => 
       cookie.name.startsWith('sb-') && cookie.name.includes('-auth-token')
