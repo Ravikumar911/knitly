@@ -2,6 +2,18 @@
 
 @import "@workspace/ui/globals.css";
 
+:root {
+  --font-sans: Geist Mono, monospace;
+  --font-serif: Geist Mono, monospace;
+  --font-mono: Geist Mono, monospace;
+}
+
+.dark {
+  --font-sans: Geist Mono, monospace;
+  --font-serif: Geist Mono, monospace;
+  --font-mono: Geist Mono, monospace;
+}
+
 /* Website-specific styles */
 .hero-gradient {
   background: linear-gradient(
