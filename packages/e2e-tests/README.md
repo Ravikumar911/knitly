@@ -22,7 +22,7 @@ Authenticate once before running tests:
 pnpm --filter @knitly/main dev
 
 # Run authentication setup (from packages/e2e-tests)
-pnpm playwright test --project=setup
+pnpm test:setup
 ```
 
 **Follow the prompts:**
@@ -33,16 +33,17 @@ pnpm playwright test --project=setup
 **Re-authenticate when:**
 - Auth expires (~1 hour)
 - Testing with different account
-- Auth state corrupted: `rm playwright/.auth/user.json && pnpm playwright test --project=setup`
+- Auth state corrupted: `rm playwright/.auth/user.json && pnpm test:setup`
 
 ## Running Tests
 
 ```bash
-pnpm test              # Run all tests
+pnpm test              # Run all tests (chromium, firefox, webkit)
 pnpm test:ui           # UI mode (recommended)
 pnpm test:headed       # See browser
 pnpm test:debug        # Debug mode
 pnpm test:report       # View report
+pnpm test:setup        # Run auth setup (manual, run once)
 ```
 
 ## Writing Tests
@@ -81,7 +82,7 @@ test.describe("Login Flow", () => {
 
 **Tests redirect to login:**
 ```bash
-pnpm playwright test --project=setup  # Re-authenticate
+pnpm test:setup  # Re-authenticate
 ```
 
 **Google "browser not secure" error:**
