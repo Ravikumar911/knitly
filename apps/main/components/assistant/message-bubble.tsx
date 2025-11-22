@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import type { UIMessage } from 'ai';
 import {
   Message,
@@ -7,59 +8,133 @@ import {
   MessageResponse,
 } from '@workspace/ui/components/ai-elements/message';
 import {
-  Tool,
-  ToolHeader,
-  ToolContent,
-} from '@workspace/ui/components/ai-elements/tool';
-import {
   Reasoning,
   ReasoningTrigger,
   ReasoningContent,
 } from '@workspace/ui/components/ai-elements/reasoning';
+import { Loader } from '@workspace/ui/components/ai-elements/loader';
+import { Shimmer } from '@workspace/ui/components/ai-elements/shimmer';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@workspace/ui/components/table';
+import {
+  Alert,
+  AlertDescription,
+} from '@workspace/ui/components/alert';
+import { AlertCircle } from 'lucide-react';
 
 interface MessageBubbleProps {
   message: UIMessage;
 }
 
+// Helper function to format currency values
+function formatCurrency(value: string | number): string {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return String(value);
+  return `₹${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// Helper function to format numbers
+function formatNumber(value: string | number): string {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return String(value);
+  return num.toLocaleString('en-IN');
+}
+
+// Helper function to check if a value looks like currency
+function isCurrencyField(key: string, value: any): boolean {
+  const lowerKey = key.toLowerCase();
+  return (
+    lowerKey.includes('amount') ||
+    lowerKey.includes('spend') ||
+    lowerKey.includes('total') ||
+    lowerKey.includes('price') ||
+    lowerKey.includes('fee') ||
+    lowerKey.includes('discount') ||
+    (typeof value === 'string' && /^\d+\.\d{2}$/.test(value))
+  );
+}
 
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
-
-  // Separate parts by type - AI SDK v5 Agent structure
   const allParts = message.parts || [];
-  
-  // Handle meaningful parts - exclude step-start as they're just markers
-  const toolParts = allParts.filter((p: any) => 
-    p.type.startsWith('tool-') || 
-    p.type === 'reasoning' ||
-    p.type === 'tool-call' ||
-    p.type === 'tool-result'
-  );
   const textParts = allParts.filter((p: any) => p.type === 'text');
   
-  const hasTools = toolParts.length > 0;
+  // Extract tool results silently (for data extraction, not display)
+  const toolParts = allParts.filter((p: any) => p.type.startsWith('tool-')) as any[];
+  
+  // Extract reasoning parts - but we'll hide them to reduce backend complexity
+  // Only show if user explicitly wants to see reasoning (collapsed by default)
+  const reasoningParts = allParts.filter((p: any) => p.type === 'reasoning') as any[];
+  const hasReasoning = reasoningParts.length > 0;
+  const isReasoningStreaming = reasoningParts.some((p: any) => p.state !== 'done');
+  // Combine all reasoning content into one
+  const combinedReasoningContent = reasoningParts
+    .map((p: any) => p.content || '')
+    .filter(Boolean)
+    .join('\n\n');
+  
+  // Extract SQL results to display inline (but hide the tool execution UI)
+  const executeSQLResults = toolParts
+    .filter((p: any) => p.type === 'tool-executeSQL' && (p as any).result)
+    .map((p: any) => (p as any).result as any)
+    .filter((r: any) => r?.success && r?.data && Array.isArray(r.data) && r.data.length > 0);
 
-  // 🔍 SINGLE COMPREHENSIVE DEBUG LOG - Copy this entire log for debugging
-  if (!isUser && hasTools) {
-    const debugInfo = {
-      MESSAGE_ID: message.id,
-      ROLE: message.role,
-      TOTAL_PARTS: allParts.length,
-      ALL_PARTS_TYPES: allParts.map((p: any, i: number) => `${i}:${p.type}`),
-      TOOL_PARTS_DETAILS: toolParts.map((p: any, i: number) => ({
-        INDEX: i,
-        TYPE: p.type,
-        TOOL_NAME: p.type.replace('tool-', ''),
-        HAS_RESULT: p.result !== undefined,
-        HAS_ERROR: p.error !== undefined,
-        RESULT_PREVIEW: p.result ? 'HAS_RESULT' : 'NO_RESULT',
-        ERROR_PREVIEW: p.error ? 'HAS_ERROR' : 'NO_ERROR',
-      })),
-      TEXT_PARTS_COUNT: textParts.length,
-      HAS_TOOLS: hasTools,
-    };
-    console.log('🔍=== SINGLE DEBUG LOG - COPY THIS ===', JSON.stringify(debugInfo, null, 2));
-  }
+  // Check for errors
+  const hasError = toolParts.some((p: any) => (p as any).error || ((p as any).result && (p as any).result.success === false));
+  const errorMessage = toolParts.find((p: any) => (p as any).error || ((p as any).result && (p as any).result.success === false));
+  const error = errorMessage ? ((errorMessage as any).error || (errorMessage as any).result?.error) : undefined;
+
+  // Check if tools are still executing and determine which tool
+  const toolsExecuting = toolParts.some((p: any) => 
+    p.type.startsWith('tool-') && 
+    !(p as any).result && 
+    !(p as any).error && 
+    ((p as any).state === 'input-available' || (p as any).state === 'input-streaming')
+  );
+
+  // Get the current executing tool to show specific status
+  const currentTool = toolParts.find((p: any) => 
+    p.type.startsWith('tool-') && 
+    !(p as any).result && 
+    !(p as any).error && 
+    ((p as any).state === 'input-available' || (p as any).state === 'input-streaming')
+  );
+
+  // Rotating messages to keep users engaged during 7-20s wait
+  const [messageIndex, setMessageIndex] = useState(0);
+  
+  const executeSQLMessages = [
+    'Analyzing your Swiggy orders...',
+    'Crunching through your transactions...',
+    'Digging into your spending data...',
+    'Almost there, finding insights...',
+  ];
+
+  useEffect(() => {
+    if (currentTool?.type === 'tool-executeSQL') {
+      const interval = setInterval(() => {
+        setMessageIndex((prev) => (prev + 1) % executeSQLMessages.length);
+      }, 3500); // Change message every 3.5s to keep it engaging
+      return () => clearInterval(interval);
+    }
+  }, [currentTool?.type]);
+
+  // Determine loading text based on tool type - make it exciting!
+  const getLoadingText = (): string => {
+    if (currentTool) {
+      const toolType = currentTool.type;
+      if (toolType === 'tool-generateSQL') return 'Understanding your question...';
+      if (toolType === 'tool-executeSQL') return executeSQLMessages[messageIndex];
+      return 'Processing...';
+    }
+    return 'Thinking...';
+  };
 
   return (
     <Message from={message.role}>
@@ -69,56 +144,30 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           <MessageResponse>{textParts[0].text}</MessageResponse>
         )}
 
-        {/* Assistant message with tools and reasoning */}
+        {/* Assistant message - simplified, hide backend complexity */}
         {!isUser && (
           <>
-            {/* Show reasoning and tool calls */}
-            {toolParts.map((toolPart: any, idx: number) => {
-              if (toolPart.type === 'reasoning') {
-                return (
-                  <Reasoning
-                    key={`reasoning-${idx}`}
-                    isStreaming={toolPart.state !== 'done'}
-                    defaultOpen={true}
-                  >
-                    <ReasoningTrigger />
-                    <ReasoningContent>
-                      {toolPart.content || ''}
-                    </ReasoningContent>
-                  </Reasoning>
-                );
-              } else if (toolPart.type.startsWith('tool-')) {
-                const toolName = toolPart.type.replace('tool-', '');
-                const state = toolPart.state || (toolPart.result ? 'output-available' : 'input-available');
-                
-                return (
-                  <Tool key={`tool-${idx}`} defaultOpen={state === 'output-available'}>
-                    <ToolHeader
-                      title={toolName === 'generateSQL' ? 'Understanding your question' : toolName === 'executeSQL' ? 'Looking through your orders' : toolName}
-                      type={toolPart.type as any}
-                      state={state as any}
-                    />
-                    <ToolContent>
-                      {toolPart.result && (
-                        <MessageResponse>
-                          {typeof toolPart.result === 'string' 
-                            ? toolPart.result 
-                            : JSON.stringify(toolPart.result, null, 2)}
-                        </MessageResponse>
-                      )}
-                      {toolPart.error && (
-                        <div className="text-destructive text-sm">
-                          Error: {toolPart.error}
-                        </div>
-                      )}
-                    </ToolContent>
-                  </Tool>
-                );
-              }
-              return null;
-            })}
+            {/* Show loading state when tools are executing */}
+            {toolsExecuting && (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm py-1 mb-2">
+                <Loader size={14} />
+                <Shimmer duration={1.5}>{getLoadingText()}</Shimmer>
+              </div>
+            )}
 
-            {/* Final Response with Markdown */}
+            {/* Show error state */}
+            {hasError && !toolsExecuting && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {typeof error === 'string' 
+                    ? error 
+                    : 'Sorry, I encountered an error while processing your request. Please try rephrasing your question.'}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Final Response with Markdown - this comes first for natural flow */}
             {textParts.map((part: any, i: number) => {
               if (!('text' in part)) return null;
               return (
@@ -138,6 +187,55 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                 </MessageResponse>
               );
             })}
+
+            {/* Display SQL results as tables inline (after text for natural flow) */}
+            {executeSQLResults.map((result: any, idx: number) => {
+              const data = result.data;
+              if (!data || !Array.isArray(data) || data.length === 0) return null;
+
+              return (
+                <div key={idx} className="my-4 overflow-x-auto rounded-lg border bg-muted/30">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        {Object.keys(data[0]).map((key) => (
+                          <TableHead key={key} className="font-semibold">
+                            {key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.map((row: any, rowIdx: number) => (
+                        <TableRow key={rowIdx}>
+                          {Object.keys(data[0]).map((key) => {
+                            const value = row[key];
+                            const formattedValue = isCurrencyField(key, value)
+                              ? formatCurrency(value)
+                              : typeof value === 'number'
+                                ? formatNumber(value)
+                                : String(value ?? '');
+                            return (
+                              <TableCell key={key}>
+                                {formattedValue}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              );
+            })}
+
+            {/* Show subtle processing state if no content yet */}
+            {!toolsExecuting && !hasError && textParts.length === 0 && executeSQLResults.length === 0 && (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm py-1">
+                <Loader size={14} />
+                <Shimmer duration={1.5}>Preparing your insights...</Shimmer>
+              </div>
+            )}
           </>
         )}
       </MessageContent>

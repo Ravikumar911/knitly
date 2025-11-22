@@ -1,10 +1,9 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { MessageBubble } from './message-bubble';
-import { ThinkingMessage } from './thinking-message';
 import {
   Conversation,
   ConversationContent,
@@ -22,6 +21,10 @@ import {
   Suggestions,
   Suggestion,
 } from '@workspace/ui/components/ai-elements/suggestion';
+import { Card } from '@workspace/ui/components/card';
+import { Alert, AlertDescription } from '@workspace/ui/components/alert';
+import { AlertCircle } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 interface ChatInterfaceProps {
   chatId: string;
@@ -34,12 +37,14 @@ function ChatInterfaceContent({
   suggestionPrompts,
   handleSubmit,
   isLoading,
+  error,
 }: {
   messages: any[];
   status: any;
   suggestionPrompts: string[];
   handleSubmit: (message: { text: string; files: any[] }, event: React.FormEvent<HTMLFormElement>) => void;
   isLoading: boolean;
+  error?: Error | null;
 }) {
   const { textInput } = usePromptInputController();
 
@@ -47,19 +52,31 @@ function ChatInterfaceContent({
     <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Messages area using AI Elements Conversation */}
       <Conversation className="flex-1 min-h-0">
-        <ConversationContent className="max-w-4xl mx-auto px-4 py-6">
+        <ConversationContent className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+          {/* Show error state */}
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {error.message || 'Something went wrong. Please try again.'}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {messages.length === 0 ? (
             <ConversationEmptyState
               title="Start a conversation"
               description="Ask me anything about your Swiggy orders and spending habits"
               icon={
-                <div className="relative">
-                  <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
-                  <div className="relative text-6xl">🍕</div>
+                <div className="relative flex items-center justify-center">
+                  <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full animate-pulse" />
+                  <div className="relative flex items-center justify-center">
+                    <Sparkles className="h-12 w-12 text-primary" />
+                  </div>
                 </div>
               }
             >
-              <div className="mt-6 w-full max-w-2xl">
+              <div className="mt-8 w-full max-w-2xl animate-in fade-in-50 duration-500">
                 <Suggestions>
                   {suggestionPrompts.map((suggestion, i) => (
                     <Suggestion
@@ -78,9 +95,6 @@ function ChatInterfaceContent({
               {messages.map((message: any) => (
                 <MessageBubble key={message.id} message={message} />
               ))}
-              
-              {/* Thinking indicator - only show when submitted (before streaming starts) */}
-              {status === 'submitted' && <ThinkingMessage key="thinking" />}
             </>
           )}
         </ConversationContent>
@@ -90,17 +104,21 @@ function ChatInterfaceContent({
       {/* Fixed input at bottom using AI Elements PromptInput */}
       <div className="shrink-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="px-4 py-4 max-w-4xl mx-auto">
-          <PromptInput onSubmit={handleSubmit}>
-            <PromptInputTextarea
-              placeholder="Ask about your Swiggy spending..."
-              disabled={isLoading}
-              autoFocus
-            />
-            <PromptInputSubmit status={status as any} />
-          </PromptInput>
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            AI can make mistakes. Verify important information.
-          </p>
+          <Card className="border-0 shadow-none bg-transparent">
+            <div className="space-y-3">
+              <PromptInput onSubmit={handleSubmit}>
+                <PromptInputTextarea
+                  placeholder="Ask about your Swiggy spending..."
+                  disabled={isLoading}
+                  autoFocus
+                />
+                <PromptInputSubmit status={status as any} />
+              </PromptInput>
+              <p className="text-xs text-muted-foreground text-center">
+                AI can make mistakes. Verify important information.
+              </p>
+            </div>
+          </Card>
         </div>
       </div>
     </div>
@@ -126,31 +144,14 @@ export function ChatInterface({ chatId, initialMessages }: ChatInterfaceProps) {
         };
       },
     }),
+    onError: (error: Error) => {
+      console.error('Chat error:', error);
+    },
   } as any);
 
-  const { messages, sendMessage, status } = chatHelpers as any;
+  const { messages, sendMessage, status, error } = chatHelpers as any;
   const isLoading = status === 'streaming' || status === 'submitted';
 
-  // 🔍 DEBUG LOGGING - Log messages and status
-  useEffect(() => {
-    console.log('🔍 ChatInterface Debug:', {
-      status,
-      isLoading,
-      messagesCount: messages.length,
-      lastMessage: messages.length > 0 ? {
-        id: messages[messages.length - 1].id,
-        role: messages[messages.length - 1].role,
-        partsCount: messages[messages.length - 1].parts?.length || 0,
-        partsTypes: messages[messages.length - 1].parts?.map((p: any) => p.type) || [],
-      } : null,
-      allMessages: messages.map((msg: any) => ({
-        id: msg.id,
-        role: msg.role,
-        partsCount: msg.parts?.length || 0,
-        partsTypes: msg.parts?.map((p: any) => p.type) || [],
-      })),
-    });
-  }, [messages, status, isLoading]);
 
   const handleSubmit = async (message: { text: string; files: any[] }, event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -177,6 +178,7 @@ export function ChatInterface({ chatId, initialMessages }: ChatInterfaceProps) {
         suggestionPrompts={suggestionPrompts}
         handleSubmit={handleSubmit}
         isLoading={isLoading}
+        error={error}
       />
     </PromptInputProvider>
   );
