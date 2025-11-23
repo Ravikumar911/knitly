@@ -4,17 +4,19 @@
 .hero-gradient {
   background: linear-gradient(
     135deg,
-    hsl(var(--primary) / 0.1) 0%,
-    hsl(var(--background)) 100%
+    oklch(66.2% 0.225 25.9 / 0.08) 0%,
+    oklch(69.6% 0.165 251 / 0.05) 50%,
+    var(--background) 100%
   );
 }
 
 .feature-icon {
   background: linear-gradient(
     45deg,
-    hsl(var(--primary)) 0%,
-    hsl(var(--primary) / 0.7) 100%
+    var(--primary) 0%,
+    var(--primary) 100%
   );
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 } 

@@ -130,7 +130,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     if (currentTool) {
       const toolType = currentTool.type;
       if (toolType === 'tool-generateSQL') return 'Understanding your question...';
-      if (toolType === 'tool-executeSQL') return executeSQLMessages[messageIndex];
+      if (toolType === 'tool-executeSQL') return executeSQLMessages[messageIndex] ?? executeSQLMessages[0] ?? 'Processing...';
       return 'Processing...';
     }
     return 'Thinking...';
