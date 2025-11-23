@@ -59,11 +59,15 @@ export default async function ChatPage({ params }: ChatPageProps) {
 
 function SidebarSkeleton() {
   return (
-    <aside className="w-80 border-r bg-muted/30 p-4 space-y-2">
-      <Skeleton className="h-10 w-full" />
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Skeleton key={i} className="h-12 w-full" />
-      ))}
+    <aside className="w-80 border-r bg-muted/30 flex flex-col">
+      <div className="p-3 border-b">
+        <Skeleton className="h-5 w-32" />
+      </div>
+      <div className="p-2 space-y-1 flex-1">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full rounded-md" />
+        ))}
+      </div>
     </aside>
   );
 }

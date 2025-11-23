@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/react";
 
 import { Providers } from "./providers";
 import { TRPCReactProvider } from "@/trpc/client";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Slash - Your Personal Finance Assistant",
@@ -28,7 +28,7 @@ export default function RootLayout({
         <link rel="manifest" href="/site.webmanifest" />
         <link rel="shortcut icon" href="/favicon.ico" />
       </head>
-      <body className={inter.className}>
+      <body className={geistMono.className}>
         <TRPCReactProvider>
           <Providers>{children}</Providers>
         </TRPCReactProvider>

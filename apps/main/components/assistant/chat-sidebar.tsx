@@ -18,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@workspace/ui/components/alert-dialog';
+import { ScrollArea } from '@workspace/ui/components/scroll-area';
 import { useRouter } from 'next/navigation';
 import { TRPCClientError } from '@trpc/client';
 
@@ -69,11 +70,19 @@ export function ChatSidebar() {
   return (
     <>
       <aside className="w-80 border-r bg-muted/30 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto min-h-0">
-          <div className="p-2 space-y-1">
+        <div className="px-3 py-2.5 border-b shrink-0">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-primary shrink-0" />
+            <h2 className="font-semibold text-sm">Chat History</h2>
+          </div>
+        </div>
+        <ScrollArea className="flex-1">
+          <div className="px-2 py-1.5 space-y-0.5">
             {data.chats.length === 0 ? (
-              <div className="text-center py-8 px-4 text-sm text-muted-foreground">
-                No chats yet. Start a new conversation!
+              <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                <MessageSquare className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground mb-1">No chats yet</p>
+                <p className="text-xs text-muted-foreground">Start a new conversation!</p>
               </div>
             ) : (
               data.chats.map((chat) => {
@@ -82,34 +91,38 @@ export function ChatSidebar() {
                   <div
                     key={chat.id}
                     className={cn(
-                      'group relative flex items-center gap-2 rounded-md p-2 hover:bg-accent transition-colors',
+                      'group relative rounded-md hover:bg-accent transition-colors',
                       isActive && 'bg-accent'
                     )}
                   >
-                    <Link
-                      href={`/assistant/${chat.id}`}
-                      className="flex-1 flex items-center gap-2 min-w-0"
-                    >
-                      <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="text-sm truncate">{chat.title}</span>
-                    </Link>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleDelete(chat.id);
-                      }}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    <div className="flex items-center gap-2 px-2 py-2">
+                      <Link
+                        href={`/assistant/${chat.id}`}
+                        className="flex items-center gap-2 flex-1 min-w-0"
+                      >
+                        <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="text-sm line-clamp-1">{chat.title}</span>
+                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleDelete(chat.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete chat</span>
+                      </Button>
+                    </div>
                   </div>
                 );
               })
             )}
           </div>
-        </div>
+        </ScrollArea>
       </aside>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
