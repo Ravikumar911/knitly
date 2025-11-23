@@ -4,7 +4,7 @@ import type { UIMessage } from 'ai';
 import { cn } from '@workspace/ui/lib/utils';
 import { User, Sparkles, Brain, Search, CheckCircle2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import remarkGfm from 'remark-gfm';
 import { Task, TaskContent, TaskItem, TaskTrigger } from '@workspace/ui/components/task';
 
@@ -51,6 +51,57 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     };
     console.log('🔍=== SINGLE DEBUG LOG - COPY THIS ===', JSON.stringify(debugInfo, null, 2));
   }
+
+  // Check for errors
+  const hasError = toolParts.some((p: any) => (p as any).error || ((p as any).result && (p as any).result.success === false));
+  const errorMessage = toolParts.find((p: any) => (p as any).error || ((p as any).result && (p as any).result.success === false));
+  const error = errorMessage ? ((errorMessage as any).error || (errorMessage as any).result?.error) : undefined;
+
+  // Check if tools are still executing and determine which tool
+  const toolsExecuting = toolParts.some((p: any) => 
+    p.type.startsWith('tool-') && 
+    !(p as any).result && 
+    !(p as any).error && 
+    ((p as any).state === 'input-available' || (p as any).state === 'input-streaming')
+  );
+
+  // Get the current executing tool to show specific status
+  const currentTool = toolParts.find((p: any) => 
+    p.type.startsWith('tool-') && 
+    !(p as any).result && 
+    !(p as any).error && 
+    ((p as any).state === 'input-available' || (p as any).state === 'input-streaming')
+  );
+
+  // Rotating messages to keep users engaged during 7-20s wait
+  const [messageIndex, setMessageIndex] = useState(0);
+  
+  const executeSQLMessages = [
+    'Analyzing your Swiggy orders...',
+    'Crunching through your transactions...',
+    'Digging into your spending data...',
+    'Almost there, finding insights...',
+  ];
+
+  useEffect(() => {
+    if (currentTool?.type === 'tool-executeSQL') {
+      const interval = setInterval(() => {
+        setMessageIndex((prev) => (prev + 1) % executeSQLMessages.length);
+      }, 3500); // Change message every 3.5s to keep it engaging
+      return () => clearInterval(interval);
+    }
+  }, [currentTool?.type]);
+
+  // Determine loading text based on tool type - make it exciting!
+  const getLoadingText = (): string => {
+    if (currentTool) {
+      const toolType = currentTool.type;
+      if (toolType === 'tool-generateSQL') return 'Understanding your question...';
+      if (toolType === 'tool-executeSQL') return executeSQLMessages[messageIndex] ?? 'Processing your data...';
+      return 'Processing...';
+    }
+    return 'Thinking...';
+  };
 
   return (
     <div className="flex gap-3 group">
