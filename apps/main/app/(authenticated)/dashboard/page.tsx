@@ -9,7 +9,7 @@ import { DataStatusRouter } from "@/components/common/DataStatusRouter";
 function DashboardLoading() {
   return (
     <div className="space-y-4 px-4 pb-4">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -25,17 +25,17 @@ function DashboardLoading() {
       </div>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+        <Card className="col-span-full md:col-span-4">
           <CardHeader>
-            <Skeleton className="h-6 w-[200px]" />
-            <Skeleton className="h-4 w-[300px]" />
+            <Skeleton className="h-6 w-full sm:w-[200px]" />
+            <Skeleton className="h-4 w-full sm:w-[300px]" />
           </CardHeader>
           <CardContent>
             <Skeleton className="h-[300px] w-full" />
           </CardContent>
         </Card>
         
-        <Card className="col-span-3">
+        <Card className="col-span-full md:col-span-3">
           <CardHeader>
             <Skeleton className="h-6 w-[150px]" />
             <Skeleton className="h-4 w-[200px]" />

@@ -51,8 +51,8 @@ function ChatInterfaceContent({
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
       {/* Messages area using AI Elements Conversation */}
-      <Conversation className="flex-1 min-h-0">
-        <ConversationContent className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+      <Conversation className="flex-1 min-h-0 overflow-hidden">
+        <ConversationContent className="max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 space-y-4">
           {/* Show error state */}
           {error && (
             <Alert variant="destructive" className="mb-4">
@@ -103,14 +103,18 @@ function ChatInterfaceContent({
 
       {/* Fixed input at bottom using AI Elements PromptInput */}
       <div className="shrink-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="px-4 py-4 max-w-4xl mx-auto">
-          <Card className="border-0 shadow-none bg-transparent">
+        <div
+          className="px-4 py-4 sm:px-6 max-w-4xl w-full mx-auto"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
+        >
+          <Card className="border-0 shadow-none bg-transparent w-full">
             <div className="space-y-3">
               <PromptInput onSubmit={handleSubmit}>
                 <PromptInputTextarea
                   placeholder="Ask about your Swiggy spending..."
                   disabled={isLoading}
                   autoFocus
+                  className="min-h-[52px] sm:min-h-[64px]"
                 />
                 <PromptInputSubmit status={status as any} />
               </PromptInput>

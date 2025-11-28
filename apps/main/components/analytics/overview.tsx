@@ -68,18 +68,18 @@ export function AnalyticsOverview() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
         <div>
           <h3 className="text-lg font-medium">Core Spending Overview</h3>
           <p className="text-sm text-muted-foreground">
             Your Swiggy spending summary for the selected period
           </p>
         </div>
-        <DateRangePicker />
+        <DateRangePicker className="w-full sm:w-auto" />
       </div>
 
       {/* Metric Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Spend</CardTitle>
@@ -144,7 +144,7 @@ export function AnalyticsOverview() {
       </div>
 
       {/* Bottom Row - Three Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {/* Top Restaurants */}
         <Card>
           <CardHeader>
@@ -186,10 +186,10 @@ export function AnalyticsOverview() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-
-              <div>
+              <div className="w-full">
                 <ChartContainer
                   config={ORDER_BREAKDOWN_CHART_CONFIG}
+                  className="h-[200px] w-full"
                 >
                   <PieChart>
                     <Pie
