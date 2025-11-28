@@ -6,7 +6,7 @@ export function defaultModel(): LanguageModel {
 	return openai("gpt-5-nano");
 }
 
-export function mistralOCRModel(): LanguageModel {
-	return mistral("mistral-large-latest");
+export function OCRModel(): LanguageModel {
+	return openai("gpt-5-mini");
 }
 

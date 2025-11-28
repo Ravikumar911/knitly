@@ -1,10 +1,10 @@
 import { generateObject, NoObjectGeneratedError, LanguageModel } from "ai";
-import { defaultModel, mistralOCRModel } from "../ai/model";
+import { defaultModel, OCRModel } from "../ai/model";
 import { createSignedStorageUrl } from "../utils/signedUrls";
 import { logger } from "@trigger.dev/sdk/v3";
 import { EmailData } from "../types/slashAI";
 import { SwiggyMerchant } from "../merchants/swiggy";
-import { storeTransactionV2, storeTransactionV2Input } from "@workspace/database";
+import { storeTransactionV2Input } from "@workspace/database";
 import { z } from "zod";
 
 // Type for Swiggy extraction result
@@ -87,7 +87,7 @@ function buildOpenAIPrompt(basePrompt: string, emailData: EmailData): string {
 /**
  * Build prompt for Mistral OCR - returns messages content array with file objects
  */
-async function buildMistralOCRPrompt(basePrompt: string, emailData: EmailData, log: any): Promise<any[]> {
+async function buildOCRPrompt(basePrompt: string, emailData: EmailData, log: any): Promise<any[]> {
   const content: any[] = [
     {
       type: "text",
@@ -168,24 +168,24 @@ async function extractWithOpenAI(
 }
 
 /**
- * Extract email data using Mistral OCR
- * Small, focused function for Mistral OCR-based extraction with PDFs
+ * Extract email data using OCR
+ * Small, focused function for OCR-based extraction with PDFs
  */
-async function extractWithMistralOCR(
+async function extractWithOCR(
   emailData: EmailData,
   basePrompt: string,
   schema: z.ZodSchema,
   log: any
 ): Promise<any> {
-  const content = await buildMistralOCRPrompt(basePrompt, emailData, log);
+  const content = await buildOCRPrompt(basePrompt, emailData, log);
 
-  log.log("Extracting with Mistral OCR", {
-    model: "mistral-ocr-latest",
+  log.log("Extracting with OCR", {
+    model: "ocr-model",
     pdfCount: emailData.attachments?.filter(a => a.mimeType === 'application/pdf').length || 0
   });
 
   const { object } = await generateObject({
-    model: mistralOCRModel(),
+    model: OCRModel(),
     messages: [
       {
         role: "user",
@@ -207,7 +207,7 @@ async function extractWithMistralOCR(
 }
 
 /**
- * Core extraction logic - router that chooses between OpenAI and Mistral
+ * Core extraction logic - router that chooses between OpenAI and OCR
  * Extracts email data without side effects (no database storage)
  * Clean, testable, and model-agnostic
  */
@@ -233,7 +233,7 @@ export async function extractEmailData(
       from: emailData.from,
       hasAttachments: !!emailData.attachments?.length,
       hasPDFAttachments: hasPDFs,
-      modelUsed: hasPDFs ? "mistral-ocr-latest" : "openai",
+      modelUsed: hasPDFs ? "ocr-model" : "openai",
       merchant: SwiggyMerchant.name
     });
 
@@ -242,7 +242,7 @@ export async function extractEmailData(
     
     try {
       if (hasPDFs) {
-        object = await extractWithMistralOCR(
+        object = await extractWithOCR(
           emailData,
           SwiggyMerchant.prompt,
           SwiggyMerchant.schema,
