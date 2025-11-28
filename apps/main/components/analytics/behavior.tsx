@@ -82,13 +82,14 @@ export function AnalyticsBehavior() {
           </div>
           {chartData.length > 0 ? (
             <>
-              <ChartContainer config={chartConfig} className="h-[200px]">
+              <ChartContainer config={chartConfig} className="h-[200px] w-full">
                 <BarChart data={chartData}>
                   <XAxis 
                     dataKey="day" 
                     tickLine={false}
                     axisLine={false}
-                    className="text-xs"
+                    className="text-[10px] sm:text-xs"
+                    interval={0}
                   />
                   <YAxis hide />
                   <ChartTooltip

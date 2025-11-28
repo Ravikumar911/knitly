@@ -65,6 +65,18 @@ const presetRanges = [
 export function DateRangePicker({ className }: { className?: string }) {
   const { startDate, endDate, setStartDate, setEndDate } = useTransactionFilters();
   const [isOpen, setIsOpen] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  // Detect mobile screen size
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // md breakpoint
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Initialize with last 30 days if no dates are set (only once)
   React.useEffect(() => {
@@ -155,7 +167,7 @@ export function DateRangePicker({ className }: { className?: string }) {
             id="date"
             variant="outline"
             className={cn(
-              "w-[300px] justify-start text-left font-normal",
+              "w-full sm:w-[300px] justify-start text-left font-normal",
               !dateRange && "text-muted-foreground"
             )}
           >
@@ -164,15 +176,15 @@ export function DateRangePicker({ className }: { className?: string }) {
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
-          <div className="flex">
-            <div className="border-r p-3">
+          <div className="flex flex-col sm:flex-row">
+            <div className="border-r border-b sm:border-b-0 p-3">
               <div className="space-y-1">
                 <p className="text-sm font-medium mb-2">Quick Select</p>
                 <Select
                   value={getSelectedPreset()}
                   onValueChange={handlePresetSelect}
                 >
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="w-full sm:w-[140px]">
                     <SelectValue placeholder="Select preset" />
                   </SelectTrigger>
                   <SelectContent>
@@ -192,7 +204,7 @@ export function DateRangePicker({ className }: { className?: string }) {
               defaultMonth={dateRange?.from}
               selected={dateRange as any}
               onSelect={handleDateRangeChange as any}
-              numberOfMonths={2}
+              numberOfMonths={isMobile ? 1 : 2}
               disabled={(date) => 
                 date > new Date() || date < new Date("1900-01-01")
               }

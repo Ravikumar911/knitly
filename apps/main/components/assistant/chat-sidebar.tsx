@@ -69,7 +69,7 @@ export function ChatSidebar() {
 
   return (
     <>
-      <aside className="w-80 border-r bg-muted/30 flex flex-col overflow-hidden">
+      <aside className="hidden md:flex md:w-80 md:border-r bg-muted/30 flex-col overflow-hidden shrink-0">
         <div className="px-3 py-2.5 border-b shrink-0">
           <div className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5 text-primary shrink-0" />
