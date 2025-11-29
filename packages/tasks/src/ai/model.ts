@@ -7,6 +7,6 @@ export function defaultModel(): LanguageModel {
 }
 
 export function OCRModel(): LanguageModel {
-	return openai("gpt-5-mini");
+	return mistral("mistral-large-latest");
 }
 
