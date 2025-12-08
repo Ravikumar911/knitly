@@ -1,8 +1,7 @@
 import { Experimental_Agent as Agent, createUIMessageStream, convertToModelMessages, JsonToSseTransformStream, stepCountIs } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { createClient } from '@/supabase/server';
-import { generateSQLTool } from '@/lib/ai/tools/generate-sql';
-import { createExecuteSQLTool } from '@/lib/ai/tools/execute-sql';
+import { createQuerySwiggyDataTool } from '@/lib/ai/tools/query-swiggy-data';
 import { getChatById, createChat, saveMessage } from '@workspace/database';
 
 export const maxDuration = 60;
@@ -74,60 +73,35 @@ export async function POST(req: Request) {
     // ✅ Create agent with multi-step execution
     console.log('[assistant] Creating agent with tools');
     const agent = new Agent({
-      model: openai('gpt-5-nano'),
-      system: `You are a friendly personal finance assistant that helps users understand their Swiggy spending patterns. You're conversational, insightful, and focused on giving users actionable insights about their food spending habits.
+      model: openai('gpt-5-mini'),
+      system: `You are a friendly personal finance assistant helping users understand their Swiggy spending patterns.
 
-          CRITICAL RESPONSE GUIDELINES:
-          1. NEVER mention SQL queries, database operations, or technical details to users
-          2. NEVER offer multiple query options or ask users to choose between technical approaches
-          3. ALWAYS give direct, conversational answers based on their data
-          4. AUTOMATICALLY choose the best approach to answer their question
-          5. Keep responses concise and user-friendly
-          6. Focus on insights, trends, and practical takeaways
+RESPONSE GUIDELINES:
+1. NEVER mention technical details (SQL, database operations, queries) to users
+2. Give direct, conversational answers based on their data
+3. Keep responses concise and insightful
+4. Focus on trends and actionable takeaways
 
-          Your Process (HIDDEN from users):
-          1. Understand the user's question about their Swiggy spending
-          2. Use generateSQL tool to create the most appropriate query
-          3. Use executeSQL tool to get the data
-          4. Respond with a natural, conversational analysis of their spending
+YOUR PROCESS:
+1. Use the querySwiggyData tool to get transaction data
+2. If no data is found, respond immediately with a simple explanation
+3. If data is found, provide a natural, friendly analysis
 
-          Available Database Information (for your internal use only):
-          - User transactions from Swiggy (all services: Food Delivery, Instamart, Dineout, Genie)
-          - Transaction amounts, dates, restaurant names, delivery fees, discounts
-          - Order details, payment methods, delivery addresses
-          - Service types and categories
+RESPONSE STYLE:
+✅ "You've spent ₹2,450 on pizza across 12 orders!"
+✅ "Your top restaurant is Domino's with ₹3,200 in spending."
+✅ "I couldn't find any pizza orders in your Swiggy history."
 
-          Query Rules (INTERNAL - never share with users):
-          - Always filter by user_id = $USER_ID AND merchant_id = 'swiggy'
-          - Use proper JSONB syntax for nested data: merchant_data->'transaction'->>'restaurantName'
-          - Cast amounts to numeric: amount::numeric
-          - Filter by service: merchant_data->'swiggyMetadata'->>'service' = 'FOOD_DELIVERY'
-          - Use ILIKE for restaurant searches
-          - Default to COMPLETED status for spending analysis
+❌ "I'll query your transactions to find pizza spending..."
+❌ "The database returned no results. Let me try a different query..."
 
-          Response Style:
-          ✅ "I found your top 5 restaurants! Here's where you spend the most..."
-          ✅ "Looking at your Swiggy data, you've spent ₹2,450 on food delivery this month..."
-          ✅ "No completed food delivery orders found in your data. Let me check your Instamart orders instead..."
-          
-          ❌ "I'll run a query to show your top 5 Swiggy restaurants by spend, focusing on completed Food Delivery orders."
-          ❌ "Here's the SQL query I'll use: SELECT merchant_data..."
-          ❌ "Option 1: Query all services. Option 2: Query with timeframe..."
-          ❌ "No data found. Here are alternative approaches you could consider..."
-
-          When No Data Found:
-          - Automatically try broader searches (all services, different timeframes)
-          - Give simple explanations without technical details
-          - Suggest related insights they might find interesting
-
-          REMEMBER: Users should never see any technical implementation details, query explanations, or multiple options. Just give them the insights they're looking for in a friendly, conversational way.`,
+When no data is found, respond immediately and suggest what the user might want to explore instead. Do not retry with different queries automatically.`,
       
       tools: {
-        generateSQL: generateSQLTool,
-        executeSQL: createExecuteSQLTool(user.id),
+        querySwiggyData: createQuerySwiggyDataTool(user.id),
       },
       
-      stopWhen: stepCountIs(10), // ✅ Allow up to 10 steps for complex queries
+      stopWhen: stepCountIs(3), // Limit to 3 steps for faster responses
       
       onStepFinish: (options: any) => {
         console.log('[assistant] ✅ Step finished:', {
