@@ -22,11 +22,11 @@ const ORDER_BREAKDOWN_CHART_CONFIG = {
     color: "var(--chart-1)",
   },
   instamart: {
-    label: "Instamart",
+    label: "Uber Eats",
     color: "var(--chart-2)",
   },
   dineout: {
-    label: "Dineout",
+    label: "DoorDash",
     color: "var(--chart-3)",
   },
 } as const;
@@ -58,9 +58,9 @@ export function AnalyticsOverview() {
 
   // Format currency
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'INR',
+      currency: 'USD',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
@@ -72,7 +72,7 @@ export function AnalyticsOverview() {
         <div>
           <h3 className="text-lg font-medium">Core Spending Overview</h3>
           <p className="text-sm text-muted-foreground">
-            Your Swiggy spending summary for the selected period
+            Your DoorDash and Uber Eats spending summary for the selected period
           </p>
         </div>
         <DateRangePicker className="w-full sm:w-auto" />
@@ -131,11 +131,11 @@ export function AnalyticsOverview() {
                 <span className="font-medium">{formatCurrency(overview.serviceBreakdown.food)}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span>Instamart</span>
+                <span>Uber Eats</span>
                 <span className="font-medium">{formatCurrency(overview.serviceBreakdown.instamart)}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span>Dineout</span>
+                <span>DoorDash</span>
                 <span className="font-medium">{formatCurrency(overview.serviceBreakdown.dineout)}</span>
               </div>
             </div>
@@ -182,7 +182,7 @@ export function AnalyticsOverview() {
           <CardHeader>
             <CardTitle>Orders by Service</CardTitle>
             <CardDescription>
-              Your order distribution across Swiggy services
+              Your order distribution across DoorDash and Uber Eats
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -226,8 +226,8 @@ export function AnalyticsOverview() {
                         <ChartLegendContent
                           payload={[
                             { value: "Food Delivery", color: "var(--color-food)" },
-                            { value: "Instamart", color: "var(--color-instamart)" },
-                            { value: "Dineout", color: "var(--color-dineout)" },
+                            { value: "Uber Eats", color: "var(--color-instamart)" },
+                            { value: "DoorDash", color: "var(--color-dineout)" },
                           ]}
                         />
                       }
@@ -238,12 +238,12 @@ export function AnalyticsOverview() {
           </CardContent>
         </Card>
 
-        {/* Top Instamart Items */}
+        {/* Top Order Items */}
         <Card>
           <CardHeader>
-            <CardTitle>Top Instamart Items</CardTitle>
+            <CardTitle>Top Order Items</CardTitle>
             <CardDescription>
-              Your most frequently ordered grocery items
+              Most frequently extracted items from your receipts
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -272,10 +272,10 @@ export function AnalyticsOverview() {
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <ShoppingCart className="h-12 w-12 text-muted-foreground/50 mb-4" />
                 <p className="text-sm font-medium text-muted-foreground mb-1">
-                  No grocery orders found
+                  No provider-specific item data found
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Start ordering from Instamart to see your top items here
+                  Order detail extraction will populate this section as more receipts are parsed
                 </p>
               </div>
             )}

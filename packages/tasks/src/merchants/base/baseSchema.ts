@@ -5,8 +5,8 @@ export const BaseTransactionSchema = z.object({
   // Basic transaction data
   amount: z.number().positive("Amount must be positive")
     .describe("Transaction amount as a positive number"),
-  currency: z.string().default("INR")
-    .describe("Currency code, defaults to INR"),
+  currency: z.string().default("USD")
+    .describe("Currency code, defaults to USD"),
   type: z.enum(["DEBIT", "CREDIT"])
     .describe("Transaction type - DEBIT for money spent, CREDIT for money received"),
   status: z.enum(["COMPLETED", "PENDING", "FAILED", "CANCELLED"]).default("COMPLETED")

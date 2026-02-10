@@ -3,16 +3,16 @@ import { defaultModel, OCRModel } from "../ai/model";
 import { createSignedStorageUrl } from "../utils/signedUrls";
 import { logger } from "@trigger.dev/sdk/v3";
 import { EmailData } from "../types/slashAI";
-import { SwiggyMerchant } from "../merchants/swiggy";
+import { getMerchantById, identifyMerchant } from "../merchants";
+import { MerchantConfig } from "../merchants/types";
 import { storeTransactionV2Input } from "@workspace/database";
 import { z } from "zod";
 
-// Type for Swiggy extraction result
-type SwiggyExtractionResult = z.infer<typeof SwiggyMerchant.schema>;
+type ExtractionResult = any;
 
 // Enhanced result interface with proper typing
 export interface SlashAIV2Result {
-  extractionData: SwiggyExtractionResult;
+  extractionData: ExtractionResult;
   merchantId: string;
   merchantCode: string;
   extractionConfidence: number;
@@ -31,13 +31,14 @@ function hasPDFAttachments(emailData: EmailData): boolean {
 }
 
 /**
- * Validate extraction data against Swiggy schema
+ * Validate extraction data against merchant schema
  */
 function validateExtractionData(
-  data: unknown
-): { isValid: boolean; extractionResult: SwiggyExtractionResult | null; errors: string[] } {
+  data: unknown,
+  merchant: MerchantConfig
+): { isValid: boolean; extractionResult: ExtractionResult | null; errors: string[] } {
   try {
-    const result = SwiggyMerchant.schema.parse(data);
+    const result = merchant.schema.parse(data);
     return { isValid: true, extractionResult: result, errors: [] };
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -225,6 +226,13 @@ export async function extractEmailData(
   };
 
   try {
+    const merchantMatch = await identifyMerchant(emailData);
+    const merchant = merchantMatch?.merchant ?? getMerchantById("doordash") ?? getMerchantById("ubereats");
+
+    if (!merchant) {
+      throw new Error("No merchant configuration available for extraction");
+    }
+
     // Detect if email has PDF attachments
     const hasPDFs = hasPDFAttachments(emailData);
     
@@ -234,7 +242,7 @@ export async function extractEmailData(
       hasAttachments: !!emailData.attachments?.length,
       hasPDFAttachments: hasPDFs,
       modelUsed: hasPDFs ? "ocr-model" : "openai",
-      merchant: SwiggyMerchant.name
+      merchant: merchant.name
     });
 
     // Route to appropriate extraction function based on PDF presence
@@ -244,15 +252,15 @@ export async function extractEmailData(
       if (hasPDFs) {
         object = await extractWithOCR(
           emailData,
-          SwiggyMerchant.prompt,
-          SwiggyMerchant.schema,
+          merchant.prompt,
+          merchant.schema,
           log
         );
       } else {
         object = await extractWithOpenAI(
           emailData,
-          SwiggyMerchant.prompt,
-          SwiggyMerchant.schema,
+          merchant.prompt,
+          merchant.schema,
           model,
           log
         );
@@ -264,30 +272,30 @@ export async function extractEmailData(
           text: error.text,
           response: error.response,
           usage: error.usage,
-          merchant: SwiggyMerchant.name
+          merchant: merchant.name
         });
       } else {
         log.error("Error in AI extraction", {
           error: error instanceof Error ? error.message : String(error),
-          merchant: SwiggyMerchant.name
+          merchant: merchant.name
         });
       }
       throw error;
     }
 
     // Validate extraction results
-    const { isValid, extractionResult, errors } = validateExtractionData(object);
+    const { isValid, extractionResult, errors } = validateExtractionData(object, merchant);
 
     if (!isValid || !extractionResult) {
       log.error("Schema validation failed", {
         errors,
-        merchant: SwiggyMerchant.name
+        merchant: merchant.name
       });
 
       return {
         extractionData: object as any, // Fallback for failed validation
-        merchantId: SwiggyMerchant.id,
-        merchantCode: SwiggyMerchant.code,
+        merchantId: merchant.id,
+        merchantCode: merchant.code,
         extractionConfidence: 0,
         parseSuccess: false,
         parseErrors: errors
@@ -300,13 +308,13 @@ export async function extractEmailData(
       detectedProvider: extractionResult.detectedProvider,
       emailType: extractionResult.emailType,
       hasTransaction: !!extractionResult.transaction,
-      merchant: SwiggyMerchant.name
+      merchant: merchant.name
     });
 
     return {
       extractionData: extractionResult,
-      merchantId: SwiggyMerchant.id,
-      merchantCode: SwiggyMerchant.code,
+      merchantId: merchant.id,
+      merchantCode: merchant.code,
       extractionConfidence: extractionResult.confidenceScore,
       parseSuccess: extractionResult.parseSuccess,
       parseErrors: extractionResult.parseErrors || [],
@@ -316,14 +324,15 @@ export async function extractEmailData(
     log.error("Error in SlashAI V2 extraction", {
       error: error instanceof Error ? error.message : String(error),
       subject: emailData.subject,
-      from: emailData.from,
-      merchant: SwiggyMerchant.name
+      from: emailData.from
     });
+
+    const fallbackMerchant = getMerchantById("doordash") ?? getMerchantById("ubereats") ?? getMerchantById("swiggy");
 
     return {
       extractionData: null as any,
-      merchantId: SwiggyMerchant.id,
-      merchantCode: SwiggyMerchant.code,
+      merchantId: fallbackMerchant?.id || "doordash",
+      merchantCode: fallbackMerchant?.code || "DOORDASH",
       extractionConfidence: 0,
       parseSuccess: false,
       parseErrors: [error instanceof Error ? error.message : 'Unknown extraction error']
@@ -332,7 +341,7 @@ export async function extractEmailData(
 }
 
 /**
- * Enhanced SlashAI agent for Swiggy email extraction with database storage
+ * Enhanced SlashAI agent for merchant email extraction with database storage
  * This is the original function with database storage - kept for backward compatibility
  */
 export const slashAIV2Agent = async (emailData: EmailData): Promise<SlashAIV2Result> => {
@@ -341,15 +350,16 @@ export const slashAIV2Agent = async (emailData: EmailData): Promise<SlashAIV2Res
 
   // Store transaction if extraction was successful
   let transactionId: string | undefined;
+  const resultMerchant = getMerchantById(result.merchantId) ?? getMerchantById("doordash") ?? getMerchantById("ubereats");
 
-  if (result.parseSuccess && result.extractionData?.transaction) {
+  if (result.parseSuccess && result.extractionData?.transaction && resultMerchant) {
     try {
       const storedTransaction = await storeTransactionV2Input({
         userId: emailData.userId,
         parsedEmailId: emailData.emailId,
-        merchantId: SwiggyMerchant.id,
-        merchantCode: SwiggyMerchant.code,
-        merchantName: SwiggyMerchant.name,
+        merchantId: resultMerchant.id,
+        merchantCode: resultMerchant.code,
+        merchantName: resultMerchant.name,
         amount: result.extractionData.transaction.amount,
         currency: result.extractionData.transaction.currency,
         type: result.extractionData.transaction.type,
@@ -365,7 +375,7 @@ export const slashAIV2Agent = async (emailData: EmailData): Promise<SlashAIV2Res
           ...result.extractionData,
         },
         extractionConfidence: result.extractionData.confidenceScore,
-        schemaUsed: SwiggyMerchant.id,
+        schemaUsed: resultMerchant.id,
         dataSource: result.extractionData.dataSource,
         isVerified: false,
         verificationStatus: "UNVERIFIED"
@@ -375,14 +385,14 @@ export const slashAIV2Agent = async (emailData: EmailData): Promise<SlashAIV2Res
         transactionId = storedTransaction.id;
         logger.log("Transaction stored successfully", { 
           transactionId,
-          merchant: SwiggyMerchant.name 
+          merchant: resultMerchant.name 
         });
       }
 
     } catch (error) {
       logger.error("Error storing transaction", {
         error: error instanceof Error ? error.message : String(error),
-        merchant: SwiggyMerchant.name
+        merchant: resultMerchant.name
       });
     }
   }

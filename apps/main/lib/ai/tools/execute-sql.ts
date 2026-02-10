@@ -45,14 +45,16 @@ export const createExecuteSQLTool = (userId: string) => tool({
       }
       console.log('[execute-sql] ✅ Security check 2 passed');
       
-      // Security check 3: Enforce Swiggy merchant filter
+      // Security check 3: Enforce DoorDash/Uber Eats merchant filter
       console.log('[execute-sql] Running security check 3: merchant_id filter');
-      if (!safeQuery.toLowerCase().includes("merchant_id = 'swiggy'")) {
+      const hasDoorDash = safeQuery.toLowerCase().includes("merchant_id = 'doordash'") || safeQuery.toLowerCase().includes("merchant_id in ('doordash', 'ubereats')") || safeQuery.toLowerCase().includes("merchant_id in ('ubereats', 'doordash')");
+      const hasUberEats = safeQuery.toLowerCase().includes("merchant_id = 'ubereats'") || safeQuery.toLowerCase().includes("merchant_id in ('doordash', 'ubereats')") || safeQuery.toLowerCase().includes("merchant_id in ('ubereats', 'doordash')");
+      if (!(hasDoorDash || hasUberEats)) {
         console.log('[execute-sql] ❌ Security check 3 failed: missing merchant_id filter');
         return {
           success: false,
           data: null,
-          error: "Query must filter by merchant_id = 'swiggy' to scope data access",
+          error: "Query must filter by merchant_id for DoorDash or Uber Eats",
         };
       }
       console.log('[execute-sql] ✅ Security check 3 passed');

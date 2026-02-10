@@ -4,15 +4,14 @@ import { logger } from "@trigger.dev/sdk/v3";
 
 // Import merchant configurations
 import SwiggyMerchant from "./swiggy";
-// Add more merchants here as they are created
-// import PhonePeMerchant from "./phonepe";
-// import AmazonMerchant from "./amazon";
+import DoorDashMerchant from "./doordash";
+import UberEatsMerchant from "./ubereats";
 
 // Merchant registry - add new merchants here
 export const MERCHANT_REGISTRY: MerchantConfig[] = [
+  DoorDashMerchant,
+  UberEatsMerchant,
   SwiggyMerchant,
-  // PhonePeMerchant,
-  // AmazonMerchant,
 ];
 
 // Email filtering configuration interface (for email processing compatibility)
@@ -178,33 +177,31 @@ function scoreMerchantMatch(emailData: EmailData, merchant: MerchantConfig): Mer
  */
 export async function identifyMerchant(emailData: EmailData): Promise<MerchantMatch | null> {
   try {
-    // Always return Swiggy as the merchant
-    const swiggyMerchant = MERCHANT_REGISTRY.find(m => m.id === 'swiggy');
-    
-    if (!swiggyMerchant) {
-      logger.error("Swiggy merchant not found in registry");
+    const matches = MERCHANT_REGISTRY
+      .filter((merchant) => merchant.isActive)
+      .map((merchant) => scoreMerchantMatch(emailData, merchant))
+      .filter((match): match is MerchantMatch => !!match)
+      .sort((a, b) => b.matchScore - a.matchScore);
+
+    const bestMatch = matches[0] || null;
+
+    if (!bestMatch) {
+      logger.log("No merchant match found", {
+        subject: emailData.subject,
+        from: emailData.from,
+      });
       return null;
     }
 
-    const match: MerchantMatch = {
-      merchant: swiggyMerchant,
-      matchScore: 100,
-      matchedPatterns: {
-        email: swiggyMerchant.emailPatterns,
-        subject: swiggyMerchant.subjectPatterns || [],
-        body: swiggyMerchant.bodyPatterns || []
-      }
-    };
-
-    logger.log("Merchant identified as Swiggy", {
-      merchantId: match.merchant.id,
-      merchantCode: match.merchant.code,
-      score: match.matchScore,
+    logger.log("Merchant identified", {
+      merchantId: bestMatch.merchant.id,
+      merchantCode: bestMatch.merchant.code,
+      score: bestMatch.matchScore,
       subject: emailData.subject,
-      from: emailData.from
+      from: emailData.from,
     });
 
-    return match;
+    return bestMatch;
   } catch (error) {
     logger.error("Error identifying merchant", {
       error: error instanceof Error ? error.message : String(error),

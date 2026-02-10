@@ -1,4 +1,4 @@
-import { eq, and, desc, sql, gte, lte } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte, inArray } from "drizzle-orm";
 import { db } from "../../";
 import { transactionsV2 } from "../../schema/transactionsV2";
 
@@ -82,7 +82,7 @@ export async function getSwiggySpendingOverview(
     .from(transactionsV2)
     .where(
       and(
-        eq(transactionsV2.merchantId, 'swiggy'),
+        inArray(transactionsV2.merchantId, ['doordash', 'ubereats']),
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, startDate),
         lte(transactionsV2.transactionDate, endDate),
@@ -100,7 +100,7 @@ export async function getSwiggySpendingOverview(
     .from(transactionsV2)
     .where(
       and(
-        eq(transactionsV2.merchantId, 'swiggy'),
+        inArray(transactionsV2.merchantId, ['doordash', 'ubereats']),
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, startDate),
         lte(transactionsV2.transactionDate, endDate),
@@ -141,7 +141,7 @@ export async function getSwiggySpendingOverview(
     .from(transactionsV2)
     .where(
       and(
-        eq(transactionsV2.merchantId, 'swiggy'),
+        inArray(transactionsV2.merchantId, ['doordash', 'ubereats']),
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, startDate),
         lte(transactionsV2.transactionDate, endDate),
@@ -166,7 +166,7 @@ export async function getSwiggySpendingOverview(
     `)
     .where(
       and(
-        eq(transactionsV2.merchantId, 'swiggy'),
+        inArray(transactionsV2.merchantId, ['doordash', 'ubereats']),
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, startDate),
         lte(transactionsV2.transactionDate, endDate),
@@ -241,7 +241,7 @@ export async function getSwiggyBehaviorInsights(
     .from(transactionsV2)
     .where(
       and(
-        eq(transactionsV2.merchantId, 'swiggy'),
+        inArray(transactionsV2.merchantId, ['doordash', 'ubereats']),
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, startDate),
         lte(transactionsV2.transactionDate, endDate),
@@ -260,7 +260,7 @@ export async function getSwiggyBehaviorInsights(
     .from(transactionsV2)
     .where(
       and(
-        eq(transactionsV2.merchantId, 'swiggy'),
+        inArray(transactionsV2.merchantId, ['doordash', 'ubereats']),
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, startDate),
         lte(transactionsV2.transactionDate, endDate),
@@ -280,7 +280,7 @@ export async function getSwiggyBehaviorInsights(
     .from(transactionsV2)
     .where(
       and(
-        eq(transactionsV2.merchantId, 'swiggy'),
+        inArray(transactionsV2.merchantId, ['doordash', 'ubereats']),
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, startDate),
         lte(transactionsV2.transactionDate, endDate),
@@ -304,7 +304,7 @@ export async function getSwiggyBehaviorInsights(
     .from(transactionsV2)
     .where(
       and(
-        eq(transactionsV2.merchantId, 'swiggy'),
+        inArray(transactionsV2.merchantId, ['doordash', 'ubereats']),
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, sixMonthsAgo),
         sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
@@ -323,7 +323,7 @@ export async function getSwiggyBehaviorInsights(
     .from(transactionsV2)
     .where(
       and(
-        eq(transactionsV2.merchantId, 'swiggy'),
+        inArray(transactionsV2.merchantId, ['doordash', 'ubereats']),
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, startDate),
         lte(transactionsV2.transactionDate, endDate),
@@ -390,7 +390,7 @@ export async function getSwiggySmartInsights(
     .from(transactionsV2)
     .where(
       and(
-        eq(transactionsV2.merchantId, 'swiggy'),
+        inArray(transactionsV2.merchantId, ['doordash', 'ubereats']),
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, startDate),
         lte(transactionsV2.transactionDate, endDate),
@@ -411,7 +411,7 @@ export async function getSwiggySmartInsights(
     .from(transactionsV2)
     .where(
       and(
-        eq(transactionsV2.merchantId, 'swiggy'),
+        inArray(transactionsV2.merchantId, ['doordash', 'ubereats']),
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, startDate),
         lte(transactionsV2.transactionDate, endDate),
@@ -431,7 +431,7 @@ export async function getSwiggySmartInsights(
     .from(transactionsV2)
     .where(
       and(
-        eq(transactionsV2.merchantId, 'swiggy'),
+        inArray(transactionsV2.merchantId, ['doordash', 'ubereats']),
         eq(transactionsV2.userId, userId),
         gte(transactionsV2.transactionDate, startDate),
         lte(transactionsV2.transactionDate, endDate),

@@ -10,7 +10,7 @@ const geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Slash - Your Personal Finance Assistant",
-  description: "AI-powered personal finance that starts with Swiggy analytics and expands to track all your expenses automatically through email analysis.",
+  description: "AI-powered personal finance focused on DoorDash and Uber Eats analytics for users in the USA and Canada, powered by automatic email analysis.",
 };
 
 export default function RootLayout({
