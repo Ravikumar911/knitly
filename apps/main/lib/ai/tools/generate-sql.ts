@@ -2,15 +2,15 @@ import { tool } from 'ai';
 import { z } from 'zod';
 
 export const generateSQLTool = tool({
-  description: `Generate SQL queries for the transactions_v2 table to answer user questions about Swiggy spending.
+  description: `Generate SQL queries for the transactions_v2 table to answer user questions about DoorDash and Uber Eats spending for users in the USA and Canada.
   
   Schema Information:
   - Table: transactions_v2
   - user_id (uuid): User ID filter - ALWAYS REQUIRED
-  - merchant_id (varchar): 'swiggy' for Swiggy transactions  
+  - merchant_id (varchar): provider id, use only 'doordash' or 'ubereats'
   - merchant_name (varchar): Display name
   - amount (decimal): Transaction amount in decimal format
-  - currency (varchar): Currency code (default: INR)
+  - currency (varchar): Currency code (typically USD or CAD)
   - type (varchar): DEBIT or CREDIT
   - status (varchar): COMPLETED, PENDING, FAILED, CANCELLED
   - transaction_date (timestamp): Transaction date and time
@@ -18,24 +18,20 @@ export const generateSQLTool = tool({
   - category (varchar): Transaction category
   - payment_method (varchar): Payment method used
   - merchant_data (jsonb): JSONB field containing:
-    * swiggyMetadata.service: 'FOOD_DELIVERY', 'INSTAMART', or 'DINEOUT'
-    * transaction.restaurantName: Restaurant name for food orders
-    * transaction.orderId: Order ID
-    * transaction.orderItems: Array of items ordered (for Instamart)
-    * transaction.deliveryFee: Delivery fee amount
-    * transaction.discount: Discount amount
-    * transaction.membershipDiscount: Membership discount amount
-    * transaction.deliveryAddress: Delivery address object (area, pincode)
+    * transaction.merchantName: Restaurant/store name
+    * transaction.orderId: Provider order identifier
+    * transaction.deliveryFee: Delivery fee amount when present
+    * transaction.discount: Discount amount when present
+    * transaction.location: delivery location metadata when available
   
   JSONB Query Examples:
-  - Filter by service: merchant_data->'swiggyMetadata'->>'service' = 'FOOD_DELIVERY'
-  - Get restaurant name: merchant_data->'transaction'->>'restaurantName'
-  - Filter by item: merchant_data->'transaction'->'orderItems' @> '[{"name": "Pizza"}]'
+  - Filter by provider: merchant_id IN ('doordash', 'ubereats')
+  - Get restaurant name: merchant_data->'transaction'->>'merchantName'
   - Get delivery fee: (merchant_data->'transaction'->>'deliveryFee')::numeric
   
   Important Rules:
   1. ALWAYS include WHERE user_id = $USER_ID in your query
-  2. ALWAYS include merchant_id = 'swiggy' filter
+  2. ALWAYS include merchant_id IN ('doordash', 'ubereats') filter
   3. Use proper JSONB operators (->, ->>, @>) for nested fields
   4. Cast amount to numeric for calculations: amount::numeric
   5. Use ILIKE for case-insensitive text search
