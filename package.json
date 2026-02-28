@@ -80,5 +80,13 @@
   "main": "eslint.config.mjs",
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "core-js-pure",
+      "esbuild",
+      "protobufjs",
+      "sharp"
+    ]
+  }
 }
