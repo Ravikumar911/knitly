@@ -1,7 +1,7 @@
 {
   "name": "slash-cash",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
@@ -87,5 +87,17 @@
   "license": "ISC",
   "bin": {
     "slashcash": "./scripts/slashcash-cli.mjs"
-  }
+  },
+  "files": [
+    "apps/main/**",
+    "packages/database/**",
+    "packages/tasks/**",
+    "packages/ui/**",
+    "packages/typescript-config/**",
+    "scripts/**",
+    "docker-compose.yml",
+    "pnpm-workspace.yaml",
+    "turbo.json",
+    "README.md"
+  ]
 }

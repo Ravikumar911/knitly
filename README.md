@@ -1,98 +1,59 @@
-# slashcash (local-first)
+# slashcash — local personal finance agent
 
-Run Slashcash end-to-end on your machine with:
-- local PostgreSQL (Docker)
-- no Supabase login requirement
-- no Google OAuth requirement
-- no Trigger.dev/Gmail dependency for initial run
-- local OpenAI-compatible model endpoint (default model: `gemma4`)
+Slashcash is a **local-first personal finance assistant** focused on Swiggy spend analysis.
 
----
+It runs fully on your machine with:
+- local PostgreSQL
+- local Gemma 4 (via Ollama)
+- local app runtime (main product only, no separate website app needed)
 
-## 1) Install CLI and run onboarding
+## First-time user (fresh machine)
 
-From this repo root:
+If you have only Node/npm installed, run:
 
 ```bash
-npm i -g .
-slashcash doctor
+npm i -g slash-cash
 slashcash onboard
-```
-
-You can run non-interactive onboarding with defaults:
-
-```bash
-slashcash onboard --yes
-```
-
-Then start the app:
-
-```bash
 slashcash start
 ```
 
-Open <http://localhost:3000>.
+`slashcash onboard` is designed for first-time users:
+- on macOS, it installs missing dependencies with Homebrew
+- ensures Docker is running
+- ensures Ollama is installed and `gemma4` is pulled
+- bootstraps local DB + migrations + seed data
+- writes local env files for the app
 
----
+Open: <http://localhost:3000>
 
-## 2) CLI commands
+## Commands
 
 ```bash
-slashcash onboard [--yes]   # setup DB + migrations + seed + env files
-slashcash doctor            # validate local prerequisites
-slashcash status            # check postgres container status
-slashcash start             # run main app in dev mode
+slashcash onboard [--yes]  # full machine+app setup
+slashcash doctor           # check local dependencies and daemon status
+slashcash status           # verify postgres container + gemma4 availability
+slashcash start            # run personal finance app in dev mode
 ```
 
-The onboarding wizard asks for:
-- DB host/port/user/password/name
-- local model base URL
-- default model id
+## What local setup configures
 
----
+Onboarding prepares:
+1. Docker PostgreSQL container (`slashcash-postgres`)
+2. Required compatibility table `auth.users`
+3. Database migrations
+4. Seeded local user + Swiggy transactions
+5. Local env config:
+   - `LOCAL_MODE=true`
+   - `LOCAL_LLM_MODEL=gemma4`
+   - `LOCAL_LLM_BASE_URL=http://127.0.0.1:11434/v1`
 
-## 3) What onboarding configures
+## Scope: personal finance app only
 
-`slashcash onboard` will:
-1. Start `postgres:16` via Docker compose
-2. Create minimal `auth.users` table (compatibility for existing foreign keys)
-3. Install dependencies
-4. Run Drizzle migrations
-5. Seed one local user and sample Swiggy transactions
-6. Write `apps/main/.env.local` and `packages/database/.env.local`
+The CLI runs only the **main personal finance app** (`@knitly/main`).
+It does not require or run any separate marketing website project.
 
----
+## Current data source
 
-## 4) Local model (Gemma) notes
-
-By default the app expects an OpenAI-compatible endpoint at:
-- `LOCAL_LLM_BASE_URL=http://127.0.0.1:11434/v1`
-- `LOCAL_LLM_MODEL=gemma4`
-
-If you use Ollama and your model id differs, set it in `apps/main/.env.local`.
-
----
-
-## 5) Swiggy spend ingestion without Gmail
-
-Local mode disables Gmail sync paths intentionally. Use one of these ingestion paths:
-- seed/demo data (included by onboarding)
-- CSV/PDF import pipeline that writes to `transactions_v2`
-- parser for exported statements/messages that writes normalized `transactions_v2` rows
-
-Required fields for analytics/assistant:
-- `user_id`
-- `merchant_id='swiggy'`
-- `amount`
-- `transaction_date`
-- optional metadata in `merchant_data`
-
----
-
-## 6) Docker service
-
-`docker-compose.yml` provides:
-- `slashcash-postgres` on `localhost:5432`
-- default credentials: `slash/slash`
-- database: `slashcash`
-
+Current local ingestion focus is Swiggy.
+Gmail/Trigger-based sync is intentionally bypassed in local mode.
+Use seeded/demo data or write rows to `transactions_v2`.
