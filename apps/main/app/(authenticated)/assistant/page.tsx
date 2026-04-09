@@ -1,5 +1,3 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/supabase/server';
 import { prefetch, HydrateClient, trpc } from '@/trpc/server';
 import { ChatInterface } from '@/components/assistant/chat-interface';
 import { ChatSidebar } from '@/components/assistant/chat-sidebar';
@@ -13,13 +11,6 @@ function generateUUID(): string {
 }
 
 export default async function AssistantPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
-
   // Prefetch chat list
   await prefetch(trpc.chat.list.queryOptions({ limit: 50 }));
 

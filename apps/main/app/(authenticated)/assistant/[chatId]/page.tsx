@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/supabase/server';
+import { LOCAL_MODE, LOCAL_USER_ID } from '@/lib/local-mode';
 import { prefetch, HydrateClient, trpc } from '@/trpc/server';
 import { getChatById } from '@workspace/database';
 import { ChatInterface } from '@/components/assistant/chat-interface';
@@ -15,15 +16,21 @@ interface ChatPageProps {
 
 export default async function ChatPage({ params }: ChatPageProps) {
   const { chatId } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const userId = LOCAL_MODE ? LOCAL_USER_ID : (() => { throw new Error('unreachable'); })();
 
-  if (!user) {
-    redirect('/login');
+  let resolvedUserId = userId;
+  if (!LOCAL_MODE) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect('/login');
+    }
+    resolvedUserId = user.id;
   }
 
   // Fetch chat with messages
-  const chat = await getChatById(chatId, user.id);
+  const chat = await getChatById(chatId, resolvedUserId);
 
   if (!chat) {
     redirect('/assistant');

@@ -1,152 +1,98 @@
-# slash.cash - Modern Full-Stack Monorepo
+# slashcash (local-first)
 
-A modern, type-safe, and scalable monorepo built with Next.js, Supabase, shadcn/ui, Drizzle ORM, tRPC, and TriggerDev. Features strict separation of concerns and centralized database management.
+Run Slashcash end-to-end on your machine with:
+- local PostgreSQL (Docker)
+- no Supabase login requirement
+- no Google OAuth requirement
+- no Trigger.dev/Gmail dependency for initial run
+- local OpenAI-compatible model endpoint (default model: `gemma4`)
 
-## 🏗️ Project Structure
+---
 
-```
-.
-├── apps/
-│   ├── main/               # Core Next.js app with Supabase Auth SSR and tRPC
-│   └── website/           # Marketing website (Next.js, static)
-│
-└── packages/
-    ├── database/          # Centralized database schema and queries
-    ├── eslint-config/     # Shared ESLint configuration
-    ├── tasks/             # Background tasks and jobs
-    ├── typescript-config/ # Shared TypeScript configuration
-    └── ui/                # Shared UI components (shadcn/ui)
-```
+## 1) Install CLI and run onboarding
 
-## 🏛️ Architecture & Guidelines
-
-### Core Principles
-
-1. **Strict Separation of Concerns**
-   - Each app and package has a single, well-defined responsibility
-   - Clear boundaries between UI, database, and business logic
-
-2. **Centralized Database Management**
-   - All Supabase and Drizzle ORM queries are in `packages/database`
-   - Type-safe database operations exported as reusable functions
-   - No direct database queries in apps or other packages
-
-3. **Authentication & Authorization**
-   - Supabase Auth SSR implemented in `apps/main` using `@supabase/ssr`
-   - Consistent cookie handling patterns across the application
-
-4. **UI Component System**
-   - Shared UI components in `packages/ui` using shadcn/ui
-   - Consistent design system across all applications
-
-### Package-Specific Guidelines
-
-#### apps/main
-- Core Next.js application with SSR
-- Uses tRPC for type-safe API endpoints
-- Implements Supabase Auth SSR
-- Imports UI components from `@workspace/ui`
-- Uses database queries from `@workspace/database`
-
-#### apps/website
-- Static marketing site
-- No authentication or database queries
-- Uses shared UI components
-- Focus on SEO and performance
-
-#### packages/database
-- Central source for all database operations
-- Drizzle ORM schema definitions
-- Type-safe query functions
-- No UI or application logic
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js >= 20
-- pnpm >= 10.4.1
-- Supabase account and project
-
-### Installation
+From this repo root:
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Set up environment variables
-cp apps/main/.env.example apps/main/.env.local
-cp packages/database/.env.example packages/database/.env.local
+npm i -g .
+slashcash doctor
+slashcash onboard
 ```
 
-### Development
+You can run non-interactive onboarding with defaults:
 
 ```bash
-# Run all apps and packages
-pnpm dev
-
-# Run specific app
-pnpm --filter main dev
-pnpm --filter website dev
+slashcash onboard --yes
 ```
 
-## 🛠️ Development Workflow
-
-### Adding UI Components
+Then start the app:
 
 ```bash
-# Add shared components
-pnpm dlx shadcn@latest add button -c packages/ui
-
-# Add app-specific components
-pnpm dlx shadcn@latest add button -c apps/main
+slashcash start
 ```
 
-### Database Operations
+Open <http://localhost:3000>.
 
-1. Define schemas in `packages/database/src/schema`
-2. Create queries in `packages/database/src/queries`
-3. Export and use type-safe query functions
+---
 
-### Authentication
-
-Authentication is handled in `apps/main`:
-- SSR implementation in `apps/main/lib/auth.ts`
-- Middleware in `apps/main/middleware.ts`
-- Uses `@supabase/ssr` for cookie management
-
-## 🏗️ Building for Production
+## 2) CLI commands
 
 ```bash
-# Build all packages and apps
-pnpm build
-
-# Build specific app
-pnpm --filter main build
-pnpm --filter website build
+slashcash onboard [--yes]   # setup DB + migrations + seed + env files
+slashcash doctor            # validate local prerequisites
+slashcash status            # check postgres container status
+slashcash start             # run main app in dev mode
 ```
 
-## 📚 Tech Stack
+The onboarding wizard asks for:
+- DB host/port/user/password/name
+- local model base URL
+- default model id
 
-- **Framework**: Next.js 14 with App Router
-- **Database**: Supabase (PostgreSQL)
-- **ORM**: Drizzle ORM
-- **API**: tRPC
-- **UI**: shadcn/ui + Tailwind CSS
-- **Authentication**: Supabase Auth
-- **Background Jobs**: TriggerDev
-- **Package Manager**: pnpm
-- **Build Tool**: Turborepo
+---
 
-## 📖 Additional Resources
+## 3) What onboarding configures
 
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Supabase Documentation](https://supabase.com/docs)
-- [Drizzle ORM Documentation](https://orm.drizzle.team/)
-- [tRPC Documentation](https://trpc.io/docs)
-- [shadcn/ui Documentation](https://ui.shadcn.com/)
-- [TriggerDev Documentation](https://trigger.dev/docs)
+`slashcash onboard` will:
+1. Start `postgres:16` via Docker compose
+2. Create minimal `auth.users` table (compatibility for existing foreign keys)
+3. Install dependencies
+4. Run Drizzle migrations
+5. Seed one local user and sample Swiggy transactions
+6. Write `apps/main/.env.local` and `packages/database/.env.local`
 
-## 📝 License
+---
 
-MIT
+## 4) Local model (Gemma) notes
+
+By default the app expects an OpenAI-compatible endpoint at:
+- `LOCAL_LLM_BASE_URL=http://127.0.0.1:11434/v1`
+- `LOCAL_LLM_MODEL=gemma4`
+
+If you use Ollama and your model id differs, set it in `apps/main/.env.local`.
+
+---
+
+## 5) Swiggy spend ingestion without Gmail
+
+Local mode disables Gmail sync paths intentionally. Use one of these ingestion paths:
+- seed/demo data (included by onboarding)
+- CSV/PDF import pipeline that writes to `transactions_v2`
+- parser for exported statements/messages that writes normalized `transactions_v2` rows
+
+Required fields for analytics/assistant:
+- `user_id`
+- `merchant_id='swiggy'`
+- `amount`
+- `transaction_date`
+- optional metadata in `merchant_data`
+
+---
+
+## 6) Docker service
+
+`docker-compose.yml` provides:
+- `slashcash-postgres` on `localhost:5432`
+- default credentials: `slash/slash`
+- database: `slashcash`
+

@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init";
 import { processEmails } from "@workspace/tasks/trigger/processEmails";
+import { LOCAL_MODE } from '@/lib/local-mode';
 import { 
   getSyncStatus, 
   checkUserHasData, 
@@ -18,6 +19,17 @@ export const emailsRouter = createTRPCRouter({
   state: protectedProcedure
     .query(async ({ ctx }) => {
       try {
+        if (LOCAL_MODE) {
+          return {
+            state: 'has_data',
+            phase: 'complete',
+            progress: { total: 0, processed: 0, percent: 100, eta: null },
+            oauth: null,
+            hasInitialSync: true,
+            needsAction: false,
+            action: null,
+          } as const;
+        }
         return await getUnifiedSyncState(ctx.userId!);
       } catch (error) {
         console.error("Error getting unified sync state:", error);
@@ -31,6 +43,17 @@ export const emailsRouter = createTRPCRouter({
   checkDataExists: protectedProcedure
     .query(async ({ ctx }) => {
       try {
+        if (LOCAL_MODE) {
+          return {
+            hasEmails: true,
+            hasInitialSync: true,
+            emailCount: 1,
+            userState: 'has_data' as const,
+            syncStatus: 'complete',
+            oauthError: null,
+            needsSync: false,
+          };
+        }
         const dataStatus = await checkUserHasData(ctx.userId!);
         
         return {
@@ -56,6 +79,9 @@ export const emailsRouter = createTRPCRouter({
   initiateSync: protectedProcedure
     .mutation(async ({ ctx }) => {
       try {
+        if (LOCAL_MODE) {
+          return { success: true, message: 'Local mode enabled. Gmail sync is disabled.' };
+        }
         // FIX Issue #2: Check unified state first to handle timeouts and stalled syncs
         const unified = await getUnifiedSyncState(ctx.userId!);
         
@@ -115,6 +141,18 @@ export const emailsRouter = createTRPCRouter({
   getSyncProgress: protectedProcedure
     .query(async ({ ctx }) => {
       try {
+        if (LOCAL_MODE) {
+          return {
+            totalEmails: 0,
+            processedEmails: 0,
+            progressPercentage: 100,
+            estimatedCompletion: null,
+            syncStatus: 'complete',
+            hasInitialSync: true,
+            statusMessage: 'Local mode enabled. Use seeded or imported data.',
+            oauthError: null,
+          };
+        }
         const progress = await getSyncProgress(ctx.userId!);
         
         return {
@@ -151,6 +189,13 @@ export const emailsRouter = createTRPCRouter({
   refresh: protectedProcedure
     .mutation(async ({ ctx }) => {
       try {
+        if (LOCAL_MODE) {
+          return {
+            success: true,
+            message: 'Local mode enabled. Gmail refresh is disabled.',
+            taskId: 'local-mode',
+          };
+        }
         await processEmails.trigger({
           userId: ctx.userId!, // We can safely use ! here because protectedProcedure ensures userId exists
         });
@@ -178,6 +223,16 @@ export const emailsRouter = createTRPCRouter({
   getSyncStatus: protectedProcedure
     .query(async ({ ctx }) => {
       try {
+        if (LOCAL_MODE) {
+          return {
+            lastSyncedAt: new Date(),
+            nextPageToken: null,
+            syncStatus: 'complete',
+            errorDetails: null,
+            hasSynced: true,
+            oauthError: null,
+          };
+        }
         const status = await getSyncStatus(ctx.userId!);
         
         return {

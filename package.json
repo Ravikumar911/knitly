@@ -15,7 +15,11 @@
     "changeset:add": "changeset add",
     "changeset:status": "changeset status",
     "version-packages": "changeset version && pnpm install --lockfile-only",
-    "release": "turbo build && changeset publish"
+    "release": "turbo build && changeset publish",
+    "onboard": "node scripts/slashcash-cli.mjs onboard --yes",
+    "start:local": "node scripts/slashcash-cli.mjs start",
+    "onboard:interactive": "node scripts/slashcash-cli.mjs onboard",
+    "doctor": "node scripts/slashcash-cli.mjs doctor"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.17",
@@ -80,5 +84,8 @@
   "main": "eslint.config.mjs",
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "bin": {
+    "slashcash": "./scripts/slashcash-cli.mjs"
+  }
 }

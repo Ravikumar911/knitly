@@ -38,6 +38,7 @@ import {
   useSidebar,
 } from "@workspace/ui/components/sidebar"
 import { createClient } from "@/supabase/client"
+import { LOCAL_MODE } from '@/lib/local-mode'
 
 export function NavUser({
   user,
@@ -53,9 +54,14 @@ export function NavUser({
   const { setTheme } = useTheme()
 
   const handleLogout = async () => {
+    if (LOCAL_MODE) {
+      router.push('/login')
+      return
+    }
+
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push("/login") 
+    router.push("/login")
   }
 
   return (
