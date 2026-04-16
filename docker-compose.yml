@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: slashcash-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: slash
+      POSTGRES_PASSWORD: slash
+      POSTGRES_DB: slashcash
+    volumes:
+      - slashcash-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  slashcash-postgres-data:

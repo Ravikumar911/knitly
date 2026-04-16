@@ -7,22 +7,33 @@ import { SidebarInset } from '@workspace/ui/components/sidebar';
 import { SidebarTrigger } from '@workspace/ui/components/sidebar';
 import { Separator } from '@workspace/ui/components/separator';
 import { RouteBreadcrumb } from '@/components/route-breadcrumb';
-  
+import { LOCAL_MODE, LOCAL_USER } from '@/lib/local-mode';
+
 export default async function AuthenticatedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
+  let user: any = {
+    id: LOCAL_USER.id,
+    email: LOCAL_USER.email,
+    user_metadata: {
+      avatar_url: LOCAL_USER.avatar,
+      name: LOCAL_USER.name,
+    },
+  };
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (!LOCAL_MODE) {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect('/login');
+    if (!data.user) {
+      redirect('/login');
+    }
+
+    user = data.user;
   }
-  
+
   return (
     <SidebarProvider>
       <AppSidebar user={{avatar: user.user_metadata.avatar_url, email: user.email ?? '', name: user.user_metadata.name}} />
@@ -43,4 +54,4 @@ export default async function AuthenticatedLayout({
       </SidebarInset>
     </SidebarProvider>
   );
-} 
+}

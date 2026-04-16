@@ -1,152 +1,59 @@
-# slash.cash - Modern Full-Stack Monorepo
+# slashcash — local personal finance agent
 
-A modern, type-safe, and scalable monorepo built with Next.js, Supabase, shadcn/ui, Drizzle ORM, tRPC, and TriggerDev. Features strict separation of concerns and centralized database management.
+Slashcash is a **local-first personal finance assistant** focused on Swiggy spend analysis.
 
-## 🏗️ Project Structure
+It runs fully on your machine with:
+- local PostgreSQL
+- local Gemma 4 (via Ollama)
+- local app runtime (main product only, no separate website app needed)
 
-```
-.
-├── apps/
-│   ├── main/               # Core Next.js app with Supabase Auth SSR and tRPC
-│   └── website/           # Marketing website (Next.js, static)
-│
-└── packages/
-    ├── database/          # Centralized database schema and queries
-    ├── eslint-config/     # Shared ESLint configuration
-    ├── tasks/             # Background tasks and jobs
-    ├── typescript-config/ # Shared TypeScript configuration
-    └── ui/                # Shared UI components (shadcn/ui)
-```
+## First-time user (fresh machine)
 
-## 🏛️ Architecture & Guidelines
-
-### Core Principles
-
-1. **Strict Separation of Concerns**
-   - Each app and package has a single, well-defined responsibility
-   - Clear boundaries between UI, database, and business logic
-
-2. **Centralized Database Management**
-   - All Supabase and Drizzle ORM queries are in `packages/database`
-   - Type-safe database operations exported as reusable functions
-   - No direct database queries in apps or other packages
-
-3. **Authentication & Authorization**
-   - Supabase Auth SSR implemented in `apps/main` using `@supabase/ssr`
-   - Consistent cookie handling patterns across the application
-
-4. **UI Component System**
-   - Shared UI components in `packages/ui` using shadcn/ui
-   - Consistent design system across all applications
-
-### Package-Specific Guidelines
-
-#### apps/main
-- Core Next.js application with SSR
-- Uses tRPC for type-safe API endpoints
-- Implements Supabase Auth SSR
-- Imports UI components from `@workspace/ui`
-- Uses database queries from `@workspace/database`
-
-#### apps/website
-- Static marketing site
-- No authentication or database queries
-- Uses shared UI components
-- Focus on SEO and performance
-
-#### packages/database
-- Central source for all database operations
-- Drizzle ORM schema definitions
-- Type-safe query functions
-- No UI or application logic
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js >= 20
-- pnpm >= 10.4.1
-- Supabase account and project
-
-### Installation
+If you have only Node/npm installed, run:
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Set up environment variables
-cp apps/main/.env.example apps/main/.env.local
-cp packages/database/.env.example packages/database/.env.local
+npm i -g slash-cash
+slashcash onboard
+slashcash start
 ```
 
-### Development
+`slashcash onboard` is designed for first-time users:
+- on macOS, it installs missing dependencies with Homebrew
+- ensures Docker is running
+- ensures Ollama is installed and `gemma4` is pulled
+- bootstraps local DB + migrations + seed data
+- writes local env files for the app
+
+Open: <http://localhost:3000>
+
+## Commands
 
 ```bash
-# Run all apps and packages
-pnpm dev
-
-# Run specific app
-pnpm --filter main dev
-pnpm --filter website dev
+slashcash onboard [--yes]  # full machine+app setup
+slashcash doctor           # check local dependencies and daemon status
+slashcash status           # verify postgres container + gemma4 availability
+slashcash start            # run personal finance app in dev mode
 ```
 
-## 🛠️ Development Workflow
+## What local setup configures
 
-### Adding UI Components
+Onboarding prepares:
+1. Docker PostgreSQL container (`slashcash-postgres`)
+2. Required compatibility table `auth.users`
+3. Database migrations
+4. Seeded local user + Swiggy transactions
+5. Local env config:
+   - `LOCAL_MODE=true`
+   - `LOCAL_LLM_MODEL=gemma4`
+   - `LOCAL_LLM_BASE_URL=http://127.0.0.1:11434/v1`
 
-```bash
-# Add shared components
-pnpm dlx shadcn@latest add button -c packages/ui
+## Scope: personal finance app only
 
-# Add app-specific components
-pnpm dlx shadcn@latest add button -c apps/main
-```
+The CLI runs only the **main personal finance app** (`@knitly/main`).
+It does not require or run any separate marketing website project.
 
-### Database Operations
+## Current data source
 
-1. Define schemas in `packages/database/src/schema`
-2. Create queries in `packages/database/src/queries`
-3. Export and use type-safe query functions
-
-### Authentication
-
-Authentication is handled in `apps/main`:
-- SSR implementation in `apps/main/lib/auth.ts`
-- Middleware in `apps/main/middleware.ts`
-- Uses `@supabase/ssr` for cookie management
-
-## 🏗️ Building for Production
-
-```bash
-# Build all packages and apps
-pnpm build
-
-# Build specific app
-pnpm --filter main build
-pnpm --filter website build
-```
-
-## 📚 Tech Stack
-
-- **Framework**: Next.js 14 with App Router
-- **Database**: Supabase (PostgreSQL)
-- **ORM**: Drizzle ORM
-- **API**: tRPC
-- **UI**: shadcn/ui + Tailwind CSS
-- **Authentication**: Supabase Auth
-- **Background Jobs**: TriggerDev
-- **Package Manager**: pnpm
-- **Build Tool**: Turborepo
-
-## 📖 Additional Resources
-
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Supabase Documentation](https://supabase.com/docs)
-- [Drizzle ORM Documentation](https://orm.drizzle.team/)
-- [tRPC Documentation](https://trpc.io/docs)
-- [shadcn/ui Documentation](https://ui.shadcn.com/)
-- [TriggerDev Documentation](https://trigger.dev/docs)
-
-## 📝 License
-
-MIT
+Current local ingestion focus is Swiggy.
+Gmail/Trigger-based sync is intentionally bypassed in local mode.
+Use seeded/demo data or write rows to `transactions_v2`.

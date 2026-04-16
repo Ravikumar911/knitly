@@ -1,6 +1,7 @@
 import { Experimental_Agent as Agent, createUIMessageStream, convertToModelMessages, JsonToSseTransformStream, stepCountIs } from 'ai';
-import { openai } from '@ai-sdk/openai';
 import { createClient } from '@/supabase/server';
+import { LOCAL_MODE, LOCAL_USER_ID } from '@/lib/local-mode';
+import { assistantModel } from '@/lib/ai/model';
 import { generateSQLTool } from '@/lib/ai/tools/generate-sql';
 import { createExecuteSQLTool } from '@/lib/ai/tools/execute-sql';
 import { getChatById, createChat, saveMessage } from '@workspace/database';
@@ -10,15 +11,21 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   try {
     console.log('[assistant] === REQUEST RECEIVED ===');
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    let userId = LOCAL_USER_ID;
 
-    if (authError || !user) {
-      console.log('[assistant] ❌ Authentication failed:', authError);
-      return new Response('Unauthorized', { status: 401 });
+    if (!LOCAL_MODE) {
+      const supabase = await createClient();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        console.log('[assistant] ❌ Authentication failed:', authError);
+        return new Response('Unauthorized', { status: 401 });
+      }
+
+      userId = user.id;
     }
 
-    console.log('[assistant] ✅ User authenticated:', user.id);
+    console.log('[assistant] ✅ User ready:', userId);
 
     const { message, chatId, id } = await req.json();
     console.log('[assistant] Message received:', {
@@ -35,7 +42,7 @@ export async function POST(req: Request) {
 
     // ✅ Get or create chat
     console.log('[assistant] Fetching chat:', chatId);
-    let chatWithMessages = await getChatById(chatId, user.id);
+    let chatWithMessages = await getChatById(chatId, userId);
     
     if (!chatWithMessages) {
       console.log('[assistant] Chat not found, creating new chat');
@@ -44,8 +51,8 @@ export async function POST(req: Request) {
       const title = firstMessageText.slice(0, 50) + (firstMessageText.length > 50 ? '...' : '');
       
       console.log('[assistant] Creating chat with title:', title);
-      await createChat(user.id, title, chatId); // ✅ Pass chatId
-      chatWithMessages = await getChatById(chatId, user.id);
+      await createChat(userId, title, chatId); // ✅ Pass chatId
+      chatWithMessages = await getChatById(chatId, userId);
       console.log('[assistant] ✅ Chat created successfully');
     } else {
       console.log('[assistant] ✅ Chat found with', chatWithMessages.messages?.length || 0, 'existing messages');
@@ -74,7 +81,7 @@ export async function POST(req: Request) {
     // ✅ Create agent with multi-step execution
     console.log('[assistant] Creating agent with tools');
     const agent = new Agent({
-      model: openai('gpt-5-nano'),
+      model: assistantModel(),
       system: `You are a friendly personal finance assistant that helps users understand their Swiggy spending patterns. You're conversational, insightful, and focused on giving users actionable insights about their food spending habits.
 
           CRITICAL RESPONSE GUIDELINES:
@@ -124,7 +131,7 @@ export async function POST(req: Request) {
       
       tools: {
         generateSQL: generateSQLTool,
-        executeSQL: createExecuteSQLTool(user.id),
+        executeSQL: createExecuteSQLTool(userId),
       },
       
       stopWhen: stepCountIs(10), // ✅ Allow up to 10 steps for complex queries
