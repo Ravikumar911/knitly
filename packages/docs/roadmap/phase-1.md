@@ -4,6 +4,8 @@
 
 Phase 1 is the load-bearing phase. Most of the real removal and rewiring happens here. Phase 2 is mostly new local features built on top of this foundation.
 
+**Standing conventions for this phase.** Take learnings from the sibling repo at `../openclaw` continuously. Every workstream below has a proven counterpart there — entry shim and respawn pattern for the CLI, command catalog for lazy loading, doctor repair sequencing, state-directory layout, schema validation at every external boundary, closed `Result`-style returns. When you're unsure how a piece should feel, open the openclaw file that does the same thing and adopt the **pattern**. Don't copy code. The phase is not done until the end-to-end scenario defined in [`../reference/testing.md`](../reference/testing.md) passes from a clean machine; see "End-to-end verification" below.
+
 ## Success criteria
 
 1. One developer command starts the dashboard locally on loopback. There is no `SLASHCASH_MODE` or cloud fallback anywhere in the codebase.
@@ -100,9 +102,13 @@ Acceptance is that `slashcash start` brings up the dashboard, `slashcash status`
 
 W1 is the anchor. Most other workstreams get easier once the cloud surface is gone and the workspace isn't importing packages it shouldn't. A reasonable serial order for one engineer over about two weeks: W1 first (and most of it can land in a day or two if we're brutal about deletion), then W2 scaffold in parallel with W3's schema port; then W4 when the DB is compiling; then W5 and W6 together; then W7 wiring it all up into a demoable flow; then a polish day for error messages, doctor output and the `packages/docs` updates.
 
+## End-to-end verification
+
+Before declaring Phase 1 done, the Phase 1 scenario in [`../reference/testing.md`](../reference/testing.md) must run cleanly on a developer machine that has never run `slashcash` before. At a high level the scenario is: fresh clone, no `~/.slashcash/` on disk, Ollama running with `gemma3n:e4b` pulled, one command to install dependencies, then `slashcash doctor` comes up green, `slashcash db seed` populates SQLite, `slashcash start` brings up the dashboard on loopback, an automated check hits the dashboard and the healthz endpoint, the assistant streams a reply, and `slashcash stop` shuts everything down with no stray processes and no stale PID. The same script runs in CI wherever the environment supports it (at minimum on a macOS runner for Phase 1), so this gate is reproducible rather than anecdotal. The test harness and where it lives is specified in `reference/testing.md`; openclaw's smoke-flow test is the pattern to study.
+
 ## Exit gate
 
-Phase 1 is done when `slashcash start` boots the dashboard with seeded data, the assistant streams from local `gemma3n:e4b`, `slashcash doctor` is green, `slashcash stop` is clean, there are no imports of any removed cloud dependency, the CI no longer runs hosted-app workflows, and `packages/docs` has been updated to match anything that moved during the phase.
+Phase 1 is done when the end-to-end scenario above passes from a clean state, `slashcash start` boots the dashboard with seeded data, the assistant streams from local `gemma3n:e4b`, `slashcash doctor` is green, `slashcash stop` is clean, there are no imports of any removed cloud dependency, the CI no longer runs hosted-app workflows, and `packages/docs` has been updated to match anything that moved during the phase.
 
 ## Deferred to Phase 2
 

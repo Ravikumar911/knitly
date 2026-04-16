@@ -2,7 +2,7 @@
 
 This package is the single source of truth for the **slashcash** pivot: from a hosted SaaS at `slash.cash` / `app.slash.cash` to a **local-first, single-user CLI** that runs the existing dashboard on a user's machine, talks to a local LLM via Ollama, reads Gmail through the [`gws`](https://github.com/googleworkspace/cli) Google Workspace CLI, and stores everything in a local SQLite file.
 
-The hosted app stays alive in **dual-run** mode (the same monorepo ships both a hosted build and a local build) until the local CLI reaches feature parity.
+This is a **fully local** pivot. There is no dual-run mode and no cloud fallback. The hosted app at `app.slash.cash` is being retired; the marketing site at `slash.cash` is updated at the end of Phase 2 to point at the CLI. See ADR-013 in [`reference/decisions.md`](./reference/decisions.md).
 
 ## How to read this
 
@@ -21,8 +21,16 @@ Then dip into reference as needed:
 - [`reference/skills.md`](./reference/skills.md) — How a `slashcash` skill is structured on disk.
 - [`reference/env-vars.md`](./reference/env-vars.md) — Exhaustive env-var matrix (hosted vs local).
 - [`reference/file-changes.md`](./reference/file-changes.md) — Per-file change list (the swap list).
+- [`reference/testing.md`](./reference/testing.md) — Testing philosophy and the end-to-end gate for each phase.
 - [`reference/decisions.md`](./reference/decisions.md) — ADR-style decisions captured during planning.
 - [`reference/glossary.md`](./reference/glossary.md) — Terminology.
+
+## Standing conventions
+
+Two rules apply across every phase and every workstream. They are called out again in each phase doc so they don't get lost:
+
+- **Continuously learn from `../openclaw`.** The openclaw repo (sibling checkout at `../openclaw`) is a mature CLI with patterns we trust: entry shim, lazy command catalog, doctor repair sequencing, state-directory conventions, schema validation at external boundaries, closed-code `Result` returns, prompt-cache stability, skill folder format. When a design question has a proven answer there, adopt the **pattern**. Never copy code.
+- **End to end after every phase.** A phase is not done until the scenario in [`reference/testing.md`](./reference/testing.md) passes from a clean state on a real machine. Unit tests are a permanent baseline; the E2E scenario is the merge gate.
 
 ## Folder shape
 
@@ -41,6 +49,7 @@ packages/docs/
     ├── skills.md
     ├── env-vars.md
     ├── file-changes.md
+    ├── testing.md
     ├── decisions.md
     └── glossary.md
 ```

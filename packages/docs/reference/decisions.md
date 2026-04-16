@@ -141,3 +141,23 @@ Short architectural decision records. Each entry captures a choice that shapes t
 **Rejected.** Clipanion or oclif — more structure than we need for a small CLI. A bespoke argv parser — wasted effort.
 
 **Revisit if.** Command count exceeds what Commander tolerates cleanly (dozens).
+
+## ADR-016 — Continuously learn from `../openclaw`
+
+**Decision.** The sibling repo at `../openclaw` is the primary reference for CLI, onboarding, doctor, state-directory, skills-folder and release patterns. Every workstream begins by reading the openclaw counterpart before writing ours. We adopt the **patterns** — shapes of modules, sequencing of checks, data layouts on disk, coding conventions — and we do not copy code. This is a standing rule for the life of the project, not a one-time exercise.
+
+**Why.** Openclaw has already absorbed the cost of discovering what works for a local CLI that bootstraps a sizable environment, runs a long-lived process on loopback, self-diagnoses, and ships as an npm package. Re-deriving those patterns from scratch would be wasteful, slower, and more error-prone. Lifting them is cheap and well-understood.
+
+**Rejected.** A one-time "initial port" and then ignore openclaw — predictable drift. Hard-wiring openclaw as a dependency — different product surface, different release cadence; shared code would create coupling we don't want.
+
+**Revisit if.** Openclaw changes direction in a way that no longer matches local-first product CLIs, or we find we're copying code rather than patterns. If that ever happens, it is a signal to abstract shared pieces into a small shared package rather than keeping duplicated lifts.
+
+## ADR-017 — Every phase ends with an automated end-to-end verification
+
+**Decision.** No phase is declared done until the phase's end-to-end scenario in [`testing.md`](./testing.md) passes on a clean machine. The scenario uses the real CLI, real SQLite, real Ollama, and — for Phase 2 — real `gws` against a real test Google account. It runs in CI on every phase-complete PR and is also run manually by the maintainer as a final dogfood.
+
+**Why.** A local-first product lives or dies on install-flow reliability and end-to-end integration between three or four independent subsystems (Next.js, SQLite, Ollama, `gws`, skills). Unit tests can't find the class of bugs that hides in the seams between those systems. An explicit E2E gate per phase makes the right thing cheap to prove and the wrong thing hard to ignore.
+
+**Rejected.** Unit tests only — misses integration failures. Manual QA only — not reproducible, drifts, doesn't block merges. A continuous long-running E2E — unnecessary overhead for phase-paced delivery.
+
+**Revisit if.** The E2E suite grows so expensive in CI minutes that it meaningfully slows phase cadence. At that point we subset the suite between phases and restore the full run at the gate.

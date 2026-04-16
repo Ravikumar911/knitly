@@ -4,6 +4,8 @@
 
 Phase 2 assumes every Phase 1 exit-gate item is green. It does not revisit them.
 
+**Standing conventions for this phase.** Keep pulling patterns from `../openclaw`. The pieces most directly informed by openclaw here are the `onboard` wizard shape (idempotent, cancel-safe, doctor-resumable), the doctor check/repair registry, the skill folder format, subprocess wrappers with closed error unions (for `gws` and `ollama`), the release pipeline, and the provenance attestation on npm publish. Study those areas in openclaw before implementing; adapt the pattern to our product surface rather than copying code. As in Phase 1, the phase isn't done until the Phase 2 end-to-end scenario in [`../reference/testing.md`](../reference/testing.md) passes from a clean macOS machine; see "End-to-end verification" below.
+
 ## Success criteria
 
 1. A clean macOS machine goes from `npm i -g slashcash` to a populated dashboard in under about ten minutes wall time, including the model download, on a typical broadband connection.
@@ -108,6 +110,10 @@ The eval harness in `packages/evals` runs against the local provider end-to-end.
 
 Onboard (W1) and `gws` ingest (W2) are the critical path: until they exist, the app can't reach end-to-end real data. The cron mutex (W3) and attachments (W4) are small and land alongside ingest. The analytics rewrite (W5) and the vision work (W6) are the two "big" pieces and are independent of each other, so one engineer can interleave them to let evals reference vision output. Skills (W7) sits on top of the ingest and cron work. Doctor expansion (W9) picks up as each workstream lands. Packaging (W8) is last. A reasonable rough schedule for one engineer is about four weeks: onboard and doctor foundation in week one, `gws` ingest and attachments in week two, analytics and vision in week three, skills, evals, packaging and release candidate in week four.
 
+## End-to-end verification
+
+Before declaring Phase 2 done, the Phase 2 scenario in [`../reference/testing.md`](../reference/testing.md) must pass on a clean macOS machine that has no Homebrew, no Ollama, no `gws`, no `~/.slashcash/` and no prior install of the CLI. At a high level the scenario is: `npm i -g slashcash`, `slashcash onboard` (with a test Google account), `slashcash start`, an automated check that dashboards show transactions extracted from that account's real Gmail, the assistant streams a meaningful answer from `gemma3n:e4b`, clicking a PDF in the UI serves it from the local attachments root, `slashcash skills list` shows the bundled skill enabled, disabling the skill stops further ingest on the next cron tick, and `slashcash stop` leaves no stray processes or orphaned `gws` children. Time-to-green on a typical broadband connection stays inside the budget in success criterion 1. The eval suite also runs as part of this gate and meets the thresholds in ADR-012. This whole flow is scripted and runs in CI against a dedicated test Google account; the mechanics live in `reference/testing.md`.
+
 ## Exit gate
 
-Phase 2 is done when every success criterion listed at the top of this document is satisfied, the landing page at `slash.cash` points at the CLI, the hosted dashboard is off, and the README and `packages/docs` reflect the shipped state.
+Phase 2 is done when the end-to-end scenario above passes from a clean state, every success criterion listed at the top of this document is satisfied, the landing page at `slash.cash` points at the CLI, the hosted dashboard is off, and the README and `packages/docs` reflect the shipped state.

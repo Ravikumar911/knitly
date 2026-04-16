@@ -47,6 +47,7 @@ Concrete per-file changes for Phase 1. This is the checklist the execution chat 
 ## New package: `packages/docs/`
 
 - Already created. No further changes in Phase 1 beyond keeping the content current as the work lands.
+- **create** `packages/docs/reference/testing.md` — the end-to-end gate definition for each phase. Present from day one; updated as the harness lands.
 
 ## `packages/database/`
 
@@ -110,8 +111,14 @@ Phase 1 makes this package compile against the new dependency set (no Trigger, n
 
 ## `packages/e2e-tests/`
 
-- **modify** every auth-dependent test to assume no login. The test runner targets the local CLI flow: spawn `slashcash start` pointed at a temp `SLASHCASH_HOME`, run Playwright against `http://127.0.0.1:<port>`.
+This package is repurposed as the host of the phase-level end-to-end harness defined in `reference/testing.md`. It is no longer a generic Playwright suite against the hosted app.
+
+- **modify** every auth-dependent test to assume no login. The test runner targets the local CLI flow: spawn `slashcash start` pointed at a temp `SLASHCASH_HOME`, run Playwright (or a lighter HTTP-based harness, chosen during Phase 1 W7) against `http://127.0.0.1:<port>`.
 - **delete** Supabase setup fixtures and test users.
+- **create** `packages/e2e-tests/scenarios/phase-1.ts` — the Phase 1 E2E scenario (clean-state install, doctor, seed, start, healthz, assistant stream, status, stop).
+- **create** `packages/e2e-tests/scenarios/phase-2.ts` — the Phase 2 E2E scenario (npm install, onboard, sync against a test Google account, attachments, assistant answer, skill disable, stop, re-run onboard). Lands in Phase 2; stubbed in Phase 1.
+- **create** `packages/e2e-tests/support/` — helpers shared by both scenarios (temp `SLASHCASH_HOME`, spawning `slashcash`, waiting on healthz, asserting on SQLite rows and filesystem state).
+- **modify** `packages/e2e-tests/package.json` — expose `e2e:phase-1` and `e2e:phase-2` scripts, wired into the root `package.json`.
 
 ## `packages/evals/`
 
@@ -127,6 +134,8 @@ No changes in Phase 1. Marketing site stays as-is; its landing page is updated a
 
 - **delete** every workflow that deploys, tests, or references the hosted app's Supabase / Trigger / Vercel surface.
 - **modify** the remaining build / lint / typecheck workflows so they run against the new dependency set. Add a smoke workflow that builds the CLI tarball and starts `slashcash start` in headless mode to confirm the dashboard responds on healthz.
+- **create** `.github/workflows/e2e-phase-1.yml` — macOS runner, installs Ollama and pulls `gemma3n:e4b`, runs `pnpm e2e:phase-1`. Required for Phase 1 exit.
+- **create** `.github/workflows/e2e-phase-2.yml` — macOS runner, clean state, mounts the `gws` credentials secret for the test Google account, runs `pnpm e2e:phase-2`. Required for Phase 2 exit.
 
 ## Final grep checklist (Phase 1 exit gate)
 
