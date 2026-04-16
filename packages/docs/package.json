@@ -1,0 +1,14 @@
+{
+  "name": "@workspace/docs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "slashcash plan, architecture and reference docs (markdown only, no build).",
+  "files": [
+    "*.md",
+    "roadmap/**/*.md",
+    "reference/**/*.md"
+  ],
+  "scripts": {
+    "lint:md": "echo 'no markdown linter configured yet'"
+  }
+}
