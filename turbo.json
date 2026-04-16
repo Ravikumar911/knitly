@@ -7,17 +7,17 @@
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
       "env": [
-        "DATABASE_URL",
-        "TRIGGER_SECRET_KEY",
-        "SUPABASE_SERVICE_ROLE_KEY",
         "NODE_ENV",
-        "NEXT_PUBLIC_SITE_URL",
-        "NEXT_PUBLIC_VERCEL_URL"
+        "SLASHCASH_HOME",
+        "SQLITE_DB_PATH",
+        "OLLAMA_BASE_URL",
+        "OLLAMA_CHAT_MODEL",
+        "SLASHCASH_PORT"
       ]
     },
     "lint": {
       "dependsOn": ["^lint"],
-      "env": ["MODEL_NAME"]
+      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL"]
     },
     "lint:fix": {
       "dependsOn": ["^lint:fix"]
@@ -25,41 +25,36 @@
     "eval": {
       "cache": false,
       "env": [
-        "OPENAI_API_KEY",
-        "BRAINTRUST_API_KEY",
-        "MODEL_NAME"
+        "OLLAMA_BASE_URL",
+        "OLLAMA_CHAT_MODEL"
       ]
     },
     "eval:swiggy": {
       "cache": false,
       "env": [
-        "OPENAI_API_KEY",
-        "BRAINTRUST_API_KEY",
-        "MODEL_NAME"
+        "OLLAMA_BASE_URL",
+        "OLLAMA_CHAT_MODEL"
       ]
     },
     "eval:swiggy:nano": {
       "cache": false,
       "env": [
-        "OPENAI_API_KEY",
-        "BRAINTRUST_API_KEY",
-        "MODEL_NAME"
+        "OLLAMA_BASE_URL",
+        "OLLAMA_CHAT_MODEL"
       ]
     },
     "eval:swiggy:mini": {
       "cache": false,
       "env": [
-        "OPENAI_API_KEY",
-        "BRAINTRUST_API_KEY",
-        "MODEL_NAME"
+        "OLLAMA_BASE_URL",
+        "OLLAMA_CHAT_MODEL"
       ]
     },
     "eval:swiggy:ui": {
       "cache": false,
       "env": [
-        "OPENAI_API_KEY",
-        "BRAINTRUST_API_KEY",
-        "MODEL_NAME"
+        "OLLAMA_BASE_URL",
+        "OLLAMA_CHAT_MODEL"
       ]
     },
     "check-types": {

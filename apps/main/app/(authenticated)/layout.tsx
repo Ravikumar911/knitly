@@ -1,6 +1,3 @@
-import { redirect } from 'next/navigation';
-
-import { createClient } from '@/supabase/server';
 import { SidebarProvider } from '@workspace/ui/components/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset } from '@workspace/ui/components/sidebar';
@@ -13,19 +10,9 @@ export default async function AuthenticatedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
-  
   return (
     <SidebarProvider>
-      <AppSidebar user={{avatar: user.user_metadata.avatar_url, email: user.email ?? '', name: user.user_metadata.name}} />
+      <AppSidebar user={{ avatar: '', email: 'local@slash.cash', name: 'Local user' }} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2">
           <div className="flex items-center gap-2 px-4">

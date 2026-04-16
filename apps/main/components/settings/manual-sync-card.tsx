@@ -30,21 +30,21 @@ export function ManualSyncCard() {
   const getStatusTitle = () => {
     if (isComplete) return 'Sync Complete!';
     if (isFailed) return 'Sync Failed';
-    if (isLoading) return 'Starting Email Sync';
-    if (isCountingEmails) return 'Analyzing Your Gmail';
+    if (isLoading) return 'Starting Local Data Setup';
+    if (isCountingEmails) return 'Loading Local Records';
     if (isInProgress) return 'Preparing to Process';
-    if (isSyncing) return 'Processing Your Emails';
-    return 'Manual Email Sync';
+    if (isSyncing) return 'Processing Local Records';
+    return 'Local Data Setup';
   };
 
   const getStatusDescription = () => {
-    if (isComplete) return 'Your emails have been successfully synced and updated!';
-    if (isFailed) return 'Email sync failed. Please try starting the sync again.';
+    if (isComplete) return 'Your local transaction data is ready.';
+    if (isFailed) return 'Local data setup failed. Please try again.';
     if (isLoading) return 'Initializing the sync process...';
-    if (isCountingEmails) return 'Analyzing your Gmail account for new emails';
-    if (isInProgress) return 'Preparing to process your emails...';
-    if (isSyncing) return 'Processing emails in the background. You can safely navigate away from this page.';
-    return 'Manually sync your emails to update your transaction data with the latest information';
+    if (isCountingEmails) return 'Checking the local database for sample records';
+    if (isInProgress) return 'Preparing local records...';
+    if (isSyncing) return 'Processing local records in the background. You can safely navigate away from this page.';
+    return 'Load or refresh local sample data for Phase 1';
   };
 
   const formatTimeRemaining = (estimatedCompletion: Date | null) => {
@@ -91,7 +91,7 @@ export function ManualSyncCard() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>
-                    {state.progress.processed.toLocaleString()} of {(state.progress.total || 0).toLocaleString()} emails processed
+                    {state.progress.processed.toLocaleString()} of {(state.progress.total || 0).toLocaleString()} records processed
                   </span>
                   <span className="font-medium">
                     {Math.round(state.progress.percent || 0)}%
@@ -116,7 +116,7 @@ export function ManualSyncCard() {
             {hasTotalEmails && !isComplete && (
               <div className="text-center p-4 bg-primary/10 border border-primary/20 rounded-lg">
                 <p className="text-sm text-primary font-medium">
-                  Found {(state?.progress.total ?? 0).toLocaleString()} emails to process
+                  Found {(state?.progress.total ?? 0).toLocaleString()} records to process
                 </p>
               </div>
             )}
@@ -130,7 +130,7 @@ export function ManualSyncCard() {
               <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
                 <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
                 <AlertDescription className="text-green-800 dark:text-green-200">
-                  Email sync completed successfully! Your transaction data has been updated.
+                  Local data setup completed successfully.
                 </AlertDescription>
               </Alert>
               <Button 
@@ -173,22 +173,21 @@ export function ManualSyncCard() {
                 ) : (
                   <>
                     <Zap className="h-4 w-4 mr-2" />
-                    {cta?.label || 'Start Email Sync'}
+                    {cta?.label || 'Start Local Setup'}
                   </>
                 )}
               </Button>
               <Alert>
                 <Mail className="h-4 w-4" />
                 <AlertDescription className="text-sm">
-                  This will scan your Gmail for new emails and update your transaction data. 
-                  The process typically takes a few minutes depending on the number of new emails.
+                  This refreshes the local sample transactions used in Phase 1.
                 </AlertDescription>
               </Alert>
             </div>
           ) : (
             <div className="text-center">
               <div className="text-sm text-muted-foreground">
-                {isSyncing ? 'Processing emails in background...' : 'Starting sync process...'}
+                {isSyncing ? 'Processing local records in background...' : 'Starting local setup...'}
               </div>
             </div>
           )}

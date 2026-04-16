@@ -1,152 +1,100 @@
-# slash.cash - Modern Full-Stack Monorepo
+# slash.cash
 
-A modern, type-safe, and scalable monorepo built with Next.js, Supabase, shadcn/ui, Drizzle ORM, tRPC, and TriggerDev. Features strict separation of concerns and centralized database management.
+Local-first personal finance dashboard built with Next.js, SQLite, Drizzle ORM, tRPC, and Ollama-compatible local AI.
 
-## 🏗️ Project Structure
+## Project Structure
 
-```
+```text
 .
 ├── apps/
-│   ├── main/               # Core Next.js app with Supabase Auth SSR and tRPC
-│   └── website/           # Marketing website (Next.js, static)
-│
+│   ├── main/              # Local dashboard app
+│   └── website/           # Marketing website
 └── packages/
-    ├── database/          # Centralized database schema and queries
-    ├── eslint-config/     # Shared ESLint configuration
-    ├── tasks/             # Background tasks and jobs
+    ├── cli/               # slashcash command-line launcher
+    ├── database/          # SQLite schema, migrations, queries, and seed data
+    ├── e2e-tests/         # Playwright scenarios
+    ├── evals/             # Local extraction evaluations
+    ├── tasks/             # Local ingestion/extraction helpers
     ├── typescript-config/ # Shared TypeScript configuration
-    └── ui/                # Shared UI components (shadcn/ui)
+    └── ui/                # Shared UI components
 ```
 
-## 🏛️ Architecture & Guidelines
+## Phase 1 Scope
 
-### Core Principles
+Phase 1 runs fully on the developer machine:
 
-1. **Strict Separation of Concerns**
-   - Each app and package has a single, well-defined responsibility
-   - Clear boundaries between UI, database, and business logic
+- SQLite database in `~/.slashcash/db.sqlite` by default.
+- A deterministic local user with seeded Swiggy transactions.
+- No hosted auth, remote job queue, cloud storage, or hosted database.
+- Ollama-compatible chat/extraction models through `OLLAMA_BASE_URL` and `OLLAMA_CHAT_MODEL`.
+- A `slashcash` CLI for start, stop, status, doctor, config, db, sync, skills, and logs commands.
 
-2. **Centralized Database Management**
-   - All Supabase and Drizzle ORM queries are in `packages/database`
-   - Type-safe database operations exported as reusable functions
-   - No direct database queries in apps or other packages
+Gmail ingestion and attachment processing are Phase 2 work. Phase 1 keeps local placeholders where the UI already has sync affordances.
 
-3. **Authentication & Authorization**
-   - Supabase Auth SSR implemented in `apps/main` using `@supabase/ssr`
-   - Consistent cookie handling patterns across the application
+## Prerequisites
 
-4. **UI Component System**
-   - Shared UI components in `packages/ui` using shadcn/ui
-   - Consistent design system across all applications
+- Node.js 20 or newer
+- pnpm 10.4.1 or newer
+- Optional: Ollama running locally for assistant and extraction flows
 
-### Package-Specific Guidelines
-
-#### apps/main
-- Core Next.js application with SSR
-- Uses tRPC for type-safe API endpoints
-- Implements Supabase Auth SSR
-- Imports UI components from `@workspace/ui`
-- Uses database queries from `@workspace/database`
-
-#### apps/website
-- Static marketing site
-- No authentication or database queries
-- Uses shared UI components
-- Focus on SEO and performance
-
-#### packages/database
-- Central source for all database operations
-- Drizzle ORM schema definitions
-- Type-safe query functions
-- No UI or application logic
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js >= 20
-- pnpm >= 10.4.1
-- Supabase account and project
-
-### Installation
+## Install
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Set up environment variables
-cp apps/main/.env.example apps/main/.env.local
-cp packages/database/.env.example packages/database/.env.local
 ```
 
-### Development
+Optional local settings:
 
 ```bash
-# Run all apps and packages
-pnpm dev
-
-# Run specific app
-pnpm --filter main dev
-pnpm --filter website dev
+cp .env.example .env.local
 ```
 
-## 🛠️ Development Workflow
-
-### Adding UI Components
+## Run
 
 ```bash
-# Add shared components
-pnpm dlx shadcn@latest add button -c packages/ui
-
-# Add app-specific components
-pnpm dlx shadcn@latest add button -c apps/main
+pnpm slashcash -- start
 ```
 
-### Database Operations
-
-1. Define schemas in `packages/database/src/schema`
-2. Create queries in `packages/database/src/queries`
-3. Export and use type-safe query functions
-
-### Authentication
-
-Authentication is handled in `apps/main`:
-- SSR implementation in `apps/main/lib/auth.ts`
-- Middleware in `apps/main/middleware.ts`
-- Uses `@supabase/ssr` for cookie management
-
-## 🏗️ Building for Production
+Useful direct commands:
 
 ```bash
-# Build all packages and apps
-pnpm build
-
-# Build specific app
-pnpm --filter main build
-pnpm --filter website build
+pnpm --filter slashcash dev -- doctor --fix
+pnpm --filter slashcash dev -- db seed
+pnpm --filter @knitly/main dev
 ```
 
-## 📚 Tech Stack
+The dashboard runs at `http://127.0.0.1:3000` by default.
 
-- **Framework**: Next.js 14 with App Router
-- **Database**: Supabase (PostgreSQL)
-- **ORM**: Drizzle ORM
-- **API**: tRPC
-- **UI**: shadcn/ui + Tailwind CSS
-- **Authentication**: Supabase Auth
-- **Background Jobs**: TriggerDev
-- **Package Manager**: pnpm
-- **Build Tool**: Turborepo
+## Database
 
-## 📖 Additional Resources
+The database package owns schema definitions, migrations, seed data, and query helpers.
 
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Supabase Documentation](https://supabase.com/docs)
-- [Drizzle ORM Documentation](https://orm.drizzle.team/)
-- [tRPC Documentation](https://trpc.io/docs)
-- [shadcn/ui Documentation](https://ui.shadcn.com/)
-- [TriggerDev Documentation](https://trigger.dev/docs)
+```bash
+pnpm --filter @workspace/database build
+pnpm --filter slashcash dev -- db seed
+pnpm --filter slashcash dev -- db reset --yes
+```
 
-## 📝 License
+Set `SQLITE_DB_PATH` to use a different SQLite file.
 
-MIT
+## Tests
+
+```bash
+pnpm typecheck
+pnpm --filter @workspace/e2e-tests e2e:phase-1
+```
+
+For local doctor checks without requiring Ollama:
+
+```bash
+SLASHCASH_DOCTOR_SKIP_OLLAMA=1 pnpm --filter slashcash dev -- doctor
+```
+
+## Tech Stack
+
+- Next.js App Router
+- SQLite with Drizzle ORM
+- tRPC and TanStack Query
+- shadcn/ui and Tailwind CSS
+- AI SDK with an OpenAI-compatible local endpoint
+- Turborepo and pnpm workspaces

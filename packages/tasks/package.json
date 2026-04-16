@@ -6,23 +6,22 @@
     "build": "tsc",
     "lint": "echo 'Linting not configured for tasks package'",
     "lint:fix": "echo 'Linting not configured for tasks package'",
-    "dev": "pnpm dlx trigger.dev@3.3.17 dev",
-    "deploy": "pnpm dlx trigger.dev@3.3.17 deploy"
+    "dev": "tsx src/index.ts"
   },
   "exports": {
     "./trigger/*": "./src/trigger/*.ts",
-    "./agents/*": "./dist/agents/*.js",
-    "./merchants/*": "./dist/merchants/*.js",
-    "./types/*": "./dist/types/*.js"
+    "./ai/*": "./src/ai/*.ts",
+    "./agents/*": "./src/agents/*.ts",
+    "./merchants/*": "./src/merchants/*.ts",
+    "./types/*": "./src/types/*.ts"
   },
   "dependencies": {
-    "@trigger.dev/sdk": "^3.3.17",
+    "@ai-sdk/openai-compatible": "1.0.17",
+    "ai": "5.0.26",
     "@workspace/database": "workspace:*",
-    "googleapis": "^148.0.0",
-    "jsonwebtoken": "^9.0.2"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@trigger.dev/build": "^3.3.17",
     "@workspace/typescript-config": "workspace:*"
   }
 }

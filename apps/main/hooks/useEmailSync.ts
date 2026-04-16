@@ -2,10 +2,7 @@
 
 import React, { useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
 import { useTRPC } from '@/trpc/client';
-import { createClient } from '@/supabase/client';
-import { getOAuthCallbackURL } from '@/lib/oauth';
 
 type UnifiedState = import('@workspace/database').UnifiedEmailSyncState;
 
@@ -23,8 +20,6 @@ function computeRefetchInterval(state?: UnifiedState, hasError?: boolean): numbe
 
 export function useEmailSync() {
   const trpc = useTRPC();
-  const router = useRouter();
-  const supabase = createClient();
 
   const queryOptions = useMemo(() => trpc.emails.state.queryOptions(), [trpc.emails.state]);
 
@@ -67,9 +62,9 @@ export function useEmailSync() {
   }
 
   async function retry() {
-    // FIX Issue #10: Don't allow retry if OAuth error requires reauth
+    // Keep the legacy error shape until the sync state model is simplified.
     if (data?.oauth?.requiresReauth) {
-      console.warn('Cannot retry with OAuth error requiring reauth - user must reconnect');
+      console.warn('Cannot retry while the sync state requires corrective action');
       return;
     }
     
@@ -77,30 +72,16 @@ export function useEmailSync() {
   }
 
   async function reconnect() {
-    // Launch OAuth on explicit user action only
-    const { data } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: getOAuthCallbackURL(),
-        scopes: 'email profile https://www.googleapis.com/auth/gmail.readonly',
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        }
-      }
-    });
-    if (data?.url) {
-      router.push(data.url);
-    }
+    await refetch();
   }
 
   const statusLabel = useMemo(() => {
     if (!data) return 'Checking status';
     switch (data.phase) {
       case 'idle': return 'Ready';
-      case 'counting_emails': return 'Analyzing mailbox';
+      case 'counting_emails': return 'Loading local data';
       case 'in_progress': return 'Preparing';
-      case 'syncing': return 'Processing emails';
+      case 'syncing': return 'Processing local data';
       case 'complete': return 'Complete';
       case 'failed': return 'Failed';
       case 'stalled': return 'Stalled';
@@ -110,7 +91,7 @@ export function useEmailSync() {
 
   const statusDescription = useMemo(() => {
     if (!data) return 'Loading current sync state...';
-    if (data.oauth?.requiresReauth) return data.oauth.userFriendlyMessage || 'Permission required to continue.';
+    if (data.oauth?.requiresReauth) return data.oauth.userFriendlyMessage || 'Local state needs attention.';
     if (data.phase === 'syncing' && data.progress.total) {
       const remaining = (data.progress.total || 0) - (data.progress.processed || 0);
       return `${remaining} remaining (${data.progress.percent.toFixed(0)}%)`;
@@ -123,12 +104,10 @@ export function useEmailSync() {
   const cta = useMemo(() => {
     if (!data) return { label: 'Start', action: start } as const;
     
-    // FIX Issue #10: Always prioritize OAuth reauth over retry
     if (data.oauth?.requiresReauth) {
-      return { label: 'Reconnect Google', action: reconnect } as const;
+      return { label: 'Refresh state', action: reconnect } as const;
     }
     
-    // Only show retry for non-OAuth failures
     if (data.phase === 'failed' || data.phase === 'stalled') {
       return { label: 'Retry', action: retry } as const;
     }
@@ -153,5 +132,3 @@ export function useEmailSync() {
     refetch,
   };
 }
-
-

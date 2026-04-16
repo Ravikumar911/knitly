@@ -4,7 +4,6 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@workspace/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@workspace/ui/components/card';
-import { Alert, AlertDescription } from '@workspace/ui/components/alert';
 import { Progress } from '@workspace/ui/components/progress';
 import { Mail, Zap, BarChart3, Shield, Loader2, CheckCircle, Clock, AlertCircle, RefreshCw, Lock } from 'lucide-react';
 import { useEmailSync } from '@/hooks/useEmailSync';
@@ -50,10 +49,10 @@ export function SyncInitiator() {
             {getStatusIcon()}
           </div>
           <CardTitle className="text-2xl font-bold">
-            {statusLabel || 'Email Sync'}
+            {statusLabel || 'Local Data Setup'}
           </CardTitle>
           <CardDescription className="text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
-            {statusDescription || "Let's analyze your Gmail to discover your transactions and spending patterns."}
+            {statusDescription || "Load local sample transactions and start exploring your spending patterns."}
           </CardDescription>
         </CardHeader>
         
@@ -62,7 +61,7 @@ export function SyncInitiator() {
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
-                  {state.progress.processed} of {state.progress.total} emails processed
+                  {state.progress.processed} of {state.progress.total} records processed
                 </span>
                 {state.progress.eta && (
                   <span className="text-muted-foreground">
@@ -86,7 +85,7 @@ export function SyncInitiator() {
           {isComplete ? (
             <div className="text-center space-y-4">
               <p className="text-green-600 dark:text-green-400 font-medium">
-                🎉 Analysis complete! You can now explore your financial insights.
+                Analysis complete. You can now explore your financial insights.
               </p>
               <Button 
                 onClick={async () => {
@@ -108,7 +107,7 @@ export function SyncInitiator() {
               <div className="grid grid-cols-2 gap-4 py-4">
                 <div className="flex items-center space-x-3">
                   <Mail className="h-5 w-5 text-primary" />
-                  <span className="text-sm">Analyze Gmail transactions</span>
+                  <span className="text-sm">Load local transactions</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <Zap className="h-5 w-5 text-primary" />
@@ -120,7 +119,7 @@ export function SyncInitiator() {
                 </div>
                 <div className="flex items-center space-x-3">
                   <Shield className="h-5 w-5 text-primary" />
-                  <span className="text-sm">Privacy protected</span>
+                  <span className="text-sm">Runs on this machine</span>
                 </div>
               </div>
               <Button 

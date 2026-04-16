@@ -24,8 +24,8 @@ function getQueryClient() {
 function getUrl() {
   const base = (() => {
     if (typeof window !== 'undefined') return '';
-    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-    return 'http://localhost:3000';
+    const port = process.env.SLASHCASH_PORT || process.env.PORT || '3000';
+    return `http://127.0.0.1:${port}`;
   })();
   return `${base}/api/trpc`;
 }

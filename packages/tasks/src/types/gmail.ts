@@ -1,9 +1,3 @@
-import { gmail_v1 } from 'googleapis';
-
-/**
- * Gmail API type definitions
- */
-
 export interface GmailHeader {
   name: string;
   value: string;
@@ -30,8 +24,12 @@ export interface GmailMessagePayload {
   };
 }
 
-// Extend the Gmail API Message type
-export type GmailMessage = gmail_v1.Schema$Message;
+export interface GmailMessage {
+  id?: string;
+  threadId?: string;
+  payload?: GmailMessagePayload;
+  snippet?: string;
+}
 
 
 export interface GmailAttachment {
@@ -42,5 +40,8 @@ export interface GmailAttachment {
   data?: string;
 }
 
-// Extend the Gmail API ListMessagesResponse type
-export type GmailMessageList = gmail_v1.Schema$ListMessagesResponse;
+export interface GmailMessageList {
+  messages?: Array<{ id?: string; threadId?: string }>;
+  nextPageToken?: string;
+  resultSizeEstimate?: number;
+}

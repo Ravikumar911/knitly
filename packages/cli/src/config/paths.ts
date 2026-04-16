@@ -1,0 +1,37 @@
+import { mkdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
+
+export type SlashcashPaths = {
+  home: string;
+  config: string;
+  db: string;
+  attachments: string;
+  logs: string;
+  pidDir: string;
+  pidFile: string;
+};
+
+export function resolveSlashcashHome() {
+  return resolve(process.env.SLASHCASH_HOME || join(homedir(), ".slashcash"));
+}
+
+export function resolvePaths(): SlashcashPaths {
+  const home = resolveSlashcashHome();
+  return {
+    home,
+    config: join(home, "config.json"),
+    db: process.env.SQLITE_DB_PATH || join(home, "db.sqlite"),
+    attachments: join(home, "attachments"),
+    logs: join(home, "logs"),
+    pidDir: join(home, "pid"),
+    pidFile: join(home, "pid", "slashcash.pid.json"),
+  };
+}
+
+export function ensureStateDirs(paths = resolvePaths()) {
+  mkdirSync(paths.home, { recursive: true, mode: 0o700 });
+  mkdirSync(paths.attachments, { recursive: true, mode: 0o700 });
+  mkdirSync(paths.logs, { recursive: true, mode: 0o700 });
+  mkdirSync(paths.pidDir, { recursive: true, mode: 0o700 });
+}

@@ -1,14 +1,14 @@
 import 'dotenv/config';
 import type { Config } from 'drizzle-kit';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 
 export default {
   schema: './src/schema/*.ts',
   out: './drizzle',
-  dialect: 'postgresql',
+  dialect: 'sqlite',
   dbCredentials: {
-    url: process.env.DATABASE_URL!,
+    url: process.env.SQLITE_DB_PATH || join(homedir(), '.slashcash', 'db.sqlite'),
   },
   verbose: true,
-  // Exclude auth schema tables from migrations as they're managed by Supabase
-  tablesFilter: ["!auth.*"],
 } satisfies Config; 

@@ -1,7 +1,5 @@
-/**
- * Re-export all utility functions
- */
-export * from './gmailApi';
 export * from './emailStorage';
-export * from './googleAuth';
-export { buildMerchantBasedGmailSearchQuery } from './gmailApi'; 
+
+export function buildMerchantBasedGmailSearchQuery() {
+  return 'from:(swiggy.in OR swiggy.com) newer_than:180d';
+}

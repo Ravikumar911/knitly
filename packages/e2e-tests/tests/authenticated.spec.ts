@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("Authenticated User", () => {
+test.describe("Local Phase 1 Dashboard", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await expect(page).not.toHaveURL(/\/login/);
@@ -20,22 +20,16 @@ test.describe("Authenticated User", () => {
     await expect(page).toHaveURL(/\/dashboard/);
   });
 
-  test("should have valid auth cookie", async ({ page }) => {
-    const cookies = await page.context().cookies();
-    const hasAuthCookie = cookies.some((c) =>
-      c.name.startsWith("sb-") && c.name.includes("-auth-token")
-    );
-    expect(hasAuthCookie).toBeTruthy();
+  test("should expose local health status", async ({ request }) => {
+    const response = await request.get("/api/healthz");
+    expect(response.ok()).toBeTruthy();
+
+    const health = await response.json();
+    expect(health.mode).toBe("local");
+    expect(health.ok).toBeTruthy();
   });
 
   test("should display user email", async ({ page }) => {
-    const userEmail = process.env.TEST_USER_EMAIL;
-    if (!userEmail) {
-      test.skip();
-      return;
-    }
-    
-    const emailPrefix = userEmail.split("@")[0]!;
-    await expect(page.getByText(emailPrefix, { exact: false })).toBeVisible();
+    await expect(page.getByText("local@slash.cash")).toBeVisible();
   });
 });

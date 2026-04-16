@@ -3,6 +3,8 @@ import { TransactionTable } from '@/components/transactions/transaction-table';
 import { Skeleton } from '@workspace/ui/components/skeleton';
 import { prefetch, HydrateClient, trpc } from '@/trpc/server';
 
+export const dynamic = 'force-dynamic';
+
 export default function TransactionsPage() {
   // Prefetch transactions data on the server
   prefetch(trpc.transactions.list.queryOptions({

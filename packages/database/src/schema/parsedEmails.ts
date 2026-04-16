@@ -1,33 +1,28 @@
-import { pgTable, boolean, timestamp, uuid, varchar, text, unique, jsonb, pgEnum } from "drizzle-orm/pg-core";
+import { randomUUID } from "node:crypto";
+import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { profiles } from "./users";
 
-
-// Parsed emails
-export const parsedEmails = pgTable("parsed_emails", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
-  
-  // Email metadata
-  senderEmailId: varchar("sender_email_id", { length: 255 }),
+export const parsedEmails = sqliteTable("parsed_emails", {
+  id: text("id")
+    .$defaultFn(() => randomUUID())
+    .primaryKey(),
+  userId: text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
   snippet: text("snippet"),
-  threadId: varchar("thread_id", { length: 255 }), // Gmail thread ID
+  senderEmailId: text("sender_email_id"),
+  threadId: text("thread_id"),
   subject: text("subject"),
-  receivedDate: timestamp("received_date"),
-  // Parsing metadata
-  parseSuccess: boolean("parse_success").default(false),
+  receivedDate: integer("received_date", { mode: "timestamp_ms" }),
+  parseSuccess: integer("parse_success", { mode: "boolean" }).default(false),
   parseErrors: text("parse_errors"),
-  rawContent: text("raw_content"), // Store the raw email content for debugging
-  
-  // Attachment information
-  attachmentStoragePath: jsonb("attachment_storage_path"), // Path to attachment in Supabase storage
-  
-  parsedAt: timestamp("parsed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-// Add unique constraint to prevent duplicate processing
-export const parsedEmailsConstraints = unique("parsed_emails_user_id_thread_id").on(
-  parsedEmails.userId, 
-  parsedEmails.threadId
-); 
+  rawContent: text("raw_content"),
+  attachmentStoragePath: text("attachment_storage_path", { mode: "json" }).$type<string[] | null>(),
+  parsedAt: integer("parsed_at", { mode: "timestamp_ms" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .$defaultFn(() => new Date())
+    .notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .$defaultFn(() => new Date())
+    .notNull(),
+}, (table) => ({
+  userThreadUnique: uniqueIndex("parsed_emails_user_id_thread_id").on(table.userId, table.threadId),
+}));
