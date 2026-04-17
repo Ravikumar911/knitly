@@ -6,7 +6,9 @@
   "scripts": {
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
-    "test": "pnpm lint"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",

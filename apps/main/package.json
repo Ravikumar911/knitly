@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "test": "pnpm typecheck",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

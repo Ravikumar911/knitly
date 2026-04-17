@@ -18,7 +18,9 @@
     "dev": "tsx src/entry.ts",
     "lint": "echo 'Linting not configured for cli package'",
     "lint:fix": "echo 'Linting not configured for cli package'",
-    "test": "tsx test/run-tests.ts",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -19,6 +19,10 @@
   "exclude": [
     "node_modules",
     "components/ai-elements",
-    "@workspace"
+    "@workspace",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.integration.test.ts",
+    "**/*.integration.test.tsx"
   ]
 }

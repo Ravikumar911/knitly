@@ -166,13 +166,14 @@ Phase 4 is done when: every success criterion above is met; `pr.yml` and `nightl
 
 ## Pending — hand to next agent
 
-What shipped under Phase 4 so far: lightweight package tests via `tsx test/run-tests.ts` in `packages/cli`, `packages/tasks`, `packages/database`; `packages/e2e-tests/architecture-smells.test.ts` with the forbidden-import / forbidden-directory / forbidden-DB / forbidden-env rules wired into `pnpm architecture-smells`; `pnpm fixtures:check`; a `phase-4.ts` meta scenario; the PR / nightly / release workflow scaffolding; `e2e:phase-1`..`e2e:phase-5` runners; stale Playwright specs in place under `packages/e2e-tests/tests/` but not yet repurposed.
+What shipped under Phase 4 so far: shared Vitest infrastructure in `packages/typescript-config/vitest.base.ts`, per-package `vitest.config.ts` files for `packages/cli`, `packages/tasks`, `packages/database`, `packages/ui`, and `apps/main`, smoke unit tests in those five packages, v8 coverage wiring via `test:coverage`, and an isolated temp `SLASHCASH_HOME` / `SQLITE_DB_PATH` global setup; `packages/e2e-tests/architecture-smells.test.ts` with the forbidden-import / forbidden-directory / forbidden-DB / forbidden-env rules wired into `pnpm architecture-smells`; `pnpm fixtures:check`; a `phase-4.ts` meta scenario that now runs the five package Vitest suites; the PR / nightly / release workflow scaffolding; `e2e:phase-1`..`e2e:phase-5` runners; stale Playwright specs in place under `packages/e2e-tests/tests/` but not yet repurposed.
 
 What the phase doc promises that is **not yet real in the repo**:
 
-- [ ] Adopt Vitest across packages (shared base config under `packages/typescript-config/vitest.base.ts`, per-package `vitest.config.ts`, v8 coverage, global-setup with isolated `SLASHCASH_HOME`). Today every package's `test` script shells into `tsx test/run-tests.ts` with no coverage.
+- [x] Adopt Vitest across packages (shared base config under `packages/typescript-config/vitest.base.ts`, per-package `vitest.config.ts`, v8 coverage, global-setup with isolated `SLASHCASH_HOME`). `packages/cli`, `packages/tasks`, `packages/database`, `packages/ui`, and `apps/main` now run `vitest run`; the old `tsx test/run-tests.ts` smoke scripts were migrated into `*.test.ts` files next to the relevant code. `test:coverage` is wired for the five packages, but thresholds remain at zero until the next coverage-floor item lands.
+  - Verified on 2026-04-17 with filtered package tests for those five packages plus package-level `test:coverage` runs. The local `better-sqlite3` native binding had to be rebuilt for this shell's Node ABI before the database Vitest suite could run.
 - [ ] Enforce the real coverage floors: **80%** for `packages/cli`, `packages/database`, `packages/tasks`; **70%** for `apps/main`; **60%** for `packages/ui`. Fail CI on regression.
-- [ ] Land the boundary integration tests named in W3: `gws` wrapper, Ollama provider, doctor pipeline, cron single-flight mutex, attachment-serving route, skill registry, assistant route, CLI error formatter, skill jobs registry. Today only a handful of tiny smoke tests exist in `packages/cli/test/run-tests.ts`.
+- [ ] Land the boundary integration tests named in W3: `gws` wrapper, Ollama provider, doctor pipeline, cron single-flight mutex, attachment-serving route, skill registry, assistant route, CLI error formatter, skill jobs registry. Today only tiny Vitest smoke tests exist for a few of those surfaces; the named `*.integration.test.ts` boundary specs are still not real.
 - [ ] Pin each analytics procedure's output to a snapshot under `packages/database/test-fixtures/analytics/`; iterate every export of `queries/insights/swiggyAnalytics.ts` in a single snapshot test file; fail CI on uncommitted snapshot changes.
 - [ ] Replace the legacy Supabase-era Playwright specs (`packages/e2e-tests/tests/authenticated.spec.ts`, `unauthenticated.spec.ts`) with the W5 specs: `dashboard.spec.ts`, `transactions.spec.ts`, `assistant.spec.ts`, `pdf-viewer.spec.ts`, `settings.spec.ts`. Configure Playwright to spawn the CLI (dev or tarball mode) on a unique port per worker with a unique `SLASHCASH_HOME`.
 - [ ] Extend the `architecture-smells.test.ts` rules in W2 that are not yet covered: the AST-walk that asserts every CLI-reachable `throw`/`console.error` goes through a registered error class, and the `--help` ↔ `reference/cli.md` parity check.
@@ -182,8 +183,8 @@ What the phase doc promises that is **not yet real in the repo**:
 Verification commands once the above land:
 
 ```bash
-pnpm -r test
-pnpm -r test --coverage
+pnpm --filter slashcash --filter @workspace/tasks --filter @workspace/database --filter @workspace/ui --filter @knitly/main test
+pnpm --filter slashcash --filter @workspace/tasks --filter @workspace/database --filter @workspace/ui --filter @knitly/main test:coverage
 pnpm architecture-smells
 pnpm fixtures:check
 pnpm --filter @workspace/e2e-tests test        # Playwright

@@ -42,7 +42,7 @@ The full clean-machine cancellation test is still a manual dogfood step because 
 
 ## Phase 4 end-to-end scenario
 
-`packages/e2e-tests/scenarios/phase-4.ts` is the meta gate for the test pyramid. It runs the architecture smell test, fixture validation, and the per-package test scripts for `packages/cli`, `packages/tasks`, and `packages/database`. App and UI packages expose `pnpm test` as typecheck/lint gates until their broader Playwright and component suites are filled in.
+`packages/e2e-tests/scenarios/phase-4.ts` is the meta gate for the test pyramid. It runs the architecture smell test, fixture validation, and the per-package Vitest scripts for `packages/cli`, `packages/tasks`, `packages/database`, `packages/ui`, and `apps/main`. The app and UI suites are still smoke-level tests until the broader Playwright and component suites are filled in, but they now share the same Vitest discovery, watch-mode and v8 coverage plumbing as the backend packages.
 
 `pnpm fixtures:check` parses every committed JSON fixture under the database, tasks, and E2E fixture roots and verifies canonical formatting. This gives fixture changes an explicit CI surface instead of letting drift hide inside unrelated PRs.
 

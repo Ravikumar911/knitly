@@ -18,8 +18,9 @@
     "migrate": "drizzle-kit migrate",
     "check": "drizzle-kit check",
     "pull": "drizzle-kit pull",
-    "test": "tsx test/run-tests.ts",
-    "test:watch": "tsx watch test/run-tests.ts"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",

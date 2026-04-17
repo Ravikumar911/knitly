@@ -2,6 +2,7 @@
   "name": "@workspace/typescript-config",
   "version": "0.1.1",
   "private": true,
+  "type": "module",
   "license": "PROPRIETARY",
   "scripts": {
     "lint": "echo 'No linting required for config files'",

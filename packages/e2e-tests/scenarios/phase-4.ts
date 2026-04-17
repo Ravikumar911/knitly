@@ -9,6 +9,8 @@ run(["fixtures:check"]);
 run(["--filter", "slashcash", "test"]);
 run(["--filter", "@workspace/tasks", "test"]);
 run(["--filter", "@workspace/database", "test"]);
+run(["--filter", "@workspace/ui", "test"]);
+run(["--filter", "@knitly/main", "test"]);
 
 console.log("Phase 4 E2E passed.");
 
