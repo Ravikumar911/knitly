@@ -34,7 +34,7 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-004 — Google auth is owned by `gws`
 
-**Decision.** We never ship a Google OAuth client id, never handle Google tokens, and never store refresh tokens. During `slashcash onboard` the user provisions their own per-machine OAuth client through `gws auth setup` (see ADR-022 for the full gcloud-backed flow) and then runs `gws auth login` to consent. `gws` owns everything about Google authentication and API access from that point onward.
+**Decision.** We never ship a Google OAuth client id, never handle Google tokens, and never store refresh tokens. During `slashcash onboard` the user provisions their own per-machine OAuth client through `gws auth setup` (see ADR-022 for the full gcloud-backed flow) and then runs `gws auth login --scopes gmail.readonly` to consent. `gws` owns everything about Google authentication and API access from that point onward.
 
 **Why.** This is the single biggest trust improvement over the hosted SaaS. The user's Google credentials never touch our code, and the OAuth client is scoped to their own Google Cloud project rather than a shared one we'd have to get verified. `gws` is maintained by Google Workspace's team and keeps current with API changes.
 
@@ -228,3 +228,14 @@ This is the path the `gws` authors recommend when `gcloud` is available; it is t
 
 - We decide to absorb Google's OAuth app verification cost (privacy policy, domain verification, annual CASA assessment) and ship a verified shared client. At that point ADR-004 and this ADR both change in the same PR.
 - `gws` gains a first-class path that provisions a client without `gcloud` (e.g. a Google-hosted setup endpoint). We would drop the `gcloud` prerequisite from onboard.
+- A verified shared client would also change the pre-`gws auth login` privacy line, because the consent screen would no longer describe an app created inside the user's own Cloud project.
+
+## ADR-023 — Privacy disclosures surface at onboarding
+
+**Decision.** The privacy claims that make this product worth installing (local-only data, BYO Google Cloud project, no telemetry, loopback-only dashboard) are printed by the wizard at four moments: top-of-onboard banner, pre-`gcloud auth login` line, pre-`gws auth login` line, and final summary. They are reachable forever through `slashcash privacy`. The wizard does not gate on acknowledgement; trust is built by showing the facts at the moments the user is deciding whether to click Allow. Copy lives in one file, `packages/cli/src/privacy/copy.ts`, so the banner and the standing command never drift.
+
+**Why.** The developer audience (see `vision.md` "Target audience for v1") evaluates trust at the consent screen, not on a landing page. The product principle is "trust is surfaced, not buried", so onboarding itself has to say where data, tokens, PDFs, model calls and telemetry do or do not go.
+
+**Rejected.** A single upfront dump (users skim it). Legal "I accept" checkboxes (wrong product). Printing only via a separate command (missed by the users who most need it).
+
+**Revisit if.** ADR-022 changes to a verified shared Google client, if the hosted surface returns, or if any telemetry/version-check default changes. Any of those would require changing the copy and its snapshots in the same PR.

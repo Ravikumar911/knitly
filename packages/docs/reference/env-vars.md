@@ -18,7 +18,7 @@ The local app has a small, tightly scoped set of environment variables. Most use
 
 `GWS_PROFILE` — passed through to `gws` subprocesses unchanged. Lets users with multiple Google accounts select one. No default.
 
-`GOOGLE_APPLICATION_CREDENTIALS` — optional service-account credentials path used by CI/test environments that run `gws` non-interactively. Normal users should authenticate with `gws auth login` instead.
+`GOOGLE_APPLICATION_CREDENTIALS` — optional service-account credentials path used by CI/test environments that run `gws` non-interactively. Normal users should authenticate with `gws auth login --scopes gmail.readonly` instead.
 
 `SLASHCASH_GMAIL_QUERY` — optional runtime override for the Gmail query. The CLI normally sets this from `sync.gmailQuery`.
 

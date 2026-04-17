@@ -12,7 +12,7 @@ export function register(program: Command) {
       "Only create slash.cash local state and bundled skills",
     )
     .option("--skip-external", "Skip Homebrew, Ollama, gws and auth checks")
-    .option("--skip-auth", "Skip interactive gws auth login")
+    .option("--skip-auth", "Skip interactive Google auth")
     .action(
       async (options: {
         dryRun?: boolean;

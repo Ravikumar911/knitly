@@ -175,7 +175,7 @@ export async function runChecks(
           message: commandExists(bin) ? "available" : "missing from PATH",
           fix:
             bin === "gws"
-              ? "Run `brew install googleworkspace/tap/gws`."
+              ? "Run `brew install googleworkspace-cli`."
               : `Install ${bin} and retry.`,
         });
       }
@@ -268,7 +268,7 @@ function checkGwsAuth(): DoctorCheck {
     label: "gws auth",
     category: "network" as const,
     durationMs: 0,
-    fix: "Run `gws auth login`.",
+    fix: "Run `gws auth login --scopes gmail.readonly`.",
   };
 
   if (
@@ -289,7 +289,7 @@ function checkGwsAuth(): DoctorCheck {
       category: "binary",
       status: "fail",
       message: "gws is missing from PATH",
-      fix: "Run `brew install googleworkspace/tap/gws`.",
+      fix: "Run `brew install googleworkspace-cli`.",
       durationMs: Date.now() - started,
     };
   }

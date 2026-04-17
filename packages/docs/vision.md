@@ -10,7 +10,7 @@ Most prospects don't get past that ask. They want the product. They don't want a
 
 ## What we're building instead
 
-A local-first, single-user app that the person installs on their own laptop. Globally installed from npm. Onboarded by a single command that prepares the machine (Homebrew, Ollama, the `gemma3n:e4b` model, the `gws` Google Workspace CLI and its `gws auth login` step). Started by a single command that boots the existing dashboard on `127.0.0.1` and schedules an in-process cron worker that pulls Gmail through `gws`, parses it with the local model, and writes everything to a single SQLite file.
+A local-first, single-user app that the person installs on their own laptop. Globally installed from npm. Onboarded by a single command that prepares the machine (Homebrew, Ollama, the `gemma3n:e4b` model, `gcloud`, the `gws` Google Workspace CLI, `gws auth setup`, and scoped Gmail consent). Started by a single command that boots the existing dashboard on `127.0.0.1` and schedules an in-process cron worker that pulls Gmail through `gws`, parses it with the local model, and writes everything to a single SQLite file.
 
 The hosted app at `slash.cash` / `app.slash.cash` is being **retired** as part of this pivot. The marketing site stays, as a landing page that points at the CLI; the hosted dashboard goes away once the CLI reaches feature parity. There is no "cloud mode" in the codebase — one code path, one product, fully local.
 

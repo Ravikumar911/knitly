@@ -7,6 +7,9 @@ export type GwsDiagnosticCode =
   | "auth-access-denied"
   | "auth-redirect-uri-mismatch"
   | "auth-expired"
+  | "api-not-enabled"
+  | "gcloud-missing"
+  | "gcloud-not-authenticated"
   | "quota-exceeded"
   | "rate-limited"
   | "unknown";
@@ -19,14 +22,60 @@ export function classifyGwsDiagnostic(stderr: string): GwsDiagnostic {
   const text = stderr.trim();
   const lower = text.toLowerCase();
 
+  if (
+    lower.includes("gcloud: command not found") ||
+    lower.includes("gcloud command not found") ||
+    lower.includes("no such file or directory: gcloud") ||
+    lower.includes("spawn gcloud enoent") ||
+    lower.includes("exit code 127")
+  ) {
+    return {
+      code: "gcloud-missing",
+      area: "binary",
+      symptom: "gcloud is missing from PATH.",
+      cause: "slashcash needs gcloud so gws can provision your own Google Cloud OAuth client.",
+      fix: "Run `brew install --cask google-cloud-sdk`, then `slashcash onboard`.",
+      docs: "https://cloud.google.com/sdk/docs/install",
+    };
+  }
+
+  if (
+    lower.includes("accessnotconfigured") ||
+    lower.includes("has not been used in project") ||
+    lower.includes("gmail api") && lower.includes("disabled")
+  ) {
+    return {
+      code: "api-not-enabled",
+      area: "auth",
+      symptom: "The Gmail API is not enabled for your Google Cloud project.",
+      cause: "The project created for gws does not currently allow Gmail API calls.",
+      fix: "Run `gws auth setup`, then retry `slashcash sync`.",
+      docs: "https://github.com/googleworkspace/gws",
+    };
+  }
+
+  if (
+    lower.includes("reauthentication is needed") ||
+    lower.includes("no credentialed accounts") ||
+    lower.includes("you do not currently have an active account")
+  ) {
+    return {
+      code: "gcloud-not-authenticated",
+      area: "auth",
+      symptom: "gcloud is not authenticated.",
+      cause: "gws auth setup needs an active gcloud account before it can create the OAuth client.",
+      fix: "Run `gcloud auth login --brief --update-adc=false`, then `slashcash onboard`.",
+    };
+  }
+
   if (lower.includes("invalid_client")) {
     return {
       code: "auth-invalid-client",
       area: "auth",
-      symptom: "Google rejected the OAuth client bundled with gws.",
+      symptom: "Google rejected the OAuth client created for gws.",
       cause:
-        "The installed gws build appears to have a stale or invalid OAuth client configuration.",
-      fix: "Run `brew reinstall googleworkspace/tap/gws`, then `gws auth login`.",
+        "The local gws client secret is stale, missing or invalid for this machine.",
+      fix: "Run `gws auth setup`, then `gws auth login --scopes gmail.readonly`.",
       docs: "https://github.com/googleworkspace/gws",
     };
   }
@@ -38,7 +87,7 @@ export function classifyGwsDiagnostic(stderr: string): GwsDiagnostic {
       symptom: "Google rejected the gws OAuth redirect URI.",
       cause:
         "The installed gws OAuth client configuration does not match Google's allowed redirect URI.",
-      fix: "Run `brew reinstall googleworkspace/tap/gws`, then `gws auth login`.",
+      fix: "Run `gws auth setup`, then `gws auth login --scopes gmail.readonly`.",
       docs: "https://github.com/googleworkspace/gws",
     };
   }
@@ -49,7 +98,7 @@ export function classifyGwsDiagnostic(stderr: string): GwsDiagnostic {
       area: "auth",
       symptom: "Google denied access to Gmail.",
       cause: "The OAuth flow was cancelled or Gmail access was not granted.",
-      fix: "Run `gws auth login` and approve Gmail access.",
+      fix: "Run `gws auth login --scopes gmail.readonly` and approve Gmail access.",
     };
   }
 
@@ -59,7 +108,7 @@ export function classifyGwsDiagnostic(stderr: string): GwsDiagnostic {
       area: "auth",
       symptom: "gws authentication has expired.",
       cause: "The stored Google credential is no longer accepted.",
-      fix: "Run `gws auth login`.",
+      fix: "Run `gws auth login --scopes gmail.readonly`.",
     };
   }
 
@@ -89,7 +138,7 @@ export function classifyGwsDiagnostic(stderr: string): GwsDiagnostic {
       area: "auth",
       symptom: "gws is not authenticated.",
       cause: "The Gmail sync path needs a completed `gws auth login` session.",
-      fix: "Run `slashcash onboard` or `gws auth login`.",
+      fix: "Run `slashcash onboard` or `gws auth login --scopes gmail.readonly`.",
     };
   }
 

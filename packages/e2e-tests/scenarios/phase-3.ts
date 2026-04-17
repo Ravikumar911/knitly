@@ -10,7 +10,6 @@ const env = {
   ...process.env,
   SLASHCASH_HOME: home,
   SQLITE_DB_PATH: join(home, "db.sqlite"),
-  SLASHCASH_E2E: "1",
   SLASHCASH_DOCTOR_SKIP_GWS: "1",
   SLASHCASH_DOCTOR_SKIP_OLLAMA: "1",
 };
@@ -18,6 +17,11 @@ const env = {
 try {
   const first = run(["onboard", "--dry-run", "--yes"]);
   assertIncludes(first.stdout, "Onboarding complete", "first onboard completes");
+  assertIncludes(
+    first.stdout,
+    "slashcash runs fully on your machine",
+    "onboard prints privacy banner",
+  );
 
   const started = Date.now();
   const second = run(["onboard", "--dry-run", "--yes"]);
@@ -29,6 +33,13 @@ try {
 
   const doctor = run(["doctor", "--quick", "--json"]);
   JSON.parse(extractJsonArray(doctor.stdout));
+
+  const privacy = run(["privacy"]);
+  assertIncludes(
+    privacy.stdout,
+    "slashcash runs fully on your machine",
+    "privacy command prints privacy banner",
+  );
   console.log("Phase 3 E2E passed.");
 } finally {
   rmSync(home, { recursive: true, force: true });
