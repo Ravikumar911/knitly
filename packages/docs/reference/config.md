@@ -54,8 +54,12 @@ Every documented failure has a check and, where possible, a repair.
 
 - Ollama daemon not reachable. Check by HTTP request to the tags endpoint. Repair by suggesting the Homebrew service start command (no auto-start in v1).
 - Chat or vision model not pulled. Check by inspecting Ollama tags. Repair by running `ollama pull`.
+- `gcloud` not on `PATH`. Check by which-style lookup. Repair by running the Homebrew cask install command recorded in ADR-011 (`brew install --cask google-cloud-sdk`).
+- `gcloud` not authenticated. Check by parsing `gcloud auth list --format=json` for an active account. Repair by launching `gcloud auth login` interactively.
 - `gws` not on `PATH`. Check by which-style lookup. Repair by running the Homebrew install command recorded in ADR-011.
-- `gws auth status` not authenticated. Check by parsing the status command's JSON. Repair by launching `gws auth login` interactively.
+- `~/.config/gws/client_secret.json` missing or Gmail API not enabled for the active project. Check by file existence plus `gcloud services list --enabled --filter gmail.googleapis.com`. Repair by running `gws auth setup` (see ADR-022).
+- `gws auth status` not authenticated. Check by parsing the status command's JSON. Repair by launching `gws auth login --scopes gmail.readonly` interactively.
+- Google API not enabled for the user's Cloud project (`accessNotConfigured`). Surfaced during ingest, not onboard. Repair is the same as the `~/.config/gws/client_secret.json` entry above.
 - Port in use. Surfaced by the bind failure in `start`. Not auto-fixed; user is pointed at `--port` or `config set port`.
 - State directory missing or wrong permissions. Check with `stat`. Repair by creating and chmod'ing.
 - Stale PID file. Check by reading the file and probing the PID. Repair by deleting the file.

@@ -34,13 +34,13 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-004 — Google auth is owned by `gws`
 
-**Decision.** We never ship a Google OAuth client id. We never handle Google tokens. The user runs `gws auth login` during `slashcash onboard`, and `gws` owns everything about Google authentication and API access.
+**Decision.** We never ship a Google OAuth client id, never handle Google tokens, and never store refresh tokens. During `slashcash onboard` the user provisions their own per-machine OAuth client through `gws auth setup` (see ADR-022 for the full gcloud-backed flow) and then runs `gws auth login` to consent. `gws` owns everything about Google authentication and API access from that point onward.
 
-**Why.** This is the single biggest trust improvement over the hosted SaaS. The user's Google credentials never touch our code. `gws` is maintained by Google Workspace's team and keeps current with API changes.
+**Why.** This is the single biggest trust improvement over the hosted SaaS. The user's Google credentials never touch our code, and the OAuth client is scoped to their own Google Cloud project rather than a shared one we'd have to get verified. `gws` is maintained by Google Workspace's team and keeps current with API changes.
 
-**Rejected.** An installed-app OAuth flow using our own client id — we'd be back to owning refresh tokens. IMAP with an app password — weaker auth, no attachment API, deprecated direction.
+**Rejected.** An installed-app OAuth flow using our own shared client id — would require Google OAuth app verification (including an annual CASA security assessment for the restricted Gmail scope), commit us to a verified-app support surface, and cap us at 100 test users until that verification lands. IMAP with an app password — weaker auth, no attachment API, deprecated direction.
 
-**Revisit if.** `gws` ever becomes unmaintained or diverges from Google's current APIs in a way that breaks our use case.
+**Revisit if.** `gws` ever becomes unmaintained, or we decide to absorb the OAuth verification work to shave the two browser consents out of onboarding — at which point ADR-022 flips too.
 
 ## ADR-005 — Ollama with `gemma3n:e4b` as the default model
 
@@ -98,13 +98,13 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 **Revisit if.** Eval or user reports ever show aggregation drift.
 
-## ADR-011 — `gws` install method
+## ADR-011 — `gws` and `gcloud` install method
 
-**Decision.** `gws` is installed through Homebrew using the `googleworkspace/tap/gws` formula. The formula is referenced from the `GWS_BREW_FORMULA` constant in `packages/cli/src/onboard/run.ts` so any change is one file plus this ADR.
+**Decision.** `gws` is installed through Homebrew using the `googleworkspace-cli` formula documented in the upstream `gws` README. `gcloud` is installed through the Homebrew cask `google-cloud-sdk`. Both install sources are referenced from single constants (`GWS_BREW_FORMULA`, `GCLOUD_BREW_CASK`) in `packages/cli/src/onboard/run.ts` so any change is one file plus this ADR.
 
-**Why.** `gws` distribution is evolving. Rather than hard-coding a tap across the codebase, we keep it in one place.
+**Why.** `gws` distribution is evolving (the older `googleworkspace/tap/gws` tap is being replaced by the direct `googleworkspace-cli` formula). `gcloud` is now a hard prerequisite for onboarding because `gws auth setup` drives the Google Cloud project / OAuth client provisioning through it (see ADR-022). Keeping both install sources in one place keeps the swap cheap.
 
-**Revisit on every Phase 2 W1 touch.** If the upstream distribution moves, update this ADR and the constant.
+**Revisit on every Phase 2 W1 or Phase 3 W1 touch.** If the upstream distribution for either tool moves, update this ADR and the two constants in the same PR as the `auth-invalid-client.fix` / `gcloud-missing.fix` diagnostic strings.
 
 ## ADR-012 — Local vs cloud eval delta threshold (provisional)
 
@@ -201,3 +201,30 @@ Short architectural decision records. Each entry captures a choice that shapes t
 **Rejected.** Publishing directly from every push to `main`.
 
 **Revisit if.** Changesets or npm provenance requirements change enough that this flow becomes brittle.
+
+## ADR-022 — BYO-GCP Google onboarding via `gcloud` + `gws auth setup`
+
+**Decision.** `slashcash onboard` provisions Google access for each user through their own Google Cloud project. The sequence is:
+
+1. Install the `gcloud` CLI (Homebrew cask from ADR-011).
+2. Run `gcloud auth login` interactively so gcloud has active user credentials.
+3. Install the `gws` CLI (Homebrew formula from ADR-011).
+4. Run `gws auth setup`, which (per the upstream `gws` README) uses gcloud to create or select a Google Cloud project, enable the Gmail API, create a Desktop-type OAuth client, add the signed-in account as a test user, and write `~/.config/gws/client_secret.json`.
+5. Run `gws auth login --scopes gmail.readonly` so the user consents to the single Gmail read-only scope we actually need for Swiggy ingest.
+
+This is the path the `gws` authors recommend when `gcloud` is available; it is the cheapest way to bootstrap a working OAuth client without us owning one.
+
+**Why.** The alternative is shipping our own verified OAuth client, which for the restricted Gmail scope would require a public privacy policy, verified homepage, domain verification, and an annual CASA security assessment. For a local-first v1 that runs on a few hundred users' own machines, BYO-GCP is materially cheaper for us and keeps the user's Gmail token fully inside their own Cloud project. It is heavier for the user (two browser consents instead of one, plus a ~400 MB `google-cloud-sdk` download), but eliminates the current `invalid_client` / `redirect_uri_mismatch` failure modes because every user now has a properly provisioned client.
+
+**Scope policy.** We ask for `gmail.readonly` only. Wider Gmail scopes (full `gmail` scope, send, modify) are explicitly out of v1. Enlarging the scope set later is an ADR edit plus a wizard change.
+
+**Rejected.**
+
+- Shared verified OAuth client owned by us. Higher commitment, adds a support surface we do not want to run for a local-first CLI, blocked on CASA assessment for a restricted scope.
+- Reusing gcloud Application Default Credentials (`gcloud auth application-default login` + `GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE`). Tempting because it collapses the two consents into one, but ADC is not the intended carrier for user-owned Google Workspace API access and Google has been tightening that path. Not policy-safe to recommend.
+- Manual Cloud Console click-through (per the `gws` README's "Manual OAuth setup" path). Works, but is an entire multi-step UI walk through Cloud Console and is the opposite of "easy for customers."
+
+**Revisit if.**
+
+- We decide to absorb Google's OAuth app verification cost (privacy policy, domain verification, annual CASA assessment) and ship a verified shared client. At that point ADR-004 and this ADR both change in the same PR.
+- `gws` gains a first-class path that provisions a client without `gcloud` (e.g. a Google-hosted setup endpoint). We would drop the `gcloud` prerequisite from onboard.

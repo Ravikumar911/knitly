@@ -37,11 +37,17 @@ These are the tiebreakers for any ambiguous design choice in either phase.
 8. **Skills are user-extensible.** Reading Gmail is one capability; bank statements, Sheets, and calendar are others. These are modeled as skills — folders with a frontmatter runbook and a manifest — so the surface area can grow without CLI changes.
 9. **Doctor over silent migrations.** When the config or the filesystem drifts, `slashcash doctor --fix` repairs it explicitly. Startup does not mutate user state on its own.
 10. **Schemas at boundaries.** Every external input — CLI argv, config file, `gws` output, Gmail responses, persisted JSON — is validated with a schema before it enters typed code.
+11. **Trust is surfaced, not buried.** The product's privacy guarantees (no server-side tokens, no cloud parsing, no telemetry, loopback-only dashboard, BYO Google Cloud project) are shown to the user at onboarding — at the top of `slashcash onboard` and again in one factual line right before each browser consent — and kept reachable forever through `slashcash privacy`. We never rely on the ADRs or the landing page to do that job; if the wizard doesn't say it, it doesn't count.
+
+## Target audience for v1
+
+v1 ships for **developers on macOS** — people who are already comfortable typing `npm i -g <package>`, following a CLI prompt through two browser OAuth consents, and clicking past a one-time "Google hasn't verified this app" warning. Primary markets are the US and India. This is the constraint that makes the ADR-004 / ADR-022 "BYO-GCP via gcloud + `gws auth setup`" flow the right v1 default: technical users pay the two-consent cost once and gain a fully-local product where their Gmail token lives in their own Google Cloud project, not ours. A non-developer audience would be a distinct product motion with a signed macOS bundle and a verified shared OAuth client; that is explicitly out of v1 scope and is the future condition recorded in ADR-022's "Revisit if" block.
 
 ## Non-goals
 
 Stated so we don't re-argue mid-phase.
 
+- A non-developer / consumer audience in v1 (see "Target audience for v1" above).
 - Multi-user / multi-tenant local mode.
 - Mobile, desktop GUI or system tray app.
 - Cross-device sync.

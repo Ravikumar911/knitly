@@ -56,13 +56,64 @@ type Step = {
 
 Steps are pure data; the runner orchestrates them. For each step the runner prints a header, calls `detect`, and either prints "already done" and skips, or calls `install` (passing a `Progress` that owns the live status line and elapsed timer) and then `verify`. Failures from `verify` raise the standardised `OnboardError`, which carries a symptom/cause/fix triple and a doctor-step id the user can rerun.
 
-Steps for Phase 3, in order: `homebrew`, `model-question` (the only interactive step), `ollama-install`, `ollama-service`, `ollama-pull`, `gws-install`, `gws-auth`, `state-dir`, `db-migrate`, `bundled-skills`, `final-summary`. The `model-question` step is the only one that asks the user anything; everything else is detect-or-install. The default model is `gemma3n:e4b`; alternatives offered are `gemma3:4b` (smaller, faster), `qwen2.5:7b` (larger, slower, better quality). The user's choice is written to `config.json` before the `ollama-pull` step reads it.
+Steps for Phase 3, in order: `homebrew`, `model-question` (the only interactive question step), `ollama-install`, `ollama-service`, `ollama-pull`, `gcloud-install`, `gcloud-auth`, `gws-install`, `gws-setup`, `gws-login`, `state-dir`, `db-migrate`, `bundled-skills`, `final-summary`. The `model-question` step is the only one that asks the user a _question_; `gcloud-auth` and `gws-login` **delegate to the terminal** for browser-based consent but do not ask the user any questions in our own prompt surface. Everything else is detect-or-install. The default model is `gemma3n:e4b`; alternatives offered are `gemma3:4b` (smaller, faster), `qwen2.5:7b` (larger, slower, better quality). The user's choice is written to `config.json` before the `ollama-pull` step reads it.
+
+The Google auth sequence (`gcloud-install` → `gcloud-auth` → `gws-install` → `gws-setup` → `gws-login`) implements ADR-022. `gcloud-install` shells `brew install --cask google-cloud-sdk`. `gcloud-auth` delegates to `gcloud auth login`. `gws-setup` runs `gws auth setup`, which reuses the active gcloud credentials to create/select a Google Cloud project, enable the Gmail API, create a Desktop-type OAuth client, add the signed-in account as a test user, and write `~/.config/gws/client_secret.json`. `gws-login` runs `gws auth login --scopes gmail.readonly`. Splitting `gws-setup` and `gws-login` matters for idempotency: if a previous onboard failed at the login consent, re-running lets us skip the expensive project/client creation and go straight to consent.
+
+### Privacy disclosure inside the wizard
+
+Per vision principle 11 ("trust is surfaced, not buried"), the wizard prints plain-language privacy facts at four moments. The copy lives in **one** file, `packages/cli/src/privacy/copy.ts`, exported as named constants so the wizard, the pre-consent hooks and the `slashcash privacy` command (see W5) all render the same text. Tests in `packages/cli/test/privacy.spec.ts` snapshot each constant so changes to user-facing trust claims show up in review diffs.
+
+1. **Top-of-onboard banner.** Printed after `model-question`, before any shell-out or network call. Six facts, one line each, no marketing:
+
+   ```text
+   slashcash runs fully on your machine. Before we touch anything, the facts:
+     • Your Gmail token lives in the Google Cloud project gcloud is about to create in YOUR account. We never see it.
+     • Every email, PDF and analytics row stays under ~/.slashcash on this disk.
+     • PDFs are parsed by a local model (gemma3n:e4b via Ollama). No OpenAI, Anthropic or Mistral calls.
+     • The dashboard binds to 127.0.0.1. Nothing from the internet can reach it.
+     • No telemetry. The only outbound calls are Gmail fetches you authorise through gws.
+     • This CLI is published to npm with provenance and an SBOM. Re-read this any time with `slashcash privacy`.
+   ```
+
+2. **Right before `gcloud-auth.install` opens a browser.** One line, printed by the step's `install` before it execs `gcloud auth login`:
+
+   ```text
+   Opening your browser for Google sign-in. gcloud needs your account to create a
+   Google Cloud project in YOUR account — the Gmail OAuth client and the refresh
+   token will live there, not on our servers.
+   ```
+
+3. **Right before `gws-login.install` opens a browser.** One line, printed before it execs `gws auth login --scopes gmail.readonly`:
+
+   ```text
+   Opening your browser for Gmail consent. You'll see a "Google hasn't verified
+   this app" screen — click Advanced → Continue. The app is the one gws auth setup
+   just created in your own Cloud project. The only scope requested is
+   gmail.readonly.
+   ```
+
+4. **Final-summary block.** Printed by `final-summary.install` after every step is green. Restates what now exists and what does not exist anywhere else:
+
+   ```text
+   On this machine now:
+     ~/.slashcash/db.sqlite           your local database
+     ~/.slashcash/attachments/        downloaded PDFs
+     ~/.config/gws/client_secret.json your OAuth client (yours, not ours)
+     ~/.config/gws/<token>            your Gmail refresh token (yours, not ours)
+
+   On our servers: nothing. slashcash has no backend.
+   From here on, the only outbound calls slashcash makes are Gmail API calls
+   you authorised through gws. Run `slashcash privacy` to re-read this.
+   ```
+
+The banner honours `--non-interactive` and `--yes` (it still prints; it does not prompt) and is suppressed under `SLASHCASH_E2E=1` so test logs stay clean. None of the four moments ask for acknowledgement — this audience hates "I understand" checkboxes (see vision → "Target audience for v1"). They are there to earn trust, not to gate it.
 
 The progress reporter is a tiny module under `packages/cli/src/cli/progress.ts`. It owns the active line on stderr, supports `start(label)` / `update(line)` / `done(elapsed)` / `fail(error)`, and degrades gracefully when stderr is not a TTY (it prints one line per update with a 250ms throttle so logs in CI don't get unreadable). It does not depend on `@clack/prompts`, `ora`, or `osc-progress` — those are openclaw choices we don't need at our scale; a few dozen lines of plain code do the job.
 
 The chat-model prompt uses a tiny readline-based helper at `packages/cli/src/cli/prompt.ts`, modelled on `openclaw:src/cli/prompt.ts`. No new dependencies. The prompt honours `--yes` (accept default for everything), `--non-interactive` (fail loudly if anything would prompt), and `SLASHCASH_E2E=1` (auto-default and skip every step that would touch the network or shell out to Homebrew).
 
-Idempotency is the responsibility of each step's `detect`. `homebrew.detect` returns done if `brew --version` succeeds. `ollama-install.detect` returns done if `ollama --version` succeeds. `ollama-service.detect` returns done if the configured `ollamaBaseUrl` answers `/api/tags` within 200ms. `ollama-pull.detect` returns done if `ollama list` includes the configured model. `gws-install.detect` returns done if `gws --version` succeeds. `gws-auth.detect` returns done if `gws auth status --format json` returns ok. `state-dir.detect` returns done if `~/.slashcash/` exists with the right subdirs. `db-migrate.detect` returns done if the schema's current migration matches the on-disk migration version. `bundled-skills.detect` returns done if every bundled skill is present in `~/.slashcash/skills/` with a matching `manifest.json`.
+Idempotency is the responsibility of each step's `detect`. `homebrew.detect` returns done if `brew --version` succeeds. `ollama-install.detect` returns done if `ollama --version` succeeds. `ollama-service.detect` returns done if the configured `ollamaBaseUrl` answers `/api/tags` within 200ms. `ollama-pull.detect` returns done if `ollama list` includes the configured model. `gcloud-install.detect` returns done if `gcloud --version` succeeds. `gcloud-auth.detect` returns done if `gcloud auth list --format=json` reports an active account. `gws-install.detect` returns done if `gws --version` succeeds. `gws-setup.detect` returns done if `~/.config/gws/client_secret.json` exists **and** the resolved `GOOGLE_WORKSPACE_PROJECT_ID` has the Gmail API enabled (`gcloud services list --enabled --filter gmail.googleapis.com`). `gws-login.detect` returns done if `gws auth status --format json` returns ok. `state-dir.detect` returns done if `~/.slashcash/` exists with the right subdirs. `db-migrate.detect` returns done if the schema's current migration matches the on-disk migration version. `bundled-skills.detect` returns done if every bundled skill is present in `~/.slashcash/skills/` with a matching `manifest.json`.
 
 Cancellation is a SIGINT handler installed by the runner. On Ctrl-C: stop the active step's progress line, write a one-line "cancelled at step <id>; run `slashcash doctor --fix` to resume" message, and exit non-zero. Each step's `install` is responsible for being cancel-safe; for `ollama-pull` that means letting Ollama persist the partial layers it has and not deleting them.
 
@@ -72,13 +123,21 @@ Acceptance: a clean run completes within budget; a re-run completes in under a s
 
 ## W2 — gws error classification and recovery
 
-A small wrapper at `packages/tasks/src/utils/gws-errors.ts` classifies stderr from `gws auth login`, `gws auth status` and `gws messages list` against a closed `GwsErrorCode` union: `binary-missing`, `not-authenticated`, `auth-invalid-client`, `auth-access-denied`, `auth-redirect-uri-mismatch`, `auth-expired`, `quota-exceeded`, `rate-limited`, `unknown`. Each code is paired with a `GwsError` object that carries `{ code, symptom, cause, fix, docsUrl }`.
+A small wrapper at `packages/tasks/src/utils/gws-errors.ts` classifies stderr from `gws auth setup`, `gws auth login`, `gws auth status` and `gws messages list` against a closed `GwsErrorCode` union: `binary-missing`, `not-authenticated`, `auth-invalid-client`, `auth-access-denied`, `auth-redirect-uri-mismatch`, `auth-expired`, `api-not-enabled`, `gcloud-missing`, `gcloud-not-authenticated`, `quota-exceeded`, `rate-limited`, `unknown`. Each code is paired with a `GwsError` object that carries `{ code, symptom, cause, fix, docsUrl }`.
 
-The classifier reads stderr, looks for known signatures (`invalid_client`, `access_denied`, `redirect_uri_mismatch`, `429`, `RESOURCE_EXHAUSTED`, etc.), and returns the matching `GwsError`. Anything that doesn't match falls through to `unknown` with the raw stderr preserved as `cause` (truncated to 200 chars) and `fix` set to a generic "see `slashcash logs --filter gws`" pointer.
+The classifier reads stderr, looks for known signatures (`invalid_client`, `access_denied`, `redirect_uri_mismatch`, `accessNotConfigured` / `has not been used in project` for the API-not-enabled case, `gcloud: command not found` or exit code 127 for `gcloud-missing`, `Reauthentication is needed` / empty `gcloud auth list` for `gcloud-not-authenticated`, `429`, `RESOURCE_EXHAUSTED`, etc.), and returns the matching `GwsError`. Anything that doesn't match falls through to `unknown` with the raw stderr preserved as `cause` (truncated to 200 chars) and `fix` set to a generic "see `slashcash logs --filter gws`" pointer.
 
-The CLI surface — `slashcash sync`, `slashcash doctor`, `slashcash onboard` — never prints raw JSON or stderr from `gws`. All three import the wrapper and render `GwsError` through the standardised error block format from W3. Doctor exposes a check `gws-auth` whose `--fix` for `auth-invalid-client` runs `brew reinstall googleworkspace/tap/gws` after asking for confirmation, then re-runs `gws auth status`; for `not-authenticated` it runs `gws auth login` interactively; for the others it prints the diagnostic and exits with the same code.
+The CLI surface — `slashcash sync`, `slashcash doctor`, `slashcash onboard` — never prints raw JSON or stderr from `gws` or `gcloud`. All three import the wrapper and render `GwsError` through the standardised error block format from W3. Doctor exposes a check `gws-auth` whose repair table is:
 
-Per ADR-004 we still don't ship our own Google OAuth client. ADR-011 gets a note: "the recovery flow lives in W2 of Phase 3; if upstream `gws` distribution moves, update both the `GWS_BREW_FORMULA` constant and the `auth-invalid-client.fix` string in the same PR."
+- `gcloud-missing` — fix is `brew install --cask google-cloud-sdk` (the cask name is recorded in ADR-011 alongside the gws formula).
+- `gcloud-not-authenticated` — fix is `gcloud auth login`, rerunnable through `doctor --fix` as an interactive step.
+- `binary-missing` (for `gws`) — fix is the `brew install` command from the `GWS_BREW_FORMULA` constant.
+- `auth-invalid-client` — fix is `gws auth setup` (re-creates the OAuth client against the active gcloud project); only fall back to `brew reinstall <GWS_BREW_FORMULA>` if the upstream client template itself needs to be refreshed.
+- `api-not-enabled` — fix is `gcloud services enable gmail.googleapis.com --project <id>` or re-running `gws auth setup` (which enables the API as a side effect).
+- `not-authenticated` — fix is `gws auth login --scopes gmail.readonly` interactively.
+- For the other codes, doctor prints the diagnostic and exits with the same code.
+
+Per ADR-004 we still don't ship our own Google OAuth client; ADR-022 captures how we instead provision a per-user client via `gws auth setup` on top of the user's own gcloud. ADR-011 gets a note: "the recovery flow lives in W2 of Phase 3; if upstream `gws` distribution moves, update the `GWS_BREW_FORMULA` / `GCLOUD_BREW_CASK` constants and the `auth-invalid-client.fix` / `gcloud-missing.fix` strings in the same PR."
 
 Acceptance: feeding the recorded `invalid_client` JSON from `audit-phase-1-2.md` into the classifier returns `GwsErrorCode.AuthInvalidClient`. Running `slashcash doctor` against a machine with a broken `gws` install prints exactly the three-line block, never the raw JSON. Running `slashcash doctor --fix` on the same machine prompts for the reinstall and finishes green if the user agrees.
 
@@ -113,10 +172,13 @@ Acceptance: with two enabled skills declaring different `mutexKey`s, both jobs r
 
 ## W5 — Reference-doc rewrite
 
-Rewrites in place. `reference/cli.md` documents the new `--quick` / `--json` / `--non-interactive` / `--yes` surface, the actual visible flags on `onboard` (no `--skip-*`), and the standardised error block format. `reference/config.md` documents the new `chatModel` config key (set during `model-question`) and the manifest `jobs` array semantics. `reference/decisions.md` gains:
+Rewrites in place. `reference/cli.md` documents the new `--quick` / `--json` / `--non-interactive` / `--yes` surface, the actual visible flags on `onboard` (no `--skip-*`), the standardised error block format, and the new `slashcash privacy` command. `reference/config.md` documents the new `chatModel` config key (set during `model-question`) and the manifest `jobs` array semantics. `reference/decisions.md` gains:
 
 - **ADR-018 — Single onboarding question.** We ask the chat-model question only; everything else has a sane default. Why: every additional prompt costs a real fraction of users; the chat-model choice is the only one with a meaningful trade-off (download size and quality). Rejected: asking for port (we detect conflict and offer `--port` instead), asking for sync schedule (every 15m is good for everyone, change in `config.json` if you care), asking which skills to enable (only one skill ships in v1).
 - **ADR-019 — CLI error block format.** Symptom / cause / fix / optional docs link, in that order, no exceptions. Every CLI-facing error class implements this. Why: openclaw demonstrates this is what makes a CLI feel debuggable. We borrow the format and the discipline of refusing to print anything else.
+- **ADR-023 — Privacy disclosures surface at onboarding.** The privacy claims that make this product worth installing (local-only data, BYO Google Cloud project, no telemetry, loopback dashboard) are printed by the wizard at four moments — top-of-onboard banner, pre-`gcloud auth login` line, pre-`gws auth login` line, and final summary — and are reachable forever through `slashcash privacy`. The wizard does not gate on acknowledgement; trust is built by showing the facts at the moments the user is deciding whether to click Allow. Why: the developer audience (vision → "Target audience for v1") evaluates trust at the consent screen, not on a landing page. Rejected: a single upfront dump (they skim), legal "I accept" checkboxes (wrong product), printing only via a separate command (missed by the users who most need it). Copy lives in one file, `packages/cli/src/privacy/copy.ts`, so the banner and the standing command never drift.
+
+`slashcash privacy` lands in this phase as part of W5. It has no flags, prints the same six-bullet banner the wizard prints (plus a pointer to the `reference/decisions.md` ADRs), and exits 0. Its CLI reference entry in `reference/cli.md` points readers at ADR-023 for the "why this exists" and at `reference/architecture.md` for the data-flow picture.
 
 Acceptance: `slashcash --help` for every command renders a section that matches `reference/cli.md` exactly (an integration test in Phase 4 W3 enforces this).
 
@@ -144,10 +206,19 @@ Phase 3 is done when: every success criterion above is met; the three Phase 3 E2
 
 The Phase 3 step pipeline, single model prompt, `gws` error classification, `doctor --quick` / `--json`, skill-driven cron registry, and the `e2e:phase-3` fixture flow are implemented. What the repo still has not verified against a real machine:
 
-- [ ] Run a real blank-machine `slashcash onboard` end-to-end: Homebrew → Ollama install → `ollama pull` → `gws` install → `gws auth login` → state dir → DB migrate → bundled skill install.
-- [ ] Kill `slashcash onboard` mid-`ollama pull`, then confirm `slashcash doctor --fix` resumes cleanly and lands green.
-- [ ] Exercise real `gws` auth failures where possible: `invalid_client`, `access_denied`, `redirect_uri_mismatch`. Confirm the standardised error block renders (no raw JSON) and `doctor --fix` proposes the right repair.
+- [ ] **Prerequisite probe before writing the wizard.** Run `gws auth setup --help` on the current upstream build and record whether it exposes non-interactive flags for project name, scope list and test-user email. If it is fully interactive in non-TTY mode, implement a `gws-setup` step that inherits the TTY and lets the user answer the one or two prompts the upstream command asks. If it *is* scriptable, pass `--project`, `--scopes=gmail.readonly` (or whatever the real flag names are) from `config.json`. Record what you found in ADR-022 so the next agent does not re-probe.
+- [ ] **Fallback path if `gws auth setup` is not scriptable enough.** Implement a scripted-gcloud alternative inside `gws-setup.install`: `gcloud projects create slashcash-<hash-of-home>`, `gcloud config set project`, `gcloud services enable gmail.googleapis.com`, then write `~/.config/gws/client_secret.json` from an OAuth client we either provision via the `gcloud alpha iap oauth-brands`/`oauth-clients` family (Web / Desktop client is the subtle bit — verify upstream) or by falling through to `gws auth setup` after the project is ready. Document which path actually works in ADR-022.
+- [ ] Pass `--brief --update-adc=false` to `gcloud auth login` and `--scopes gmail.readonly` to `gws auth login` so consent is single-scope and the post-login terminal spam is minimised.
+- [ ] Implement the new ADR-022 steps in `packages/cli/src/onboard/run.ts`: `gcloud-install`, `gcloud-auth`, and split the existing `gws-auth` step into `gws-setup` (runs `gws auth setup` or the scripted-gcloud fallback) and `gws-login` (runs `gws auth login --scopes gmail.readonly`). Add the matching detect rules from W1.
+- [ ] Update the `GWS_BREW_FORMULA` constant to the current upstream value from the `gws` README (`googleworkspace-cli`) and add a sibling `GCLOUD_BREW_CASK = "google-cloud-sdk"` constant. Keep both in one file per ADR-011.
+- [ ] Extend the `GwsErrorCode` union with `api-not-enabled`, `gcloud-missing`, and `gcloud-not-authenticated`; wire the classifier signatures (`accessNotConfigured`, empty `gcloud auth list`, exit code 127) and the doctor repair table from W2.
+- [ ] Run a real blank-machine `slashcash onboard` end-to-end: Homebrew → Ollama install → `ollama pull` → gcloud install → `gcloud auth login` → gws install → `gws auth setup` → `gws auth login --scopes gmail.readonly` → state dir → DB migrate → bundled skill install.
+- [ ] Kill `slashcash onboard` mid-`ollama pull` **and** separately mid-`gws auth setup`, then confirm `slashcash doctor --fix` resumes cleanly in both cases.
+- [ ] Exercise real failure modes: `invalid_client`, `access_denied`, `redirect_uri_mismatch`, `accessNotConfigured` (disable Gmail API in the test project and run `slashcash sync`), `gcloud-missing` (uninstall gcloud), `gcloud-not-authenticated` (revoke gcloud creds). Confirm the standardised error block renders (no raw JSON) and `doctor --fix` proposes the right repair.
 - [ ] Strengthen exact `--help` output vs `reference/cli.md` parity (the current gate is the reference doc; a real parity test is a Phase 4 W2 item but Phase 3 can seed a lightweight assertion now).
+- [ ] **Ship the privacy disclosures from W1 → "Privacy disclosure inside the wizard".** Land `packages/cli/src/privacy/copy.ts` as the single source of truth with four exported constants (`TOP_BANNER`, `PRE_GCLOUD_AUTH`, `PRE_GWS_LOGIN`, `FINAL_SUMMARY`). Wire `TOP_BANNER` into the onboard runner after `model-question`. Wire `PRE_GCLOUD_AUTH` and `PRE_GWS_LOGIN` into the matching step's `install` hook so each line prints immediately before the shell-out that opens the browser. Wire `FINAL_SUMMARY` into `final-summary.install`. Suppress all four under `SLASHCASH_E2E=1`; still print under `--yes` and `--non-interactive`. Snapshot-test each constant in `packages/cli/test/privacy.spec.ts` so changes to user-facing trust claims are visible in review.
+- [ ] **Ship `slashcash privacy`.** Register a new command in `packages/cli/src/cli/registry/` that imports the same constants and prints them. Document it in `reference/cli.md` (see W5). Add an E2E assertion to `packages/e2e-tests/scenarios/phase-3.ts` that `slashcash onboard` actually printed the banner (match on a stable phrase) and that `slashcash privacy` exits 0 with the same phrase.
+- [ ] **Write ADR-023 — Privacy disclosures surface at onboarding.** Use the rationale block from W5 above verbatim; link forward from vision principle 11 and backward from ADR-022 ("Revisit if" → add a bullet noting a verified shared client would change what the pre-`gws-login` line says).
 
 Verification commands the next agent should rerun:
 
