@@ -8,6 +8,7 @@ export type SlashcashPaths = {
   db: string;
   attachments: string;
   logs: string;
+  skills: string;
   pidDir: string;
   pidFile: string;
 };
@@ -24,6 +25,7 @@ export function resolvePaths(): SlashcashPaths {
     db: process.env.SQLITE_DB_PATH || join(home, "db.sqlite"),
     attachments: join(home, "attachments"),
     logs: join(home, "logs"),
+    skills: join(home, "skills"),
     pidDir: join(home, "pid"),
     pidFile: join(home, "pid", "slashcash.pid.json"),
   };
@@ -33,5 +35,6 @@ export function ensureStateDirs(paths = resolvePaths()) {
   mkdirSync(paths.home, { recursive: true, mode: 0o700 });
   mkdirSync(paths.attachments, { recursive: true, mode: 0o700 });
   mkdirSync(paths.logs, { recursive: true, mode: 0o700 });
+  mkdirSync(paths.skills, { recursive: true, mode: 0o700 });
   mkdirSync(paths.pidDir, { recursive: true, mode: 0o700 });
 }

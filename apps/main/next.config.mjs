@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const config = {
-  transpilePackages: ["@workspace/ui"],
+  output: "standalone",
+  transpilePackages: ["@workspace/ui", "@workspace/tasks"],
 }
 
 export default config

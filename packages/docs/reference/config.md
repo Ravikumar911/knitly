@@ -17,27 +17,31 @@ The directory is created with permissions that make it readable and writable onl
 
 Keys are grouped. Each key has a documented default; unspecified keys fall back to defaults. Writing a key that does not exist in the schema returns a non-zero exit from `slashcash config set`.
 
-**`port`** — the loopback port the Next.js server binds to. Default `7421`. Must be between 1024 and 65535.
+**`server.host`** — the loopback host the Next.js server binds to. Default `127.0.0.1`.
 
-**`ai.baseUrl`** — the base URL of the Ollama OpenAI-compatible endpoint. Default `http://127.0.0.1:11434/v1`. Overrideable by the environment variable `OLLAMA_BASE_URL` for debugging; the config value wins once set.
+**`server.port`** — the loopback port the Next.js server binds to. Default `3000`. Must be between 1024 and 65535.
+
+**`ai.ollamaBaseUrl`** — the base URL of the Ollama OpenAI-compatible endpoint. Default `http://127.0.0.1:11434/v1`. Overrideable by the environment variable `OLLAMA_BASE_URL` for debugging; the config value wins once set.
 
 **`ai.chatModel`** — the model id used by the chat assistant. Default `gemma3n:e4b`. The model must be present in the Ollama daemon; `slashcash doctor` checks this.
 
 **`ai.visionModel`** — the model id used for PDF parsing. Default `gemma3n:e4b`. If Phase 2 W6 concludes that a dedicated VLM is needed, the recommended default becomes whichever model ADR-012 records.
 
-**`cron.enabled`** — boolean. Default `true`. When `false`, the cron schedule is not registered at `start` and only manual `slashcash sync` runs the ingest job.
+**`sync.schedule`** — a cron expression. Default `*/15 * * * *`. Validated against the set of expressions `node-cron` accepts.
 
-**`cron.schedule`** — a cron expression. Default `*/15 * * * *`. Validated against the set of expressions `node-cron` accepts.
+**`sync.gmailQuery`** — the Gmail search query used by the bundled `gmail-swiggy` skill. Default `from:(swiggy.in) newer_than:365d`.
 
-**`skills.<id>.enabled`** — boolean, one per installed skill. Default `true` for skills installed by `onboard`; default `false` for skills dropped in manually.
+**`sync.maxMessages`** — maximum Gmail messages inspected by a sync run. Default `50`.
 
-**`logs.retentionDays`** — integer. Default `7`.
+**`skills.enabled.<id>`** — boolean, one per installed skill. Default `true` for `gmail-swiggy` when installed by `onboard`; default `false` for skills dropped in manually.
+
+There is no separate cron enabled flag in the current schema. Disable the contributing skill, for example `slashcash skills disable gmail-swiggy`, when you want only manual sync behavior.
 
 ## Migration policy
 
-Config migration is owned by `slashcash doctor --fix`. Start-time load is strict: if the file on disk does not parse against the current schema, the CLI prints the failing keys and points the user at `slashcash doctor --fix`, then exits non-zero. It does not silently rewrite the file.
+Config migration is currently handled on load: when the schema gains a field, the CLI parses the file with defaults and writes the completed config back. `slashcash doctor --fix` also recreates missing local state and installs bundled skills.
 
-When the schema gains a field, `doctor --fix` adds the default value and writes the file back. When the schema renames a field, the repair path moves the value from the old key to the new key and deletes the old key. When the schema removes a field, the repair deletes the key. The rule is the same rule openclaw uses: never migrate on cold load; always migrate in `doctor`.
+When the schema renames or removes a field, the repair path should move or delete the old key explicitly. Hand-editing `config.json` remains supported, and `slashcash config set` validates writes before saving.
 
 Hand-editing `config.json` is explicitly supported. `slashcash config set` validates, but a user is free to edit the file directly; the next load that fails validation prompts for `doctor --fix`.
 

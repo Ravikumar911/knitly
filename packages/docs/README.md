@@ -13,6 +13,10 @@ Read in order on your first pass:
 3. [`architecture.md`](./architecture.md) — *Target topology, process model, data flow, config layout.*
 4. [`roadmap/phase-1.md`](./roadmap/phase-1.md) — *Phase 1 — Foundation. The CLI skeleton, SQLite swap, local auth, AI provider swap.*
 5. [`roadmap/phase-2.md`](./roadmap/phase-2.md) — *Phase 2 — Local-first feature parity. gws Gmail ingress, node-cron, analytics rewrite, attachments, skills.*
+6. [`roadmap/audit-phase-1-2.md`](./roadmap/audit-phase-1-2.md) — *Audit. What slipped through Phases 1 and 2; the input to Phase 3.*
+7. [`roadmap/phase-3.md`](./roadmap/phase-3.md) — *Phase 3 — Onboarding, progress and error UX. The wizard rewrite, gws error classification, doctor flags.*
+8. [`roadmap/phase-4.md`](./roadmap/phase-4.md) — *Phase 4 — The full testing pyramid. Unit, integration, E2E, smell tests, CI matrix.*
+9. [`roadmap/phase-5.md`](./roadmap/phase-5.md) — *Phase 5 — Release, packaging, observability, docs polish. npm publish, evals as a gate, logs, perf budgets, decommission.*
 
 Then dip into reference as needed:
 
@@ -42,7 +46,11 @@ packages/docs/
 ├── architecture.md        ← the target
 ├── roadmap/
 │   ├── phase-1.md         ← Foundation
-│   └── phase-2.md         ← Local-first parity
+│   ├── phase-2.md         ← Local-first parity
+│   ├── audit-phase-1-2.md ← Gap audit between Phase 2 and Phase 3
+│   ├── phase-3.md         ← Onboarding, progress, error UX
+│   ├── phase-4.md         ← Full testing pyramid
+│   └── phase-5.md         ← Release, packaging, observability, docs polish
 └── reference/
     ├── cli.md
     ├── config.md

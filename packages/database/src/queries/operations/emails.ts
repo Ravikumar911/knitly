@@ -5,8 +5,9 @@ import { ParsedEmail } from '../../types';
 /**
  * Stores processed email data in the database
  */
-export async function storeEmailData(data: Omit<ParsedEmail, 'id' | 'createdAt' | 'updatedAt'>) {
+export async function storeEmailData(data: Omit<ParsedEmail, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) {
   return await db.insert(parsedEmails).values({
+    id: data.id,
     userId: data.userId,
     senderEmailId: data.senderEmailId,
     threadId: data.threadId,

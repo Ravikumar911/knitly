@@ -2,7 +2,7 @@
 
 A skill is a folder under `~/.slashcash/skills/` that extends what the local app can do. In Phase 2 we ship one bundled skill, `gmail-swiggy`, which registers the Gmail ingest job with the cron worker. Users can author their own skills (for example, a Sheets exporter, a Calendar-to-spend cross-reference, or a bank-statement PDF ingester) by dropping a folder with the right files into the skills directory.
 
-This document describes the on-disk format, the manifest schema, the discovery rules, and the authoring guidelines. The registry implementation lives in `packages/cli/src/skills/`. The bundled `gmail-swiggy` skill ships from `packages/cli/src/skills-bundled/gmail-swiggy/` and is copied to `~/.slashcash/skills/` by `slashcash onboard`.
+This document describes the on-disk format, the manifest schema, the discovery rules, and the authoring guidelines. The registry implementation lives in `packages/cli/src/skills/`. The bundled `gmail-swiggy` skill ships from `packages/cli/bundled-skills/gmail-swiggy/` and is copied to `~/.slashcash/skills/` by `slashcash onboard`.
 
 ## On-disk format
 
@@ -20,7 +20,7 @@ A manifest carries the skill id, a semantic version, a short description, a cate
 
 Binaries are enforced by `slashcash doctor`: if an enabled skill declares a binary that is not on `PATH`, doctor reports it and either repairs it (when the binary has a known install method, like the Homebrew tap for `gws`) or surfaces a clear message.
 
-Jobs are registered with the cron worker at `slashcash start`. Disabling a skill in config unregisters its jobs on the next start. The bundled `gmail-swiggy` skill contributes a single job that runs the Gmail ingest function from `packages/tasks`.
+Jobs are registered with the cron worker at `slashcash start`. Disabling a skill in config causes the cron tick and `slashcash sync` to skip that skill. The bundled `gmail-swiggy` skill contributes a single job that runs the Gmail ingest function from `packages/tasks`.
 
 ## Discovery rules
 

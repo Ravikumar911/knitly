@@ -16,7 +16,11 @@ export function loadConfig(options: { createIfMissing?: boolean } = {}): Slashca
 
   try {
     const raw = JSON.parse(readFileSync(paths.config, "utf8")) as unknown;
-    return configSchema.parse(raw);
+    const parsed = configSchema.parse(raw);
+    if (JSON.stringify(parsed) !== JSON.stringify(raw)) {
+      writeConfig(parsed);
+    }
+    return parsed;
   } catch (error) {
     if (options.createIfMissing) {
       writeConfig(defaultConfig);

@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import pkg from "../../../package.json";
-import { dbPath } from "@workspace/database";
+import { dbPath, ensureLocalDatabase } from "@workspace/database";
 
 export async function GET() {
+  ensureLocalDatabase();
+
   return NextResponse.json({
     ok: true,
     version: pkg.version,

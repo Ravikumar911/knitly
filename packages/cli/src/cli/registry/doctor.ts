@@ -6,11 +6,13 @@ export function register(program: Command) {
   program
     .command("doctor")
     .description("Check local slash.cash state")
-    .option("--fix", "Create missing Phase 1 local state")
-    .action(async (options: { fix?: boolean }) => {
+    .option("--fix", "Create missing local state")
+    .option("--json", "Print machine-readable output")
+    .option("--quick", "Skip network and auth probes")
+    .action(async (options: { fix?: boolean; json?: boolean; quick?: boolean }) => {
       if (options.fix) {
         await repairPhase1State();
       }
-      await runDoctor({ fix: options.fix });
+      await runDoctor(options);
     });
 }

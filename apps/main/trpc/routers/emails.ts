@@ -5,8 +5,6 @@ import {
   checkUserHasData, 
   getSyncProgress, 
   getUnifiedSyncState,
-  ensureSyncRow,
-  markSyncComplete
 } from "@workspace/database";
 
 // Router for local sync-state operations
@@ -53,12 +51,14 @@ export const emailsRouter = createTRPCRouter({
   initiateSync: protectedProcedure
     .mutation(async ({ ctx }) => {
       try {
-        await ensureSyncRow(ctx.userId!);
-        await markSyncComplete(ctx.userId!);
+        const { runEmailSync } = await import("@workspace/tasks/trigger/processEmails");
+        const result = await runEmailSync({ userId: ctx.userId! });
 
         return {
           success: true,
-          message: "Local seed data is ready. Sync arrives in Phase 2."
+          message: result.skipped
+            ? "A local Gmail sync is already running."
+            : `Local Gmail sync complete: ${result.processedCount} processed, ${result.skippedCount} skipped.`
         };
       } catch (error) {
         console.error("Error initiating sync:", error);
@@ -114,13 +114,15 @@ export const emailsRouter = createTRPCRouter({
   refresh: protectedProcedure
     .mutation(async ({ ctx }) => {
       try {
-        await ensureSyncRow(ctx.userId!);
-        await markSyncComplete(ctx.userId!);
+        const { runEmailSync } = await import("@workspace/tasks/trigger/processEmails");
+        const result = await runEmailSync({ userId: ctx.userId! });
 
         return {
           success: true,
-          message: "Local seed data is ready.",
-          taskId: "phase-1-local-" + Date.now(),
+          message: result.skipped
+            ? "A local Gmail sync is already running."
+            : `Local Gmail sync complete: ${result.processedCount} processed, ${result.skippedCount} skipped.`,
+          taskId: "local-gmail-" + Date.now(),
         };
       } catch (error) {
         console.error("Error refreshing emails:", error);

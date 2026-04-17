@@ -8,7 +8,9 @@ The local app has a small, tightly scoped set of environment variables. Most use
 
 `SQLITE_DB_PATH` — optional override for the database file path. Defaults to `${SLASHCASH_HOME}/db.sqlite`. Useful for tests and for moving the database to an external volume.
 
-`OLLAMA_BASE_URL` — optional override for the Ollama OpenAI-compatible endpoint. Defaults to `http://127.0.0.1:11434/v1`. Config key `ai.baseUrl` overrides this once set.
+`SLASHCASH_ATTACHMENTS_DIR` — optional override for the attachment directory. Defaults to `${SLASHCASH_HOME}/attachments`. Used by the Gmail ingest path and the attachment-serving route.
+
+`OLLAMA_BASE_URL` — optional override for the Ollama OpenAI-compatible endpoint. Defaults to `http://127.0.0.1:11434/v1`. Config key `ai.ollamaBaseUrl` overrides this once set.
 
 `OLLAMA_CHAT_MODEL` — optional override for the chat model id. Defaults to `gemma3n:e4b`. Config key `ai.chatModel` overrides this once set.
 
@@ -16,7 +18,11 @@ The local app has a small, tightly scoped set of environment variables. Most use
 
 `GWS_PROFILE` — passed through to `gws` subprocesses unchanged. Lets users with multiple Google accounts select one. No default.
 
-`SLASHCASH_PORT` — optional override for the loopback port. Defaults to `7421`. The `--port` flag on `slashcash start` wins over both the config and this variable; the config value wins over this variable.
+`SLASHCASH_GMAIL_QUERY` — optional runtime override for the Gmail query. The CLI normally sets this from `sync.gmailQuery`.
+
+`SLASHCASH_SYNC_LIMIT` — optional runtime override for the number of Gmail messages to inspect. The CLI normally sets this from `sync.maxMessages`.
+
+`SLASHCASH_PORT` — optional override for the loopback port. Defaults to `3000`. The `--port` flag on `slashcash start` wins over both the config and this variable; the config value wins over this variable.
 
 `NODE_OPTIONS` — passed through to the Next.js child. Not interpreted by `slashcash` itself.
 
@@ -42,8 +48,8 @@ Any remaining reference to these names in the repo after Phase 1 is either dead 
 
 ## Where variables are read
 
-Three modules read environment variables: the paths module (`SLASHCASH_HOME`, `SQLITE_DB_PATH`), the AI provider factory in the Next.js app (`OLLAMA_BASE_URL`, `OLLAMA_CHAT_MODEL`, `OLLAMA_VISION_MODEL` as fallbacks before config load), and the `gws` wrapper (`GWS_PROFILE`). No other code reads `process.env` at runtime. This is enforced by convention and by a grep-based check in CI.
+The CLI sets most runtime variables before it starts the app or a sync job. Direct module readers are the paths module (`SLASHCASH_HOME`, `SQLITE_DB_PATH`), attachment helpers (`SLASHCASH_ATTACHMENTS_DIR`), provider factories (`OLLAMA_BASE_URL`, `OLLAMA_CHAT_MODEL`, `OLLAMA_VISION_MODEL`), the sync runner (`SLASHCASH_GMAIL_QUERY`, `SLASHCASH_SYNC_LIMIT`, `SLASHCASH_SYNC_SKIP_AI`), and the `gws` wrapper (`GWS_PROFILE`, `SLASHCASH_GWS_FIXTURE_DIR`).
 
 ## Testing
 
-The `packages/e2e-tests` suite uses its own fixture for `SLASHCASH_HOME` pointed at a temporary directory, so that test runs do not touch the developer's real `~/.slashcash/`. This is the only supported reason to override `SLASHCASH_HOME` in normal development.
+The `packages/e2e-tests` suite uses its own fixture for `SLASHCASH_HOME` pointed at a temporary directory, so that test runs do not touch the developer's real `~/.slashcash/`. Phase 2 also sets `SLASHCASH_GWS_FIXTURE_DIR` and `SLASHCASH_SYNC_SKIP_AI=1` so the ingest path can be verified without a real Gmail account or local model.

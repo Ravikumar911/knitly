@@ -7,21 +7,8 @@ import {
   MessageContent,
   MessageResponse,
 } from '@workspace/ui/components/ai-elements/message';
-import {
-  Reasoning,
-  ReasoningTrigger,
-  ReasoningContent,
-} from '@workspace/ui/components/ai-elements/reasoning';
 import { Loader } from '@workspace/ui/components/ai-elements/loader';
 import { Shimmer } from '@workspace/ui/components/ai-elements/shimmer';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@workspace/ui/components/table';
 import {
   Alert,
   AlertDescription,
@@ -32,33 +19,12 @@ interface MessageBubbleProps {
   message: UIMessage;
 }
 
-// Helper function to format currency values
-function formatCurrency(value: string | number): string {
-  const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num)) return String(value);
-  return `₹${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-// Helper function to format numbers
-function formatNumber(value: string | number): string {
-  const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num)) return String(value);
-  return num.toLocaleString('en-IN');
-}
-
-// Helper function to check if a value looks like currency
-function isCurrencyField(key: string, value: any): boolean {
-  const lowerKey = key.toLowerCase();
-  return (
-    lowerKey.includes('amount') ||
-    lowerKey.includes('spend') ||
-    lowerKey.includes('total') ||
-    lowerKey.includes('price') ||
-    lowerKey.includes('fee') ||
-    lowerKey.includes('discount') ||
-    (typeof value === 'string' && /^\d+\.\d{2}$/.test(value))
-  );
-}
+const analyticsMessages = [
+  'Analyzing your Swiggy orders...',
+  'Crunching through your transactions...',
+  'Digging into your spending data...',
+  'Almost there, finding insights...',
+];
 
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
@@ -67,23 +33,6 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   
   // Extract tool results silently (for data extraction, not display)
   const toolParts = allParts.filter((p: any) => p.type.startsWith('tool-')) as any[];
-  
-  // Extract reasoning parts - but we'll hide them to reduce backend complexity
-  // Only show if user explicitly wants to see reasoning (collapsed by default)
-  const reasoningParts = allParts.filter((p: any) => p.type === 'reasoning') as any[];
-  const hasReasoning = reasoningParts.length > 0;
-  const isReasoningStreaming = reasoningParts.some((p: any) => p.state !== 'done');
-  // Combine all reasoning content into one
-  const combinedReasoningContent = reasoningParts
-    .map((p: any) => p.content || '')
-    .filter(Boolean)
-    .join('\n\n');
-  
-  // Extract SQL results to display inline (but hide the tool execution UI)
-  const executeSQLResults = toolParts
-    .filter((p: any) => p.type === 'tool-executeSQL' && (p as any).result)
-    .map((p: any) => (p as any).result as any)
-    .filter((r: any) => r?.success && r?.data && Array.isArray(r.data) && r.data.length > 0);
 
   // Check for errors
   const hasError = toolParts.some((p: any) => (p as any).error || ((p as any).result && (p as any).result.success === false));
@@ -105,32 +54,24 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     !(p as any).error && 
     ((p as any).state === 'input-available' || (p as any).state === 'input-streaming')
   );
+  const currentToolType = currentTool?.type;
 
   // Rotating messages to keep users engaged during 7-20s wait
   const [messageIndex, setMessageIndex] = useState(0);
-  
-  const executeSQLMessages = [
-    'Analyzing your Swiggy orders...',
-    'Crunching through your transactions...',
-    'Digging into your spending data...',
-    'Almost there, finding insights...',
-  ];
 
   useEffect(() => {
-    if (currentTool?.type === 'tool-executeSQL') {
+    if (currentToolType) {
       const interval = setInterval(() => {
-        setMessageIndex((prev) => (prev + 1) % executeSQLMessages.length);
+        setMessageIndex((prev) => (prev + 1) % analyticsMessages.length);
       }, 3500); // Change message every 3.5s to keep it engaging
       return () => clearInterval(interval);
     }
-  }, [currentTool?.type]);
+  }, [currentToolType]);
 
-  // Determine loading text based on tool type - make it exciting!
+  // Determine loading text based on tool type.
   const getLoadingText = (): string => {
-    if (currentTool) {
-      const toolType = currentTool.type;
-      if (toolType === 'tool-generateSQL') return 'Understanding your question...';
-      if (toolType === 'tool-executeSQL') return executeSQLMessages[messageIndex] ?? executeSQLMessages[0] ?? 'Processing...';
+    if (currentToolType) {
+      if (currentToolType.startsWith('tool-swiggy')) return analyticsMessages[messageIndex] ?? analyticsMessages[0] ?? 'Processing...';
       return 'Processing...';
     }
     return 'Thinking...';
@@ -188,49 +129,8 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               );
             })}
 
-            {/* Display SQL results as tables inline (after text for natural flow) */}
-            {executeSQLResults.map((result: any, idx: number) => {
-              const data = result.data;
-              if (!data || !Array.isArray(data) || data.length === 0) return null;
-
-              return (
-                <div key={idx} className="my-4 overflow-x-auto rounded-lg border bg-muted/30">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {Object.keys(data[0]).map((key) => (
-                          <TableHead key={key} className="font-semibold">
-                            {key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.map((row: any, rowIdx: number) => (
-                        <TableRow key={rowIdx}>
-                          {Object.keys(data[0]).map((key) => {
-                            const value = row[key];
-                            const formattedValue = isCurrencyField(key, value)
-                              ? formatCurrency(value)
-                              : typeof value === 'number'
-                                ? formatNumber(value)
-                                : String(value ?? '');
-                            return (
-                              <TableCell key={key}>
-                                {formattedValue}
-                              </TableCell>
-                            );
-                          })}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              );
-            })}
-
             {/* Show subtle processing state if no content yet */}
-            {!toolsExecuting && !hasError && textParts.length === 0 && executeSQLResults.length === 0 && (
+            {!toolsExecuting && !hasError && textParts.length === 0 && (
               <div className="flex items-center gap-2 text-muted-foreground text-sm py-1">
                 <Loader size={14} />
                 <Shimmer duration={1.5}>Preparing your insights...</Shimmer>

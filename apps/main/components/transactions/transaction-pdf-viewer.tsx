@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useTRPC } from '@/trpc/client';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import {
@@ -21,7 +20,6 @@ interface TransactionPDFViewerProps {
 
 export function TransactionPDFViewer({ transactionId, onClose }: TransactionPDFViewerProps) {
   const trpc = useTRPC();
-  const [pdfError] = useState<string | null>('PDF attachments arrive in Phase 2.');
 
   const { data: transaction } = useSuspenseQuery(
     trpc.transactions.getById.queryOptions({
@@ -30,27 +28,25 @@ export function TransactionPDFViewer({ transactionId, onClose }: TransactionPDFV
   );
 
   const renderContent = () => {
-    if (pdfError) {
+    if (!transaction?.attachmentStoragePath) {
       return (
         <div className="p-8">
           <div className="text-center text-destructive">
             <AlertCircle className="mx-auto h-12 w-12 mb-4" />
             <p className="text-lg font-medium mb-2">Unable to Open PDF</p>
-            <p className="text-sm mb-4">{pdfError}</p>
-            {transaction?.attachmentStoragePath ? (
-              <p className="text-xs text-muted-foreground">This transaction already has attachment metadata.</p>
-            ) : null}
+            <p className="text-sm mb-4">No invoice attachment is available for this transaction.</p>
           </div>
         </div>
       );
     }
 
     return (
-      <div className="p-8">
-        <div className="text-center">
-          <FileText className="mx-auto h-12 w-12 mb-4 text-green-500" />
-          <p className="text-lg font-medium mb-2">PDF Ready</p>
-        </div>
+      <div className="h-full">
+        <iframe
+          title="Transaction invoice"
+          src={`/api/attachments/${transactionId}`}
+          className="h-full w-full border-0"
+        />
       </div>
     );
   };
@@ -60,7 +56,10 @@ export function TransactionPDFViewer({ transactionId, onClose }: TransactionPDFV
       <SheetContent className="w-[90vw] sm:max-w-[500px] p-0">
         <div className="h-full flex flex-col">
           <SheetHeader className="p-4 pb-2">
-            <SheetTitle className="text-lg">Transaction Invoice</SheetTitle>
+            <SheetTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Transaction Invoice
+            </SheetTitle>
           </SheetHeader>
 
           <div className="flex-1">

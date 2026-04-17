@@ -1,0 +1,39 @@
+{
+  "id": "fixture-msg-1",
+  "threadId": "fixture-thread-1",
+  "internalDate": "1715784300000",
+  "snippet": "Your Swiggy order has been delivered.",
+  "payload": {
+    "mimeType": "multipart/mixed",
+    "headers": [
+      {
+        "name": "From",
+        "value": "orders@swiggy.in"
+      },
+      {
+        "name": "Subject",
+        "value": "Swiggy order SWG-TEST-12345 delivered"
+      },
+      {
+        "name": "Date",
+        "value": "Wed, 15 May 2024 19:45:00 +0530"
+      }
+    ],
+    "parts": [
+      {
+        "mimeType": "text/plain",
+        "body": {
+          "data": "WW91ciBTd2lnZ3kgb3JkZXIgaGFzIGJlZW4gZGVsaXZlcmVkLiBPcmRlciBJRDogU1dHLVRFU1QtMTIzNDUKUmVzdGF1cmFudDogTWlsbGV0IEJvd2wgQ28KVG90YWw6IOKCuTM0OC41MApBcmVhOiBJbmRpcmFuYWdhcgpQaW5jb2RlOiA1NjAwMzg"
+        }
+      },
+      {
+        "mimeType": "application/pdf",
+        "filename": "swiggy-invoice-fixture.pdf",
+        "body": {
+          "attachmentId": "invoice-1",
+          "size": 315
+        }
+      }
+    ]
+  }
+}

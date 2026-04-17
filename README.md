@@ -19,23 +19,24 @@ Local-first personal finance dashboard built with Next.js, SQLite, Drizzle ORM, 
     └── ui/                # Shared UI components
 ```
 
-## Phase 1 Scope
+## Local Feature Scope
 
-Phase 1 runs fully on the developer machine:
+The current local app runs fully on the developer machine:
 
 - SQLite database in `~/.slashcash/db.sqlite` by default.
-- A deterministic local user with seeded Swiggy transactions.
 - No hosted auth, remote job queue, cloud storage, or hosted database.
 - Ollama-compatible chat/extraction models through `OLLAMA_BASE_URL` and `OLLAMA_CHAT_MODEL`.
-- A `slashcash` CLI for start, stop, status, doctor, config, db, sync, skills, and logs commands.
-
-Gmail ingestion and attachment processing are Phase 2 work. Phase 1 keeps local placeholders where the UI already has sync affordances.
+- A `slashcash` CLI for onboarding, start, stop, status, doctor, config, db, sync, skills, and logs commands.
+- Gmail ingestion through the local `gws` CLI.
+- Local PDF attachment storage under `~/.slashcash/attachments`.
+- Typed SQLite-backed Swiggy analytics tools for the assistant.
 
 ## Prerequisites
 
 - Node.js 20 or newer
 - pnpm 10.4.1 or newer
-- Optional: Ollama running locally for assistant and extraction flows
+- Optional for fixture/dev flows: `SLASHCASH_SYNC_SKIP_AI=1`
+- Ollama and `gws` for real Gmail ingestion; `slashcash onboard` checks and installs them on macOS.
 
 ## Install
 
@@ -59,6 +60,8 @@ Useful direct commands:
 
 ```bash
 pnpm --filter slashcash dev -- doctor --fix
+pnpm --filter slashcash dev -- onboard --dry-run
+pnpm --filter slashcash dev -- sync --full
 pnpm --filter slashcash dev -- db seed
 pnpm --filter @knitly/main dev
 ```
@@ -82,6 +85,7 @@ Set `SQLITE_DB_PATH` to use a different SQLite file.
 ```bash
 pnpm typecheck
 pnpm --filter @workspace/e2e-tests e2e:phase-1
+pnpm --filter @workspace/e2e-tests e2e:phase-2
 ```
 
 For local doctor checks without requiring Ollama:

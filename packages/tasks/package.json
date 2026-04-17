@@ -9,11 +9,46 @@
     "dev": "tsx src/index.ts"
   },
   "exports": {
-    "./trigger/*": "./src/trigger/*.ts",
-    "./ai/*": "./src/ai/*.ts",
-    "./agents/*": "./src/agents/*.ts",
-    "./merchants/*": "./src/merchants/*.ts",
-    "./types/*": "./src/types/*.ts"
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./trigger/*": {
+      "types": "./src/trigger/*.ts",
+      "import": "./dist/trigger/*.js",
+      "default": "./dist/trigger/*.js"
+    },
+    "./ai/*": {
+      "types": "./src/ai/*.ts",
+      "import": "./dist/ai/*.js",
+      "default": "./dist/ai/*.js"
+    },
+    "./agents/*": {
+      "types": "./src/agents/*.ts",
+      "import": "./dist/agents/*.js",
+      "default": "./dist/agents/*.js"
+    },
+    "./merchants/*": {
+      "types": "./src/merchants/*.ts",
+      "import": "./dist/merchants/*.js",
+      "default": "./dist/merchants/*.js"
+    },
+    "./types/*": {
+      "types": "./src/types/*.ts",
+      "import": "./dist/types/*.js",
+      "default": "./dist/types/*.js"
+    },
+    "./runtime/*": {
+      "types": "./src/runtime/*.ts",
+      "import": "./dist/runtime/*.js",
+      "default": "./dist/runtime/*.js"
+    },
+    "./utils/*": {
+      "types": "./src/utils/*.ts",
+      "import": "./dist/utils/*.js",
+      "default": "./dist/utils/*.js"
+    }
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "1.0.17",

@@ -1,31 +1,37 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { accessSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import pc from "picocolors";
 import { loadConfig } from "../config/load.js";
 import { resolvePaths } from "../config/paths.js";
 import { clearPidFile, writePidFile } from "../runtime/pid.js";
 import { writeLog } from "../runtime/log.js";
-import { loadDatabase } from "../runtime/database.js";
-import { startPlaceholderCron } from "./cron.js";
+import { installBundledSkills } from "../skills/registry.js";
+import { startCronWorker } from "./cron.js";
 
-export async function startDashboard(options: { port?: number; noOpen?: boolean } = {}) {
+export async function startDashboard(
+  options: { port?: number; noOpen?: boolean } = {},
+) {
   const config = loadConfig({ createIfMissing: true });
   const paths = resolvePaths();
   const port = options.port ?? config.server.port;
 
   process.env.SQLITE_DB_PATH = paths.db;
+  process.env.SLASHCASH_HOME = paths.home;
+  process.env.SLASHCASH_ATTACHMENTS_DIR = paths.attachments;
   process.env.SLASHCASH_PORT = String(port);
+  process.env.SLASHCASH_GMAIL_QUERY = config.sync.gmailQuery;
+  process.env.SLASHCASH_SYNC_LIMIT = String(config.sync.maxMessages);
   process.env.OLLAMA_BASE_URL = config.ai.ollamaBaseUrl;
   process.env.OLLAMA_CHAT_MODEL = config.ai.chatModel;
+  process.env.OLLAMA_VISION_MODEL = config.ai.visionModel;
 
-  const { ensureLocalDatabase } = await loadDatabase();
-  ensureLocalDatabase();
+  installBundledSkills();
 
   const appDir = findMainAppDir();
-  const cron = startPlaceholderCron();
-  const child = spawnNextDev(appDir, port);
+  const cron = startCronWorker(config, paths);
+  const child = spawnDashboard(appDir, port);
 
   if (!child.pid) {
     throw new Error("Failed to start the dashboard process.");
@@ -55,17 +61,78 @@ export async function startDashboard(options: { port?: number; noOpen?: boolean 
   clearPidFile();
 }
 
-function spawnNextDev(appDir: string, port: number): ChildProcess {
-  return spawn("pnpm", ["exec", "next", "dev", "--hostname", "127.0.0.1", "--port", String(port)], {
-    cwd: appDir,
-    stdio: "inherit",
-    env: {
-      ...process.env,
-      PORT: String(port),
-      SLASHCASH_PORT: String(port),
-      HOSTNAME: "127.0.0.1",
+function spawnDashboard(appDir: string, port: number): ChildProcess {
+  const standalone =
+    findPackagedServer() ||
+    (process.env.SLASHCASH_USE_STANDALONE === "1"
+      ? findStandaloneServer(appDir)
+      : null);
+  if (standalone) {
+    return spawn("node", [standalone], {
+      cwd: dirname(standalone),
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        PORT: String(port),
+        SLASHCASH_PORT: String(port),
+        HOSTNAME: "127.0.0.1",
+      },
+    });
+  }
+
+  return spawn(
+    "pnpm",
+    ["exec", "next", "dev", "--hostname", "127.0.0.1", "--port", String(port)],
+    {
+      cwd: appDir,
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        PORT: String(port),
+        SLASHCASH_PORT: String(port),
+        HOSTNAME: "127.0.0.1",
+      },
     },
-  });
+  );
+}
+
+function findPackagedServer() {
+  const here = dirname(fileURLToPath(import.meta.url));
+  if (!here.includes(`${sep}dist${sep}`)) return null;
+
+  const candidates = [
+    join(here, "..", "app", "apps", "main", "server.js"),
+    join(here, "..", "app", "server.js"),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      accessSync(candidate);
+      return candidate;
+    } catch {
+      // Continue looking for the packaged standalone server.
+    }
+  }
+
+  return null;
+}
+
+function findStandaloneServer(appDir: string) {
+  const candidates = [
+    join(appDir, ".next", "standalone", "apps", "main", "server.js"),
+    join(appDir, ".next", "standalone", "server.js"),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      accessSync(candidate);
+      return candidate;
+    } catch {
+      // Continue looking for the local standalone server.
+    }
+  }
+
+  return null;
 }
 
 function findMainAppDir() {

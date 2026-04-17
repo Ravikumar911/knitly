@@ -1,6 +1,7 @@
 import { Experimental_Agent as Agent, createUIMessageStream, convertToModelMessages, JsonToSseTransformStream, stepCountIs } from 'ai';
 import { chatModel } from '@/lib/ai/provider';
 import { getChatById, createChat, saveMessage, LOCAL_USER_ID } from '@workspace/database';
+import { swiggyAnalyticsTools } from '@/lib/ai/tools/swiggy-analytics';
 
 export const maxDuration = 60;
 
@@ -64,9 +65,11 @@ export async function POST(req: Request) {
           ✅ "Looking at your Swiggy data, you've spent ₹2,450 on food delivery this month..."
           ✅ "No completed food delivery orders found in your current local seed data yet."
 
-          Do not mention implementation details. If exact data is needed, ask the user to use the dashboard cards while the Phase 2 analytics tools are being added.`,
+          Use the Swiggy analytics tools whenever a question asks for totals, trends, restaurants, ordering behavior, delivery areas, delivery fees, savings, or date-specific spending.
+          Do not mention implementation details.`,
       
       stopWhen: stepCountIs(4),
+      tools: swiggyAnalyticsTools,
       
       onStepFinish: (options: any) => {
         console.log('[assistant] ✅ Step finished:', {

@@ -100,7 +100,7 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-011 — `gws` install method
 
-**Decision.** `gws` is installed through Homebrew using whichever tap is the upstream-blessed source at the time of the Phase 2 W1 kickoff. The exact tap and formula name are captured here and referenced from a single constant in the code so any change is a one-file update.
+**Decision.** `gws` is installed through Homebrew using the `googleworkspace/tap/gws` formula. The formula is referenced from the `GWS_BREW_FORMULA` constant in `packages/cli/src/onboard/run.ts` so any change is one file plus this ADR.
 
 **Why.** `gws` distribution is evolving. Rather than hard-coding a tap across the codebase, we keep it in one place.
 

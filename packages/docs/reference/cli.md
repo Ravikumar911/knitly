@@ -8,15 +8,15 @@ Every command accepts the global flags `--help` and `--version`. Every command r
 
 ## `slashcash onboard`
 
-Interactive first-run wizard. Lands in Phase 2. Detects or installs Homebrew, installs Ollama, pulls `gemma3n:e4b`, installs `gws`, runs `gws auth login`, creates `~/.slashcash/` with correct permissions, writes a default config, runs SQLite migrations, installs and enables the bundled `gmail-swiggy` skill. Idempotent; re-running after success is a quick no-op. Cancel-safe; a Ctrl-C leaves the machine in a state that `slashcash doctor --fix` can resume.
+Interactive first-run wizard. Detects Homebrew, installs Ollama, pulls `gemma3n:e4b`, installs `gws`, runs `gws auth login`, creates `~/.slashcash/` with correct permissions, writes a default config, runs SQLite migrations, installs and enables the bundled `gmail-swiggy` skill. Idempotent; re-running after success is a quick no-op. Cancel-safe; a Ctrl-C leaves the machine in a state that `slashcash doctor --fix` can resume.
 
-Flags: none in v1. Future `--skip-brew`, `--skip-gws`, `--model <id>` are out of scope.
+Flags: `--dry-run` prepares local state and skips host installs/auth. `--skip-external` skips Homebrew/Ollama/gws installs. `--skip-auth` skips `gws auth login`.
 
 ## `slashcash start`
 
-Boots the dashboard and the cron worker in one Node process. Phase 1 starts a Next.js server pinned to `127.0.0.1` at the configured port, writes a PID file, registers an empty cron schedule, probes `/api/healthz`, and opens the browser. Phase 2 adds the real Gmail ingest job to the cron schedule by way of the enabled skills. SIGINT or SIGTERM shuts the Next.js child and the cron gracefully, clears the PID file, and exits.
+Boots the dashboard and the cron worker in one Node process. Starts a Next.js server pinned to `127.0.0.1` at the configured port, writes a PID file, registers the Gmail ingest cron schedule for enabled skills, probes `/api/healthz`, and opens the browser. SIGINT or SIGTERM shuts the Next.js child and the cron gracefully, clears the PID file, and exits.
 
-Flags: `--port <n>` overrides the config port for this run; `--no-cron` suppresses cron registration (useful for development); `--no-open` suppresses the browser launch.
+Flags: `--port <n>` overrides the config port for this run; `--no-open` suppresses the browser launch.
 
 ## `slashcash stop`
 
@@ -40,13 +40,13 @@ Values are typed by the schema; numeric, boolean and string coercions are applie
 
 ## `slashcash sync`
 
-Kicks the Gmail ingest job immediately, bypassing the cron schedule. Acquires the same mutex that cron uses, so two syncs can never run at once. Lands in Phase 2.
+Kicks the Gmail ingest job immediately, bypassing the cron schedule. Acquires the same mutex that cron uses, so two syncs can never run at once.
 
-Flags: `--full` ignores the `since` watermark and processes the full inbox query; `--since <iso>` overrides the watermark with an explicit timestamp. Exits non-zero if `gws` is missing or not authenticated, with a pointer to `slashcash doctor --fix`.
+Flags: `--full` scans the configured Gmail query from the beginning, `--query <query>` overrides `sync.gmailQuery`, and `--limit <n>` overrides `sync.maxMessages`. Exits non-zero if `gws` is missing, unauthenticated, or the `gmail-swiggy` skill is disabled.
 
 ## `slashcash skills list|enable|disable`
 
-Manages installed skills. Lands in Phase 2. `list` enumerates every folder under `~/.slashcash/skills/` with a valid manifest, showing id, version, category, enabled state, and required-binary health. `enable <id>` and `disable <id>` flip the enabled flag in `config.json` and either register or unregister the skill's jobs with the running worker (if any).
+Manages installed skills. `list` enumerates every folder under `~/.slashcash/skills/` with a valid manifest, showing id, version, description, and enabled state. `enable <id>` and `disable <id>` flip the enabled flag in `config.json`.
 
 ## `slashcash db seed|reset`
 
