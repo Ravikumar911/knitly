@@ -156,6 +156,12 @@ function skippedExternal(ctx: OnboardContext): DetectResult {
     : { done: false };
 }
 
+function skippedAuth(ctx: OnboardContext): DetectResult {
+  return ctx.skipExternal || ctx.skipAuth || process.env.SLASHCASH_E2E === "1"
+    ? { done: true, message: "skipped by local/E2E mode" }
+    : { done: false };
+}
+
 function printPrivacyCopy(copy: string) {
   if (process.env.SLASHCASH_E2E === "1") return;
   console.log(copy);
@@ -360,7 +366,7 @@ const gcloudAuthStep: Step = {
   label: "gcloud auth",
   detect(ctx) {
     if (ctx.skipExternal || ctx.skipAuth || process.env.SLASHCASH_E2E === "1")
-      return skippedExternal(ctx);
+      return skippedAuth(ctx);
     return hasActiveGcloudAccount()
       ? { done: true, message: "authenticated" }
       : { done: false };
@@ -371,14 +377,14 @@ const gcloudAuthStep: Step = {
       "auth",
       "login",
       "--brief",
-      "--update-adc=false",
+      "--no-update-adc",
     ]);
     if (code !== 0) {
       throw new CliError({
         area: "auth",
         symptom: "gcloud auth login did not complete.",
         cause: `gcloud exited with code ${code}.`,
-        fix: "Run `gcloud auth login --brief --update-adc=false`, then rerun `slashcash onboard`.",
+        fix: "Run `gcloud auth login --brief --no-update-adc`, then rerun `slashcash onboard`.",
       });
     }
   },
@@ -423,7 +429,7 @@ const gwsSetupStep: Step = {
   label: "gws setup",
   detect(ctx) {
     if (ctx.skipExternal || ctx.skipAuth || process.env.SLASHCASH_E2E === "1")
-      return skippedExternal(ctx);
+      return skippedAuth(ctx);
     return isGwsSetupComplete()
       ? { done: true, message: "OAuth client ready" }
       : { done: false };
@@ -451,7 +457,7 @@ const gwsLoginStep: Step = {
   label: "gws login",
   detect(ctx) {
     if (ctx.skipExternal || ctx.skipAuth || process.env.SLASHCASH_E2E === "1")
-      return skippedExternal(ctx);
+      return skippedAuth(ctx);
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       return { done: true, message: "service account credentials set" };
     }

@@ -9,12 +9,52 @@ const home = mkdtempSync(join(tmpdir(), "slashcash-phase-3-"));
 const env = {
   ...process.env,
   SLASHCASH_HOME: home,
+  SLASHCASH_E2E: "0",
   SQLITE_DB_PATH: join(home, "db.sqlite"),
   SLASHCASH_DOCTOR_SKIP_GWS: "1",
   SLASHCASH_DOCTOR_SKIP_OLLAMA: "1",
 };
 
 try {
+  const onboardHelp = run(["onboard", "--help"]);
+  assertIncludes(onboardHelp.stdout, "--yes", "onboard help documents --yes");
+  assertIncludes(
+    onboardHelp.stdout,
+    "--non-interactive",
+    "onboard help documents --non-interactive",
+  );
+  assertIncludes(
+    onboardHelp.stdout,
+    "--dry-run",
+    "onboard help documents --dry-run",
+  );
+  assertNotIncludes(
+    onboardHelp.stdout,
+    "--skip-external",
+    "onboard help hides E2E-only --skip-external",
+  );
+  assertNotIncludes(
+    onboardHelp.stdout,
+    "--skip-auth",
+    "onboard help hides E2E-only --skip-auth",
+  );
+
+  const doctorHelp = run(["doctor", "--help"]);
+  assertIncludes(doctorHelp.stdout, "--fix", "doctor help documents --fix");
+  assertIncludes(doctorHelp.stdout, "--json", "doctor help documents --json");
+  assertIncludes(
+    doctorHelp.stdout,
+    "--quick",
+    "doctor help documents --quick",
+  );
+
+  const privacyHelp = run(["privacy", "--help"]);
+  assertIncludes(
+    privacyHelp.stdout,
+    "Print slashcash privacy facts",
+    "privacy help documents the command",
+  );
+
   const first = run(["onboard", "--dry-run", "--yes"]);
   assertIncludes(first.stdout, "Onboarding complete", "first onboard completes");
   assertIncludes(
@@ -60,6 +100,12 @@ function run(args: string[]) {
 function assertIncludes(value: string, expected: string, label: string) {
   if (!value.includes(expected)) {
     throw new Error(`${label}: expected ${expected}`);
+  }
+}
+
+function assertNotIncludes(value: string, expected: string, label: string) {
+  if (value.includes(expected)) {
+    throw new Error(`${label}: did not expect ${expected}`);
   }
 }
 

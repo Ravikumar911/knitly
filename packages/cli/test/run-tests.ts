@@ -39,6 +39,12 @@ function testGwsDiagnostic() {
 
   const gcloudDiagnostic = classifyGwsDiagnostic("gcloud: command not found");
   assert.equal(gcloudDiagnostic.code, "gcloud-missing");
+
+  const gcloudAuthDiagnostic = classifyGwsDiagnostic(
+    "You do not currently have an active account selected.",
+  );
+  assert.equal(gcloudAuthDiagnostic.code, "gcloud-not-authenticated");
+  assert.match(gcloudAuthDiagnostic.fix, /--no-update-adc/);
 }
 
 function testStructuredLogs() {

@@ -64,7 +64,7 @@ export function classifyGwsDiagnostic(stderr: string): GwsDiagnostic {
       area: "auth",
       symptom: "gcloud is not authenticated.",
       cause: "gws auth setup needs an active gcloud account before it can create the OAuth client.",
-      fix: "Run `gcloud auth login --brief --update-adc=false`, then `slashcash onboard`.",
+      fix: "Run `gcloud auth login --brief --no-update-adc`, then `slashcash onboard`.",
     };
   }
 

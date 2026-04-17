@@ -40,6 +40,8 @@ Keys are grouped. Each key has a documented default; unspecified keys fall back 
 
 There is no separate cron enabled flag in the current schema. Disable the contributing skill, for example `slashcash skills disable gmail-swiggy`, when you want only manual sync behavior.
 
+There is also no Google Cloud project id key in v1. The current upstream `gws auth setup` probe (ADR-022, 2026-04-17) found a `--project` flag but no setup-time flags for API/scope list or test-user email, so project selection remains owned by `gws` and the active gcloud configuration rather than slashcash config.
+
 ## Migration policy
 
 Config migration is currently handled on load: when the schema gains a field, the CLI parses the file with defaults and writes the completed config back. `slashcash doctor --fix` also recreates missing local state and installs bundled skills.
@@ -57,7 +59,7 @@ Every documented failure has a check and, where possible, a repair.
 - `gcloud` not on `PATH`. Check by which-style lookup. Repair by running the Homebrew cask install command recorded in ADR-011 (`brew install --cask google-cloud-sdk`).
 - `gcloud` not authenticated. Check by parsing `gcloud auth list --format=json` for an active account. Repair by launching `gcloud auth login` interactively.
 - `gws` not on `PATH`. Check by which-style lookup. Repair by running the Homebrew install command recorded in ADR-011.
-- `~/.config/gws/client_secret.json` missing or Gmail API not enabled for the active project. Check by file existence plus `gcloud services list --enabled --filter gmail.googleapis.com`. Repair by running `gws auth setup` (see ADR-022).
+- `~/.config/gws/client_secret.json` missing or Gmail API not enabled for the active project. Check by file existence plus `gcloud services list --enabled --filter gmail.googleapis.com`. Repair by running `gws auth setup` with the terminal attached so upstream can ask any project/API/OAuth prompts it still owns (see ADR-022).
 - `gws auth status` not authenticated. Check by parsing the status command's JSON. Repair by launching `gws auth login --scopes gmail.readonly` interactively.
 - Google API not enabled for the user's Cloud project (`accessNotConfigured`). Surfaced during ingest, not onboard. Repair is the same as the `~/.config/gws/client_secret.json` entry above.
 - Port in use. Surfaced by the bind failure in `start`. Not auto-fixed; user is pointed at `--port` or `config set port`.
