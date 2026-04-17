@@ -140,6 +140,23 @@ Plus the Phase 1 and Phase 2 scenarios re-run unchanged. None of them are allowe
 
 Phase 3 is done when: every success criterion above is met; the three Phase 3 E2E flows pass; the Phase 1 and Phase 2 E2E scenarios still pass; the architectural smell test from W0 is green and gating CI; `reference/cli.md` matches actual `--help` output; ADR-018 and ADR-019 are written; the `audit-phase-1-2.md` items tagged "fix in Phase 3" are checked off in that file.
 
+## Pending — hand to next agent
+
+The Phase 3 step pipeline, single model prompt, `gws` error classification, `doctor --quick` / `--json`, skill-driven cron registry, and the `e2e:phase-3` fixture flow are implemented. What the repo still has not verified against a real machine:
+
+- [ ] Run a real blank-machine `slashcash onboard` end-to-end: Homebrew → Ollama install → `ollama pull` → `gws` install → `gws auth login` → state dir → DB migrate → bundled skill install.
+- [ ] Kill `slashcash onboard` mid-`ollama pull`, then confirm `slashcash doctor --fix` resumes cleanly and lands green.
+- [ ] Exercise real `gws` auth failures where possible: `invalid_client`, `access_denied`, `redirect_uri_mismatch`. Confirm the standardised error block renders (no raw JSON) and `doctor --fix` proposes the right repair.
+- [ ] Strengthen exact `--help` output vs `reference/cli.md` parity (the current gate is the reference doc; a real parity test is a Phase 4 W2 item but Phase 3 can seed a lightweight assertion now).
+
+Verification commands the next agent should rerun:
+
+```bash
+pnpm e2e:phase-3
+pnpm --filter slashcash test
+pnpm architecture-smells
+```
+
 ## Deferred to later phases
 
 Full unit + integration test pyramid (Phase 4). Per-package vitest setup, snapshot tests for analytics, Playwright UI smoke tests, CI matrix (Phase 4). Release pipeline, npm publish with provenance, post-publish smoke test, standalone-bundle verification (Phase 5). Evals as a CI quality gate (Phase 5). `slashcash logs` reader and log rotation (Phase 5). Performance budgets and observability (Phase 5).

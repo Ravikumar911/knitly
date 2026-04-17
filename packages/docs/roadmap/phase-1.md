@@ -110,6 +110,25 @@ Before declaring Phase 1 done, the Phase 1 scenario in [`../reference/testing.md
 
 Phase 1 is done when the end-to-end scenario above passes from a clean state, `slashcash start` boots the dashboard with seeded data, the assistant streams from local `gemma3n:e4b`, `slashcash doctor` is green, `slashcash stop` is clean, there are no imports of any removed cloud dependency, the CI no longer runs hosted-app workflows, and `packages/docs` has been updated to match anything that moved during the phase.
 
+## Pending — hand to next agent
+
+The fixture-backed Phase 1 gates are green (`pnpm e2e:phase-1`, architecture smells, SQLite swap, local Ollama provider, seed, `start`/`stop`/`doctor`). What the repo still has not verified:
+
+- [ ] Run Phase 1 on a real clean macOS machine **without** `SLASHCASH_DOCTOR_SKIP_OLLAMA=1`, against a live Ollama service.
+- [ ] Verify the assistant streams from a real local `gemma3n:e4b` rather than the skipped fixture path.
+- [ ] Confirm no hidden hosted/auth leftovers survive a production build — extend the smell gate beyond source-level greps to inspect the built `apps/main` output (e.g. `next build` artefacts and the CLI tarball).
+
+Verification commands the next agent should rerun:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm architecture-smells
+pnpm --filter @workspace/database test
+pnpm --filter slashcash test
+pnpm e2e:phase-1
+```
+
 ## Deferred to Phase 2
 
 Real Gmail ingest through `gws`. The `slashcash onboard` interactive wizard. The Swiggy analytics rewrite on SQLite. PDF attachment storage and the attachment serving route. The Ollama vision path for PDF parsing. The skill registry and the bundled `gmail-swiggy` skill. Publishing to npm with the Next.js app bundled in standalone mode. Evals as a quality gate.

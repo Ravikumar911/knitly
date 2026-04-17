@@ -164,6 +164,32 @@ The Phase 4 acceptance is itself a CI run rather than a one-off scenario script.
 
 Phase 4 is done when: every success criterion above is met; `pr.yml` and `nightly.yml` are required and green on `main`; `reference/testing.md` is updated to describe what is actually wired (instead of what is aspirational); the `audit-phase-1-2.md` items tagged "fix in Phase 4" are checked off in that file; no production code path is excluded from coverage without a comment justifying why.
 
+## Pending — hand to next agent
+
+What shipped under Phase 4 so far: lightweight package tests via `tsx test/run-tests.ts` in `packages/cli`, `packages/tasks`, `packages/database`; `packages/e2e-tests/architecture-smells.test.ts` with the forbidden-import / forbidden-directory / forbidden-DB / forbidden-env rules wired into `pnpm architecture-smells`; `pnpm fixtures:check`; a `phase-4.ts` meta scenario; the PR / nightly / release workflow scaffolding; `e2e:phase-1`..`e2e:phase-5` runners; stale Playwright specs in place under `packages/e2e-tests/tests/` but not yet repurposed.
+
+What the phase doc promises that is **not yet real in the repo**:
+
+- [ ] Adopt Vitest across packages (shared base config under `packages/typescript-config/vitest.base.ts`, per-package `vitest.config.ts`, v8 coverage, global-setup with isolated `SLASHCASH_HOME`). Today every package's `test` script shells into `tsx test/run-tests.ts` with no coverage.
+- [ ] Enforce the real coverage floors: **80%** for `packages/cli`, `packages/database`, `packages/tasks`; **70%** for `apps/main`; **60%** for `packages/ui`. Fail CI on regression.
+- [ ] Land the boundary integration tests named in W3: `gws` wrapper, Ollama provider, doctor pipeline, cron single-flight mutex, attachment-serving route, skill registry, assistant route, CLI error formatter, skill jobs registry. Today only a handful of tiny smoke tests exist in `packages/cli/test/run-tests.ts`.
+- [ ] Pin each analytics procedure's output to a snapshot under `packages/database/test-fixtures/analytics/`; iterate every export of `queries/insights/swiggyAnalytics.ts` in a single snapshot test file; fail CI on uncommitted snapshot changes.
+- [ ] Replace the legacy Supabase-era Playwright specs (`packages/e2e-tests/tests/authenticated.spec.ts`, `unauthenticated.spec.ts`) with the W5 specs: `dashboard.spec.ts`, `transactions.spec.ts`, `assistant.spec.ts`, `pdf-viewer.spec.ts`, `settings.spec.ts`. Configure Playwright to spawn the CLI (dev or tarball mode) on a unique port per worker with a unique `SLASHCASH_HOME`.
+- [ ] Extend the `architecture-smells.test.ts` rules in W2 that are not yet covered: the AST-walk that asserts every CLI-reachable `throw`/`console.error` goes through a registered error class, and the `--help` ↔ `reference/cli.md` parity check.
+- [ ] Add the W9 stretch items where they pay off: property-based classifier test with `fast-check`, manifest schema contract test, mutation run on `queries/insights/` via Stryker.
+- [ ] Configure GitHub branch protection on `main` so every `pr.yml` job is required. Today `pr.yml` only runs `smells`, `lint-and-types`, `unit`, and `phase-1-e2e`; integration/Playwright/`e2e-phase-3`/`e2e-phase-4` jobs need to be added and then required.
+
+Verification commands once the above land:
+
+```bash
+pnpm -r test
+pnpm -r test --coverage
+pnpm architecture-smells
+pnpm fixtures:check
+pnpm --filter @workspace/e2e-tests test        # Playwright
+pnpm e2e:all
+```
+
 ## Deferred to later phases
 
 Cross-platform matrix (Linux, Windows) for unit and E2E (still ADR-007 / ADR-008 — macOS only for v1; Phase 4 only adds Linux smells as an early-warning). Performance benchmarks and memory-budget enforcement (Phase 5 W4). Security scans, dependency audit gates, signed-release verification (Phase 5 W1 + W2). Long-duration soak tests, load tests against larger transaction corpora (out of scope for v1; revisit when v2 traction warrants).

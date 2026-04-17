@@ -114,6 +114,26 @@ Onboard (W1) and `gws` ingest (W2) are the critical path: until they exist, the 
 
 Before declaring Phase 2 done, the Phase 2 scenario in [`../reference/testing.md`](../reference/testing.md) must pass on a clean macOS machine that has no Homebrew, no Ollama, no `gws`, no `~/.slashcash/` and no prior install of the CLI. At a high level the scenario is: `npm i -g slashcash`, `slashcash onboard` (with a test Google account), `slashcash start`, an automated check that dashboards show transactions extracted from that account's real Gmail, the assistant streams a meaningful answer from `gemma3n:e4b`, clicking a PDF in the UI serves it from the local attachments root, `slashcash skills list` shows the bundled skill enabled, disabling the skill stops further ingest on the next cron tick, and `slashcash stop` leaves no stray processes or orphaned `gws` children. Time-to-green on a typical broadband connection stays inside the budget in success criterion 1. The eval suite also runs as part of this gate and meets the thresholds in ADR-012. This whole flow is scripted and runs in CI against a dedicated test Google account; the mechanics live in `reference/testing.md`.
 
+## Pending — hand to next agent
+
+The fixture-backed Phase 2 gates are green (`pnpm e2e:phase-2`, `gws`-fixture ingest, local attachments route, skill toggle, analytics snapshots against seed). What the repo still has not verified against a real account:
+
+- [ ] Run real `gws auth login` with a dedicated Google test account.
+- [ ] Sync against a real deterministic Swiggy inbox, not `SLASHCASH_GWS_FIXTURE_DIR`.
+- [ ] Run extraction without `SLASHCASH_SYNC_SKIP_AI=1`, using a real local Ollama model.
+- [ ] Verify cron ticks ingest real mail over time (not only manual `slashcash sync --full`).
+- [ ] Ask the assistant a real Swiggy analytics question after ingest and verify the numeric answer matches what the snapshot-backed analytics return.
+
+Verification commands the next agent should rerun:
+
+```bash
+pnpm e2e:phase-2
+pnpm --filter @workspace/tasks test
+pnpm --filter @workspace/database test
+pnpm architecture-smells
+pnpm fixtures:check
+```
+
 ## Exit gate
 
 Phase 2 is done when the end-to-end scenario above passes from a clean state, every success criterion listed at the top of this document is satisfied, the landing page at `slash.cash` points at the CLI, the hosted dashboard is off, and the README and `packages/docs` reflect the shipped state.

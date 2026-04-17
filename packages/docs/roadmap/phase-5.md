@@ -168,6 +168,41 @@ Plus the Phase 1–4 gates re-run on every push.
 
 Phase 5 is done when: every success criterion above is met; a published `slashcash@1.0.0` (or whatever first stable version we choose) is on npm with provenance and a SBOM; a clean macOS install of the published tarball completes the Phase 3 onboard within budget; the eval CI job is required and green; `slashcash logs` is the documented way to see what the system did; the version-check probe is silent by default and works when opted in; every reference doc matches the shipped state; the hosted dashboard at `app.slash.cash` is off.
 
+## Pending — hand to next agent
+
+What shipped under Phase 5 so far: `.github/workflows/release.yml` (tag-triggered publish with provenance + SBOM + checksum + published-version smoke), `packages/cli/scripts/bundle-app.mjs`, `bundle:check`, `pnpm pack:local`, the `slashcash logs` reader, rotation-aware `LogEvent` writer under `packages/cli/src/runtime/log.ts`, `packages/e2e-tests/bench/perf-budget.ts`, `eval:gate` wiring, `phase-5.ts` scenario (fixture mode).
+
+What the phase doc promises that is **not yet real in the repo**:
+
+- [ ] Push a real `vX.Y.Z` tag and run the `release.yml` workflow end-to-end with a live `NPM_TOKEN`. Today the workflow is wired but has never been exercised on a real release.
+- [ ] Confirm on GitHub that the run produces an npm provenance attestation, an uploaded `slashcash-sbom.json`, an uploaded `slashcash.sha256`, and that the `npx -y slashcash@<version> --version` smoke step passes on the published package.
+- [ ] Run `npm i -g slashcash@<version>` on a **clean** macOS machine (no workspace checkout) and complete `slashcash onboard` from the published tarball. This is the only way to exercise the dual-mode `start` detection path against real installed layout.
+- [ ] Replace the placeholder eval threshold in ADR-012 with a real baseline derived from model runs on approved data. Today the gate passes because `SLASHCASH_EVAL_SKIP_MODEL=1` short-circuits model calls in CI.
+- [ ] Add hard perf gates for **dashboard SSR first byte** and **assistant first-token** to the bench harness. Today `packages/e2e-tests/bench/perf-budget.ts` only covers CLI / doctor / dev-mode paths; the two server-side budgets from ADR-020 are not asserted.
+- [ ] Document the package-verification story for end users (how to check the provenance attestation, how to verify the checksum and SBOM) in `README.md` or a new `reference/release.md`.
+- [ ] DNS / hosted-surface decommission outside the repo: point `slash.cash` at the CLI landing story, shut down or redirect `app.slash.cash`, and clean up Supabase / Vercel / Trigger / Render infra. Record the cutover date in `current-state.md` per W7.
+
+Cross-cutting handoff the next agent should not forget:
+
+- [ ] Stage and commit the current implementation before starting the next phase-fix pass, so CI runs against a clean baseline.
+- [ ] Decide whether to clean the Next.js lint warnings. They do not fail `pnpm lint` today but they add noise for anyone reading logs.
+- [ ] Run one final real-world dogfood pass (the screencast scenario in the doc intro) before calling v1 done.
+
+Verification commands the next agent should rerun (fixture / local mode — the real-release variants are listed above):
+
+```bash
+pnpm architecture-smells
+pnpm typecheck
+pnpm lint
+pnpm pack:local
+pnpm bundle:check
+SLASHCASH_EVAL_SKIP_MODEL=1 pnpm eval:gate
+SLASHCASH_EVAL_SKIP_MODEL=1 pnpm e2e:phase-5
+pnpm bench
+```
+
+Some of those commands need fixture or skip environment variables on machines without Ollama or a real `gws` account; see `reference/env-vars.md` and `reference/testing.md`.
+
 ## What's not in v1 even after Phase 5
 
 No auto-updater. No menu-bar UI. No Raycast extension. No multi-user, sync or team features. No Windows or Linux as supported targets (Linux smell-tests still run; full support is a v2 conversation). No telemetry of any kind beyond the opt-in version check. No remote model fallback. No third-party-installable skill packages — skills v2 is a v2 roadmap topic. The product after Phase 5 is the v1 product; subsequent phases (Phase 6+) are the v2 roadmap and will be planned separately when v1 is shipping cleanly to real users.
