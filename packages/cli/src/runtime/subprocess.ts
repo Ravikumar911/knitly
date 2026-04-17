@@ -5,8 +5,7 @@ export type CommandResult =
   | { ok: false; stdout: string; stderr: string; code: number | null; error?: unknown };
 
 export function commandExists(command: string): boolean {
-  const result = spawnSync("command", ["-v", command], {
-    shell: true,
+  const result = spawnSync("sh", ["-c", 'command -v "$1"', "sh", command], {
     encoding: "utf8",
   });
   return result.status === 0;

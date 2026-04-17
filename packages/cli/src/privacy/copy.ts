@@ -14,10 +14,15 @@ export const PRE_GCLOUD_AUTH = [
   "token will live there, not on our servers.",
 ].join("\n");
 
+export const PRE_GWS_SETUP = [
+  "gws may ask `Run gws auth login now? [Y/n]`. Answer `n`.",
+  "slashcash will run a Gmail read-only login in the next step.",
+].join("\n");
+
 export const PRE_GWS_LOGIN = [
   "Opening your browser for Gmail consent. You'll see a \"Google hasn't verified",
   "this app\" screen - click Advanced, then Continue. The app is the one gws auth setup",
-  "just created in your own Cloud project. The only scope requested is gmail.readonly.",
+  "just created in your own Cloud project. Gmail access is limited to read-only.",
 ].join("\n");
 
 export const FINAL_SUMMARY = [

@@ -8,6 +8,14 @@ describe("classifyGwsDiagnostic", () => {
     );
     expect(diagnostic.code).toBe("auth-invalid-client");
     expect(diagnostic.fix).toMatch(/gws auth setup/);
+    expect(diagnostic.fix).toContain(
+      "gws auth login --services gmail --readonly",
+    );
+
+    expect(
+      classifyGwsDiagnostic("Error 400: invalid_scope invalid=[gmail.readonly]")
+        .code,
+    ).toBe("auth-invalid-scope");
 
     expect(
       classifyGwsDiagnostic(

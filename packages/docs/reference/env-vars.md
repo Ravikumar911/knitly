@@ -18,7 +18,7 @@ The local app has a small, tightly scoped set of environment variables. Most use
 
 `GWS_PROFILE` — passed through to `gws` subprocesses unchanged. Lets users with multiple Google accounts select one. No default.
 
-`GOOGLE_APPLICATION_CREDENTIALS` — optional service-account credentials path used by CI/test environments that run `gws` non-interactively. Normal users should authenticate with `gws auth login --scopes gmail.readonly` instead.
+`GOOGLE_APPLICATION_CREDENTIALS` — optional service-account credentials path used by CI/test environments that run `gws` non-interactively. Normal users should authenticate with `gws auth login --services gmail --readonly` instead.
 
 `SLASHCASH_GMAIL_QUERY` — optional runtime override for the Gmail query. The CLI normally sets this from `sync.gmailQuery`.
 
@@ -51,6 +51,10 @@ The local app has a small, tightly scoped set of environment variables. Most use
 `SLASHCASH_EVAL_THRESHOLD` — numeric eval threshold. Default `0.8`.
 
 `SLASHCASH_BUNDLE_BUDGET_BYTES` — bundle-size ceiling for `pnpm bundle:check`. Default 350 MB unpacked.
+
+`SLASHCASH_PACK_SMOKE_NPM` — override the npm executable used by `bundle:pack-smoke`. Default `npm`.
+
+`SLASHCASH_KEEP_PACK_SMOKE` — set to `1` to keep the temporary packed-install smoke directory for debugging.
 
 `SLASHCASH_BENCH_VERSION_MS` — development-harness budget for `slashcash --version`. Default 1000 ms.
 

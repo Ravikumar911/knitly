@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   FINAL_SUMMARY,
   PRE_GCLOUD_AUTH,
+  PRE_GWS_SETUP,
   PRE_GWS_LOGIN,
   TOP_BANNER,
 } from "./copy.js";
@@ -30,11 +31,18 @@ describe("privacy copy", () => {
       ].join("\n"),
     );
 
+    expect(PRE_GWS_SETUP).toBe(
+      [
+        "gws may ask `Run gws auth login now? [Y/n]`. Answer `n`.",
+        "slashcash will run a Gmail read-only login in the next step.",
+      ].join("\n"),
+    );
+
     expect(PRE_GWS_LOGIN).toBe(
       [
         'Opening your browser for Gmail consent. You\'ll see a "Google hasn\'t verified',
         'this app" screen - click Advanced, then Continue. The app is the one gws auth setup',
-        "just created in your own Cloud project. The only scope requested is gmail.readonly.",
+        "just created in your own Cloud project. Gmail access is limited to read-only.",
       ].join("\n"),
     );
   });

@@ -1,10 +1,12 @@
 import type { CliErrorBlock } from "../errors/format.js";
+import { GWS_GMAIL_LOGIN_COMMAND } from "./gws-status.js";
 
 export type GwsDiagnosticCode =
   | "binary-missing"
   | "not-authenticated"
   | "auth-invalid-client"
   | "auth-access-denied"
+  | "auth-invalid-scope"
   | "auth-redirect-uri-mismatch"
   | "auth-expired"
   | "api-not-enabled"
@@ -75,7 +77,7 @@ export function classifyGwsDiagnostic(stderr: string): GwsDiagnostic {
       symptom: "Google rejected the OAuth client created for gws.",
       cause:
         "The local gws client secret is stale, missing or invalid for this machine.",
-      fix: "Run `gws auth setup`, then `gws auth login --scopes gmail.readonly`.",
+      fix: `Run \`gws auth setup\`, then \`${GWS_GMAIL_LOGIN_COMMAND}\`.`,
       docs: "https://github.com/googleworkspace/gws",
     };
   }
@@ -87,8 +89,19 @@ export function classifyGwsDiagnostic(stderr: string): GwsDiagnostic {
       symptom: "Google rejected the gws OAuth redirect URI.",
       cause:
         "The installed gws OAuth client configuration does not match Google's allowed redirect URI.",
-      fix: "Run `gws auth setup`, then `gws auth login --scopes gmail.readonly`.",
+      fix: `Run \`gws auth setup\`, then \`${GWS_GMAIL_LOGIN_COMMAND}\`.`,
       docs: "https://github.com/googleworkspace/gws",
+    };
+  }
+
+  if (lower.includes("invalid_scope")) {
+    return {
+      code: "auth-invalid-scope",
+      area: "auth",
+      symptom: "Google rejected one of the requested OAuth scopes.",
+      cause:
+        "The login flow requested a scope Google does not accept for this OAuth client.",
+      fix: `Run \`${GWS_GMAIL_LOGIN_COMMAND}\` and approve Gmail read-only access.`,
     };
   }
 
@@ -98,7 +111,7 @@ export function classifyGwsDiagnostic(stderr: string): GwsDiagnostic {
       area: "auth",
       symptom: "Google denied access to Gmail.",
       cause: "The OAuth flow was cancelled or Gmail access was not granted.",
-      fix: "Run `gws auth login --scopes gmail.readonly` and approve Gmail access.",
+      fix: `Run \`${GWS_GMAIL_LOGIN_COMMAND}\` and approve Gmail access.`,
     };
   }
 
@@ -108,7 +121,7 @@ export function classifyGwsDiagnostic(stderr: string): GwsDiagnostic {
       area: "auth",
       symptom: "gws authentication has expired.",
       cause: "The stored Google credential is no longer accepted.",
-      fix: "Run `gws auth login --scopes gmail.readonly`.",
+      fix: `Run \`${GWS_GMAIL_LOGIN_COMMAND}\`.`,
     };
   }
 
@@ -138,7 +151,7 @@ export function classifyGwsDiagnostic(stderr: string): GwsDiagnostic {
       area: "auth",
       symptom: "gws is not authenticated.",
       cause: "The Gmail sync path needs a completed `gws auth login` session.",
-      fix: "Run `slashcash onboard` or `gws auth login --scopes gmail.readonly`.",
+      fix: `Run \`slashcash onboard\` or \`${GWS_GMAIL_LOGIN_COMMAND}\`.`,
     };
   }
 

@@ -50,6 +50,8 @@ The full clean-machine cancellation test is still a manual dogfood step because 
 
 `packages/e2e-tests/scenarios/phase-5.ts` covers the release-readiness gates that can run without external credentials: the eval gate, the performance budget harness, and the logs reader against a structured fixture event. Release-only verification of the published npm tarball lives in `.github/workflows/release.yml`, where the package is published with provenance, a SBOM and checksum are attached, and the published bin is smoke-tested through `slashcash --version`.
 
+`pnpm pack:local` also runs `bundle:pack-smoke` after creating `packages/cli/slashcash-*.tgz`. That smoke installs the tarball into a temporary npm prefix, verifies the packaged dashboard includes `.next/BUILD_ID`, and verifies the server can resolve its runtime modules (`next`, `react`, `react-dom`, and database runtime deps) from the installed layout. This catches npm-pack layout regressions that are invisible when inspecting pnpm's local symlinked `dist/app/node_modules` tree.
+
 ## How this gate is enforced
 
 The phase-complete PR runs the appropriate `e2e:phase-N` script in CI on a macOS runner that is configured to match the scenario's preconditions. For Phase 2 specifically, the Google test account's credentials live in a CI secret that is mounted into the runner as a `gws` credentials file; under no circumstances do real end-user credentials go near the test path. No deploy, no tag and no npm publish happens unless the E2E script is green.

@@ -3,6 +3,7 @@ export type GwsErrorCode =
   | "not-authenticated"
   | "auth-invalid-client"
   | "auth-access-denied"
+  | "auth-invalid-scope"
   | "auth-redirect-uri-mismatch"
   | "auth-expired"
   | "quota-exceeded"
@@ -19,6 +20,8 @@ export type GwsError = {
   message: string;
 };
 
+const GWS_GMAIL_LOGIN_COMMAND = "gws auth login --services gmail --readonly";
+
 export function invalidJsonGwsError(message: string): GwsError {
   return {
     code: "invalid-json",
@@ -34,7 +37,7 @@ export function binaryMissingGwsError(): GwsError {
     code: "binary-missing",
     symptom: "gws is not installed or not on PATH.",
     cause: "The Gmail sync path shells out to the Google Workspace CLI.",
-    fix: "Run `slashcash onboard` or `brew install googleworkspace/tap/gws`.",
+    fix: "Run `slashcash onboard` or `brew install googleworkspace-cli`.",
     docsUrl: "https://github.com/googleworkspace/gws",
     message: "gws is not installed or not on PATH.",
   };
@@ -50,10 +53,10 @@ export function classifyGwsError(stderr: string): GwsError {
       symptom: "Google rejected the OAuth client bundled with gws.",
       cause:
         "The installed gws build appears to have a stale or invalid OAuth client configuration.",
-      fix: "Run `brew reinstall googleworkspace/tap/gws`, then `gws auth login`.",
+      fix: `Run \`gws auth setup\`, then \`${GWS_GMAIL_LOGIN_COMMAND}\`.`,
       docsUrl: "https://github.com/googleworkspace/gws",
       message:
-        "gws OAuth client is invalid. Reinstall gws and authenticate again.",
+        "gws OAuth client is invalid. Run gws setup and authenticate again.",
     };
   }
 
@@ -63,10 +66,10 @@ export function classifyGwsError(stderr: string): GwsError {
       symptom: "Google rejected the gws OAuth redirect URI.",
       cause:
         "The installed gws OAuth client configuration does not match Google's allowed redirect URI.",
-      fix: "Run `brew reinstall googleworkspace/tap/gws`, then `gws auth login`.",
+      fix: `Run \`gws auth setup\`, then \`${GWS_GMAIL_LOGIN_COMMAND}\`.`,
       docsUrl: "https://github.com/googleworkspace/gws",
       message:
-        "gws OAuth redirect URI is mismatched. Reinstall gws and authenticate again.",
+        "gws OAuth redirect URI is mismatched. Run gws setup and authenticate again.",
     };
   }
 
@@ -76,8 +79,19 @@ export function classifyGwsError(stderr: string): GwsError {
       symptom: "Google denied access to Gmail.",
       cause:
         "The OAuth flow was cancelled or the account did not grant the requested Gmail access.",
-      fix: "Run `gws auth login` and approve Gmail access for the account you want to use.",
+      fix: `Run \`${GWS_GMAIL_LOGIN_COMMAND}\` and approve Gmail access for the account you want to use.`,
       message: "gws authentication was denied. Run gws auth login again.",
+    };
+  }
+
+  if (lower.includes("invalid_scope")) {
+    return {
+      code: "auth-invalid-scope",
+      symptom: "Google rejected one of the requested OAuth scopes.",
+      cause:
+        "The login flow requested a scope Google does not accept for this OAuth client.",
+      fix: `Run \`${GWS_GMAIL_LOGIN_COMMAND}\` and approve Gmail read-only access.`,
+      message: "gws requested an invalid OAuth scope. Run gws auth login again.",
     };
   }
 
@@ -86,7 +100,7 @@ export function classifyGwsError(stderr: string): GwsError {
       code: "auth-expired",
       symptom: "gws authentication has expired.",
       cause: "The stored Google credential is no longer accepted.",
-      fix: "Run `gws auth login`.",
+      fix: `Run \`${GWS_GMAIL_LOGIN_COMMAND}\`.`,
       message: "gws authentication has expired. Run gws auth login.",
     };
   }
@@ -117,7 +131,7 @@ export function classifyGwsError(stderr: string): GwsError {
       code: "not-authenticated",
       symptom: "gws is not authenticated.",
       cause: "The Gmail sync path needs a completed `gws auth login` session.",
-      fix: "Run `slashcash onboard` or `gws auth login`.",
+      fix: `Run \`slashcash onboard\` or \`${GWS_GMAIL_LOGIN_COMMAND}\`.`,
       message: "gws is not authenticated. Run slashcash onboard.",
     };
   }

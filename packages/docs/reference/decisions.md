@@ -34,7 +34,7 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-004 — Google auth is owned by `gws`
 
-**Decision.** We never ship a Google OAuth client id, never handle Google tokens, and never store refresh tokens. During `slashcash onboard` the user provisions their own per-machine OAuth client through `gws auth setup` (see ADR-022 for the full gcloud-backed flow) and then runs `gws auth login --scopes gmail.readonly` to consent. `gws` owns everything about Google authentication and API access from that point onward.
+**Decision.** We never ship a Google OAuth client id, never handle Google tokens, and never store refresh tokens. During `slashcash onboard` the user provisions their own per-machine OAuth client through `gws auth setup` (see ADR-022 for the full gcloud-backed flow) and then runs `gws auth login --services gmail --readonly` to consent to Gmail read-only access. `gws` owns everything about Google authentication and API access from that point onward.
 
 **Why.** This is the single biggest trust improvement over the hosted SaaS. The user's Google credentials never touch our code, and the OAuth client is scoped to their own Google Cloud project rather than a shared one we'd have to get verified. `gws` is maintained by Google Workspace's team and keeps current with API changes.
 
@@ -210,11 +210,13 @@ Short architectural decision records. Each entry captures a choice that shapes t
 2. Run `gcloud auth login` interactively so gcloud has active user credentials.
 3. Install the `gws` CLI (Homebrew formula from ADR-011).
 4. Run `gws auth setup`, which (per the upstream `gws` README) uses gcloud to create or select a Google Cloud project, enable the Gmail API, create a Desktop-type OAuth client, add the signed-in account as a test user, and write `~/.config/gws/client_secret.json`.
-5. Run `gws auth login --scopes gmail.readonly` so the user consents to the single Gmail read-only scope we actually need for Swiggy ingest.
+5. Run `gws auth login --services gmail --readonly` so the user consents to Gmail read-only access for Swiggy ingest.
 
 This is the path the `gws` authors recommend when `gcloud` is available; it is the cheapest way to bootstrap a working OAuth client without us owning one.
 
-**Verified probe on 2026-04-17.** The installed upstream binary was `gws 0.22.5` from `@googleworkspace/cli`, reached at `/Users/ravikumarr/.nvm/versions/node/v22.12.0/bin/gws`. `gws auth setup --help` exposes only these setup-specific flags: `--project <id>`, `--login`, and `--dry-run`. It does not expose setup-time flags for a scope list, service/API list, readonly mode, or test-user email. The guessed flags `--services gmail`, `--scopes gmail.readonly`, `--readonly`, and `--test-user nobody@example.com` all fail validation with exit code 3. `gws auth login --help` does expose `--scopes <scopes>`, `--readonly`, `--full`, and `--services <services>`, so slashcash keeps scope narrowing on the login step via `gws auth login --scopes gmail.readonly`.
+**Verified probe on 2026-04-17.** The installed upstream binary was `gws 0.22.5` from `@googleworkspace/cli`, reached at `/Users/ravikumarr/.nvm/versions/node/v22.12.0/bin/gws`. `gws auth setup --help` exposes only these setup-specific flags: `--project <id>`, `--login`, and `--dry-run`. It does not expose setup-time flags for a scope list, service/API list, readonly mode, or test-user email. The guessed setup flags `--services gmail`, `--scopes gmail.readonly`, `--readonly`, and `--test-user nobody@example.com` all fail validation with exit code 3. `gws auth login --help` does expose `--scopes <scopes>`, `--readonly`, `--full`, and `--services <services>`, so slashcash keeps scope narrowing on the login step.
+
+**Live correction on 2026-04-17.** Passing `--scopes gmail.readonly` to `gws auth login` reached Google as the raw invalid OAuth scope `gmail.readonly` and produced `Error 400: invalid_scope`. The login step now uses the upstream service filter instead: `gws auth login --services gmail --readonly`. This lets `gws` resolve the valid Gmail read-only OAuth scope instead of slashcash spelling one manually.
 
 `gws auth setup --project slashcash-probe --dry-run` was also verified. It made no changes, accepted the project id, found the active gcloud account, and reported that setup would enable 22 Workspace-related APIs including `gmail.googleapis.com`, then configure OAuth credentials at `~/.config/gws/client_secret.json`. Because setup does not expose a non-interactive API-list or test-user flag, slashcash does not pass partial hidden setup flags from `config.json`; `gws-setup` inherits the user's TTY and lets upstream handle any project/API/OAuth prompts. There is intentionally no `google.projectId` config key in v1.
 
@@ -222,7 +224,7 @@ This is the path the `gws` authors recommend when `gcloud` is available; it is t
 
 **Why.** The alternative is shipping our own verified OAuth client, which for the restricted Gmail scope would require a public privacy policy, verified homepage, domain verification, and an annual CASA security assessment. For a local-first v1 that runs on a few hundred users' own machines, BYO-GCP is materially cheaper for us and keeps the user's Gmail token fully inside their own Cloud project. It is heavier for the user (two browser consents instead of one, plus a ~400 MB `google-cloud-sdk` download), but eliminates the current `invalid_client` / `redirect_uri_mismatch` failure modes because every user now has a properly provisioned client.
 
-**Scope policy.** We ask for `gmail.readonly` only. Wider Gmail scopes (full `gmail` scope, send, modify) are explicitly out of v1. Enlarging the scope set later is an ADR edit plus a wizard change.
+**Scope policy.** We ask for Gmail read-only access only. Wider Gmail scopes (full Gmail scope, send, modify) are explicitly out of v1. Enlarging the scope set later is an ADR edit plus a wizard change.
 
 **Rejected.**
 
@@ -239,7 +241,7 @@ This is the path the `gws` authors recommend when `gcloud` is available; it is t
 
 ## ADR-023 — Privacy disclosures surface at onboarding
 
-**Decision.** The privacy claims that make this product worth installing (local-only data, BYO Google Cloud project, no telemetry, loopback-only dashboard) are printed by the wizard at four moments: top-of-onboard banner, pre-`gcloud auth login` line, pre-`gws auth login` line, and final summary. They are reachable forever through `slashcash privacy`. The wizard does not gate on acknowledgement; trust is built by showing the facts at the moments the user is deciding whether to click Allow. Copy lives in one file, `packages/cli/src/privacy/copy.ts`, so the banner and the standing command never drift.
+**Decision.** The privacy claims that make this product worth installing (local-only data, BYO Google Cloud project, no telemetry, loopback-only dashboard) are printed by the wizard at four moments: top-of-onboard banner, pre-`gcloud auth login` line, pre-`gws auth login` line, and final summary. They are reachable forever through `slashcash privacy`. The wizard also prints one operational safety note before `gws auth setup`: upstream `gws` may ask whether to run `gws auth login` immediately, and slashcash tells the user to answer `n` so the next step can request Gmail read-only access with `gws auth login --services gmail --readonly`. The wizard does not gate on acknowledgement; trust is built by showing the facts at the moments the user is deciding whether to click Allow. Copy and setup guidance live in one file, `packages/cli/src/privacy/copy.ts`, so the wizard and the standing command never drift.
 
 **Why.** The developer audience (see `vision.md` "Target audience for v1") evaluates trust at the consent screen, not on a landing page. The product principle is "trust is surfaced, not buried", so onboarding itself has to say where data, tokens, PDFs, model calls and telemetry do or do not go.
 

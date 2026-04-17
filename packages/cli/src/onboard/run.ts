@@ -11,6 +11,11 @@ import {
   resolvePaths,
   type SlashcashPaths,
 } from "../config/paths.js";
+import {
+  GWS_GMAIL_LOGIN_COMMAND,
+  hasGmailReadonlyCredential,
+  parseGwsStatusOutput,
+} from "../doctor/gws-status.js";
 import { CliError } from "../errors/format.js";
 import { loadDatabase } from "../runtime/database.js";
 import {
@@ -22,6 +27,7 @@ import { installBundledSkills } from "../skills/registry.js";
 import {
   FINAL_SUMMARY,
   PRE_GCLOUD_AUTH,
+  PRE_GWS_SETUP,
   PRE_GWS_LOGIN,
   TOP_BANNER,
 } from "../privacy/copy.js";
@@ -30,7 +36,13 @@ const HOMEBREW_INSTALL_URL = "https://brew.sh/";
 const OLLAMA_FORMULA = "ollama";
 const GWS_BREW_FORMULA = "googleworkspace-cli";
 const GCLOUD_BREW_CASK = "google-cloud-sdk";
-const GMAIL_READONLY_SCOPE = "gmail.readonly";
+const GWS_GMAIL_LOGIN_ARGS = [
+  "auth",
+  "login",
+  "--services",
+  "gmail",
+  "--readonly",
+];
 
 type DetectResult =
   | { done: true; message?: string }
@@ -435,6 +447,7 @@ const gwsSetupStep: Step = {
       : { done: false };
   },
   async install() {
+    printPrivacyCopy(PRE_GWS_SETUP);
     const code = await runInteractive("gws", ["auth", "setup"]);
     if (code !== 0) {
       throw new CliError({
@@ -461,37 +474,46 @@ const gwsLoginStep: Step = {
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
       return { done: true, message: "service account credentials set" };
     }
-    const status = runCommand("gws", ["auth", "status", "--format", "json"], {
+    const status = runCommand("gws", ["auth", "status"], {
       timeoutMs: 15_000,
     });
-    return status.ok
-      ? { done: true, message: "authenticated" }
-      : { done: false };
+    if (!status.ok) return { done: false };
+
+    const parsed = parseGwsStatusOutput(status.stdout);
+    if (hasGmailReadonlyCredential(parsed)) {
+      return { done: true, message: "Gmail read-only authenticated" };
+    }
+
+    return {
+      done: false,
+      message: parsed ? "needs Gmail read-only login" : "status unreadable",
+    };
   },
   async install() {
     printPrivacyCopy(PRE_GWS_LOGIN);
-    const code = await runInteractive("gws", [
-      "auth",
-      "login",
-      "--scopes",
-      GMAIL_READONLY_SCOPE,
-    ]);
+    const code = await runInteractive("gws", GWS_GMAIL_LOGIN_ARGS);
     if (code !== 0) {
       throw new CliError({
         area: "auth",
         symptom: "gws auth login did not complete.",
         cause: `gws exited with code ${code}.`,
-        fix: `Run \`gws auth login --scopes ${GMAIL_READONLY_SCOPE}\`, then rerun \`slashcash onboard\`.`,
+        fix: `Run \`${GWS_GMAIL_LOGIN_COMMAND}\`, then rerun \`slashcash onboard\`.`,
       });
     }
   },
   verify() {
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
-    const status = runCommand("gws", ["auth", "status", "--format", "json"], {
+    const status = runCommand("gws", ["auth", "status"], {
       timeoutMs: 15_000,
     });
     if (!status.ok) {
       throw new Error("gws is still not authenticated.");
+    }
+    const parsed = parseGwsStatusOutput(status.stdout);
+    if (!hasGmailReadonlyCredential(parsed)) {
+      throw new Error(
+        `gws is authenticated, but not with Gmail read-only access. Run \`${GWS_GMAIL_LOGIN_COMMAND}\`.`,
+      );
     }
   },
 };

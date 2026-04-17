@@ -9,6 +9,11 @@ import {
 } from "../skills/registry.js";
 import { formatCliError } from "../errors/format.js";
 import { classifyGwsDiagnostic } from "./gws-diagnostics.js";
+import {
+  GWS_GMAIL_LOGIN_COMMAND,
+  hasGmailReadonlyCredential,
+  parseGwsStatusOutput,
+} from "./gws-status.js";
 
 export type DoctorCheck = {
   id: string;
@@ -268,7 +273,7 @@ function checkGwsAuth(): DoctorCheck {
     label: "gws auth",
     category: "network" as const,
     durationMs: 0,
-    fix: "Run `gws auth login --scopes gmail.readonly`.",
+    fix: `Run \`${GWS_GMAIL_LOGIN_COMMAND}\`.`,
   };
 
   if (
@@ -303,17 +308,22 @@ function checkGwsAuth(): DoctorCheck {
     };
   }
 
-  const result = runCommand("gws", ["auth", "status", "--format", "json"], {
+  const result = runCommand("gws", ["auth", "status"], {
     timeoutMs: 15_000,
   });
-  const diagnostic = result.ok
-    ? null
-    : classifyGwsDiagnostic(`${result.stderr}\n${result.stdout}`);
+  const parsed = result.ok ? parseGwsStatusOutput(result.stdout) : null;
+  const diagnostic =
+    result.ok && hasGmailReadonlyCredential(parsed)
+      ? null
+      : classifyGwsDiagnostic(`${result.stderr}\n${result.stdout}`);
   return {
     ...base,
     name: "gws auth",
-    status: result.ok ? "ok" : "fail",
-    message: result.ok ? "authenticated" : formatCliError(diagnostic!),
+    status: result.ok && hasGmailReadonlyCredential(parsed) ? "ok" : "fail",
+    message:
+      result.ok && hasGmailReadonlyCredential(parsed)
+        ? "Gmail read-only authenticated"
+        : formatCliError(diagnostic!),
     fix: diagnostic?.fix ?? base.fix,
     durationMs: Date.now() - started,
   };

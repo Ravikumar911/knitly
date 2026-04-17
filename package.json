@@ -23,7 +23,7 @@
     "e2e:all": "pnpm --filter @workspace/e2e-tests e2e:all",
     "eval:gate": "pnpm --filter @workspace/evals eval:gate",
     "bundle:check": "pnpm --filter slashcash bundle:check",
-    "pack:local": "pnpm --filter @knitly/main build && pnpm --filter slashcash build && pnpm --filter slashcash bundle:app && pnpm bundle:check && pnpm --dir packages/cli pack",
+    "pack:local": "pnpm --filter @knitly/main build && pnpm --filter slashcash build && pnpm --filter slashcash bundle:app && pnpm bundle:check && pnpm --dir packages/cli pack && pnpm --filter slashcash bundle:pack-smoke",
     "changeset": "changeset",
     "changeset:add": "changeset add",
     "changeset:status": "changeset status",

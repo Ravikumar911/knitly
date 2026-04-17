@@ -7,6 +7,10 @@ describe("classifyGwsError", () => {
       "auth-invalid-client",
     );
     expect(classifyGwsError("access_denied").code).toBe("auth-access-denied");
+    expect(classifyGwsError("invalid_scope").code).toBe("auth-invalid-scope");
+    expect(classifyGwsError("invalid_scope").fix).toContain(
+      "gws auth login --services gmail --readonly",
+    );
     expect(classifyGwsError("redirect_uri_mismatch").code).toBe(
       "auth-redirect-uri-mismatch",
     );

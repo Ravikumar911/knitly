@@ -11,6 +11,22 @@ const appPublic = join(appRoot, "public");
 const packagesRoot = join(repoRoot, "packages");
 const targetRoot = join(cliRoot, "dist", "app");
 const targetMainRoot = join(targetRoot, "apps", "main");
+const installedRuntimePackages = [
+  "@ai-sdk/openai-compatible",
+  "ai",
+  "better-sqlite3",
+  "dotenv",
+  "drizzle-orm",
+  "next",
+  "react",
+  "react-dom",
+];
+const installedRuntimePackagePattern = new RegExp(
+  `\\/node_modules\\/(?:\\.pnpm\\/(?:${installedRuntimePackages
+    .map(toPnpmPackageDirPrefix)
+    .map(escapeRegExp)
+    .join("|")})@[^/]+|(?:${installedRuntimePackages.map(escapeRegExp).join("|")}))(?:\\/|$)`,
+);
 
 if (!existsSync(join(standaloneRoot, "apps", "main", "server.js")) && !existsSync(join(standaloneRoot, "server.js"))) {
   throw new Error("Next standalone output is missing. Run `pnpm --filter @knitly/main build` first.");
@@ -20,6 +36,7 @@ rmSync(targetRoot, { recursive: true, force: true });
 mkdirSync(targetRoot, { recursive: true });
 cpSync(standaloneRoot, targetRoot, {
   recursive: true,
+  verbatimSymlinks: true,
   filter: shouldCopyToBundle,
 });
 
@@ -66,9 +83,19 @@ function shouldCopyToBundle(source) {
   const normalized = source.split("\\").join("/");
   return (
     !normalized.includes("/.next/cache") &&
-    !normalized.includes("/.turbo/") &&
+    !/(^|\/)\.turbo(\/|$)/.test(normalized) &&
+    !installedRuntimePackagePattern.test(normalized) &&
     !/(^|\/)\.env/.test(normalized) &&
+    !/(^|\/)\.gitignore$/.test(normalized) &&
     !/(^|\/)(test|tests|fixtures|test-fixtures)(\/|$)/.test(normalized) &&
     !/\.(?:d\.ts|ts|tsx|map)$/.test(normalized)
   );
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function toPnpmPackageDirPrefix(packageName) {
+  return packageName.replace("/", "+");
 }
