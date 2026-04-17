@@ -1,6 +1,6 @@
 # Audit — what slipped through Phase 1 and Phase 2
 
-> *Snapshot taken at the boundary between Phase 2 and Phase 3. Each item below is a verified gap between the phase docs and the code on disk. Items are tagged with a target phase for fix-up so we don't lose them.*
+> _Snapshot taken at the boundary between Phase 2 and Phase 3. Each item below is a verified gap between the phase docs and the code on disk. Items are tagged with a target phase for fix-up so we don't lose them._
 
 This document is the input to Phase 3. It exists because the standing convention says a phase isn't done until its end-to-end scenario passes — and Phases 1 and 2 shipped their happy-path scripts but left a number of doc-promised items either half-built or skipped. Phase 3 owns the fix-ups for the user-facing ones (onboard UX, progress, auth recovery), Phase 4 owns the test debt, Phase 5 owns the release/observability debt.
 
@@ -26,17 +26,23 @@ The directories are empty so Next doesn't serve a login UI from this app, but th
 
 **Fix.** Delete the three empty directories. Add a small E2E assertion (Phase 4 W1) that `GET /auth/login` returns 404 from a freshly built app.
 
+**Status.** Fixed in Phase 3 follow-up: the empty auth directories were removed and the architecture smell gate now fails if they return.
+
 ### `user_google_tokens` reference still in query layer (leak — fix in Phase 3 W0)
 
 `packages/database/src/queries/operations/emailSync.ts` still contains a `user_google_tokens` reference. The table itself was removed from the schema in Phase 1 W3, but the query reference was missed. This compiles only because the call path is dead.
 
 **Fix.** Remove the reference; ensure the file compiles against the current SQLite schema; add a grep gate alongside the existing Phase 1 grep gate ("no references to `user_google_tokens`, `token_access_logs`, `auth.users` in `packages/`").
 
+**Status.** Guarded by `pnpm architecture-smells`, which rejects those references in database source.
+
 ### Phase 1 grep gate is incomplete (gap — fix in Phase 4 W2)
 
 The acceptance gate for W1 is "a grep for the removed package names returns zero hits in shipping code." This is a one-shot manual check. There is no automated test that fails if someone re-adds `@supabase/`, `@trigger.dev/`, `@vercel/analytics`, `@ai-sdk/openai`, `@ai-sdk/anthropic` or `@ai-sdk/mistral` to a workspace `package.json`.
 
 **Fix.** Add an `architecture-smells.test.ts` (openclaw has the pattern) under `packages/e2e-tests/` that runs in CI, walks every `package.json` and source file, and fails on any forbidden import. Same test enforces the directory-deletion rule from the previous item.
+
+**Status.** Fixed: `pnpm architecture-smells` is wired at the repo root and in PR/nightly workflows.
 
 ### `db reset` / `db seed` exist but the CLI `db` group is undocumented (gap — fix in Phase 5 W2)
 
@@ -84,9 +90,11 @@ Observed in the wild during Phase 2 dogfooding:
 error[auth]: OAuth flow failed: Server error: invalid_client: The provided client secret is invalid.
 ```
 
-This is a `gws`-side OAuth client config error — the upstream `gws` build's bundled client id/secret pair is rejected by Google. Per ADR-004 we don't own the OAuth flow, so we can't "fix" it from inside our code. But today the user gets a wall of JSON, no guidance, and no signal that this is *not* their fault.
+This is a `gws`-side OAuth client config error — the upstream `gws` build's bundled client id/secret pair is rejected by Google. Per ADR-004 we don't own the OAuth flow, so we can't "fix" it from inside our code. But today the user gets a wall of JSON, no guidance, and no signal that this is _not_ their fault.
 
 **Fix.** Phase 3 W2 adds a thin error-classification layer over the `gws` wrapper. Known stderr signatures (the four documented ones plus `invalid_client`, `access_denied`, `redirect_uri_mismatch`) map to a closed `GwsAuthError` union. The CLI prints a one-line symptom, a one-line cause, and a one-command fix — for `invalid_client`, the fix is "your `gws` install has a stale client config; reinstall with `brew reinstall googleworkspace/tap/gws` or follow [docs link]". Doctor surfaces the same diagnosis. We do **not** ship our own OAuth client (ADR-004 stands).
+
+**Status.** Fixed: the tasks wrapper and doctor diagnostics classify `invalid_client`, `access_denied`, `redirect_uri_mismatch`, expired auth, quota and rate-limit failures.
 
 ### Onboard skip flags are anti-features in production (gap — fix in Phase 3 W1)
 

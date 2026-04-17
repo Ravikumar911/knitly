@@ -44,6 +44,13 @@ The current local app runs fully on the developer machine:
 pnpm install
 ```
 
+Published install path:
+
+```bash
+npm i -g slashcash
+slashcash onboard
+```
+
 Optional local settings:
 
 ```bash
@@ -84,8 +91,12 @@ Set `SQLITE_DB_PATH` to use a different SQLite file.
 
 ```bash
 pnpm typecheck
-pnpm --filter @workspace/e2e-tests e2e:phase-1
-pnpm --filter @workspace/e2e-tests e2e:phase-2
+pnpm lint
+pnpm architecture-smells
+pnpm fixtures:check
+pnpm e2e:all
+SLASHCASH_EVAL_SKIP_MODEL=1 pnpm e2e:phase-5
+pnpm bench
 ```
 
 For local doctor checks without requiring Ollama:

@@ -16,11 +16,11 @@ Optional additions sit alongside the two required files: a `scripts/` folder for
 
 ## What a manifest declares
 
-A manifest carries the skill id, a semantic version, a short description, a category tag (one of `ingest`, `export`, `analytics`, `automation`, `other`), a list of binaries the skill needs on `PATH`, and a list of jobs the skill contributes. Each job carries an id, a cron schedule string, and an entrypoint reference that the worker uses to resolve the job function.
+A manifest carries the skill id, a semantic version, a short description, a category tag (one of `ingest`, `export`, `analytics`, `automation`, `other`), a list of binaries the skill needs on `PATH`, and a list of jobs the skill contributes. Each job carries an id, an optional cron schedule string, a `mutexKey`, and an entrypoint reference that the worker uses to resolve the job function. When a job omits `schedule`, the worker uses `sync.schedule` from `config.json`.
 
 Binaries are enforced by `slashcash doctor`: if an enabled skill declares a binary that is not on `PATH`, doctor reports it and either repairs it (when the binary has a known install method, like the Homebrew tap for `gws`) or surfaces a clear message.
 
-Jobs are registered with the cron worker at `slashcash start`. Disabling a skill in config causes the cron tick and `slashcash sync` to skip that skill. The bundled `gmail-swiggy` skill contributes a single job that runs the Gmail ingest function from `packages/tasks`.
+Jobs are registered with the cron worker at `slashcash start` from the installed skill manifests. Disabling a skill in config causes the cron tick and `slashcash sync` to skip that skill; enabling an installed skill takes effect on the next scheduled tick because the registered job re-reads the enabled flag before running. The bundled `gmail-swiggy` skill contributes a single job that runs the Gmail ingest function from `packages/tasks`.
 
 ## Discovery rules
 

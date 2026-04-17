@@ -2,12 +2,14 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
+import {
+  binaryMissingGwsError,
+  classifyGwsError,
+  invalidJsonGwsError,
+  type GwsError,
+} from "./gws-errors";
 
-export type GwsErrorCode = "BINARY_MISSING" | "NOT_AUTHENTICATED" | "RATE_LIMITED" | "INVALID_JSON" | "UNKNOWN";
-
-export type GwsResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; code: GwsErrorCode; message: string };
+export type GwsResult<T> = { ok: true; data: T } | ({ ok: false } & GwsError);
 
 const messageRefSchema = z.object({
   id: z.string(),
@@ -15,7 +17,10 @@ const messageRefSchema = z.object({
 });
 
 const listMessagesSchema = z.union([
-  z.object({ messages: z.array(messageRefSchema).default([]), nextPageToken: z.string().optional() }),
+  z.object({
+    messages: z.array(messageRefSchema).default([]),
+    nextPageToken: z.string().optional(),
+  }),
   z.array(messageRefSchema),
 ]);
 
@@ -24,33 +29,43 @@ const headerSchema = z.object({
   value: z.string(),
 });
 
-const bodySchema = z.object({
-  data: z.string().optional(),
-  size: z.number().optional(),
-  attachmentId: z.string().optional(),
-}).passthrough();
+const bodySchema = z
+  .object({
+    data: z.string().optional(),
+    size: z.number().optional(),
+    attachmentId: z.string().optional(),
+  })
+  .passthrough();
 
-const partSchema: z.ZodType<GwsMessagePart> = z.lazy(() => z.object({
-  partId: z.string().optional(),
-  mimeType: z.string().optional(),
-  filename: z.string().optional(),
-  headers: z.array(headerSchema).optional(),
-  body: bodySchema.optional(),
-  parts: z.array(partSchema).optional(),
-}).passthrough());
+const partSchema: z.ZodType<GwsMessagePart> = z.lazy(() =>
+  z
+    .object({
+      partId: z.string().optional(),
+      mimeType: z.string().optional(),
+      filename: z.string().optional(),
+      headers: z.array(headerSchema).optional(),
+      body: bodySchema.optional(),
+      parts: z.array(partSchema).optional(),
+    })
+    .passthrough(),
+);
 
-const messageSchema = z.object({
-  id: z.string(),
-  threadId: z.string().optional(),
-  snippet: z.string().optional(),
-  internalDate: z.string().optional(),
-  payload: partSchema.optional(),
-}).passthrough();
+const messageSchema = z
+  .object({
+    id: z.string(),
+    threadId: z.string().optional(),
+    snippet: z.string().optional(),
+    internalDate: z.string().optional(),
+    payload: partSchema.optional(),
+  })
+  .passthrough();
 
-const attachmentSchema = z.object({
-  data: z.string(),
-  size: z.number().optional(),
-}).passthrough();
+const attachmentSchema = z
+  .object({
+    data: z.string(),
+    size: z.number().optional(),
+  })
+  .passthrough();
 
 export type GwsMessagePart = {
   partId?: string;
@@ -64,7 +79,10 @@ export type GwsMessagePart = {
 export type GwsMessage = z.infer<typeof messageSchema>;
 export type GwsMessageRef = z.infer<typeof messageRefSchema>;
 
-export function listGmailMessages(query: string, maxResults: number): GwsResult<GwsMessageRef[]> {
+export function listGmailMessages(
+  query: string,
+  maxResults: number,
+): GwsResult<GwsMessageRef[]> {
   const fixture = readFixture("messages.json");
   if (fixture) {
     return parseList(fixture);
@@ -106,11 +124,16 @@ export function getGmailMessage(id: string): GwsResult<GwsMessage> {
   return parseJson(result.data.stdout, messageSchema);
 }
 
-export function getGmailAttachment(messageId: string, attachmentId: string): GwsResult<Buffer> {
+export function getGmailAttachment(
+  messageId: string,
+  attachmentId: string,
+): GwsResult<Buffer> {
   const fixture = readFixture(`${messageId}-${attachmentId}.json`);
   if (fixture) {
     const parsed = parseJson(fixture, attachmentSchema);
-    return parsed.ok ? { ok: true, data: decodeBase64Url(parsed.data.data) } : parsed;
+    return parsed.ok
+      ? { ok: true, data: decodeBase64Url(parsed.data.data) }
+      : parsed;
   }
 
   const result = runGws([
@@ -127,7 +150,9 @@ export function getGmailAttachment(messageId: string, attachmentId: string): Gws
 
   if (!result.ok) return result;
   const parsed = parseJson(result.data.stdout, attachmentSchema);
-  return parsed.ok ? { ok: true, data: decodeBase64Url(parsed.data.data) } : parsed;
+  return parsed.ok
+    ? { ok: true, data: decodeBase64Url(parsed.data.data) }
+    : parsed;
 }
 
 export function decodeBase64Url(value: string) {
@@ -141,7 +166,9 @@ function parseList(value: string): GwsResult<GwsMessageRef[]> {
   if (!parsed.ok) return parsed;
   return {
     ok: true,
-    data: Array.isArray(parsed.data) ? parsed.data : parsed.data.messages ?? [],
+    data: Array.isArray(parsed.data)
+      ? parsed.data
+      : (parsed.data.messages ?? []),
   };
 }
 
@@ -150,7 +177,8 @@ function parseJson<T>(value: string, schema: z.ZodType<T>): GwsResult<T> {
     const raw = JSON.parse(value) as unknown;
     return { ok: true, data: schema.parse(raw) };
   } catch (error) {
-    return { ok: false, code: "INVALID_JSON", message: error instanceof Error ? error.message : String(error) };
+    const message = error instanceof Error ? error.message : String(error);
+    return { ok: false, ...invalidJsonGwsError(message) };
   }
 }
 
@@ -160,8 +188,12 @@ function runGws(args: string[]): GwsResult<{ stdout: string }> {
     timeout: 60_000,
   });
 
-  if (result.error && "code" in result.error && result.error.code === "ENOENT") {
-    return { ok: false, code: "BINARY_MISSING", message: "gws is not installed or not on PATH." };
+  if (
+    result.error &&
+    "code" in result.error &&
+    result.error.code === "ENOENT"
+  ) {
+    return { ok: false, ...binaryMissingGwsError() };
   }
 
   if (result.status === 0) {
@@ -169,14 +201,7 @@ function runGws(args: string[]): GwsResult<{ stdout: string }> {
   }
 
   const stderr = `${result.stderr ?? ""}\n${result.stdout ?? ""}`;
-  if (/auth|credential|login/i.test(stderr)) {
-    return { ok: false, code: "NOT_AUTHENTICATED", message: "gws is not authenticated. Run slashcash onboard." };
-  }
-  if (/rate|quota|429/i.test(stderr)) {
-    return { ok: false, code: "RATE_LIMITED", message: "Gmail rate limit reached. Try again later." };
-  }
-
-  return { ok: false, code: "UNKNOWN", message: stderr.trim() || "gws command failed." };
+  return { ok: false, ...classifyGwsError(stderr) };
 }
 
 function readFixture(name: string) {

@@ -18,6 +18,11 @@ export const configSchema = z.object({
   skills: z.object({
     enabled: z.record(z.boolean()).default({ "gmail-swiggy": true }),
   }).default({ enabled: { "gmail-swiggy": true } }),
+  updates: z
+    .object({
+      checkOnVersion: z.boolean().default(false),
+    })
+    .default({ checkOnVersion: false }),
 });
 
 export type SlashcashConfig = z.infer<typeof configSchema>;
@@ -41,5 +46,8 @@ export const defaultConfig: SlashcashConfig = {
     enabled: {
       "gmail-swiggy": true,
     },
+  },
+  updates: {
+    checkOnVersion: false,
   },
 };

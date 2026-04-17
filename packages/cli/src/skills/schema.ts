@@ -6,14 +6,21 @@ export const skillManifestSchema = z.object({
   version: z.string().min(1),
   category: z.string().min(1),
   description: z.string().default(""),
-  requires: z.object({
-    bins: z.array(z.string().min(1)).default([]),
-  }).default({ bins: [] }),
-  jobs: z.array(z.object({
-    id: z.string().min(1),
-    schedule: z.string().min(1).optional(),
-    handler: z.string().min(1),
-  })).default([]),
+  requires: z
+    .object({
+      bins: z.array(z.string().min(1)).default([]),
+    })
+    .default({ bins: [] }),
+  jobs: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        schedule: z.string().min(1).optional(),
+        handler: z.string().min(1),
+        mutexKey: z.string().min(1).optional(),
+      }),
+    )
+    .default([]),
 });
 
 export type SkillManifest = z.infer<typeof skillManifestSchema>;

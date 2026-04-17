@@ -18,7 +18,10 @@ if (!existsSync(join(standaloneRoot, "apps", "main", "server.js")) && !existsSyn
 
 rmSync(targetRoot, { recursive: true, force: true });
 mkdirSync(targetRoot, { recursive: true });
-cpSync(standaloneRoot, targetRoot, { recursive: true });
+cpSync(standaloneRoot, targetRoot, {
+  recursive: true,
+  filter: shouldCopyToBundle,
+});
 
 if (existsSync(appStatic)) {
   mkdirSync(join(targetMainRoot, ".next"), { recursive: true });
@@ -45,7 +48,10 @@ function copyBuiltWorkspacePackage(name) {
   rmSync(target, { recursive: true, force: true });
   mkdirSync(target, { recursive: true });
   cpSync(join(source, "package.json"), join(target, "package.json"));
-  cpSync(join(source, "dist"), join(target, "dist"), { recursive: true });
+  cpSync(join(source, "dist"), join(target, "dist"), {
+    recursive: true,
+    filter: shouldCopyToBundle,
+  });
 }
 
 function copyBuiltWorkspacePackageToNodeModules(name) {
@@ -53,5 +59,16 @@ function copyBuiltWorkspacePackageToNodeModules(name) {
   const target = join(targetRoot, "node_modules", "@workspace", name);
   rmSync(target, { recursive: true, force: true });
   mkdirSync(dirname(target), { recursive: true });
-  cpSync(source, target, { recursive: true });
+  cpSync(source, target, { recursive: true, filter: shouldCopyToBundle });
+}
+
+function shouldCopyToBundle(source) {
+  const normalized = source.split("\\").join("/");
+  return (
+    !normalized.includes("/.next/cache") &&
+    !normalized.includes("/.turbo/") &&
+    !/(^|\/)\.env/.test(normalized) &&
+    !/(^|\/)(test|tests|fixtures|test-fixtures)(\/|$)/.test(normalized) &&
+    !/\.(?:d\.ts|ts|tsx|map)$/.test(normalized)
+  );
 }

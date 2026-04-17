@@ -44,7 +44,7 @@ export async function startDashboard(
     attachmentsPath: paths.attachments,
     startedAt: new Date().toISOString(),
   });
-  writeLog("start", { pid: child.pid, port });
+  writeLog("runtime", { event: "start", pid: child.pid, port });
 
   bindShutdown(child, cron.stop);
   await waitForHealthz(port);

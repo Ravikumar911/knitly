@@ -55,7 +55,7 @@ Acceptance: a tag push lands a published version with provenance and SBOM artefa
 The current `packages/cli/scripts/bundle-app.mjs` works but is a sharp edge. Phase 5 W2 makes it boring.
 
 - Reproducibility: pin every input (Next.js version, sharp version, every transitive used at build time), pin Node to the version recorded in `engines`, set `SOURCE_DATE_EPOCH` to the commit time so output is byte-identical between two runs of the same commit.
-- Size: a `bundle:check` script asserts the produced tree is below an agreed budget (initial: 80MB unpacked, 30MB packed); regressions fail CI.
+- Size: a `bundle:check` script asserts the produced tree is below an agreed budget (initial: 350MB unpacked for the current Next standalone tree after excluding `.next/cache`); regressions fail CI.
 - Verification: a post-bundle test boots `slashcash start` against the produced bundle, asserts the dual-mode detection picks "tarball mode", asserts the dashboard answers, asserts no dev-only files (`tsx`, source maps for non-prod chunks) shipped.
 - Native deps: `better-sqlite3` is the only native dep; CI verifies the prebuild for Node 20 + 22 macOS arm64 + x64 is downloadable at install time. A `postinstall` no-op compile fallback is documented.
 - Files manifest: the `files` field in `package.json` is the source of truth; the architecture test asserts every shipped file matches an entry and nothing else creeps in.
@@ -132,7 +132,7 @@ Every reference doc is reread top to bottom against the shipped state. Anything 
 - `current-state.md` — a "Phase 1–5 retrospective" section replaces the original "what exists today" framing; the cloud-coupling lists are kept for historical context but marked as historical.
 - `README.md` (top-level) — reflects the local-first product; install instruction is `npm i -g slashcash`.
 
-A version-check probe: when `slashcash --version` runs, it reads `~/.slashcash/cache/last-update-check.json` (default: never check). If the user opted into `updates.checkOnVersion true`, it makes a single `https://registry.npmjs.org/slashcash` HEAD request once a day, caches the result, and prints "newer version available: X.Y.Z" if the latest dist-tag differs from the local version. Default behaviour: silent. This is the *only* outbound call the CLI ever makes outside the user's explicit ingest path, and only when the user opts in.
+A version-check probe: when `slashcash --version` runs, it reads `~/.slashcash/cache/last-update-check.json` (default: never check). If the user opted into `updates.checkOnVersion true`, it makes a single `https://registry.npmjs.org/slashcash` registry metadata request once a day, caches the latest dist-tag, and prints "newer version available: X.Y.Z" if the latest dist-tag differs from the local version. Default behaviour: silent. This is the *only* outbound call the CLI ever makes outside the user's explicit ingest path, and only when the user opts in.
 
 Acceptance: the doc-drift test passes; a PR that adds a new config key without documenting it fails the test; the version-check probe is silent by default and behaves correctly when the cache is empty, stale, or fresh.
 

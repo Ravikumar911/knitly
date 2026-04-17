@@ -7,8 +7,9 @@ All user state lives under `~/.slashcash/`. This document describes the layout, 
 - `config.json` — the user-editable configuration. Validated on every load.
 - `db.sqlite` — the Drizzle-managed SQLite database.
 - `attachments/` — PDF attachments extracted by the Gmail ingest path. One file per email id.
-- `logs/` — structured JSON logs. Rotated daily, seven-day retention by default.
-- `pid/slashcash.pid` — PID file for the running `slashcash start` process.
+- `cache/` — small local cache files such as the opt-in npm version check result.
+- `logs/` — structured JSON logs. Rotated daily and when a file exceeds 10 MB, with 14-day retention.
+- `pid/slashcash.pid.json` — PID file for the running `slashcash start` process.
 - `skills/` — installed skills, one folder per skill id.
 
 The directory is created with permissions that make it readable and writable only by the user. `slashcash doctor --fix` enforces this; if the directory or any child has wider permissions, the fix narrows them.
@@ -34,6 +35,8 @@ Keys are grouped. Each key has a documented default; unspecified keys fall back 
 **`sync.maxMessages`** — maximum Gmail messages inspected by a sync run. Default `50`.
 
 **`skills.enabled.<id>`** — boolean, one per installed skill. Default `true` for `gmail-swiggy` when installed by `onboard`; default `false` for skills dropped in manually.
+
+**`updates.checkOnVersion`** — boolean. Default `false`. When true, `slashcash --version` checks the npm `latest` dist-tag at most once per day, caches the answer under `cache/`, and prints a short update hint if a newer package exists.
 
 There is no separate cron enabled flag in the current schema. Disable the contributing skill, for example `slashcash skills disable gmail-swiggy`, when you want only manual sync behavior.
 

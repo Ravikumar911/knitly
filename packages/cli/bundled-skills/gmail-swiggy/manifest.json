@@ -10,7 +10,8 @@
   "jobs": [
     {
       "id": "gmail-swiggy-sync",
-      "handler": "runEmailSync"
+      "handler": "runEmailSync",
+      "mutexKey": "gmail-swiggy"
     }
   ]
 }

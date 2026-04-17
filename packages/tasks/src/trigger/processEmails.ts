@@ -39,8 +39,13 @@ export type EmailSyncResult = {
   totalFound: number;
 };
 
-export async function runEmailSync(payload: ProcessEmailsPayload): Promise<EmailSyncResult & { skipped?: boolean }> {
-  const singleFlight = await runSingleFlight(async () => runEmailSyncUnsafe(payload));
+export async function runEmailSync(
+  payload: ProcessEmailsPayload,
+): Promise<EmailSyncResult & { skipped?: boolean }> {
+  const singleFlight = await runSingleFlight(
+    async () => runEmailSyncUnsafe(payload),
+    "gmail-swiggy",
+  );
   if (singleFlight.status === "skipped") {
     return {
       success: true,
@@ -55,9 +60,15 @@ export async function runEmailSync(payload: ProcessEmailsPayload): Promise<Email
   return singleFlight.value;
 }
 
-async function runEmailSyncUnsafe(payload: ProcessEmailsPayload): Promise<EmailSyncResult> {
-  const query = payload.query || process.env.SLASHCASH_GMAIL_QUERY || 'from:(swiggy.in) newer_than:365d';
-  const maxMessages = payload.maxMessages || Number(process.env.SLASHCASH_SYNC_LIMIT || 50);
+async function runEmailSyncUnsafe(
+  payload: ProcessEmailsPayload,
+): Promise<EmailSyncResult> {
+  const query =
+    payload.query ||
+    process.env.SLASHCASH_GMAIL_QUERY ||
+    "from:(swiggy.in) newer_than:365d";
+  const maxMessages =
+    payload.maxMessages || Number(process.env.SLASHCASH_SYNC_LIMIT || 50);
 
   await markSyncCountingEmails(payload.userId);
   const listed = listGmailMessages(query, maxMessages);
@@ -86,9 +97,10 @@ async function runEmailSyncUnsafe(payload: ProcessEmailsPayload): Promise<EmailS
       }
 
       const emailData = await toEmailData(payload.userId, message.data);
-      const attachmentPaths = emailData.attachments
-        ?.map((attachment) => attachment.storageUrl)
-        .filter((path): path is string => Boolean(path)) ?? [];
+      const attachmentPaths =
+        emailData.attachments
+          ?.map((attachment) => attachment.storageUrl)
+          .filter((path): path is string => Boolean(path)) ?? [];
       const attachmentPath = attachmentPaths[0] ?? null;
 
       await storeEmailData({
@@ -102,7 +114,8 @@ async function runEmailSyncUnsafe(payload: ProcessEmailsPayload): Promise<EmailS
         parseSuccess: true,
         parseErrors: null,
         rawContent: emailData.body,
-        attachmentStoragePath: attachmentPaths.length > 0 ? attachmentPaths : null,
+        attachmentStoragePath:
+          attachmentPaths.length > 0 ? attachmentPaths : null,
         parsedAt: new Date(),
       });
 
@@ -121,7 +134,10 @@ async function runEmailSyncUnsafe(payload: ProcessEmailsPayload): Promise<EmailS
   }
 
   if (errorCount > 0 && processedCount === 0) {
-    await markSyncFailed(payload.userId, `${errorCount} messages failed to process.`);
+    await markSyncFailed(
+      payload.userId,
+      `${errorCount} messages failed to process.`,
+    );
   } else {
     await markSyncComplete(payload.userId);
   }
@@ -135,7 +151,10 @@ async function runEmailSyncUnsafe(payload: ProcessEmailsPayload): Promise<EmailS
   };
 }
 
-async function toEmailData(userId: string, message: GwsMessage): Promise<EmailData> {
+async function toEmailData(
+  userId: string,
+  message: GwsMessage,
+): Promise<EmailData> {
   const headers = message.payload?.headers ?? [];
   const subject = header(headers, "subject") || "Swiggy transaction";
   const from = header(headers, "from") || "unknown";
@@ -145,7 +164,8 @@ async function toEmailData(userId: string, message: GwsMessage): Promise<EmailDa
       ? new Date(Number(message.internalDate)).toISOString()
       : new Date().toISOString();
 
-  const body = collectText(message.payload).join("\n").trim() || message.snippet || "";
+  const body =
+    collectText(message.payload).join("\n").trim() || message.snippet || "";
   const attachments = await collectAttachments(message.id, message.payload);
 
   return {
@@ -161,15 +181,18 @@ async function toEmailData(userId: string, message: GwsMessage): Promise<EmailDa
 }
 
 function header(headers: Array<{ name: string; value: string }>, name: string) {
-  return headers.find((candidate) => candidate.name.toLowerCase() === name.toLowerCase())?.value;
+  return headers.find(
+    (candidate) => candidate.name.toLowerCase() === name.toLowerCase(),
+  )?.value;
 }
 
 function collectText(part?: GwsMessagePart): string[] {
   if (!part) return [];
 
-  const current = part.body?.data && isTextPart(part)
-    ? [decodeBase64Url(part.body.data).toString("utf8")]
-    : [];
+  const current =
+    part.body?.data && isTextPart(part)
+      ? [decodeBase64Url(part.body.data).toString("utf8")]
+      : [];
 
   return [
     ...current,
@@ -177,10 +200,15 @@ function collectText(part?: GwsMessagePart): string[] {
   ];
 }
 
-async function collectAttachments(messageId: string, part?: GwsMessagePart): Promise<EmailAttachment[]> {
+async function collectAttachments(
+  messageId: string,
+  part?: GwsMessagePart,
+): Promise<EmailAttachment[]> {
   if (!part) return [];
 
-  const children = await Promise.all((part.parts ?? []).map((child) => collectAttachments(messageId, child)));
+  const children = await Promise.all(
+    (part.parts ?? []).map((child) => collectAttachments(messageId, child)),
+  );
   const nested = children.flat();
 
   const filename = part.filename?.trim();
@@ -208,18 +236,30 @@ async function collectAttachments(messageId: string, part?: GwsMessagePart): Pro
 }
 
 function isTextPart(part: GwsMessagePart) {
-  return part.mimeType === "text/plain" || part.mimeType === "text/html" || !part.mimeType;
+  return (
+    part.mimeType === "text/plain" ||
+    part.mimeType === "text/html" ||
+    !part.mimeType
+  );
 }
 
-async function extractOrFallback(emailData: EmailData, attachmentPath: string | null) {
+async function extractOrFallback(
+  emailData: EmailData,
+  attachmentPath: string | null,
+) {
   if (process.env.SLASHCASH_SYNC_SKIP_AI !== "1") {
     try {
-      const result = await extractEmailData(emailData, defaultModel(), { storeTransaction: true });
+      const result = await extractEmailData(emailData, defaultModel(), {
+        storeTransaction: true,
+      });
       if (result.transactionId || result.parseSuccess) {
         return result;
       }
     } catch (error) {
-      console.warn("Local model extraction failed, using deterministic fallback.", error);
+      console.warn(
+        "Local model extraction failed, using deterministic fallback.",
+        error,
+      );
     }
   }
 
@@ -259,12 +299,17 @@ async function extractOrFallback(emailData: EmailData, attachmentPath: string | 
 
 function fallbackSwiggy(emailData: EmailData) {
   const text = `${emailData.subject}\n${emailData.body}`;
-  const amountMatch = text.match(/(?:total|amount|paid|₹|INR)\s*:?\s*₹?\s*([0-9]+(?:\.[0-9]{1,2})?)/i);
+  const amountMatch = text.match(
+    /(?:total|amount|paid|₹|INR)\s*:?\s*₹?\s*([0-9]+(?:\.[0-9]{1,2})?)/i,
+  );
   const amount = amountMatch ? Number(amountMatch[1]) : 0;
   if (!Number.isFinite(amount) || amount <= 0) return null;
 
-  const orderId = text.match(/order(?:\s*id)?\s*:?\s*([A-Z0-9-]{5,})/i)?.[1] || emailData.threadId;
-  const restaurant = text.match(/restaurant\s*:?\s*([^\n]+)/i)?.[1]?.trim() || "Swiggy";
+  const orderId =
+    text.match(/order(?:\s*id)?\s*:?\s*([A-Z0-9-]{5,})/i)?.[1] ||
+    emailData.threadId;
+  const restaurant =
+    text.match(/restaurant\s*:?\s*([^\n]+)/i)?.[1]?.trim() || "Swiggy";
   const area = text.match(/area\s*:?\s*([^\n]+)/i)?.[1]?.trim() || "";
   const pincode = text.match(/pincode\s*:?\s*([0-9]{6})/i)?.[1] || "";
 

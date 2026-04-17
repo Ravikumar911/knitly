@@ -2,85 +2,60 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v*.*.*"
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+concurrency: release-${{ github.ref }}
 
 permissions:
   contents: write
-  pull-requests: write
   id-token: write
 
 jobs:
-  release:
-    name: Release
-    runs-on: ubuntu-latest
+  publish:
+    name: Publish slashcash
+    runs-on: macos-latest
+    env:
+      SLASHCASH_E2E: "1"
+      SLASHCASH_DOCTOR_SKIP_OLLAMA: "1"
+      SLASHCASH_DOCTOR_SKIP_GWS: "1"
+      SLASHCASH_NO_OPEN: "1"
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          # This makes Actions fetch all Git history so that Changesets can generate changelogs with the correct commits
           fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build packages
-        run: pnpm build
-
-      - name: Create Release Pull Request or Publish to Registry
-        id: changesets
-        uses: changesets/action@v1
-        with:
-          # This expects you to have a script called release which does a build for your packages and calls changeset publish
-          version: pnpm version-packages
-          publish: pnpm release
-          title: "chore: release packages"
-          commit: "chore: release packages"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create GitHub Release
-        if: steps.changesets.outputs.hasChangesets == 'false'
+          cache: pnpm
+          registry-url: "https://registry.npmjs.org"
+      - run: pnpm install --frozen-lockfile
+      - name: Validate tag version
         run: |
-          # Get the current version from the root package.json
-          VERSION=$(node -p "require('./package.json').version")
-          
-          # Check if tag already exists
-          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
-            echo "Tag v$VERSION already exists, skipping release creation"
-            exit 0
-          fi
-          
-          # Create and push tag
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "v$VERSION" -m "Release v$VERSION"
-          git push origin "v$VERSION"
-          
-          # Generate changelog from recent commits
-          CHANGELOG=$(git log --oneline --pretty=format:"- %s" $(git describe --tags --abbrev=0 2>/dev/null || echo "HEAD~10")..HEAD 2>/dev/null || git log --oneline --pretty=format:"- %s" -10)
-          
-          # Create GitHub release
-          gh release create "v$VERSION" \
-            --title "Release v$VERSION" \
-            --notes "## Changes in this release:
-          
-          $CHANGELOG
-          
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo 'HEAD~10')...v$VERSION" \
-            --latest
+          VERSION=$(node -p "require('./packages/cli/package.json').version")
+          test "v$VERSION" = "${GITHUB_REF_NAME}"
+      - run: pnpm architecture-smells
+      - run: pnpm typecheck
+      - run: SLASHCASH_EVAL_SKIP_MODEL=1 pnpm eval:gate
+      - run: pnpm pack:local
+      - name: Generate SBOM
+        working-directory: packages/cli
+        run: npm sbom --json > ../../slashcash-sbom.json
+      - name: Publish with provenance
+        working-directory: packages/cli
+        run: npm publish --access public --provenance
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Smoke published package
+        run: |
+          VERSION=$(node -p "require('./packages/cli/package.json').version")
+          OUTPUT=$(npx -y "slashcash@$VERSION" --version)
+          test "$OUTPUT" = "$VERSION"
+      - name: Attach checksum
+        run: |
+          TARBALL=$(ls packages/cli/slashcash-*.tgz | head -n 1)
+          shasum -a 256 "$TARBALL" > slashcash.sha256
+          gh release create "${GITHUB_REF_NAME}" "$TARBALL" slashcash.sha256 slashcash-sbom.json --title "${GITHUB_REF_NAME}" --generate-notes
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

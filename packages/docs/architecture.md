@@ -68,7 +68,7 @@ No versioned plugin SDK, sandboxing, or npm-installable skill packages in v1. Th
 
 ## Networking and security posture
 
-The Next.js server binds to `127.0.0.1` explicitly, not `localhost`, so IPv6 dual-stack can't surprise us. There is no authentication — loopback is the boundary. There is no telemetry, no version-check phone-home, no outbound traffic that the user didn't initiate. Outbound calls during normal operation are limited to Ollama on loopback and `gws` contacting Google with the user's own credentials. Attachment URLs never accept a filesystem path from the client; resolution goes through a DB id lookup and a strict root-prefix check.
+The Next.js server binds to `127.0.0.1` explicitly, not `localhost`, so IPv6 dual-stack can't surprise us. There is no authentication — loopback is the boundary. There is no telemetry, no auto-updater, and no outbound version check unless the user explicitly opts in with `updates.checkOnVersion`. Outbound calls during normal operation are limited to Ollama on loopback and `gws` contacting Google with the user's own credentials. Attachment URLs never accept a filesystem path from the client; resolution goes through a DB id lookup and a strict root-prefix check.
 
 ## Failure modes and how doctor handles them
 

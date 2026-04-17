@@ -10,7 +10,7 @@ Every command accepts the global flags `--help` and `--version`. Every command r
 
 Interactive first-run wizard. Detects Homebrew, installs Ollama, pulls `gemma3n:e4b`, installs `gws`, runs `gws auth login`, creates `~/.slashcash/` with correct permissions, writes a default config, runs SQLite migrations, installs and enables the bundled `gmail-swiggy` skill. Idempotent; re-running after success is a quick no-op. Cancel-safe; a Ctrl-C leaves the machine in a state that `slashcash doctor --fix` can resume.
 
-Flags: `--dry-run` prepares local state and skips host installs/auth. `--skip-external` skips Homebrew/Ollama/gws installs. `--skip-auth` skips `gws auth login`.
+Flags: `--yes` accepts the default model choice, `--non-interactive` fails instead of prompting, and `--dry-run` prepares local state and skips host installs/auth. The E2E-only `--skip-external` and `--skip-auth` flags are hidden unless `SLASHCASH_E2E=1` is set.
 
 ## `slashcash start`
 
@@ -30,7 +30,7 @@ Prints a small table: PID (or `not running`), port, healthz status, DB path, att
 
 Runs a battery of checks against the host and the state directory. Phase 1 checks the Node version, `~/.slashcash/` existence and permissions, the SQLite file, migrations up-to-date, Ollama reachability. Phase 2 adds checks for `gws` installed, `gws auth status`, `gemma3n:e4b` (and optionally the vision model) pulled, required binaries for each enabled skill, port free, config schema drift, stale PID file.
 
-Flags: `--fix` applies repairs for every check that has one. `--json` emits a machine-readable report. `--quick` skips network probes (`ollama`, `gws auth`). Every repair is idempotent.
+Flags: `--fix` applies repairs for every check that has one. `--json` emits a machine-readable check array. `--quick` skips network probes (`ollama`, `gws auth`). Every repair is idempotent.
 
 ## `slashcash config get|set|path`
 
@@ -54,13 +54,13 @@ Developer-facing database commands. Lands in Phase 1. `seed` populates the SQLit
 
 ## `slashcash logs`
 
-Tails `~/.slashcash/logs/slashcash.log`. Lands in Phase 2.
+Reads structured JSONL logs from `~/.slashcash/logs/<YYYY-MM-DD>.log`.
 
-Flags: `-f` follows new lines. `--since <iso>` filters by timestamp. `--level <info|warn|error>` filters by level.
+Flags: `--tail <n>` controls the number of events shown, `--follow` / `-f` follows new events, `--filter <area>` filters comma-separated areas such as `cron,ingest`, `--since <duration>` accepts values like `5m`, `1h` or `2d`, `--json` emits raw JSON events, and `--level <debug|info|warn|error>` sets the minimum level.
 
 ## `slashcash version`
 
-Prints the package version and exits. Implemented as a fast path in the entry shim so cold invocation does not load Commander.
+Prints the package version and exits. Implemented as a fast path in the entry shim so cold invocation does not load Commander. By default this command is silent beyond the version string. Users can opt into a once-per-day npm latest check with `slashcash config set updates.checkOnVersion true`; the cached result lives under `~/.slashcash/cache/`.
 
 ## Exit codes
 

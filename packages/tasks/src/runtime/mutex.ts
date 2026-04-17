@@ -2,26 +2,29 @@ export type MutexRunResult<T> =
   | { status: "ran"; value: T }
   | { status: "skipped"; reason: "busy" };
 
-let active: Promise<unknown> | null = null;
+const active = new Map<string, Promise<unknown>>();
 
-export function isSyncActive() {
-  return active !== null;
+export function isSyncActive(key = "default") {
+  return active.has(key);
 }
 
-export async function runSingleFlight<T>(fn: () => Promise<T>): Promise<MutexRunResult<T>> {
-  if (active) {
+export async function runSingleFlight<T>(
+  fn: () => Promise<T>,
+  key = "default",
+): Promise<MutexRunResult<T>> {
+  if (active.has(key)) {
     return { status: "skipped", reason: "busy" };
   }
 
   const run = fn();
-  active = run;
+  active.set(key, run);
 
   try {
     const value = await run;
     return { status: "ran", value };
   } finally {
-    if (active === run) {
-      active = null;
+    if (active.get(key) === run) {
+      active.delete(key);
     }
   }
 }

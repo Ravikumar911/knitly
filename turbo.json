@@ -17,45 +17,47 @@
     },
     "lint": {
       "dependsOn": ["^lint"],
-      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL"]
+      "env": [
+        "OLLAMA_BASE_URL",
+        "OLLAMA_CHAT_MODEL",
+        "SLASHCASH_EVAL_SKIP_MODEL",
+        "SLASHCASH_EVAL_THRESHOLD",
+        "SLASHCASH_BUNDLE_BUDGET_BYTES",
+        "SLASHCASH_BENCH_VERSION_MS",
+        "SLASHCASH_BENCH_DOCTOR_QUICK_MS"
+      ]
     },
     "lint:fix": {
       "dependsOn": ["^lint:fix"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "cache": false
     },
     "eval": {
       "cache": false,
       "env": [
         "OLLAMA_BASE_URL",
-        "OLLAMA_CHAT_MODEL"
+        "OLLAMA_CHAT_MODEL",
+        "SLASHCASH_EVAL_SKIP_MODEL",
+        "SLASHCASH_EVAL_THRESHOLD"
       ]
     },
     "eval:swiggy": {
       "cache": false,
-      "env": [
-        "OLLAMA_BASE_URL",
-        "OLLAMA_CHAT_MODEL"
-      ]
+      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL"]
     },
     "eval:swiggy:nano": {
       "cache": false,
-      "env": [
-        "OLLAMA_BASE_URL",
-        "OLLAMA_CHAT_MODEL"
-      ]
+      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL"]
     },
     "eval:swiggy:mini": {
       "cache": false,
-      "env": [
-        "OLLAMA_BASE_URL",
-        "OLLAMA_CHAT_MODEL"
-      ]
+      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL"]
     },
     "eval:swiggy:ui": {
       "cache": false,
-      "env": [
-        "OLLAMA_BASE_URL",
-        "OLLAMA_CHAT_MODEL"
-      ]
+      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL"]
     },
     "check-types": {
       "dependsOn": ["^check-types"]

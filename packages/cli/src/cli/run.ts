@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { formatCliError, normalizeCliError } from "../errors/format.js";
 import { registerCommands } from "./command-catalog.js";
 
 export async function runCli(args: string[], options: { version: string }) {
@@ -12,5 +13,10 @@ export async function runCli(args: string[], options: { version: string }) {
   await registerCommands(program, args);
 
   program.showHelpAfterError();
-  await program.parseAsync(args, { from: "user" });
+  try {
+    await program.parseAsync(args, { from: "user" });
+  } catch (error) {
+    console.error(formatCliError(normalizeCliError(error)));
+    process.exitCode = 1;
+  }
 }

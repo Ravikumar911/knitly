@@ -6,6 +6,7 @@
     "build": "tsc",
     "lint": "echo 'Linting not configured for tasks package'",
     "lint:fix": "echo 'Linting not configured for tasks package'",
+    "test": "tsx test/run-tests.ts",
     "dev": "tsx src/index.ts"
   },
   "exports": {

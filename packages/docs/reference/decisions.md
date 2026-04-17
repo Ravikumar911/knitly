@@ -161,3 +161,43 @@ Short architectural decision records. Each entry captures a choice that shapes t
 **Rejected.** Unit tests only — misses integration failures. Manual QA only — not reproducible, drifts, doesn't block merges. A continuous long-running E2E — unnecessary overhead for phase-paced delivery.
 
 **Revisit if.** The E2E suite grows so expensive in CI minutes that it meaningfully slows phase cadence. At that point we subset the suite between phases and restore the full run at the gate.
+
+## ADR-018 — Single onboarding question
+
+**Decision.** `slashcash onboard` asks exactly one user-facing question: which chat model to pull and use. The default is `gemma3n:e4b`, with `gemma3:4b` and `qwen2.5:7b` offered as alternatives. `--yes` accepts the default and `--non-interactive` fails if a prompt would be needed.
+
+**Why.** Every additional prompt adds friction. The model choice is the only current setup question with a real user trade-off: download size, speed and answer quality.
+
+**Rejected.** Asking for port, sync schedule or initial skill selection. The defaults work for most users, and every value remains editable through `config.json` or `slashcash config set`.
+
+**Revisit if.** We add a second bundled skill or a model requirement whose download size is meaningfully larger than the default.
+
+## ADR-019 — CLI error block format
+
+**Decision.** CLI-facing failures use the same block everywhere: `error[area]: symptom`, then `cause`, then `fix`, plus optional `docs`. The implementation lives in `packages/cli/src/errors/format.ts`.
+
+**Why.** Users should never have to read raw JSON or a stack trace to understand the next step. The format is also easy for tests and future UI surfaces to parse.
+
+**Rejected.** Free-form `throw new Error(...)` text at command boundaries.
+
+**Revisit if.** A future UI needs structured error transport over something other than stdout/stderr.
+
+## ADR-020 — Performance budgets
+
+**Decision.** Phase 5 records two layers of budgets. The published-binary targets are cold `slashcash --version` under 100 ms p95, `slashcash doctor --quick` under 200 ms p95, dashboard first byte under 500 ms p95 against seed data, and assistant first token under 1500 ms p95 against stub Ollama. The current development harness runs through `pnpm` and asserts looser guardrails: `slashcash --version` under 1000 ms and `slashcash doctor --quick` under 3000 ms. Tight published-install budgets are enforced once the tarball smoke path is running against the installed package.
+
+**Why.** Local-first software feels broken when startup or first response time regresses silently. Budgets make performance a release concern rather than folklore.
+
+**Rejected.** Real-Ollama first-token as a hard CI budget; local model timing is too hardware-dependent.
+
+**Revisit if.** CI hardware changes or published-install dogfood shows the budgets are unrealistic.
+
+## ADR-021 — Release pipeline shape
+
+**Decision.** Releases publish from `vX.Y.Z` tags. The workflow validates the tag against `packages/cli/package.json`, runs the source gates, builds the standalone app, packs the CLI, publishes to npm with provenance, smoke-tests the published bin, and attaches a checksum plus SBOM to the GitHub release.
+
+**Why.** Tag-based release is auditable and matches npm provenance expectations. The published package is the artifact users install, so the release workflow must exercise the bundled-app path.
+
+**Rejected.** Publishing directly from every push to `main`.
+
+**Revisit if.** Changesets or npm provenance requirements change enough that this flow becomes brittle.

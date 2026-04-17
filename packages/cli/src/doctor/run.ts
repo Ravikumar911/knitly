@@ -1,12 +1,14 @@
 import pc from "picocolors";
 import { runChecks } from "./checks.js";
 
-export async function runDoctor(options: { fix?: boolean; json?: boolean; quick?: boolean } = {}) {
+export async function runDoctor(
+  options: { fix?: boolean; json?: boolean; quick?: boolean } = {},
+) {
   const checks = await runChecks(options);
   const failed = checks.filter((check) => check.status === "fail");
 
   if (options.json) {
-    console.log(JSON.stringify({ ok: failed.length === 0, checks }, null, 2));
+    console.log(JSON.stringify(checks, null, 2));
   } else {
     for (const check of checks) {
       const marker = check.status === "ok" ? pc.green("ok") : pc.red("fail");

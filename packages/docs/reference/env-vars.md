@@ -18,13 +18,45 @@ The local app has a small, tightly scoped set of environment variables. Most use
 
 `GWS_PROFILE` — passed through to `gws` subprocesses unchanged. Lets users with multiple Google accounts select one. No default.
 
+`GOOGLE_APPLICATION_CREDENTIALS` — optional service-account credentials path used by CI/test environments that run `gws` non-interactively. Normal users should authenticate with `gws auth login` instead.
+
 `SLASHCASH_GMAIL_QUERY` — optional runtime override for the Gmail query. The CLI normally sets this from `sync.gmailQuery`.
 
 `SLASHCASH_SYNC_LIMIT` — optional runtime override for the number of Gmail messages to inspect. The CLI normally sets this from `sync.maxMessages`.
 
+`SLASHCASH_SYNC_SKIP_AI` — developer/test override that lets the fixture ingest path skip local model extraction. No default.
+
 `SLASHCASH_PORT` — optional override for the loopback port. Defaults to `3000`. The `--port` flag on `slashcash start` wins over both the config and this variable; the config value wins over this variable.
 
+`SLASHCASH_NO_OPEN` — optional `slashcash start` override. Set to `1` to suppress opening the browser, mainly for tests and headless runs.
+
+`SLASHCASH_USE_STANDALONE` — developer override that forces `slashcash start` to prefer a locally built standalone Next.js server when present. Published packages detect this automatically.
+
 `NODE_OPTIONS` — passed through to the Next.js child. Not interpreted by `slashcash` itself.
+
+## Test and release gates
+
+`SLASHCASH_E2E` — enables hidden E2E-only CLI flags and skips host-touching onboard work in fixture scenarios. Never needed by users.
+
+`SLASHCASH_E2E_PORT` — optional port override for phase E2E scenarios.
+
+`SLASHCASH_DOCTOR_SKIP_OLLAMA` — set to `1` to make doctor treat Ollama checks as skipped in fixture/test runs.
+
+`SLASHCASH_DOCTOR_SKIP_GWS` — set to `1` to make doctor treat `gws` checks as skipped in fixture/test runs.
+
+`SLASHCASH_GWS_FIXTURE_DIR` — points the `gws` wrapper at committed fixture JSON instead of invoking the real `gws` binary.
+
+`SLASHCASH_EVAL_SKIP_MODEL` — set to `1` for the CI fixture eval gate. It returns a deterministic passing fixture score without invoking a model.
+
+`SLASHCASH_EVAL_THRESHOLD` — numeric eval threshold. Default `0.8`.
+
+`SLASHCASH_BUNDLE_BUDGET_BYTES` — bundle-size ceiling for `pnpm bundle:check`. Default 350 MB unpacked.
+
+`SLASHCASH_BENCH_VERSION_MS` — development-harness budget for `slashcash --version`. Default 1000 ms.
+
+`SLASHCASH_BENCH_DOCTOR_QUICK_MS` — development-harness budget for `slashcash doctor --quick`. Default 3000 ms.
+
+`PLAYWRIGHT_BASE_URL` and `CI` — Playwright controls used only by the E2E package.
 
 ## What we removed from the hosted codebase
 
@@ -48,7 +80,7 @@ Any remaining reference to these names in the repo after Phase 1 is either dead 
 
 ## Where variables are read
 
-The CLI sets most runtime variables before it starts the app or a sync job. Direct module readers are the paths module (`SLASHCASH_HOME`, `SQLITE_DB_PATH`), attachment helpers (`SLASHCASH_ATTACHMENTS_DIR`), provider factories (`OLLAMA_BASE_URL`, `OLLAMA_CHAT_MODEL`, `OLLAMA_VISION_MODEL`), the sync runner (`SLASHCASH_GMAIL_QUERY`, `SLASHCASH_SYNC_LIMIT`, `SLASHCASH_SYNC_SKIP_AI`), and the `gws` wrapper (`GWS_PROFILE`, `SLASHCASH_GWS_FIXTURE_DIR`).
+The CLI sets most runtime variables before it starts the app or a sync job. Direct module readers are the paths module (`SLASHCASH_HOME`, `SQLITE_DB_PATH`), attachment helpers (`SLASHCASH_ATTACHMENTS_DIR`), provider factories (`OLLAMA_BASE_URL`, `OLLAMA_CHAT_MODEL`, `OLLAMA_VISION_MODEL`), the start path (`SLASHCASH_PORT`, `SLASHCASH_NO_OPEN`, `SLASHCASH_USE_STANDALONE`), the sync runner (`SLASHCASH_GMAIL_QUERY`, `SLASHCASH_SYNC_LIMIT`, `SLASHCASH_SYNC_SKIP_AI`), doctor/onboard gates (`SLASHCASH_E2E`, `SLASHCASH_DOCTOR_SKIP_OLLAMA`, `SLASHCASH_DOCTOR_SKIP_GWS`, `GOOGLE_APPLICATION_CREDENTIALS`), and the `gws` wrapper (`GWS_PROFILE`, `SLASHCASH_GWS_FIXTURE_DIR`).
 
 ## Testing
 

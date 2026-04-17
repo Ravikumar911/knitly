@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
+    "test": "pnpm typecheck",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { cn } from "@workspace/ui/lib/utils";
 import type { Experimental_GeneratedImage } from "ai";
 
@@ -17,7 +18,7 @@ export const Image = ({
     alt={props.alt}
     className={cn(
       "h-auto max-w-full overflow-hidden rounded-md",
-      props.className
+      props.className,
     )}
     src={`data:${mediaType};base64,${base64}`}
   />
