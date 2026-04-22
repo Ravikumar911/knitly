@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { formatCliError } from "./format.js";
+import { CliError, formatCliError, normalizeCliError } from "./format.js";
 
-describe("formatCliError", () => {
+describe("CLI error formatting", () => {
   it("prints the standard symptom/cause/fix block", () => {
     const block = formatCliError({
       area: "auth",
@@ -17,5 +17,45 @@ describe("formatCliError", () => {
         "  fix:   Run `gws auth login`.",
       ].join("\n"),
     );
+  });
+
+  it("prints optional docs links", () => {
+    const block = formatCliError({
+      area: "config",
+      symptom: "Config is invalid.",
+      cause: "The JSON schema check failed.",
+      fix: "Rewrite the config.",
+      docs: "packages/docs/reference/testing.md",
+    });
+
+    expect(block).toContain("docs:  packages/docs/reference/testing.md");
+  });
+
+  it("normalizes typed, block-shaped, and generic errors", () => {
+    const cliError = new CliError({
+      area: "network",
+      symptom: "Ollama is down.",
+      cause: "The local server refused the connection.",
+      fix: "Start Ollama and retry.",
+    });
+
+    expect(normalizeCliError(cliError)).toEqual(cliError.block);
+    expect(normalizeCliError({
+      area: "filesystem",
+      symptom: "State dir missing.",
+      cause: "The folder was deleted.",
+      fix: "Run `slashcash doctor --fix`.",
+    })).toEqual({
+      area: "filesystem",
+      symptom: "State dir missing.",
+      cause: "The folder was deleted.",
+      fix: "Run `slashcash doctor --fix`.",
+    });
+    expect(normalizeCliError(new Error("boom"))).toEqual({
+      area: "runtime",
+      symptom: "Command failed.",
+      cause: "boom",
+      fix: "Run `slashcash doctor --fix`, then retry the command.",
+    });
   });
 });
