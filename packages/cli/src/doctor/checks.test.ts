@@ -3,9 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   accessSync: vi.fn(),
   loadConfig: vi.fn(),
+  getCredentialState: vi.fn(),
   resolvePaths: vi.fn(),
   ensureStateDirs: vi.fn(),
   loadDatabase: vi.fn(),
+  loadImapClient: vi.fn(),
+  verifyImapLogin: vi.fn(),
   ensureLocalDatabase: vi.fn(),
   commandExists: vi.fn(),
   runCommand: vi.fn(),
@@ -22,6 +25,10 @@ vi.mock("../config/load.js", () => ({
   loadConfig: mocks.loadConfig,
 }));
 
+vi.mock("../config/credentials.js", () => ({
+  getCredentialState: mocks.getCredentialState,
+}));
+
 vi.mock("../config/paths.js", () => ({
   resolvePaths: mocks.resolvePaths,
   ensureStateDirs: mocks.ensureStateDirs,
@@ -29,6 +36,10 @@ vi.mock("../config/paths.js", () => ({
 
 vi.mock("../runtime/database.js", () => ({
   loadDatabase: mocks.loadDatabase,
+}));
+
+vi.mock("../runtime/tasks.js", () => ({
+  loadImapClient: mocks.loadImapClient,
 }));
 
 vi.mock("../runtime/subprocess.js", () => ({
@@ -68,9 +79,26 @@ describe("doctor checks", () => {
       sync: {
         schedule: "*/15 * * * *",
       },
+      gmail: {
+        address: "user@gmail.com",
+        passwordStore: "keychain",
+        imapServer: "imap.gmail.com:993",
+      },
+    });
+    mocks.getCredentialState.mockResolvedValue({
+      address: "user@gmail.com",
+      store: "keychain",
+      warning: null,
     });
     mocks.loadDatabase.mockResolvedValue({
       ensureLocalDatabase: mocks.ensureLocalDatabase,
+    });
+    mocks.loadImapClient.mockResolvedValue({
+      verifyImapLogin: mocks.verifyImapLogin,
+    });
+    mocks.verifyImapLogin.mockResolvedValue({
+      ok: true,
+      data: { address: "user@gmail.com" },
     });
     mocks.listInstalledSkills.mockReturnValue([
       {
@@ -102,6 +130,7 @@ describe("doctor checks", () => {
       "state-dir",
       "config",
       "sync-schedule",
+      "gmail-credentials",
       "sqlite",
       "skills",
     ]);
@@ -123,13 +152,19 @@ describe("doctor checks", () => {
       "state-dir",
       "config",
       "sync-schedule",
+      "gmail-credentials",
       "sqlite",
       "skills",
       "ollama",
+      "gmail-imap",
     ]);
     expect(checks.find((check) => check.id === "ollama")).toMatchObject({
       status: "ok",
       message: "Skipped by environment",
+    });
+    expect(checks.find((check) => check.id === "gmail-imap")).toMatchObject({
+      status: "ok",
+      message: "imap.gmail.com:993 (user@gmail.com)",
     });
   });
 });

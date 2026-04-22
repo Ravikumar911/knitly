@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   loadConfig: vi.fn(),
   resolvePaths: vi.fn(),
+  applyRuntimeEnv: vi.fn(),
   loadDatabase: vi.fn(),
   loadEmailSync: vi.fn(),
   installBundledSkills: vi.fn(),
@@ -18,6 +19,10 @@ vi.mock("../../config/load.js", () => ({
 
 vi.mock("../../config/paths.js", () => ({
   resolvePaths: mocks.resolvePaths,
+}));
+
+vi.mock("../../config/runtime-env.js", () => ({
+  applyRuntimeEnv: mocks.applyRuntimeEnv,
 }));
 
 vi.mock("../../runtime/database.js", () => ({
@@ -67,8 +72,25 @@ describe("sync command", () => {
         gmailQuery: "label:slashcash",
         maxMessages: 25,
       },
+      gmail: {
+        address: "user@gmail.com",
+        passwordStore: "keychain",
+        imapServer: "imap.gmail.com:993",
+      },
     });
     mocks.resolvePaths.mockReturnValue(paths);
+    mocks.applyRuntimeEnv.mockImplementation(
+      async ({ config, paths, query, maxMessages }) => {
+        process.env.SQLITE_DB_PATH = paths.db;
+        process.env.SLASHCASH_HOME = paths.home;
+        process.env.SLASHCASH_ATTACHMENTS_DIR = paths.attachments;
+        process.env.SLASHCASH_GMAIL_QUERY = query || config.sync.gmailQuery;
+        process.env.SLASHCASH_SYNC_LIMIT = String(
+          maxMessages || config.sync.maxMessages,
+        );
+        process.env.SLASHCASH_IMAP_SERVER = config.gmail.imapServer;
+      },
+    );
     mocks.loadDatabase.mockResolvedValue({
       ensureLocalDatabase: mocks.ensureLocalDatabase,
       LOCAL_USER_ID: "local-user-id",
@@ -84,7 +106,9 @@ describe("sync command", () => {
     const program = new Command();
     register(program);
 
-    await expect(program.parseAsync(["sync"], { from: "user" })).rejects.toMatchObject({
+    await expect(
+      program.parseAsync(["sync"], { from: "user" }),
+    ).rejects.toMatchObject({
       name: "CliError",
       block: expect.objectContaining({
         area: "config",
@@ -124,6 +148,7 @@ describe("sync command", () => {
     expect(process.env.SLASHCASH_ATTACHMENTS_DIR).toBe(paths.attachments);
     expect(process.env.SLASHCASH_GMAIL_QUERY).toBe("label:finance");
     expect(process.env.SLASHCASH_SYNC_LIMIT).toBe("10");
+    expect(process.env.SLASHCASH_IMAP_SERVER).toBe("imap.gmail.com:993");
     expect(logSpy).toHaveBeenCalledWith(
       "green(Sync complete: 4 processed, 1 skipped, 0 failed.)",
     );

@@ -1,49 +1,66 @@
 # Reference — Glossary
 
-Short definitions for the terms that show up across the plan.
+Short definitions for terms that appear across the plan and docs.
 
-**slashcash.** The npm package and the CLI that ships it. Global bin: `slashcash`.
+**slashcash**
+The npm package and CLI. Global bin: `slashcash`.
 
-**`slash.cash` / `app.slash.cash`.** The hosted SaaS we are pivoting away from. The landing site at `slash.cash` stays and is repointed at the CLI at the end of Phase 2; the app subdomain is retired.
+**local-first**
+All user data, compute, and credentials live on the user's machine. The product stays useful without hosted services after onboarding.
 
-**local-first.** The design stance that all user data, compute and credentials live on the user's own machine, and the product is useful with no remote services after onboarding.
+**single-user**
+One human on one machine. No logins, teams, or sync.
 
-**single-user.** The product assumes one human on one machine. No logins, teams, roles or sync.
+**loopback**
+`127.0.0.1`. The only address the dashboard binds to.
 
-**loopback.** The `127.0.0.1` address. The only interface the Next.js server binds to. The authentication boundary for the local app.
+**onboard**
+The interactive `slashcash onboard` wizard. It checks Homebrew and Ollama, prompts for a Gmail address and app password, verifies IMAP login, and prepares local state.
 
-**onboard.** The one-time interactive setup flow started by `slashcash onboard`. Provisions Homebrew, Ollama, the model, `gws`, and the state directory.
+**doctor**
+The diagnostic and repair flow behind `slashcash doctor` and `slashcash doctor --fix`.
 
-**doctor.** The self-diagnostic and self-repair flow started by `slashcash doctor` (and `doctor --fix`). Every failure mode that has a known repair is resolved here rather than silently on startup.
+**state directory**
+`~/.slashcash/`. Holds `config.json`, `credentials.json` fallback storage, `db.sqlite`, `attachments/`, `logs/`, `pid/`, and `skills/`.
 
-**state directory.** `~/.slashcash/`. Holds `config.json`, `db.sqlite`, `attachments/`, `logs/`, `pid/` and `skills/`. Overridable via `SLASHCASH_HOME`.
+**config**
+The contents of `~/.slashcash/config.json`, validated against `packages/cli/src/config/schema.ts`.
 
-**config.** The contents of `~/.slashcash/config.json`, validated against the schema at load time. Documented in `reference/config.md`.
+**credential store**
+The place where the Gmail app password lives after onboarding. Primary path: macOS Keychain. Fallback: `~/.slashcash/credentials.json`.
 
-**skill.** A folder under `~/.slashcash/skills/` that extends what the app can do. Declares required binaries and cron jobs in a manifest; described in `reference/skills.md`. The only bundled skill in Phase 2 is `gmail-swiggy`.
+**app password**
+A 16-character Gmail credential generated at <https://myaccount.google.com/apppasswords>. slashcash uses it for IMAP login.
 
-**Ollama.** The local model server the product depends on. Installed and started through Homebrew during `onboard`. Reachable at its default loopback port.
+**IMAP**
+The mailbox protocol slashcash uses for Gmail ingest. Endpoint: `imap.gmail.com:993`.
 
-**gemma3n:e4b.** The Ollama tag for the Gemma 3n E4B model. Default chat and vision model for the local app.
+**IMAP fixture**
+A committed `.eml` file under `packages/e2e-tests/fixtures/imap/` used to test the ingest path without a real Gmail account.
 
-**`gws`.** The Google Workspace CLI. Used as a subprocess for every Gmail operation. Owns Google authentication, refresh tokens and API access; we do not.
+**skill**
+A folder under `~/.slashcash/skills/` that can add jobs and guidance. The bundled v1 skill is `gmail-swiggy`.
 
-**AI SDK.** Vercel's `ai` package used by the existing code. We keep it and point it at Ollama through its OpenAI-compatible adapter.
+**Ollama**
+The local model server slashcash uses for chat and extraction.
 
-**Drizzle.** The ORM we keep. In the new codebase it targets SQLite through `drizzle-orm/better-sqlite3`.
+**gemma3n:e4b**
+The default Ollama model for chat and vision parsing.
 
-**tRPC.** The API layer between the Next.js dashboard and the server. Routers are kept; the tRPC context becomes a simple local user.
+**single-flight**
+The guarantee that the ingest job never overlaps with itself. Enforced by a module-level mutex.
 
-**node-cron.** The in-process scheduler that runs the Gmail ingest job every fifteen minutes by default.
+**job registry**
+The runtime object that maps skill-declared job ids to async functions for cron.
 
-**single-flight.** The property that the ingest job never runs concurrently with itself. Enforced by a module-level mutex.
+**PID file**
+`~/.slashcash/pid/slashcash.pid.json`. Lets `slashcash stop` and `slashcash status` find the running process.
 
-**job registry.** The runtime object that maps job ids to async functions. Skills contribute jobs; the cron schedule picks jobs from the registry at start time.
+**standalone output**
+Next.js packaging mode used for the published CLI bundle.
 
-**PID file.** `~/.slashcash/pid/slashcash.pid`. Lets `slashcash stop` and `slashcash status` find the running process.
+**ADR**
+Architecture decision record. Stored in `packages/docs/reference/decisions.md`.
 
-**standalone output.** Next.js's bundling mode that produces a self-contained server tree. Used by the release workflow so the published CLI does not need to build the Next.js app on the user's machine.
-
-**ADR.** Architecture decision record. One per decision, kept in `reference/decisions.md`.
-
-**openclaw.** The reference CLI we borrow architectural patterns from (entry shim, command catalog, doctor repair sequencing, state directory conventions). No code is copied; only patterns.
+**openclaw**
+The reference CLI we borrow structure from, especially the wizard and command-loading patterns.

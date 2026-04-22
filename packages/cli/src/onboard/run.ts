@@ -1,7 +1,10 @@
 import { existsSync } from "node:fs";
 import pc from "picocolors";
-import { selectChoice } from "../cli/prompt.js";
-import { createProgress, type Progress } from "../cli/progress.js";
+import {
+  describeCredentialStore,
+  readStoredCredentials,
+  writeStoredCredentials,
+} from "../config/credentials.js";
 import { loadConfig, writeConfig } from "../config/load.js";
 import type { SlashcashConfig } from "../config/schema.js";
 import {
@@ -11,16 +14,28 @@ import {
 } from "../config/paths.js";
 import { CliError } from "../errors/format.js";
 import { loadDatabase } from "../runtime/database.js";
+import { loadImapClient } from "../runtime/tasks.js";
 import {
   commandExists,
   runCommand,
   runInteractive,
 } from "../runtime/subprocess.js";
 import { installBundledSkills } from "../skills/registry.js";
-import { FINAL_SUMMARY, TOP_BANNER } from "../privacy/copy.js";
+import {
+  FINAL_SUMMARY,
+  PRE_APP_PASSWORD_INPUT,
+  TOP_BANNER,
+} from "../privacy/copy.js";
+import {
+  createClackPrompter,
+  WizardCancelledError,
+} from "../wizard/clack-prompter.js";
+import type { WizardPrompter } from "../wizard/prompts.js";
 
 const HOMEBREW_INSTALL_URL = "https://brew.sh/";
+const APP_PASSWORD_URL = "https://myaccount.google.com/apppasswords";
 const OLLAMA_FORMULA = "ollama";
+const DEFAULT_CHAT_MODEL = "gemma3n:e4b";
 
 type DetectResult =
   | { done: true; message?: string }
@@ -31,17 +46,19 @@ type OnboardContext = {
   config: SlashcashConfig;
   dryRun: boolean;
   skipExternal: boolean;
-  skipAuth: boolean;
   yes: boolean;
   nonInteractive: boolean;
   freshConfig: boolean;
+  prompter: WizardPrompter;
+  pendingPassword: string | null;
+  credentialStore: "keychain" | "file" | null;
 };
 
 type Step = {
   id: string;
   label: string;
   detect(ctx: OnboardContext): Promise<DetectResult> | DetectResult;
-  install(ctx: OnboardContext, progress: Progress): Promise<void> | void;
+  install(ctx: OnboardContext): Promise<void> | void;
   verify(ctx: OnboardContext): Promise<void> | void;
 };
 
@@ -49,7 +66,6 @@ export async function runOnboard(
   options: {
     dryRun?: boolean;
     skipExternal?: boolean;
-    skipAuth?: boolean;
     yes?: boolean;
     nonInteractive?: boolean;
   } = {},
@@ -61,13 +77,42 @@ export async function runOnboard(
     config: loadConfig({ createIfMissing: true }),
     dryRun: options.dryRun === true,
     skipExternal: options.skipExternal === true || options.dryRun === true,
-    skipAuth: options.skipAuth === true,
     yes: options.yes === true,
     nonInteractive: options.nonInteractive === true,
     freshConfig,
+    prompter: createClackPrompter(),
+    pendingPassword: null,
+    credentialStore: null,
   };
 
-  await runPipeline(ctx, buildSteps());
+  const activeState = { step: "welcome" };
+  const onCancel = () => {
+    console.error(
+      `\nCancelled at step ${activeState.step}. Run \`slashcash doctor --fix\` to resume.`,
+    );
+    process.exit(130);
+  };
+
+  process.once("SIGINT", onCancel);
+
+  try {
+    ctx.prompter.intro("slashcash setup");
+    if (process.env.SLASHCASH_E2E !== "1") {
+      ctx.prompter.note(TOP_BANNER);
+    }
+
+    await runPipeline(ctx, buildSteps(), activeState);
+    printFinalSummary(ctx);
+    ctx.prompter.outro("Onboarding complete. Run `slashcash start`.");
+  } catch (error) {
+    if (error instanceof WizardCancelledError) {
+      process.exitCode = 130;
+      return;
+    }
+    throw error;
+  } finally {
+    process.off("SIGINT", onCancel);
+  }
 }
 
 function buildSteps(): Step[] {
@@ -77,81 +122,47 @@ function buildSteps(): Step[] {
     ollamaInstallStep,
     ollamaServiceStep,
     ollamaPullStep,
+    gmailAccountStep,
+    gmailAppPasswordStep,
+    imapVerifyStep,
     stateDirStep,
     dbMigrateStep,
     bundledSkillsStep,
-    finalSummaryStep,
   ];
 }
 
-async function runPipeline(ctx: OnboardContext, steps: Step[]) {
-  const progress = createProgress();
-  const completed: string[] = [];
-  let activeStep = "start";
-
-  const onCancel = () => {
-    console.error(
-      `\nCancelled at step ${activeStep}. Run \`slashcash doctor --fix\` to resume.`,
-    );
-    process.exit(130);
-  };
-  process.once("SIGINT", onCancel);
-
-  try {
-    for (const step of steps) {
-      activeStep = step.id;
-      const detected = await step.detect(ctx);
-      if (detected.done) {
-        console.log(
-          `${pc.green("done")} ${step.label}${detected.message ? `: ${detected.message}` : ""}`,
-        );
-        completed.push(step.id);
-        if (step.id === "model-question") {
-          printPrivacyCopy(TOP_BANNER);
-        }
-        continue;
-      }
-
-      progress.start(step.label);
-      try {
-        await step.install(ctx, progress);
-        await step.verify(ctx);
-        progress.done();
-        completed.push(step.id);
-        if (step.id === "model-question") {
-          printPrivacyCopy(TOP_BANNER);
-        }
-      } catch (error) {
-        progress.fail(error instanceof Error ? error.message : String(error));
-        throw error;
-      }
+async function runPipeline(
+  ctx: OnboardContext,
+  steps: Step[],
+  activeState: { step: string },
+) {
+  for (const step of steps) {
+    activeState.step = step.id;
+    const detected = await step.detect(ctx);
+    if (detected.done) {
+      console.log(
+        `${pc.green("done")} ${step.label}${detected.message ? `: ${detected.message}` : ""}`,
+      );
+      continue;
     }
-  } finally {
-    process.off("SIGINT", onCancel);
-  }
 
-  if (completed.length === steps.length) {
-    console.log(pc.green("Onboarding complete. Run slashcash start."));
+    await step.install(ctx);
+    await step.verify(ctx);
+    console.log(pc.green(`done ${step.label}`));
   }
 }
 
-function skippedExternal(ctx: OnboardContext): DetectResult {
-  return ctx.skipExternal || process.env.SLASHCASH_E2E === "1"
-    ? { done: true, message: "skipped by local/E2E mode" }
-    : { done: false };
-}
-
-function printPrivacyCopy(copy: string) {
-  if (process.env.SLASHCASH_E2E === "1") return;
-  console.log(copy);
+function isSkipped(ctx: OnboardContext) {
+  return ctx.skipExternal || process.env.SLASHCASH_E2E === "1";
 }
 
 const homebrewStep: Step = {
   id: "homebrew",
   label: "Homebrew",
   detect(ctx) {
-    if (ctx.skipExternal || process.env.SLASHCASH_E2E === "1")
-      return skippedExternal(ctx);
+    if (isSkipped(ctx)) {
+      return { done: true, message: "skipped by local/E2E mode" };
+    }
     return commandExists("brew")
       ? { done: true, message: "installed" }
       : { done: false };
@@ -173,7 +184,7 @@ const homebrewStep: Step = {
 };
 
 const modelQuestionStep: Step = {
-  id: "model-question",
+  id: "chat-model",
   label: "Chat model",
   detect(ctx) {
     if (ctx.dryRun || process.env.SLASHCASH_E2E === "1") {
@@ -189,30 +200,30 @@ const modelQuestionStep: Step = {
       throw new CliError({
         area: "config",
         symptom: "Onboarding needs one model choice.",
-        cause: "`--non-interactive` was passed without `--yes`.",
+        cause:
+          "`--non-interactive` was passed without a saved config or `--yes`.",
         fix: "Run `slashcash onboard --yes` to accept the default model.",
       });
     }
 
-    const model = await selectChoice({
-      question: "Choose the local chat model.",
-      defaultValue: ctx.config.ai.chatModel || "gemma3n:e4b",
-      nonInteractive: ctx.yes,
-      choices: [
+    const model = await ctx.prompter.select({
+      message: "Choose the local chat model.",
+      initialValue: ctx.config.ai.chatModel || DEFAULT_CHAT_MODEL,
+      options: [
         {
-          label: "gemma3n:e4b",
-          value: "gemma3n:e4b",
-          description: "Default balance of quality and download size.",
+          value: DEFAULT_CHAT_MODEL,
+          label: DEFAULT_CHAT_MODEL,
+          hint: "Default balance of quality and download size.",
         },
         {
-          label: "gemma3:4b",
           value: "gemma3:4b",
-          description: "Smaller and faster.",
+          label: "gemma3:4b",
+          hint: "Smaller and faster.",
         },
         {
-          label: "qwen2.5:7b",
           value: "qwen2.5:7b",
-          description: "Larger and slower, usually stronger.",
+          label: "qwen2.5:7b",
+          hint: "Larger and slower, usually stronger.",
         },
       ],
     });
@@ -231,21 +242,26 @@ const ollamaInstallStep: Step = {
   id: "ollama-install",
   label: "Ollama install",
   detect(ctx) {
-    if (ctx.skipExternal || process.env.SLASHCASH_E2E === "1")
-      return skippedExternal(ctx);
+    if (isSkipped(ctx)) {
+      return { done: true, message: "skipped by local/E2E mode" };
+    }
     return commandExists("ollama")
       ? { done: true, message: "installed" }
       : { done: false };
   },
-  install() {
+  install(ctx) {
+    const stepSpinner = ctx.prompter.spinner();
+    stepSpinner.start("Installing Ollama with Homebrew");
     const result = runCommand("brew", ["install", OLLAMA_FORMULA], {
       timeoutMs: 10 * 60_000,
     });
     if (!result.ok) {
+      stepSpinner.error("brew install ollama failed");
       throw new Error(
         result.stderr || result.stdout || "brew install ollama failed.",
       );
     }
+    stepSpinner.stop("Ollama installed");
   },
   verify() {
     if (!commandExists("ollama")) {
@@ -258,21 +274,26 @@ const ollamaServiceStep: Step = {
   id: "ollama-service",
   label: "Ollama service",
   async detect(ctx) {
-    if (ctx.skipExternal || process.env.SLASHCASH_E2E === "1")
-      return skippedExternal(ctx);
-    return (await isOllamaReachable(ctx.config.ai.ollamaBaseUrl, 200))
+    if (isSkipped(ctx)) {
+      return { done: true, message: "skipped by local/E2E mode" };
+    }
+    return (await isOllamaReachable(ctx.config.ai.ollamaBaseUrl, 250))
       ? { done: true, message: "reachable" }
       : { done: false };
   },
   async install(ctx) {
+    const stepSpinner = ctx.prompter.spinner();
+    stepSpinner.start("Starting Ollama background service");
     runCommand("brew", ["services", "start", OLLAMA_FORMULA], {
       timeoutMs: 60_000,
     });
     if (!(await isOllamaReachable(ctx.config.ai.ollamaBaseUrl, 20_000))) {
+      stepSpinner.error("Ollama did not become reachable");
       throw new Error(
         "Ollama did not become reachable. Try: brew services restart ollama",
       );
     }
+    stepSpinner.stop("Ollama service is reachable");
   },
   async verify(ctx) {
     if (!(await isOllamaReachable(ctx.config.ai.ollamaBaseUrl, 1_000))) {
@@ -285,28 +306,228 @@ const ollamaPullStep: Step = {
   id: "ollama-pull",
   label: "Ollama model",
   detect(ctx) {
-    if (ctx.skipExternal || process.env.SLASHCASH_E2E === "1")
-      return skippedExternal(ctx);
+    if (isSkipped(ctx)) {
+      return { done: true, message: "skipped by local/E2E mode" };
+    }
     const list = runCommand("ollama", ["list"], { timeoutMs: 15_000 });
     if (!list.ok) return { done: false };
     return list.stdout.includes(ctx.config.ai.chatModel)
       ? { done: true, message: ctx.config.ai.chatModel }
       : { done: false };
   },
-  async install(ctx, progress) {
-    progress.update(`pulling ${ctx.config.ai.chatModel}`);
+  async install(ctx) {
+    const stepSpinner = ctx.prompter.spinner();
+    stepSpinner.start(`Pulling ${ctx.config.ai.chatModel}`);
     const code = await runInteractive("ollama", [
       "pull",
       ctx.config.ai.chatModel,
     ]);
     if (code !== 0) {
+      stepSpinner.error(`ollama pull exited with ${code}`);
       throw new Error(`ollama pull exited with ${code}.`);
     }
+    stepSpinner.stop(`${ctx.config.ai.chatModel} is ready`);
   },
   verify(ctx) {
     const list = runCommand("ollama", ["list"], { timeoutMs: 15_000 });
     if (!list.ok || !list.stdout.includes(ctx.config.ai.chatModel)) {
       throw new Error(`${ctx.config.ai.chatModel} is not available in ollama.`);
+    }
+  },
+};
+
+const gmailAccountStep: Step = {
+  id: "gmail-account",
+  label: "Gmail account",
+  detect(ctx) {
+    if (ctx.dryRun || process.env.SLASHCASH_E2E === "1") {
+      return { done: true, message: "skipped by local/E2E mode" };
+    }
+    const address = ctx.config.gmail.address.trim();
+    return address ? { done: true, message: address } : { done: false };
+  },
+  async install(ctx) {
+    if (ctx.nonInteractive) {
+      throw new CliError({
+        area: "auth",
+        symptom: "A Gmail address is required.",
+        cause:
+          "`--non-interactive` was passed before Gmail credentials were configured.",
+        fix: "Run `slashcash onboard` interactively and enter the Gmail address you want to sync.",
+      });
+    }
+
+    const address = await ctx.prompter.text({
+      message: "Enter the Gmail address to sync.",
+      placeholder: "you@gmail.com",
+      defaultValue: ctx.config.gmail.address || undefined,
+      validate(value) {
+        return isEmailAddress(value)
+          ? undefined
+          : "Enter a valid Gmail address.";
+      },
+    });
+
+    ctx.config.gmail.address = address.trim().toLowerCase();
+    writeConfig(ctx.config);
+  },
+  verify(ctx) {
+    if (!isEmailAddress(ctx.config.gmail.address)) {
+      throw new Error("gmail address is empty.");
+    }
+  },
+};
+
+const gmailAppPasswordStep: Step = {
+  id: "gmail-app-password",
+  label: "Gmail app password",
+  async detect(ctx) {
+    if (ctx.dryRun || process.env.SLASHCASH_E2E === "1") {
+      return { done: true, message: "skipped by local/E2E mode" };
+    }
+
+    const credentials = await readStoredCredentials();
+    if (
+      credentials &&
+      credentials.address === ctx.config.gmail.address.trim().toLowerCase()
+    ) {
+      ctx.credentialStore = credentials.store;
+      return {
+        done: true,
+        message: describeCredentialStore(credentials.store),
+      };
+    }
+
+    return { done: false };
+  },
+  async install(ctx) {
+    if (ctx.nonInteractive) {
+      throw new CliError({
+        area: "auth",
+        symptom: "A Gmail app password is required.",
+        cause:
+          "`--non-interactive` was passed before Gmail IMAP credentials were configured.",
+        fix: "Run `slashcash onboard` interactively, generate an app password, and paste it into the wizard.",
+        docs: APP_PASSWORD_URL,
+      });
+    }
+
+    ctx.prompter.note(PRE_APP_PASSWORD_INPUT, "Gmail app password");
+    const password = await ctx.prompter.password({
+      message: "Paste the 16-character Gmail app password.",
+      validate(value) {
+        const normalized = normalizeAppPassword(value);
+        return normalized.length === 16
+          ? undefined
+          : "Paste the full 16-character app password (spaces are okay).";
+      },
+    });
+    ctx.pendingPassword = normalizeAppPassword(password);
+  },
+  verify(ctx) {
+    if (!ctx.pendingPassword || ctx.pendingPassword.length !== 16) {
+      throw new Error("gmail app password is not set.");
+    }
+  },
+};
+
+const imapVerifyStep: Step = {
+  id: "imap-verify",
+  label: "Gmail IMAP verify",
+  async detect(ctx) {
+    if (ctx.dryRun || process.env.SLASHCASH_E2E === "1") {
+      return { done: true, message: "skipped by local/E2E mode" };
+    }
+
+    const credentials = await readStoredCredentials();
+    if (
+      credentials &&
+      credentials.address === ctx.config.gmail.address.trim().toLowerCase() &&
+      !ctx.pendingPassword
+    ) {
+      ctx.credentialStore = credentials.store;
+      return {
+        done: true,
+        message: `${ctx.config.gmail.imapServer} (${credentials.address})`,
+      };
+    }
+
+    return { done: false };
+  },
+  async install(ctx) {
+    const { verifyImapLogin } = await loadImapClient();
+
+    while (true) {
+      const stepSpinner = ctx.prompter.spinner();
+      stepSpinner.start(`Verifying ${ctx.config.gmail.imapServer}`);
+      const result = await verifyImapLogin({
+        address: ctx.config.gmail.address,
+        appPassword: ctx.pendingPassword || undefined,
+      });
+
+      if (result.ok) {
+        const stored = await writeStoredCredentials({
+          address: ctx.config.gmail.address,
+          appPassword: ctx.pendingPassword || "",
+        });
+        ctx.credentialStore = stored.store;
+        ctx.pendingPassword = null;
+        ctx.config.gmail.passwordStore = stored.store;
+        writeConfig(ctx.config);
+        stepSpinner.stop(`Connected as ${stored.address}`);
+        return;
+      }
+
+      stepSpinner.error(result.error.symptom);
+      if (ctx.nonInteractive) {
+        throw Object.assign(new Error(result.error.message), {
+          area: "auth",
+          symptom: result.error.symptom,
+          cause: result.error.cause,
+          fix: result.error.fix,
+          docs: result.error.docsUrl,
+        });
+      }
+
+      ctx.prompter.note(
+        [
+          `symptom: ${result.error.symptom}`,
+          `cause: ${result.error.cause}`,
+          `fix: ${result.error.fix}`,
+        ].join("\n"),
+        "Gmail IMAP check failed",
+      );
+
+      const retry = await ctx.prompter.confirm({
+        message: "Retry with a different app password?",
+        initialValue: true,
+      });
+      if (!retry) {
+        throw Object.assign(new Error(result.error.message), {
+          area: "auth",
+          symptom: result.error.symptom,
+          cause: result.error.cause,
+          fix: result.error.fix,
+          docs: result.error.docsUrl,
+        });
+      }
+
+      const password = await ctx.prompter.password({
+        message: "Paste a new Gmail app password.",
+        validate(value) {
+          const normalized = normalizeAppPassword(value);
+          return normalized.length === 16
+            ? undefined
+            : "Paste the full 16-character app password (spaces are okay).";
+        },
+      });
+      ctx.pendingPassword = normalizeAppPassword(password);
+    }
+  },
+  async verify(ctx) {
+    const credentials = await readStoredCredentials();
+    if (!credentials) {
+      throw new Error("gmail credentials were not saved.");
     }
   },
 };
@@ -362,25 +583,18 @@ const bundledSkillsStep: Step = {
   },
 };
 
-const finalSummaryStep: Step = {
-  id: "final-summary",
-  label: "Summary",
-  detect(ctx) {
-    console.log(pc.green("Local slash.cash state is ready."));
-    console.log(`home        ${ctx.paths.home}`);
-    console.log(`database    ${ctx.paths.db}`);
-    console.log(`skills      ${ctx.paths.skills}`);
-    console.log(`model       ${ctx.config.ai.chatModel}`);
-    printPrivacyCopy(FINAL_SUMMARY);
-    return { done: true };
-  },
-  install() {
-    // Summary-only step.
-  },
-  verify() {
-    // Summary-only step.
-  },
-};
+function printFinalSummary(ctx: OnboardContext) {
+  console.log(pc.green("Local slash.cash state is ready."));
+  console.log(`home        ${ctx.paths.home}`);
+  console.log(`database    ${ctx.paths.db}`);
+  console.log(`skills      ${ctx.paths.skills}`);
+  console.log(`model       ${ctx.config.ai.chatModel}`);
+  console.log(
+    FINAL_SUMMARY({
+      credentialStore: describeCredentialStore(ctx.credentialStore),
+    }),
+  );
+}
 
 async function isOllamaReachable(baseUrl: string, timeoutMs: number) {
   const endpoint = new URL(baseUrl);
@@ -400,4 +614,12 @@ async function isOllamaReachable(baseUrl: string, timeoutMs: number) {
   }
 
   return false;
+}
+
+function isEmailAddress(value: string | undefined) {
+  return Boolean(value && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()));
+}
+
+function normalizeAppPassword(value: string | undefined) {
+  return (value || "").replace(/\s+/g, "");
 }

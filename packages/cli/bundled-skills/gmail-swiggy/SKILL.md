@@ -9,6 +9,6 @@ requires:
 
 # Gmail Swiggy
 
-Tracks the local Swiggy inbox-sync capability while the mailbox backend is being migrated, keeps the scheduler/config surface stable, and writes results to SQLite once the next mailbox phase lands.
+Runs the local Swiggy Gmail ingest job through the IMAP backend, keeps the scheduler/config surface stable, and writes parsed receipts and transactions into SQLite.
 
 The default Gmail query is stored in `config.json` at `sync.gmailQuery`.

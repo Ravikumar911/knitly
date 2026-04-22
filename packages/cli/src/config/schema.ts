@@ -12,12 +12,25 @@ export const configSchema = z.object({
   }),
   sync: z.object({
     schedule: z.string().default("*/15 * * * *"),
-    gmailQuery: z.string().min(1).default('from:(swiggy.in) newer_than:365d'),
+    gmailQuery: z.string().min(1).default("from:(swiggy.in) newer_than:365d"),
     maxMessages: z.number().int().min(1).max(500).default(50),
   }),
-  skills: z.object({
-    enabled: z.record(z.boolean()).default({ "gmail-swiggy": true }),
-  }).default({ enabled: { "gmail-swiggy": true } }),
+  gmail: z
+    .object({
+      address: z.string().default(""),
+      passwordStore: z.enum(["keychain", "file"]).default("keychain"),
+      imapServer: z.literal("imap.gmail.com:993").default("imap.gmail.com:993"),
+    })
+    .default({
+      address: "",
+      passwordStore: "keychain",
+      imapServer: "imap.gmail.com:993",
+    }),
+  skills: z
+    .object({
+      enabled: z.record(z.boolean()).default({ "gmail-swiggy": true }),
+    })
+    .default({ enabled: { "gmail-swiggy": true } }),
   updates: z
     .object({
       checkOnVersion: z.boolean().default(false),
@@ -39,8 +52,13 @@ export const defaultConfig: SlashcashConfig = {
   },
   sync: {
     schedule: "*/15 * * * *",
-    gmailQuery: 'from:(swiggy.in) newer_than:365d',
+    gmailQuery: "from:(swiggy.in) newer_than:365d",
     maxMessages: 50,
+  },
+  gmail: {
+    address: "",
+    passwordStore: "keychain",
+    imapServer: "imap.gmail.com:993",
   },
   skills: {
     enabled: {

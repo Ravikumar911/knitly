@@ -1,7 +1,9 @@
 import { accessSync } from "node:fs";
+import { getCredentialState } from "../config/credentials.js";
 import { loadConfig } from "../config/load.js";
 import { ensureStateDirs, resolvePaths } from "../config/paths.js";
 import { loadDatabase } from "../runtime/database.js";
+import { loadImapClient } from "../runtime/tasks.js";
 import { commandExists } from "../runtime/subprocess.js";
 import {
   installBundledSkills,
@@ -12,7 +14,7 @@ export type DoctorCheck = {
   id: string;
   name: string;
   label: string;
-  category: "filesystem" | "network" | "binary" | "schema";
+  category: "filesystem" | "network" | "binary" | "schema" | "auth";
   status: "ok" | "fail";
   message: string;
   durationMs: number;
@@ -112,6 +114,48 @@ export async function runChecks(
     });
   }
 
+  begin("gmail-credentials");
+  try {
+    if (process.env.SLASHCASH_IMAP_FIXTURE_DIR) {
+      push({
+        id: "gmail-credentials",
+        name: "Gmail credentials",
+        label: "Gmail credentials",
+        category: "auth",
+        status: "ok",
+        message: "fixture mode",
+        fix: "Unset SLASHCASH_IMAP_FIXTURE_DIR to validate a real Gmail account.",
+      });
+    } else {
+      const credentialState = await getCredentialState();
+      push({
+        id: "gmail-credentials",
+        name: "Gmail credentials",
+        label: "Gmail credentials",
+        category: "auth",
+        status: credentialState.store ? "ok" : "fail",
+        message: credentialState.store
+          ? credentialState.warning
+            ? `${credentialState.address} (${credentialState.warning})`
+            : `${credentialState.address} (${credentialState.store})`
+          : "missing",
+        fix: credentialState.store
+          ? "Optional: rerun `slashcash onboard` to move credentials into Keychain."
+          : "Run `slashcash onboard` to save a Gmail address and app password.",
+      });
+    }
+  } catch (error) {
+    push({
+      id: "gmail-credentials",
+      name: "Gmail credentials",
+      label: "Gmail credentials",
+      category: "auth",
+      status: "fail",
+      message: String(error),
+      fix: "Run `slashcash onboard` to save a Gmail address and app password.",
+    });
+  }
+
   begin("sqlite");
   try {
     process.env.SQLITE_DB_PATH = paths.db;
@@ -189,6 +233,7 @@ export async function runChecks(
     checks.push(
       await checkOllama(config.ai.ollamaBaseUrl, config.ai.chatModel),
     );
+    checks.push(await checkGmailImap());
   }
 
   return checks;
@@ -239,6 +284,66 @@ async function checkOllama(
       name: "Ollama",
       status: hasModel ? "ok" : "fail",
       message: hasModel ? `${baseUrl} (${model})` : `${model} not pulled`,
+      durationMs: Date.now() - started,
+    };
+  } catch (error) {
+    return {
+      ...base,
+      status: "fail",
+      message: String(error),
+      durationMs: Date.now() - started,
+    };
+  }
+}
+
+async function checkGmailImap(): Promise<DoctorCheck> {
+  const started = Date.now();
+  const base = {
+    id: "gmail-imap",
+    name: "Gmail IMAP",
+    label: "Gmail IMAP",
+    category: "auth" as const,
+    durationMs: 0,
+    fix: "Run `slashcash doctor --reset-credentials`, then rerun `slashcash onboard`.",
+  };
+
+  if (process.env.SLASHCASH_IMAP_FIXTURE_DIR) {
+    return {
+      ...base,
+      status: "ok",
+      message: "fixture mode",
+      durationMs: Date.now() - started,
+    };
+  }
+
+  const credentialState = await getCredentialState();
+  if (!credentialState.store) {
+    return {
+      ...base,
+      status: "fail",
+      message: "credentials missing",
+      durationMs: Date.now() - started,
+      fix: "Run `slashcash onboard` to save Gmail IMAP credentials.",
+    };
+  }
+
+  try {
+    const { verifyImapLogin } = await loadImapClient();
+    const result = await verifyImapLogin();
+    if (!result.ok) {
+      return {
+        ...base,
+        status: "fail",
+        message: result.error.symptom,
+        durationMs: Date.now() - started,
+        fix: result.error.fix,
+      };
+    }
+
+    return {
+      ...base,
+      status: "ok",
+      message: `imap.gmail.com:993 (${result.data.address})`,
       durationMs: Date.now() - started,
     };
   } catch (error) {

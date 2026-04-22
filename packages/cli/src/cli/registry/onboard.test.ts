@@ -32,8 +32,13 @@ describe("onboard command", () => {
     register(program);
 
     const command = program.commands[0]!;
-    expect(command.options.find((option) => option.long === "--skip-external")?.hidden).toBe(true);
-    expect(command.options.find((option) => option.long === "--skip-auth")?.hidden).toBe(true);
+    expect(
+      command.options.find((option) => option.long === "--skip-external")
+        ?.hidden,
+    ).toBe(true);
+    expect(
+      command.options.find((option) => option.long === "--skip-auth"),
+    ).toBeUndefined();
   });
 
   it("forwards parsed options to the onboard runner", async () => {
@@ -43,11 +48,16 @@ describe("onboard command", () => {
     register(program);
 
     const command = program.commands[0]!;
-    expect(command.options.find((option) => option.long === "--skip-external")?.hidden).toBe(false);
-    expect(command.options.find((option) => option.long === "--skip-auth")?.hidden).toBe(false);
+    expect(
+      command.options.find((option) => option.long === "--skip-external")
+        ?.hidden,
+    ).toBe(false);
+    expect(
+      command.options.find((option) => option.long === "--skip-auth"),
+    ).toBeUndefined();
 
     await program.parseAsync(
-      ["onboard", "--yes", "--non-interactive", "--dry-run", "--skip-external", "--skip-auth"],
+      ["onboard", "--yes", "--non-interactive", "--dry-run", "--skip-external"],
       { from: "user" },
     );
 
@@ -56,7 +66,6 @@ describe("onboard command", () => {
       nonInteractive: true,
       dryRun: true,
       skipExternal: true,
-      skipAuth: true,
     });
   });
 });

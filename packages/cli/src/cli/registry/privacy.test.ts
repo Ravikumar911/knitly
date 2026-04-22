@@ -15,8 +15,11 @@ describe("privacy command", () => {
     expect(logSpy).toHaveBeenNthCalledWith(2, "");
     expect(logSpy).toHaveBeenNthCalledWith(
       3,
-      "Why this appears during onboarding: packages/docs/reference/decisions.md#adr-023---privacy-disclosures-surface-at-onboarding",
+      "Why this appears during onboarding: packages/docs/reference/decisions.md#adr-024---gmail-sync-via-imap-and-app-passwords",
     );
-    expect(logSpy).toHaveBeenNthCalledWith(4, "Data flow: packages/docs/architecture.md");
+    expect(logSpy).toHaveBeenNthCalledWith(
+      4,
+      "Data flow: packages/docs/architecture.md",
+    );
   });
 });

@@ -3,7 +3,10 @@ import { resolve } from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { extractEmailData, SlashAIV2Result } from "@workspace/tasks/agents/slashAIV2";
-import { defaultModel, OLLAMA_CHAT_MODEL } from "@workspace/tasks/ai/model";
+import {
+  defaultModel,
+  DEFAULT_OLLAMA_CHAT_MODEL,
+} from "@workspace/tasks/ai/model";
 import { EmailData } from "@workspace/tasks/types/slashAI";
 import { getAllTestCases } from "./fixtures/swiggy-samples";
 import { SWIGGY_EXPECTED_OUTPUTS } from "./fixtures/swiggy-expected";
@@ -70,12 +73,14 @@ async function runExtraction(input: EvalCase["input"]): Promise<SlashAIV2Result>
 }
 
 async function main() {
+  const modelName = process.env.OLLAMA_CHAT_MODEL || DEFAULT_OLLAMA_CHAT_MODEL;
+
   console.log(`
 ==============================================
   Swiggy Extraction Evaluation Started
 ==============================================
 
-Model: ${OLLAMA_CHAT_MODEL}
+Model: ${modelName}
 Test Cases: ${SWIGGY_EXPECTED_OUTPUTS.length} Swiggy PDF invoices
 
 ==============================================

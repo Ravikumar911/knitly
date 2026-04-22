@@ -38,7 +38,9 @@ describe("config loader", () => {
     const paths = resolvePaths();
 
     expect(config).toEqual(defaultConfig);
-    expect(JSON.parse(readFileSync(paths.config, "utf8"))).toEqual(defaultConfig);
+    expect(JSON.parse(readFileSync(paths.config, "utf8"))).toEqual(
+      defaultConfig,
+    );
   });
 
   it("rewrites incomplete config files with schema defaults", () => {
@@ -46,11 +48,15 @@ describe("config loader", () => {
     ensureStateDirs(paths);
     writeFileSync(
       paths.config,
-      `${JSON.stringify({
-        server: { port: 4010 },
-        ai: { chatModel: "tiny-local" },
-        sync: { gmailQuery: "label:slashcash" },
-      }, null, 2)}\n`,
+      `${JSON.stringify(
+        {
+          server: { port: 4010 },
+          ai: { chatModel: "tiny-local" },
+          sync: { gmailQuery: "label:slashcash" },
+        },
+        null,
+        2,
+      )}\n`,
     );
 
     const config = loadConfig();
@@ -68,6 +74,11 @@ describe("config loader", () => {
         gmailQuery: "label:slashcash",
         maxMessages: 50,
       },
+      gmail: {
+        address: "",
+        passwordStore: "keychain",
+        imapServer: "imap.gmail.com:993",
+      },
       updates: { checkOnVersion: false },
     });
     expect(persisted).toEqual(config);
@@ -84,6 +95,8 @@ describe("config loader", () => {
   });
 
   it("rejects empty config paths", () => {
-    expect(() => setConfigValue("", "value")).toThrow("Config path is required.");
+    expect(() => setConfigValue("", "value")).toThrow(
+      "Config path is required.",
+    );
   });
 });

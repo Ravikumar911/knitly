@@ -32,6 +32,11 @@
       "import": "./dist/agents/*.js",
       "default": "./dist/agents/*.js"
     },
+    "./gmail/*": {
+      "types": "./src/gmail/*.ts",
+      "import": "./dist/gmail/*.js",
+      "default": "./dist/gmail/*.js"
+    },
     "./merchants/*": {
       "types": "./src/merchants/*.ts",
       "import": "./dist/merchants/*.js",
@@ -57,6 +62,8 @@
     "@ai-sdk/openai-compatible": "1.0.17",
     "ai": "5.0.26",
     "@workspace/database": "workspace:*",
+    "imapflow": "^1.0.181",
+    "mailparser": "^3.7.2",
     "zod": "^3.25.76"
   },
   "devDependencies": {

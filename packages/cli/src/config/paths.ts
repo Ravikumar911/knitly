@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 export type SlashcashPaths = {
   home: string;
   config: string;
+  credentials: string;
   db: string;
   attachments: string;
   cache: string;
@@ -23,6 +24,7 @@ export function resolvePaths(): SlashcashPaths {
   return {
     home,
     config: join(home, "config.json"),
+    credentials: join(home, "credentials.json"),
     db: process.env.SQLITE_DB_PATH || join(home, "db.sqlite"),
     attachments: join(home, "attachments"),
     cache: join(home, "cache"),

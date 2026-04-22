@@ -9,7 +9,7 @@ export function register(program: Command) {
       console.log(TOP_BANNER);
       console.log("");
       console.log(
-        "Why this appears during onboarding: packages/docs/reference/decisions.md#adr-023---privacy-disclosures-surface-at-onboarding",
+        "Why this appears during onboarding: packages/docs/reference/decisions.md#adr-024---gmail-sync-via-imap-and-app-passwords",
       );
       console.log("Data flow: packages/docs/architecture.md");
     });

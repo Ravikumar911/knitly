@@ -1,75 +1,119 @@
 # Reference — CLI command surface
 
-The `slashcash` binary is the product. This document describes every command, what it does, and when in the roadmap it lands. Command implementations live under `packages/cli/src/cli/registry/`.
+The `slashcash` binary is the product. Command implementations live under `packages/cli/src/cli/registry/`.
 
 ## Conventions
 
-Every command accepts the global flags `--help` and `--version`. Every command returns 0 on success, 1 on a recoverable failure that the user can fix, and 2 on a user error (bad arguments, unknown subcommand). Errors print three lines: symptom, cause, and the one command to run. There is no verbose mode; logs live in `~/.slashcash/logs/` and are inspectable with `slashcash logs`.
+Every command accepts the global flags `--help` and `--version`. Success exits `0`. Recoverable runtime failures exit `1` and print the standard `error[area] / cause / fix` block. Bad arguments exit `2`. Logs live under `~/.slashcash/logs/` and are inspectable with `slashcash logs`.
 
 ## `slashcash onboard`
 
-Interactive first-run wizard. Prints the privacy disclosure banner (same copy as `slashcash privacy`, see ADR-023), detects Homebrew, installs Ollama, pulls `gemma3n:e4b`, installs gcloud (`brew install --cask google-cloud-sdk`), runs `gcloud auth login --brief --no-update-adc` (printing the pre-consent line first), installs `gws`, runs `gws auth setup` with inherited terminal I/O to provision a per-user OAuth client, runs `gws auth login --services gmail --readonly` (printing the pre-consent line first), creates `~/.slashcash/` with correct permissions, writes a default config, runs SQLite migrations, installs and enables the bundled `gmail-swiggy` skill, and prints the final-summary block that restates what is and isn't on the user's disk. Implements ADR-022. Idempotent; re-running after success is a quick no-op. Cancel-safe; a Ctrl-C leaves the machine in a state that `slashcash doctor --fix` can resume.
+Interactive first-run wizard backed by `@clack/prompts` and the `Step { detect / install / verify }` pipeline. It:
 
-As of the 2026-04-17 probe of `gws 0.22.5`, `gws auth setup` exposes `--project`, `--login`, and `--dry-run`, but no setup-time scope/API-list or test-user email flags. slashcash therefore does not try to script those values through config; any upstream setup prompt happens in the user's terminal, while Gmail access narrowing happens in the separate login step through `--services gmail --readonly`.
+1. Prints the privacy banner.
+2. Verifies Homebrew.
+3. Lets the user pick a local chat model (default `gemma3n:e4b`).
+4. Detects or installs Ollama, starts the service, and pulls the chosen model.
+5. Prompts for a Gmail address.
+6. Shows the app-password note and prompts for a 16-character Gmail app password.
+7. Verifies IMAP login against `imap.gmail.com:993` before saving credentials.
+8. Creates `~/.slashcash/`, migrates SQLite, installs bundled skills, and prints the final summary.
 
-Flags: `--yes` accepts the default model choice, `--non-interactive` fails instead of prompting, and `--dry-run` prepares local state and skips host installs/auth. The E2E-only `--skip-external` and `--skip-auth` flags are hidden unless `SLASHCASH_E2E=1` is set.
+The wizard is idempotent: rerunning on an already-configured machine is a fast no-op summary. Cancellation is safe; the user can rerun `slashcash onboard` or `slashcash doctor --fix`.
+
+Flags:
+
+- `--yes` accepts safe defaults, but still prompts for Gmail credentials because they have no safe default.
+- `--non-interactive` fails instead of prompting.
+- `--dry-run` prepares local state, skips host installs, and skips IMAP credential prompts.
+- `--skip-external` is an E2E-only flag hidden unless `SLASHCASH_E2E=1`.
 
 ## `slashcash start`
 
-Boots the dashboard and the cron worker in one Node process. Starts a Next.js server pinned to `127.0.0.1` at the configured port, writes a PID file, registers the Gmail ingest cron schedule for enabled skills, probes `/api/healthz`, and opens the browser. SIGINT or SIGTERM shuts the Next.js child and the cron gracefully, clears the PID file, and exits.
+Boots the dashboard and the cron worker in one Node process. Starts the Next.js server pinned to `127.0.0.1`, writes a PID file, registers cron jobs for enabled skills, probes `/api/healthz`, and optionally opens the browser.
 
-Flags: `--port <n>` overrides the config port for this run; `--no-open` suppresses the browser launch.
+Flags:
+
+- `--port <n>` overrides the configured port for one run.
+- `--no-open` suppresses the browser launch.
 
 ## `slashcash stop`
 
-Reads the PID file, sends SIGTERM, waits up to a short grace window, falls back to SIGKILL if necessary, clears the PID file. Exits non-zero if no PID file is present or the PID does not belong to a `slashcash` process.
+Reads the PID file, sends SIGTERM, waits briefly, escalates to SIGKILL if needed, and clears the PID file. Exits non-zero if no matching running process exists.
 
 ## `slashcash status`
 
-Prints a small table: PID (or `not running`), port, healthz status, DB path, attachments path, number of enabled skills. Exits zero always; the contents communicate state.
+Prints a small table with PID, port, health, DB path, attachments path, and enabled-skill count. Always exits `0`; the table contents communicate state.
 
 ## `slashcash doctor`
 
-Runs a battery of checks against the host and the state directory. Phase 1 checks the Node version, `~/.slashcash/` existence and permissions, the SQLite file, migrations up-to-date, Ollama reachability. Phase 2 adds checks for `gws` installed, `gws auth status`, `gemma3n:e4b` (and optionally the vision model) pulled, required binaries for each enabled skill, port free, config schema drift, stale PID file.
+Runs host and local-state checks:
 
-Flags: `--fix` applies repairs for every check that has one. `--json` emits a machine-readable check array. `--quick` skips network probes (`ollama`, `gws auth`). Every repair is idempotent.
+- Node version
+- state directory
+- config schema
+- sync schedule
+- Gmail credential presence
+- SQLite database
+- bundled skills
+- Ollama reachability and model pull status
+- Gmail IMAP login verification
+
+Flags:
+
+- `--fix` recreates missing local state and installs bundled skills.
+- `--json` emits the machine-readable check array.
+- `--quick` skips network probes (`ollama`, `gmail-imap`).
+- `--reset-credentials` deletes saved Gmail IMAP credentials before rerunning checks.
 
 ## `slashcash config get|set|path`
 
-Reads and writes `~/.slashcash/config.json`. `get <key>` prints one value (or the whole config if no key is given). `set <key> <value>` validates against the config schema, writes back atomically, and prints the new value. `path` prints the absolute path to the config file.
-
-Values are typed by the schema; numeric, boolean and string coercions are applied before validation. Unknown keys return a non-zero exit with a suggested nearest-match.
+Reads and writes `~/.slashcash/config.json`. `get <key>` prints one value or the whole config. `set <key> <value>` coerces booleans and numbers, validates against the schema, writes back, and prints the new value. `path` prints the config file path.
 
 ## `slashcash sync`
 
-Kicks the Gmail ingest job immediately, bypassing the cron schedule. Acquires the same mutex that cron uses, so two syncs can never run at once.
+Runs the Gmail ingest job immediately, bypassing cron. Acquires the same single-flight mutex the cron worker uses, so two syncs can never overlap.
 
-Flags: `--full` scans the configured Gmail query from the beginning, `--query <query>` overrides `sync.gmailQuery`, and `--limit <n>` overrides `sync.maxMessages`. Exits non-zero if `gws` is missing, unauthenticated, or the `gmail-swiggy` skill is disabled.
+Flags:
+
+- `--full` scans the configured Gmail query from the beginning.
+- `--query <query>` overrides `sync.gmailQuery`.
+- `--limit <n>` overrides `sync.maxMessages`.
+
+Exits non-zero if the bundled `gmail-swiggy` skill is disabled, credentials are missing, or Gmail IMAP rejects the saved credential.
 
 ## `slashcash skills list|enable|disable`
 
-Manages installed skills. `list` enumerates every folder under `~/.slashcash/skills/` with a valid manifest, showing id, version, description, and enabled state. `enable <id>` and `disable <id>` flip the enabled flag in `config.json`.
+Manages installed skills under `~/.slashcash/skills/`. `list` prints id, version, description, and enabled state. `enable <id>` / `disable <id>` flip the config flag; cron reads that flag before each run.
 
 ## `slashcash db seed|reset`
 
-Developer-facing database commands. Lands in Phase 1. `seed` populates the SQLite file with deterministic fixtures. `reset` deletes the SQLite file and the `attachments/` directory, reruns migrations, and reapplies the seed. Prompts for confirmation unless `--yes` is passed.
+Developer-facing SQLite helpers. `seed` populates deterministic fixtures. `reset` deletes the SQLite file and attachments directory, reruns migrations, and reapplies the seed. Prompts for confirmation unless `--yes` is passed.
 
 ## `slashcash logs`
 
 Reads structured JSONL logs from `~/.slashcash/logs/<YYYY-MM-DD>.log`.
 
-Flags: `--tail <n>` controls the number of events shown, `--follow` / `-f` follows new events, `--filter <area>` filters comma-separated areas such as `cron,ingest`, `--since <duration>` accepts values like `5m`, `1h` or `2d`, `--json` emits raw JSON events, and `--level <debug|info|warn|error>` sets the minimum level.
+Flags:
+
+- `--tail <n>`
+- `--follow` / `-f`
+- `--filter <area>`
+- `--since <duration>`
+- `--json`
+- `--level <debug|info|warn|error>`
 
 ## `slashcash privacy`
 
-Prints the same plain-language privacy statement the onboarding wizard shows at the top of `slashcash onboard` — the six factual bullets about where your Gmail token, emails, PDFs and analytics live, the local-only parsing model, the loopback dashboard, and the no-telemetry guarantee. Exists so the statement is reachable forever after onboarding, not just during it.
-
-No flags. Always exits 0. The copy is imported from `packages/cli/src/privacy/copy.ts`, the same module the wizard uses, so the two surfaces can never drift. See ADR-023 for why this command exists and `reference/architecture.md` for the corresponding data-flow diagram.
+Prints the same privacy statement used by onboarding. The copy comes from `packages/cli/src/privacy/copy.ts`, so the wizard and the standalone command cannot drift.
 
 ## `slashcash version`
 
-Prints the package version and exits. Implemented as a fast path in the entry shim so cold invocation does not load Commander. By default this command is silent beyond the version string. Users can opt into a once-per-day npm latest check with `slashcash config set updates.checkOnVersion true`; the cached result lives under `~/.slashcash/cache/`.
+Prints the package version via the fast path in the entry shim. Users can opt into a cached once-per-day npm latest check with `slashcash config set updates.checkOnVersion true`.
 
 ## Exit codes
 
-0 on success. 1 on a recoverable failure that the user can act on. 2 on bad arguments. 3 on an internal invariant violation (bug — we want to see these in issue reports).
+- `0` success
+- `1` recoverable runtime failure
+- `2` bad arguments
+- `3` internal invariant violation

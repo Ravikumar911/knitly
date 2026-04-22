@@ -4,6 +4,7 @@ import { defaultConfig } from "../config/schema.js";
 const mocks = vi.hoisted(() => ({
   listInstalledSkills: vi.fn(),
   isSkillEnabled: vi.fn(),
+  applyRuntimeEnv: vi.fn(),
   writeLog: vi.fn(),
   loadDatabase: vi.fn(),
   loadEmailSync: vi.fn(),
@@ -14,6 +15,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("./registry.js", () => ({
   listInstalledSkills: mocks.listInstalledSkills,
   isSkillEnabled: mocks.isSkillEnabled,
+}));
+
+vi.mock("../config/runtime-env.js", () => ({
+  applyRuntimeEnv: mocks.applyRuntimeEnv,
 }));
 
 vi.mock("../runtime/log.js", () => ({
@@ -35,6 +40,7 @@ describe("skill jobs", () => {
     "SLASHCASH_ATTACHMENTS_DIR",
     "SLASHCASH_GMAIL_QUERY",
     "SLASHCASH_SYNC_LIMIT",
+    "SLASHCASH_IMAP_SERVER",
     "OLLAMA_BASE_URL",
     "OLLAMA_CHAT_MODEL",
     "OLLAMA_VISION_MODEL",
@@ -58,6 +64,17 @@ describe("skill jobs", () => {
     mocks.loadDatabase.mockResolvedValue({
       ensureLocalDatabase: mocks.ensureLocalDatabase,
       LOCAL_USER_ID: "local-user-id",
+    });
+    mocks.applyRuntimeEnv.mockImplementation(async ({ config, paths }) => {
+      process.env.SQLITE_DB_PATH = paths.db;
+      process.env.SLASHCASH_HOME = paths.home;
+      process.env.SLASHCASH_ATTACHMENTS_DIR = paths.attachments;
+      process.env.SLASHCASH_GMAIL_QUERY = config.sync.gmailQuery;
+      process.env.SLASHCASH_SYNC_LIMIT = String(config.sync.maxMessages);
+      process.env.SLASHCASH_IMAP_SERVER = config.gmail.imapServer;
+      process.env.OLLAMA_BASE_URL = config.ai.ollamaBaseUrl;
+      process.env.OLLAMA_CHAT_MODEL = config.ai.chatModel;
+      process.env.OLLAMA_VISION_MODEL = config.ai.visionModel;
     });
     mocks.loadEmailSync.mockResolvedValue({
       runEmailSync: mocks.runEmailSync,
@@ -99,11 +116,13 @@ describe("skill jobs", () => {
     const { buildSkillJobRegistrations } = await import("./jobs.js");
     const registrations = buildSkillJobRegistrations(defaultConfig, paths);
 
-    expect(registrations.map((job) => ({
-      id: job.id,
-      schedule: job.schedule,
-      mutexKey: job.mutexKey,
-    }))).toEqual([
+    expect(
+      registrations.map((job) => ({
+        id: job.id,
+        schedule: job.schedule,
+        mutexKey: job.mutexKey,
+      })),
+    ).toEqual([
       {
         id: "gmail-swiggy:default-sync",
         schedule: defaultConfig.sync.schedule,
@@ -142,19 +161,27 @@ describe("skill jobs", () => {
     });
 
     const { buildSkillJobRegistrations } = await import("./jobs.js");
-    const registrations = buildSkillJobRegistrations({
-      ...defaultConfig,
-      ai: {
-        ollamaBaseUrl: "http://127.0.0.1:11434/v1",
-        chatModel: "tiny-chat",
-        visionModel: "tiny-vision",
+    const registrations = buildSkillJobRegistrations(
+      {
+        ...defaultConfig,
+        ai: {
+          ollamaBaseUrl: "http://127.0.0.1:11434/v1",
+          chatModel: "tiny-chat",
+          visionModel: "tiny-vision",
+        },
+        sync: {
+          schedule: "*/10 * * * *",
+          gmailQuery: "label:finance",
+          maxMessages: 25,
+        },
+        gmail: {
+          address: "user@gmail.com",
+          passwordStore: "keychain",
+          imapServer: "imap.gmail.com:993",
+        },
       },
-      sync: {
-        schedule: "*/10 * * * *",
-        gmailQuery: "label:finance",
-        maxMessages: 25,
-      },
-    }, paths);
+      paths,
+    );
 
     await registrations[0]!.run();
 
@@ -169,6 +196,7 @@ describe("skill jobs", () => {
     expect(process.env.SLASHCASH_ATTACHMENTS_DIR).toBe(paths.attachments);
     expect(process.env.SLASHCASH_GMAIL_QUERY).toBe("label:finance");
     expect(process.env.SLASHCASH_SYNC_LIMIT).toBe("25");
+    expect(process.env.SLASHCASH_IMAP_SERVER).toBe("imap.gmail.com:993");
     expect(process.env.OLLAMA_CHAT_MODEL).toBe("tiny-chat");
     expect(process.env.OLLAMA_VISION_MODEL).toBe("tiny-vision");
     expect(mocks.writeLog).toHaveBeenCalledWith("cron", {
@@ -206,6 +234,7 @@ describe("skill jobs", () => {
 
     expect(mocks.loadDatabase).not.toHaveBeenCalled();
     expect(mocks.loadEmailSync).not.toHaveBeenCalled();
+    expect(mocks.applyRuntimeEnv).not.toHaveBeenCalled();
     expect(mocks.writeLog).toHaveBeenCalledWith("cron", {
       event: "skipped",
       skillId: "gmail-swiggy",

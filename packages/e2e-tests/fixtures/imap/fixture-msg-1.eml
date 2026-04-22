@@ -1,0 +1,29 @@
+From: orders@swiggy.in
+To: user@gmail.com
+Subject: Swiggy order SWG-TEST-12345 delivered
+Date: Wed, 15 May 2024 19:45:00 +0530
+Message-ID: <fixture-msg-1@slashcash.local>
+X-Slashcash-Fixture-Id: fixture-msg-1
+X-GM-THRID: fixture-thread-1
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="fixture-boundary"
+
+--fixture-boundary
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Your Swiggy order has been delivered.
+Order ID: SWG-TEST-12345
+Restaurant: Millet Bowl Co
+Total: ₹348.50
+Area: Indiranagar
+Pincode: 560038
+
+--fixture-boundary
+Content-Type: application/pdf; name="swiggy-invoice-fixture.pdf"
+Content-Disposition: attachment; filename="swiggy-invoice-fixture.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4gZW5kb2JqCjIgMCBvYmogPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4gZW5kb2JqCjMgMCBvYmogPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCAyMDAgMjAwXSAvQ29udGVudHMgNCAwIFIgPj4gZW5kb2JqCjQgMCBvYmogPDwgL0xlbmd0aCA0NCA+PiBzdHJlYW0KQlQgL0YxIDEyIFRmIDIwIDEyMCBUZCAoU3dpZ2d5IFRlc3QgSW52b2ljZSkgVGogRVQKZW5kc3RyZWFtIGVuZG9iagp0cmFpbGVyIDw8IC9Sb290IDEgMCBSID4+CiUlRU9GCg==
+
+--fixture-boundary--
