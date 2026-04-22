@@ -57,6 +57,13 @@ const forbiddenEnvReferences = [
   "MODEL_NAME",
 ];
 
+const forbiddenPackageStrings = [
+  ["gw", "s"].join(""),
+  ["gcl", "oud"].join(""),
+  ["google", "cloud", "sdk"].join("-"),
+  ["googleworkspace", "cli"].join("-"),
+];
+
 const ignoredSegments = new Set([
   ".git",
   ".next",
@@ -101,6 +108,9 @@ export async function collectArchitectureSmells(): Promise<Smell[]> {
     const rel = relative(repoRoot, file);
     if (rel === "pnpm-lock.yaml") continue;
     if (rel === "packages/e2e-tests/architecture-smells.test.ts") continue;
+    if (rel.startsWith("packages/")) {
+      collectPackageTextSmells(file, rel, smells);
+    }
     if (rel.endsWith("package.json")) {
       collectPackageJsonSmells(file, rel, smells);
       continue;
@@ -169,6 +179,27 @@ function collectPackageJsonSmells(file: string, rel: string, smells: Smell[]) {
           reason: "Removed cloud/provider dependency must not be reintroduced.",
         });
       }
+    }
+  }
+}
+
+function collectPackageTextSmells(file: string, rel: string, smells: Smell[]) {
+  if (!/\.(ts|tsx|js|jsx|mjs|cjs|json|md)$/.test(rel)) return;
+
+  const source = readFileSync(file, "utf8");
+  for (const specifier of forbiddenPackageStrings) {
+    let index = source.indexOf(specifier);
+    while (index >= 0) {
+      smells.push({
+        category: "forbidden-string",
+        file: rel,
+        line: lineOfOffset(source, index),
+        kind: "text",
+        specifier,
+        reason:
+          "Retired Google mailbox tooling must not reappear outside packages/docs.",
+      });
+      index = source.indexOf(specifier, index + specifier.length);
     }
   }
 }

@@ -11,8 +11,8 @@ export function register(program: Command) {
       "--dry-run",
       "Only create slash.cash local state and bundled skills",
     )
-    .option("--skip-external", "Skip Homebrew, Ollama, gws and auth checks")
-    .option("--skip-auth", "Skip interactive Google auth")
+    .option("--skip-external", "Skip Homebrew and Ollama checks")
+    .option("--skip-auth", "Skip future credential prompts (E2E only)")
     .action(
       async (options: {
         dryRun?: boolean;

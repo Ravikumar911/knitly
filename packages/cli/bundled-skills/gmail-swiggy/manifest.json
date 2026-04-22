@@ -3,9 +3,9 @@
   "name": "Gmail Swiggy",
   "version": "1.0.0",
   "category": "ingest",
-  "description": "Ingest Swiggy transaction emails from Gmail through gws.",
+  "description": "Ingest Swiggy transaction emails from Gmail.",
   "requires": {
-    "bins": ["gws"]
+    "bins": []
   },
   "jobs": [
     {

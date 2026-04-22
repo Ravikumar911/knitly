@@ -8,7 +8,7 @@ export const playwrightStateRoot = join(repoRoot, ".artifacts", "playwright");
 export const playwrightHome = join(playwrightStateRoot, "slashcash-home");
 export const playwrightDbPath = join(playwrightHome, "db.sqlite");
 export const playwrightAttachmentsDir = join(playwrightHome, "attachments");
-export const gwsFixtureDir = join(packageRoot, "fixtures", "gws");
+export const imapFixtureDir = join(packageRoot, "fixtures", "imap");
 
 export const appPort = Number(process.env.PLAYWRIGHT_APP_PORT || 3301);
 export const mockOllamaPort = Number(
@@ -25,11 +25,10 @@ export function createPlaywrightEnv(): NodeJS.ProcessEnv {
     SLASHCASH_HOME: playwrightHome,
     SQLITE_DB_PATH: playwrightDbPath,
     SLASHCASH_ATTACHMENTS_DIR: playwrightAttachmentsDir,
-    SLASHCASH_GWS_FIXTURE_DIR: gwsFixtureDir,
+    SLASHCASH_IMAP_FIXTURE_DIR: imapFixtureDir,
     SLASHCASH_SYNC_SKIP_AI: "1",
     SLASHCASH_DOCTOR_SKIP_OLLAMA:
       process.env.SLASHCASH_DOCTOR_SKIP_OLLAMA || "1",
-    SLASHCASH_DOCTOR_SKIP_GWS: process.env.SLASHCASH_DOCTOR_SKIP_GWS || "1",
     SLASHCASH_NO_OPEN: "1",
     SLASHCASH_PORT: String(appPort),
     OLLAMA_BASE_URL: mockOllamaBaseUrl,

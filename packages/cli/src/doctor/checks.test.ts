@@ -43,13 +43,11 @@ vi.mock("../skills/registry.js", () => ({
 
 describe("doctor checks", () => {
   const previousSkipOllama = process.env.SLASHCASH_DOCTOR_SKIP_OLLAMA;
-  const previousSkipGws = process.env.SLASHCASH_DOCTOR_SKIP_GWS;
 
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
     delete process.env.SLASHCASH_DOCTOR_SKIP_OLLAMA;
-    delete process.env.SLASHCASH_DOCTOR_SKIP_GWS;
 
     mocks.resolvePaths.mockReturnValue({
       home: "/tmp/slashcash-home",
@@ -93,12 +91,6 @@ describe("doctor checks", () => {
     } else {
       process.env.SLASHCASH_DOCTOR_SKIP_OLLAMA = previousSkipOllama;
     }
-
-    if (previousSkipGws === undefined) {
-      delete process.env.SLASHCASH_DOCTOR_SKIP_GWS;
-    } else {
-      process.env.SLASHCASH_DOCTOR_SKIP_GWS = previousSkipGws;
-    }
   });
 
   it("runs the local filesystem and schema checks in quick mode", async () => {
@@ -118,9 +110,8 @@ describe("doctor checks", () => {
     expect(process.env.SQLITE_DB_PATH).toBe("/tmp/slashcash-home/db.sqlite");
   });
 
-  it("adds skipped network checks and installs bundled skills when fixing", async () => {
+  it("adds the skipped Ollama check and installs bundled skills when fixing", async () => {
     process.env.SLASHCASH_DOCTOR_SKIP_OLLAMA = "1";
-    process.env.SLASHCASH_DOCTOR_SKIP_GWS = "1";
 
     const { runChecks } = await import("./checks.js");
     const checks = await runChecks({ fix: true });
@@ -135,13 +126,8 @@ describe("doctor checks", () => {
       "sqlite",
       "skills",
       "ollama",
-      "gws-auth",
     ]);
     expect(checks.find((check) => check.id === "ollama")).toMatchObject({
-      status: "ok",
-      message: "Skipped by environment",
-    });
-    expect(checks.find((check) => check.id === "gws-auth")).toMatchObject({
       status: "ok",
       message: "Skipped by environment",
     });

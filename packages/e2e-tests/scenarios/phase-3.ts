@@ -11,7 +11,6 @@ const env = {
   SLASHCASH_HOME: home,
   SLASHCASH_E2E: "0",
   SQLITE_DB_PATH: join(home, "db.sqlite"),
-  SLASHCASH_DOCTOR_SKIP_GWS: "1",
   SLASHCASH_DOCTOR_SKIP_OLLAMA: "1",
 };
 

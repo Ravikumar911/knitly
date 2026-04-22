@@ -18,7 +18,6 @@ const doctor = measure("slashcash doctor --quick", () =>
   run(["--filter", "slashcash", "dev", "--", "doctor", "--fix", "--quick"], {
     SLASHCASH_HOME: doctorHome,
     SQLITE_DB_PATH: join(doctorHome, "db.sqlite"),
-    SLASHCASH_DOCTOR_SKIP_GWS: "1",
     SLASHCASH_DOCTOR_SKIP_OLLAMA: "1",
   }),
 );

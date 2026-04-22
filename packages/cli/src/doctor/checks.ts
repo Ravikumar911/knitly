@@ -2,18 +2,11 @@ import { accessSync } from "node:fs";
 import { loadConfig } from "../config/load.js";
 import { ensureStateDirs, resolvePaths } from "../config/paths.js";
 import { loadDatabase } from "../runtime/database.js";
-import { commandExists, runCommand } from "../runtime/subprocess.js";
+import { commandExists } from "../runtime/subprocess.js";
 import {
   installBundledSkills,
   listInstalledSkills,
 } from "../skills/registry.js";
-import { formatCliError } from "../errors/format.js";
-import { classifyGwsDiagnostic } from "./gws-diagnostics.js";
-import {
-  GWS_GMAIL_LOGIN_COMMAND,
-  hasGmailReadonlyCredential,
-  parseGwsStatusOutput,
-} from "./gws-status.js";
 
 export type DoctorCheck = {
   id: string;
@@ -173,15 +166,9 @@ export async function runChecks(
           name: `${skill.id}:${bin}`,
           label: `${skill.id}:${bin}`,
           category: "binary",
-          status:
-            commandExists(bin) || process.env.SLASHCASH_DOCTOR_SKIP_GWS === "1"
-              ? "ok"
-              : "fail",
+          status: commandExists(bin) ? "ok" : "fail",
           message: commandExists(bin) ? "available" : "missing from PATH",
-          fix:
-            bin === "gws"
-              ? "Run `brew install googleworkspace-cli`."
-              : `Install ${bin} and retry.`,
+          fix: `Install ${bin} and retry.`,
         });
       }
     }
@@ -202,7 +189,6 @@ export async function runChecks(
     checks.push(
       await checkOllama(config.ai.ollamaBaseUrl, config.ai.chatModel),
     );
-    checks.push(checkGwsAuth());
   }
 
   return checks;
@@ -263,68 +249,4 @@ async function checkOllama(
       durationMs: Date.now() - started,
     };
   }
-}
-
-function checkGwsAuth(): DoctorCheck {
-  const started = Date.now();
-  const base = {
-    id: "gws-auth",
-    name: "gws auth",
-    label: "gws auth",
-    category: "network" as const,
-    durationMs: 0,
-    fix: `Run \`${GWS_GMAIL_LOGIN_COMMAND}\`.`,
-  };
-
-  if (
-    process.env.SLASHCASH_DOCTOR_SKIP_GWS === "1" ||
-    process.env.SLASHCASH_DOCTOR_SKIP_OLLAMA === "1"
-  ) {
-    return {
-      ...base,
-      status: "ok",
-      message: "Skipped by environment",
-      durationMs: Date.now() - started,
-    };
-  }
-
-  if (!commandExists("gws")) {
-    return {
-      ...base,
-      category: "binary",
-      status: "fail",
-      message: "gws is missing from PATH",
-      fix: "Run `brew install googleworkspace-cli`.",
-      durationMs: Date.now() - started,
-    };
-  }
-
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    return {
-      ...base,
-      status: "ok",
-      message: "service account credentials set",
-      durationMs: Date.now() - started,
-    };
-  }
-
-  const result = runCommand("gws", ["auth", "status"], {
-    timeoutMs: 15_000,
-  });
-  const parsed = result.ok ? parseGwsStatusOutput(result.stdout) : null;
-  const diagnostic =
-    result.ok && hasGmailReadonlyCredential(parsed)
-      ? null
-      : classifyGwsDiagnostic(`${result.stderr}\n${result.stdout}`);
-  return {
-    ...base,
-    name: "gws auth",
-    status: result.ok && hasGmailReadonlyCredential(parsed) ? "ok" : "fail",
-    message:
-      result.ok && hasGmailReadonlyCredential(parsed)
-        ? "Gmail read-only authenticated"
-        : formatCliError(diagnostic!),
-    fix: diagnostic?.fix ?? base.fix,
-    durationMs: Date.now() - started,
-  };
 }

@@ -7,14 +7,14 @@ describe("CLI error formatting", () => {
       area: "auth",
       symptom: "OAuth failed.",
       cause: "Google rejected the client.",
-      fix: "Run `gws auth login`.",
+      fix: "Run `slashcash onboard`.",
     });
 
     expect(block).toBe(
       [
         "error[auth]: OAuth failed.",
         "  cause: Google rejected the client.",
-        "  fix:   Run `gws auth login`.",
+        "  fix:   Run `slashcash onboard`.",
       ].join("\n"),
     );
   });
