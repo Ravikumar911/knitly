@@ -6,6 +6,9 @@ export type GwsErrorCode =
   | "auth-invalid-scope"
   | "auth-redirect-uri-mismatch"
   | "auth-expired"
+  | "api-not-enabled"
+  | "gcloud-missing"
+  | "gcloud-not-authenticated"
   | "quota-exceeded"
   | "rate-limited"
   | "invalid-json"
@@ -46,6 +49,55 @@ export function binaryMissingGwsError(): GwsError {
 export function classifyGwsError(stderr: string): GwsError {
   const text = stderr.trim();
   const lower = text.toLowerCase();
+
+  if (
+    lower.includes("gcloud: command not found") ||
+    lower.includes("gcloud command not found") ||
+    lower.includes("no such file or directory: gcloud") ||
+    lower.includes("spawn gcloud enoent") ||
+    lower.includes("exit code 127")
+  ) {
+    return {
+      code: "gcloud-missing",
+      symptom: "gcloud is missing from PATH.",
+      cause:
+        "slashcash needs gcloud so gws can provision your own Google Cloud OAuth client.",
+      fix: "Run `brew install --cask google-cloud-sdk`, then `slashcash onboard`.",
+      docsUrl: "https://cloud.google.com/sdk/docs/install",
+      message: "gcloud is missing from PATH.",
+    };
+  }
+
+  if (
+    lower.includes("accessnotconfigured") ||
+    lower.includes("has not been used in project") ||
+    (lower.includes("gmail api") && lower.includes("disabled"))
+  ) {
+    return {
+      code: "api-not-enabled",
+      symptom: "The Gmail API is not enabled for your Google Cloud project.",
+      cause:
+        "The project created for gws does not currently allow Gmail API calls.",
+      fix: "Run `gws auth setup`, then retry `slashcash sync`.",
+      docsUrl: "https://github.com/googleworkspace/gws",
+      message: "The Gmail API is not enabled for the gws project.",
+    };
+  }
+
+  if (
+    lower.includes("reauthentication is needed") ||
+    lower.includes("no credentialed accounts") ||
+    lower.includes("you do not currently have an active account")
+  ) {
+    return {
+      code: "gcloud-not-authenticated",
+      symptom: "gcloud is not authenticated.",
+      cause:
+        "gws auth setup needs an active gcloud account before it can create the OAuth client.",
+      fix: "Run `gcloud auth login --brief --no-update-adc`, then `slashcash onboard`.",
+      message: "gcloud is not authenticated.",
+    };
+  }
 
   if (lower.includes("invalid_client")) {
     return {

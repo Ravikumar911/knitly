@@ -44,6 +44,8 @@ The full clean-machine cancellation test is still a manual dogfood step because 
 
 `packages/e2e-tests/scenarios/phase-4.ts` is the meta gate for the test pyramid. It runs the architecture smell test, fixture validation, and the per-package Vitest scripts for `packages/cli`, `packages/tasks`, `packages/database`, `packages/ui`, and `apps/main`. The app and UI suites are still smoke-level tests until the broader Playwright and component suites are filled in, but they now share the same Vitest discovery, watch-mode and v8 coverage plumbing as the backend packages.
 
+The first boundary integration spec is `packages/tasks/src/utils/gws.integration.test.ts`. Run it with `VITEST_INTEGRATION=1 pnpm --filter @workspace/tasks test`. It stays fixture-backed: the test parses recorded Gmail list/message/attachment JSON, feeds command stdout through an injected `gws` runner, and asserts every documented `GwsErrorCode` is reachable without invoking the real `gws` binary or any Google service. The rest of the W3 boundary specs are still pending.
+
 `pnpm fixtures:check` parses every committed JSON fixture under the database, tasks, and E2E fixture roots and verifies canonical formatting. This gives fixture changes an explicit CI surface instead of letting drift hide inside unrelated PRs.
 
 ## Phase 5 end-to-end scenario

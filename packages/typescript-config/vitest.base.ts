@@ -42,6 +42,7 @@ export function createSlashcashVitestConfig(
       globals: false,
       include,
       exclude: [
+        ".next/**",
         "dist/**",
         "coverage/**",
         "node_modules/**",

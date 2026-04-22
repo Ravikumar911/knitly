@@ -14,6 +14,22 @@ describe("classifyGwsError", () => {
     expect(classifyGwsError("redirect_uri_mismatch").code).toBe(
       "auth-redirect-uri-mismatch",
     );
+    expect(
+      classifyGwsError(
+        "accessNotConfigured: Gmail API has not been used in project 123 before or it is disabled.",
+      ).code,
+    ).toBe("api-not-enabled");
+    expect(classifyGwsError("gcloud: command not found").code).toBe(
+      "gcloud-missing",
+    );
+    expect(
+      classifyGwsError("You do not currently have an active account selected.")
+        .code,
+    ).toBe("gcloud-not-authenticated");
+    expect(
+      classifyGwsError("Reauthentication is needed. Please run gcloud auth login")
+        .fix,
+    ).toContain("gcloud auth login --brief --no-update-adc");
     expect(classifyGwsError("429 too many requests").code).toBe(
       "rate-limited",
     );
