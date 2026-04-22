@@ -1,6 +1,11 @@
 import { EmailData } from "../types/slashAI";
 import { MerchantConfig, MerchantMatch } from "./types";
-import { logger } from "@trigger.dev/sdk/v3";
+
+const logger = {
+  log: console.log,
+  warn: console.warn,
+  error: console.error,
+};
 
 // Import merchant configurations
 import SwiggyMerchant from "./swiggy";

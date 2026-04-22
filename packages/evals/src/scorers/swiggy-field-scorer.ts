@@ -2,7 +2,6 @@ import { Levenshtein } from "autoevals";
 import { SwiggyExpectedOutput } from "../fixtures/swiggy-expected";
 import type { SlashAIV2Result } from "@workspace/tasks/agents/slashAIV2";
 
-// Braintrust Scorer type
 type Scorer<Input, Output> = (args: {
   input: Input;
   output: Output;
@@ -311,4 +310,3 @@ export const schemaValidationScorer: Scorer<
     },
   };
 };
-

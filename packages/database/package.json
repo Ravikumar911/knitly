@@ -3,7 +3,11 @@
   "version": "0.1.3",
   "private": true,
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./dist/src/index.js",
+      "default": "./dist/src/index.js"
+    }
   },
   "scripts": {
     "dev": "tsc --watch ",
@@ -14,8 +18,9 @@
     "migrate": "drizzle-kit migrate",
     "check": "drizzle-kit check",
     "pull": "drizzle-kit pull",
-    "test": "jest",
-    "test:watch": "jest --watch"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",
@@ -28,7 +33,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
-    "postgres": "^3.4.5"
+    "better-sqlite3": "latest",
+    "dotenv": "^16.4.5"
   }
 }

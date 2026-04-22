@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader } from "@workspace/ui/components/card";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { DataStatusRouter } from "@/components/common/DataStatusRouter";
 
+export const dynamic = "force-dynamic";
+
 // Loading placeholder component
 function DashboardLoading() {
   return (

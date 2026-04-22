@@ -63,7 +63,7 @@ export function getTestCase(index: number): EmailData {
   if (index < 0 || index >= fixtures.length) {
     throw new Error(`Test case index ${index} out of range (0-${fixtures.length - 1})`);
   }
-  return fixtures[index];
+  return fixtures[index]!;
 }
 
 /**
@@ -72,4 +72,3 @@ export function getTestCase(index: number): EmailData {
 export function getAllTestCases(): EmailData[] {
   return createSwiggyEmailFixtures();
 }
-

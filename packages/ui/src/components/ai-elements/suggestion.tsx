@@ -7,6 +7,7 @@ import {
 } from "@workspace/ui/components/scroll-area";
 import { cn } from "@workspace/ui/lib/utils";
 import type { ComponentProps } from "react";
+import { useCallback } from "react";
 
 export type SuggestionsProps = ComponentProps<typeof ScrollArea>;
 
@@ -15,9 +16,12 @@ export const Suggestions = ({
   children,
   ...props
 }: SuggestionsProps) => (
-  <div className={cn("flex flex-wrap items-center justify-center gap-2 w-full", className)} {...props}>
-    {children}
-  </div>
+  <ScrollArea className="w-full overflow-x-auto whitespace-nowrap" {...props}>
+    <div className={cn("flex w-max flex-nowrap items-center gap-2", className)}>
+      {children}
+    </div>
+    <ScrollBar className="hidden" orientation="horizontal" />
+  </ScrollArea>
 );
 
 export type SuggestionProps = Omit<ComponentProps<typeof Button>, "onClick"> & {
@@ -34,13 +38,13 @@ export const Suggestion = ({
   children,
   ...props
 }: SuggestionProps) => {
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     onClick?.(suggestion);
-  };
+  }, [onClick, suggestion]);
 
   return (
     <Button
-      className={cn("cursor-pointer rounded-full px-4 whitespace-nowrap", className)}
+      className={cn("cursor-pointer rounded-full px-4", className)}
       onClick={handleClick}
       size={size}
       type="button"

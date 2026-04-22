@@ -4,7 +4,7 @@ This is what we are building. Phase 2 delivers this picture in full; Phase 1 del
 
 ## One-paragraph picture
 
-The user installs `slashcash` from npm. `slashcash onboard` provisions every host dependency — Homebrew, Ollama, the `gemma3n:e4b` model, the `gws` Google Workspace CLI, and the interactive `gws auth login` step. `slashcash start` boots the existing Next.js dashboard on `127.0.0.1` at a configured port inside a single Node process. That same process runs an in-process `node-cron` worker that shells out to `gws` to pull Gmail, parses messages and PDFs with `gemma3n:e4b` served by the local Ollama daemon, writes results to a single SQLite file at `~/.slashcash/db.sqlite` and puts PDF attachments on disk under `~/.slashcash/attachments/`. The Next.js dashboard reads from the same SQLite file through the same Drizzle schema and tRPC routers. There is no authentication in the app; loopback bind is the boundary.
+The user installs `slashcash` from npm. `slashcash onboard` provisions every host dependency — Homebrew, Ollama, the `gemma3n:e4b` model, `gcloud`, the `gws` Google Workspace CLI, `gws auth setup`, and the scoped `gws auth login --services gmail --readonly` consent. `slashcash start` boots the existing Next.js dashboard on `127.0.0.1` at a configured port inside a single Node process. That same process runs an in-process `node-cron` worker that shells out to `gws` to pull Gmail, parses messages and PDFs with `gemma3n:e4b` served by the local Ollama daemon, writes results to a single SQLite file at `~/.slashcash/db.sqlite` and puts PDF attachments on disk under `~/.slashcash/attachments/`. The Next.js dashboard reads from the same SQLite file through the same Drizzle schema and tRPC routers. There is no authentication in the app; loopback bind is the boundary.
 
 ## Process model
 
@@ -48,7 +48,7 @@ Ollama runs as a Homebrew service on the user's machine, listening on its defaul
 
 Gmail reads happen through `gws`. We shell out per call — listing messages for a query, fetching each message, paging through results — parse `--format json` output, and validate the shapes with a schema at the boundary. A thin TypeScript wrapper module isolates `gws` from the rest of the codebase; callers work in typed domain objects, never raw JSON. Known error states — `gws` missing from `PATH`, user not authenticated, rate-limited, unknown — map to a closed error-code union that the CLI and the UI render into actionable messages. The old `gmailApi.ts` / `googleAuth.ts` / `user_google_tokens` tree is deleted; we do not keep a fallback Google-token path.
 
-The user runs `gws auth login` during `slashcash onboard`; `gws` stores its own refresh tokens in its own state directory, under the user's home, outside anything our package writes. We never read, store, or proxy those tokens.
+The user runs `gcloud auth login`, `gws auth setup`, and `gws auth login --services gmail --readonly` during `slashcash onboard`; `gws` stores its own refresh tokens in its own state directory, under the user's home, outside anything our package writes. We never read, store, or proxy those tokens.
 
 ## Attachments
 
@@ -68,11 +68,11 @@ No versioned plugin SDK, sandboxing, or npm-installable skill packages in v1. Th
 
 ## Networking and security posture
 
-The Next.js server binds to `127.0.0.1` explicitly, not `localhost`, so IPv6 dual-stack can't surprise us. There is no authentication — loopback is the boundary. There is no telemetry, no version-check phone-home, no outbound traffic that the user didn't initiate. Outbound calls during normal operation are limited to Ollama on loopback and `gws` contacting Google with the user's own credentials. Attachment URLs never accept a filesystem path from the client; resolution goes through a DB id lookup and a strict root-prefix check.
+The Next.js server binds to `127.0.0.1` explicitly, not `localhost`, so IPv6 dual-stack can't surprise us. There is no authentication — loopback is the boundary. There is no telemetry, no auto-updater, and no outbound version check unless the user explicitly opts in with `updates.checkOnVersion`. Outbound calls during normal operation are limited to Ollama on loopback and `gws` contacting Google with the user's own credentials. Attachment URLs never accept a filesystem path from the client; resolution goes through a DB id lookup and a strict root-prefix check.
 
 ## Failure modes and how doctor handles them
 
-Every enumerated failure mode has a `doctor` check and, where an automatic fix exists, a `doctor --fix` repair. Ollama not running is fixed by a Homebrew service start; the model not pulled is fixed by an `ollama pull`; `gws` missing is fixed by a Homebrew install with a fallback message if the tap has moved; `gws` not authenticated launches `gws auth login` interactively; the config directory missing is fixed by creating it with correct permissions; a stale PID file is cleared; config schema drift applies the new defaults and writes back; SQLite migration drift runs the pending Drizzle migration. The port-in-use case is surfaced but not auto-fixed; the user picks another port with `--port` or via config. The full matrix is in `reference/config.md` (alongside the config schema it protects).
+Every enumerated failure mode has a `doctor` check and, where an automatic fix exists, a `doctor --fix` repair. Ollama not running is fixed by a Homebrew service start; the model not pulled is fixed by an `ollama pull`; `gcloud` missing is fixed by the Homebrew cask install; `gcloud` not authenticated launches `gcloud auth login --brief --no-update-adc`; `gws` missing is fixed by `brew install googleworkspace-cli`; `gws` setup/auth problems launch `gws auth setup` or `gws auth login --services gmail --readonly` interactively; the config directory missing is fixed by creating it with correct permissions; a stale PID file is cleared; config schema drift applies the new defaults and writes back; SQLite migration drift runs the pending Drizzle migration. The port-in-use case is surfaced but not auto-fixed; the user picks another port with `--port` or via config. The full matrix is in `reference/config.md` (alongside the config schema it protects).
 
 ## What we are not building in v1
 

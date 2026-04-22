@@ -5,21 +5,18 @@
   "type": "module",
   "scripts": {
     "eval": "tsx src/hello.eval.ts",
-    "eval:ui": "braintrust eval src/hello.eval.ts",
+    "eval:gate": "tsx src/eval-gate.ts",
     "eval:swiggy": "tsx src/swiggy-extraction.eval.ts",
-    "eval:swiggy:nano": "MODEL_NAME=gpt-5-nano tsx src/swiggy-extraction.eval.ts",
-    "eval:swiggy:mini": "MODEL_NAME=gpt-5-mini tsx src/swiggy-extraction.eval.ts",
-    "eval:swiggy:4o": "MODEL_NAME=gpt-4o tsx src/swiggy-extraction.eval.ts",
-    "eval:swiggy:ui": "braintrust eval src/swiggy-extraction.eval.ts",
+    "eval:swiggy:local": "tsx src/swiggy-extraction.eval.ts",
     "lint": "eslint . --max-warnings 0",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "test": "pnpm eval"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.32",
     "@workspace/tasks": "workspace:*",
     "ai": "5.0.26",
+    "@ai-sdk/openai-compatible": "1.0.17",
     "autoevals": "^0.0.94",
-    "braintrust": "^0.0.165",
     "dotenv": "^16.4.7",
     "zod": "^3.25.76"
   },

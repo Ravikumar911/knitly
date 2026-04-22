@@ -1,33 +1,28 @@
-# Trigger.dev Tasks
+# @workspace/tasks
 
-This package contains Trigger.dev tasks for the project.
+Local ingestion and extraction helpers for slash.cash.
 
-## Environment Setup
+Phase 1 keeps this package compile-safe without hosted job infrastructure. Email sync exports are local stubs that mark sync status and return deterministic messages. Gmail ingestion, attachment retrieval, and richer scheduling arrive in Phase 2.
 
-Environment variables are set directly in the package.json scripts using cross-env, which ensures they work across all platforms.
+## Commands
 
-The `TRIGGER_SECRET_KEY` is directly set in the `dev` script for development. For production environments, you should set this through your deployment platform.
+```bash
+pnpm --filter @workspace/tasks build
+pnpm --filter @workspace/tasks dev
+```
 
-To add more environment variables:
+## Local AI
 
-1. Update the dev script in package.json:
-   ```json
-   "dev": "pnpm dlx trigger.dev@latest dev"
-   ```
+Extraction uses an OpenAI-compatible local endpoint:
 
-2. Run the development server:
-   ```
-   pnpm dev
-   ```
+```env
+OLLAMA_BASE_URL=http://127.0.0.1:11434/v1
+OLLAMA_CHAT_MODEL=gemma3n:e4b
+```
 
-## Available Tasks
+## Exports
 
-- `processEmails`: Processes emails by fetching messages from Gmail.
-
-## Adding New Tasks
-
-When creating new tasks, make sure to:
-
-1. Export the task from its file
-2. Follow the Trigger.dev v3 API pattern
-3. Add any new environment variables to the dev script in package.json 
+- `trigger/processEmails`: Phase 1 local sync placeholder.
+- `trigger/duplicateDetector`: deterministic no-op duplicate scan.
+- `agents/slashAIV2`: Swiggy extraction helper.
+- `merchants/*`: merchant prompt and schema definitions.

@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { config } from "dotenv";
-import { resolve, join } from "path";
+import { resolve } from "path";
 import { existsSync } from "fs";
 
 /**
@@ -47,79 +47,26 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: "http://localhost:3000",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000",
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
   },
 
   /* Configure projects for major browsers */
   projects: [
-    // Setup project - runs once before all tests
-    // Run this manually with: pnpm playwright test --project=setup
-    { 
-      name: 'setup', 
-      testDir: '.',
-      testMatch: /.*\.setup\.ts/,
-      /* Extended timeout for setup project since it requires manual authentication */
-      timeout: 15 * 60 * 1000, // 15 minutes for manual auth setup
-      use: {
-        // Run in headed mode for manual authentication
-        headless: false,
-        // Slow down actions for visibility during manual auth
-        launchOptions: {
-          slowMo: 500,
-          // Use persistent context to avoid Google's "browser not secure" error
-          // This makes Playwright use a real Chrome user profile
-          args: [
-            '--disable-blink-features=AutomationControlled',
-            '--disable-dev-shm-usage',
-            '--no-sandbox',
-          ],
-        },
-        // Add extra HTTP headers to make browser look more legitimate
-        extraHTTPHeaders: {
-          'Accept-Language': 'en-US,en;q=0.9',
-        },
-        // Use a persistent context directory to maintain browser state
-        // This helps Google recognize it as a real browser session
-        contextOptions: {
-          viewport: { width: 1280, height: 720 },
-          userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        },
-      },
-    },
-
     {
       name: "chromium",
-      use: { 
-        ...devices["Desktop Chrome"],
-        // Use saved authentication state from setup
-        storageState: 'playwright/.auth/user.json',
-      },
-      // Don't auto-run setup - run it manually when needed
-      // dependencies: ['setup'],
+      use: { ...devices["Desktop Chrome"] },
     },
 
     {
       name: "firefox",
-      use: { 
-        ...devices["Desktop Firefox"],
-        // Use saved authentication state from setup
-        storageState: 'playwright/.auth/user.json',
-      },
-      // Don't auto-run setup - run it manually when needed
-      // dependencies: ['setup'],
+      use: { ...devices["Desktop Firefox"] },
     },
 
     {
       name: "webkit",
-      use: { 
-        ...devices["Desktop Safari"],
-        // Use saved authentication state from setup
-        storageState: 'playwright/.auth/user.json',
-      },
-      // Don't auto-run setup - run it manually when needed
-      // dependencies: ['setup'],
+      use: { ...devices["Desktop Safari"] },
     },
 
     /* Test against mobile viewports. */
@@ -146,11 +93,10 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: {
     command: "pnpm --filter @knitly/main dev",
-    url: "http://localhost:3000",
+    url: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
     stdout: "ignore",
     stderr: "pipe",
   },
 });
-

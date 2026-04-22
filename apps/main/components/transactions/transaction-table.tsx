@@ -31,7 +31,7 @@ type TransactionFromTRPC = {
   merchantId: string | null;
   merchantCode: string | null;
   merchantName: string | null;
-  amount: string;
+  amount: string | number;
   currency: string | null;
   type: string;
   status: string | null;
@@ -88,8 +88,8 @@ function TransactionTableContent() {
     setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
   };
 
-  const formatCurrency = (amount: string, currency: string = 'INR') => {
-    const numAmount = parseFloat(amount);
+  const formatCurrency = (amount: string | number, currency: string = 'INR') => {
+    const numAmount = typeof amount === 'number' ? amount : parseFloat(amount);
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency,

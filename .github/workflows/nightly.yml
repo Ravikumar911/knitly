@@ -1,0 +1,54 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "17 21 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node-matrix:
+    name: Node ${{ matrix.node }} Checks
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+    env:
+      SLASHCASH_E2E: "1"
+      SLASHCASH_DOCTOR_SKIP_OLLAMA: "1"
+      SLASHCASH_DOCTOR_SKIP_GWS: "1"
+      SLASHCASH_NO_OPEN: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm architecture-smells
+      - run: pnpm typecheck
+      - run: pnpm bench
+      - run: pnpm e2e:all
+
+  bundle-smoke:
+    name: Bundle Smoke
+    runs-on: macos-latest
+    env:
+      SLASHCASH_E2E: "1"
+      SLASHCASH_DOCTOR_SKIP_OLLAMA: "1"
+      SLASHCASH_DOCTOR_SKIP_GWS: "1"
+      SLASHCASH_NO_OPEN: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm pack:local

@@ -1,50 +1,22 @@
 import { relations } from "drizzle-orm";
-import { pgSchema, uuid } from "drizzle-orm/pg-core";
 import { profiles } from "./users";
 import { parsedEmails } from "./parsedEmails";
-import { userGoogleTokens, tokenAccessLogs } from "./tokens";
 import { transactionsV2 } from "./transactionsV2";
+import { chats } from "./chat";
+import { chatMessages } from "./chatMessages";
 
-const auth = pgSchema('auth');
-const authUsers = auth.table('users', {
-	id: uuid().primaryKey().notNull(),
-});
-
-// Define relations after all tables are defined to avoid circular references
 export const profilesRelations = relations(profiles, ({ many }) => ({
   parsedEmails: many(parsedEmails),
+  transactions: many(transactionsV2),
+  chats: many(chats),
 }));
 
-// Relations for auth.users (placeholder for Supabase Auth)
-export const authUsersRelations = relations(authUsers, ({ one }) => ({
-  googleTokens: one(userGoogleTokens),
-}));
-
-// Relations for userGoogleTokens
-export const userGoogleTokensRelations = relations(userGoogleTokens, ({ one }) => ({
-  user: one(authUsers, {
-    fields: [userGoogleTokens.userId],
-    references: [authUsers.id],
-  }),
-}));
-
-// Relations for tokenAccessLogs
-export const tokenAccessLogsRelations = relations(tokenAccessLogs, ({ one }) => ({
-  user: one(authUsers, {
-    fields: [tokenAccessLogs.userId],
-    references: [authUsers.id],
-  }),
-}));
-
-
-export const parsedEmailsRelations = relations(parsedEmails, ({ one, many }) => ({
+export const parsedEmailsRelations = relations(parsedEmails, ({ one }) => ({
   user: one(profiles, {
     fields: [parsedEmails.userId],
     references: [profiles.id],
   }),
 }));
-
-
 
 export const transactionsRelations = relations(transactionsV2, ({ one }) => ({
   user: one(profiles, {
@@ -61,10 +33,17 @@ export const transactionsRelations = relations(transactionsV2, ({ one }) => ({
   }),
 }));
 
-
-export const transactionsV2Relations = relations(transactionsV2, ({ one }) => ({
+export const chatsRelations = relations(chats, ({ one, many }) => ({
   user: one(profiles, {
-    fields: [transactionsV2.userId],
+    fields: [chats.userId],
     references: [profiles.id],
+  }),
+  messages: many(chatMessages),
+}));
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  chat: one(chats, {
+    fields: [chatMessages.chatId],
+    references: [chats.id],
   }),
 }));

@@ -1,18 +1,13 @@
 import { TRPCError } from "@trpc/server";
-import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../init";
-import { processEmails } from "@workspace/tasks/trigger/processEmails";
 import { 
   getSyncStatus, 
   checkUserHasData, 
   getSyncProgress, 
-  initializeSync, 
   getUnifiedSyncState,
-  ensureSyncRow,
-  markSyncInProgress
 } from "@workspace/database";
 
-// Router for email-related operations
+// Router for local sync-state operations
 export const emailsRouter = createTRPCRouter({
   // Unified state endpoint (source of truth)
   state: protectedProcedure
@@ -27,7 +22,7 @@ export const emailsRouter = createTRPCRouter({
         });
       }
     }),
-  // Check if user has any synced data
+  // Check if user has any local seed data
   checkDataExists: protectedProcedure
     .query(async ({ ctx }) => {
       try {
@@ -52,50 +47,18 @@ export const emailsRouter = createTRPCRouter({
       }
     }),
 
-  // Initiate email sync - triggers TriggerDev task
+  // Phase 1 records a local receipt. Real ingest lands in Phase 2.
   initiateSync: protectedProcedure
     .mutation(async ({ ctx }) => {
       try {
-        // FIX Issue #2: Check unified state first to handle timeouts and stalled syncs
-        const unified = await getUnifiedSyncState(ctx.userId!);
-        
-        // FIX Issue #8: Allow retry if sync appears stuck for > 10 minutes
-        const activePhases = ['counting_emails', 'in_progress', 'syncing'] as const;
-        const isActivePhase = activePhases.includes(unified.phase as any);
-        
-        // Check if sync is genuinely in progress (not timed out, not stalled for too long)
-        if (isActivePhase && unified.phase !== 'stalled') {
-          return {
-            success: true,
-            message: "Email sync already in progress.",
-          };
-        }
-
-        // If stalled or failed, we can proceed with retry
-        // FIX Issue #2: Use atomic database operation to prevent race conditions
-        // Ensure row exists first
-        await ensureSyncRow(ctx.userId!);
-        
-        // Try to atomically mark as in_progress - this prevents duplicate syncs
-        const wasMarked = await markSyncInProgress(ctx.userId!);
-        
-        if (!wasMarked) {
-          // Another sync just started (race condition detected and prevented)
-          console.warn("Race condition detected: sync already in progress for user", ctx.userId);
-          return {
-            success: true,
-            message: "Email sync already in progress.",
-          };
-        }
-
-        // Now safe to trigger - we've atomically claimed the sync
-        await processEmails.trigger({
-          userId: ctx.userId!,
-        });
+        const { runEmailSync } = await import("@workspace/tasks/trigger/processEmails");
+        const result = await runEmailSync({ userId: ctx.userId! });
 
         return {
           success: true,
-          message: "Email sync started successfully. We're counting your emails and will show progress shortly."
+          message: result.skipped
+            ? "A local Gmail sync is already running."
+            : `Local Gmail sync complete: ${result.processedCount} processed, ${result.skippedCount} skipped.`
         };
       } catch (error) {
         console.error("Error initiating sync:", error);
@@ -111,7 +74,7 @@ export const emailsRouter = createTRPCRouter({
       }
     }),
 
-  // Get real-time sync progress with OAuth error handling
+  // Get local sync progress
   getSyncProgress: protectedProcedure
     .query(async ({ ctx }) => {
       try {
@@ -125,7 +88,7 @@ export const emailsRouter = createTRPCRouter({
           syncStatus: progress.syncStatus,
           hasInitialSync: progress.hasInitialSync,
           statusMessage: getSyncStatusMessage(progress),
-          // OAuth error information
+          // Legacy error shape retained until the sync model is simplified.
           oauthError: progress.oauthErrorType ? {
             type: progress.oauthErrorType,
             code: progress.oauthErrorCode,
@@ -147,18 +110,19 @@ export const emailsRouter = createTRPCRouter({
       }
     }),
 
-  // Route to refresh emails
+  // Route to refresh local seed status
   refresh: protectedProcedure
     .mutation(async ({ ctx }) => {
       try {
-        await processEmails.trigger({
-          userId: ctx.userId!, // We can safely use ! here because protectedProcedure ensures userId exists
-        });
+        const { runEmailSync } = await import("@workspace/tasks/trigger/processEmails");
+        const result = await runEmailSync({ userId: ctx.userId! });
 
         return {
           success: true,
-          message: "Email refresh task triggered successfully",
-          taskId: "simulated-task-id-" + Date.now(),
+          message: result.skipped
+            ? "A local Gmail sync is already running."
+            : `Local Gmail sync complete: ${result.processedCount} processed, ${result.skippedCount} skipped.`,
+          taskId: "local-gmail-" + Date.now(),
         };
       } catch (error) {
         console.error("Error refreshing emails:", error);
@@ -174,7 +138,7 @@ export const emailsRouter = createTRPCRouter({
       }
     }),
 
-  // Get the current email sync status for the user with OAuth error details
+  // Get the current local sync status for the user
   getSyncStatus: protectedProcedure
     .query(async ({ ctx }) => {
       try {
@@ -186,7 +150,7 @@ export const emailsRouter = createTRPCRouter({
           syncStatus: status.syncStatus,
           errorDetails: status.errorDetails,
           hasSynced: status.lastSyncedAt !== null,
-          // OAuth error information
+          // Legacy error shape retained until the sync model is simplified.
           oauthError: status.oauthErrorType ? {
             type: status.oauthErrorType,
             code: status.oauthErrorCode,
@@ -209,7 +173,7 @@ export const emailsRouter = createTRPCRouter({
     }),
 });
 
-// Helper function to generate user-friendly status messages with OAuth awareness
+// Helper function to generate user-friendly status messages.
 function getSyncStatusMessage(progress: {
   syncStatus: string | null;
   processedEmails: number;
@@ -217,7 +181,6 @@ function getSyncStatusMessage(progress: {
   oauthErrorType: string | null;
   userFriendlyError: string | null;
 }): string {
-  // If there's an OAuth error, prioritize that message
   if (progress.oauthErrorType && progress.userFriendlyError) {
     return progress.userFriendlyError;
   }
@@ -228,23 +191,22 @@ function getSyncStatusMessage(progress: {
 
   switch (progress.syncStatus) {
     case 'counting_emails':
-      return "Counting your emails...";
+      return "Preparing local records...";
     case 'syncing':
       if (progress.totalEmails) {
         const remaining = progress.totalEmails - progress.processedEmails;
-        return `Processing emails... ${remaining} remaining`;
+        return `Processing records... ${remaining} remaining`;
       }
-      return "Processing your emails...";
+      return "Processing local records...";
     case 'complete':
-      return "Email sync completed successfully!";
+      return "Local data is ready.";
     case 'failed':
-      // Check if it's an OAuth error
       if (progress.oauthErrorType) {
-        return progress.userFriendlyError || "Authentication error occurred";
+        return progress.userFriendlyError || "Local sync state needs attention";
       }
-      return "Email sync failed. Please try again.";
+      return "Local sync failed. Please try again.";
     case 'in_progress':
-      return "Email sync in progress...";
+      return "Local sync in progress...";
     default:
       return "Sync status unknown";
   }

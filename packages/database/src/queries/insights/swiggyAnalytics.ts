@@ -1,8 +1,7 @@
-import { eq, and, desc, sql, gte, lte } from "drizzle-orm";
+import { and, eq, gte, lte } from "drizzle-orm";
 import { db } from "../../";
 import { transactionsV2 } from "../../schema/transactionsV2";
 
-// Type definitions for return structures
 export interface SwiggySpendingOverview {
   totalSpend: number;
   orderCount: number;
@@ -63,400 +62,238 @@ export interface SwiggySmartInsights {
   };
 }
 
-/**
- * Get core Swiggy spending overview metrics
- * Returns: total spend, order count, avg order value, service breakdown, top 3 restaurants
- */
+type MerchantData = {
+  swiggyMetadata?: {
+    service?: string;
+  };
+  transaction?: {
+    orderId?: string;
+    restaurantName?: string;
+    orderItems?: Array<{
+      name?: string;
+      quantity?: number;
+      price?: number;
+    }>;
+    deliveryFee?: number;
+    discount?: number;
+    membershipDiscount?: number;
+    deliveryAddress?: {
+      area?: string;
+      pincode?: string;
+    };
+  };
+};
+
+type SwiggyRow = {
+  amount: number;
+  transactionDate: Date;
+  merchantData: MerchantData;
+};
+
+const serviceKeys = {
+  FOOD_DELIVERY: "food",
+  INSTAMART: "instamart",
+  DINEOUT: "dineout",
+} as const;
+
+const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function asMerchantData(value: unknown): MerchantData {
+  return (value && typeof value === "object" ? value : {}) as MerchantData;
+}
+
+function serviceBucket(service: string | undefined): keyof SwiggySpendingOverview["serviceBreakdown"] | null {
+  return service && service in serviceKeys ? serviceKeys[service as keyof typeof serviceKeys] : null;
+}
+
+function amount(value: unknown): number {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+async function getSwiggyRows(userId: string, startDate: Date, endDate: Date): Promise<SwiggyRow[]> {
+  const rows = await db
+    .select({
+      amount: transactionsV2.amount,
+      transactionDate: transactionsV2.transactionDate,
+      merchantData: transactionsV2.merchantData,
+    })
+    .from(transactionsV2)
+    .where(
+      and(
+        eq(transactionsV2.userId, userId),
+        eq(transactionsV2.merchantId, "swiggy"),
+        gte(transactionsV2.transactionDate, startDate),
+        lte(transactionsV2.transactionDate, endDate),
+      ),
+    );
+
+  return rows.map((row) => ({
+    amount: amount(row.amount),
+    transactionDate: row.transactionDate,
+    merchantData: asMerchantData(row.merchantData),
+  }));
+}
+
 export async function getSwiggySpendingOverview(
   userId: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
 ): Promise<SwiggySpendingOverview> {
-  // Main overview query
-  const overviewResult = await db
-    .select({
-      totalSpend: sql<number>`SUM(${transactionsV2.amount}::numeric)`.as('total_spend'),
-      orderCount: sql<number>`COUNT(CASE WHEN ${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL THEN 1 END)`.as('order_count'),
-      avgOrderValue: sql<number>`AVG(${transactionsV2.amount}::numeric)`.as('avg_order_value'),
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, startDate),
-        lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
-      )
-    );
+  const rows = await getSwiggyRows(userId, startDate, endDate);
+  const orderRows = rows.filter((row) => row.merchantData.transaction?.orderId);
 
-  // Service breakdown query
-  const serviceResult = await db
-    .select({
-      service: sql<string>`${transactionsV2.merchantData}->'swiggyMetadata'->>'service'`.as('service'),
-      orderCount: sql<number>`COUNT(*)`.as('order_count'),
-      spend: sql<number>`SUM(${transactionsV2.amount}::numeric)`.as('spend'),
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, startDate),
-        lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
-      )
-    )
-    .groupBy(sql`${transactionsV2.merchantData}->'swiggyMetadata'->>'service'`);
+  const serviceBreakdown = { food: 0, instamart: 0, dineout: 0 };
+  const orderBreakdown = { food: 0, instamart: 0, dineout: 0 };
+  const restaurants = new Map<string, { name: string; orders: number; spend: number }>();
+  const instamartItems = new Map<string, { name: string; count: number; amount: number }>();
 
-  // Process service breakdown
-  const serviceBreakdown = {
-    food: 0,
-    instamart: 0,
-    dineout: 0,
-  };
-
-  serviceResult.forEach((result) => {
-    const spend = Number(result.spend) || 0;
-    switch (result.service) {
-      case 'FOOD_DELIVERY':
-        serviceBreakdown.food += spend;
-        break;
-      case 'INSTAMART':
-        serviceBreakdown.instamart += spend;
-        break;
-      case 'DINEOUT':
-        serviceBreakdown.dineout += spend;
-        break;
+  for (const row of orderRows) {
+    const bucket = serviceBucket(row.merchantData.swiggyMetadata?.service);
+    if (bucket) {
+      serviceBreakdown[bucket] += row.amount;
+      orderBreakdown[bucket] += 1;
     }
-  });
 
-  // Top restaurants query (Food Delivery and Dineout, exclude Instamart)
-  const restaurantsResult = await db
-    .select({
-      restaurant: sql<string>`${transactionsV2.merchantData}->'transaction'->>'restaurantName'`.as('restaurant'),
-      orders: sql<number>`COUNT(*)`.as('orders'),
-      totalSpend: sql<number>`SUM(${transactionsV2.amount}::numeric)`.as('total_spend'),
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, startDate),
-        lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'transaction'->>'restaurantName' IS NOT NULL`,
-        sql`${transactionsV2.merchantData}->'swiggyMetadata'->>'service' IN ('FOOD_DELIVERY', 'DINEOUT')`
-      )
-    )
-    .groupBy(sql`${transactionsV2.merchantData}->'transaction'->>'restaurantName'`)
-    .orderBy(sql`SUM(${transactionsV2.amount}::numeric) DESC`)
-    .limit(3);
-
-  // Top Instamart items query - extract individual grocery items from orderItems array
-  const instamartItemsResult = await db
-    .select({
-      itemName: sql<string>`item_data->>'name'`.as('item_name'),
-      count: sql<number>`SUM(COALESCE((item_data->>'quantity')::numeric, 1))`.as('count'),
-      totalAmount: sql<number>`SUM(COALESCE((item_data->>'price')::numeric, 0) * COALESCE((item_data->>'quantity')::numeric, 1))`.as('total_amount'),
-    })
-    .from(sql`
-      ${transactionsV2},
-      jsonb_array_elements(${transactionsV2.merchantData}->'transaction'->'orderItems') as item_data
-    `)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, startDate),
-        lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'swiggyMetadata'->>'service' = 'INSTAMART'`,
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`,
-        sql`jsonb_array_length(${transactionsV2.merchantData}->'transaction'->'orderItems') > 0`,
-        sql`item_data->>'name' IS NOT NULL AND item_data->>'name' != ''`
-      )
-    )
-    .groupBy(sql`item_data->>'name'`)
-    .orderBy(sql`SUM(COALESCE((item_data->>'quantity')::numeric, 1)) DESC`)
-    .limit(3);
-
-  // Process order breakdown
-  const orderBreakdown = {
-    food: 0,
-    instamart: 0,
-    dineout: 0,
-  };
-
-  serviceResult.forEach((result) => {
-    const count = Number(result.orderCount) || 0;
-    switch (result.service) {
-      case 'FOOD_DELIVERY':
-        orderBreakdown.food += count;
-        break;
-      case 'INSTAMART':
-        orderBreakdown.instamart += count;
-        break;
-      case 'DINEOUT':
-        orderBreakdown.dineout += count;
-        break;
+    const restaurant = row.merchantData.transaction?.restaurantName?.trim();
+    if (restaurant && bucket !== "instamart") {
+      const existing = restaurants.get(restaurant) ?? { name: restaurant, orders: 0, spend: 0 };
+      existing.orders += 1;
+      existing.spend += row.amount;
+      restaurants.set(restaurant, existing);
     }
-  });
+
+    if (bucket === "instamart") {
+      for (const item of row.merchantData.transaction?.orderItems ?? []) {
+        const name = item.name?.trim();
+        if (!name) continue;
+        const quantity = amount(item.quantity || 1);
+        const price = amount(item.price);
+        const existing = instamartItems.get(name) ?? { name, count: 0, amount: 0 };
+        existing.count += quantity;
+        existing.amount += price * quantity;
+        instamartItems.set(name, existing);
+      }
+    }
+  }
+
+  const totalSpend = orderRows.reduce((sum, row) => sum + row.amount, 0);
+  const orderCount = orderRows.length;
 
   return {
-    totalSpend: overviewResult[0]?.totalSpend || 0,
-    orderCount: overviewResult[0]?.orderCount || 0,
-    avgOrderValue: overviewResult[0]?.avgOrderValue || 0,
+    totalSpend,
+    orderCount,
+    avgOrderValue: orderCount ? totalSpend / orderCount : 0,
     serviceBreakdown,
     orderBreakdown,
-    topRestaurants: restaurantsResult.map((r) => ({
-      name: r.restaurant,
-      orders: r.orders,
-      spend: r.totalSpend,
-    })),
-    topInstamartItems: instamartItemsResult.map((item) => ({
-      name: item.itemName,
-      count: item.count,
-      amount: item.totalAmount,
-    })),
+    topRestaurants: [...restaurants.values()].sort((a, b) => b.spend - a.spend).slice(0, 3),
+    topInstamartItems: [...instamartItems.values()].sort((a, b) => b.count - a.count).slice(0, 3),
   };
 }
 
-/**
- * Get Swiggy behavioral insights
- * Returns: weekend vs weekday, most expensive day, monthly trends, delivery fees, savings, day-wise spending
- */
 export async function getSwiggyBehaviorInsights(
   userId: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
 ): Promise<SwiggyBehaviorInsights> {
-  // Weekend vs weekday spending
-  const weekendResult = await db
-    .select({
-      period: sql<string>`CASE WHEN EXTRACT(DOW FROM ${transactionsV2.transactionDate}) IN (0,6) THEN 'weekend' ELSE 'weekday' END`.as('period'),
-      orders: sql<number>`COUNT(*)`.as('orders'),
-      totalSpend: sql<number>`SUM(${transactionsV2.amount}::numeric)`.as('total_spend'),
-      avgSpend: sql<number>`AVG(${transactionsV2.amount}::numeric)`.as('avg_spend'),
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, startDate),
-        lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
-      )
-    )
-    .groupBy(sql`CASE WHEN EXTRACT(DOW FROM ${transactionsV2.transactionDate}) IN (0,6) THEN 'weekend' ELSE 'weekday' END`);
+  const rows = (await getSwiggyRows(userId, startDate, endDate)).filter(
+    (row) => row.merchantData.transaction?.orderId,
+  );
 
-  // Day-wise spending breakdown for the selected period
-  const dayWiseResult = await db
-    .select({
-      dayOfWeek: sql<number>`EXTRACT(DOW FROM ${transactionsV2.transactionDate})`.as('day_of_week'),
-      totalSpend: sql<number>`SUM(${transactionsV2.amount}::numeric)`.as('total_spend'),
-      orderCount: sql<number>`COUNT(*)`.as('order_count'),
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, startDate),
-        lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
-      )
-    )
-    .groupBy(sql`EXTRACT(DOW FROM ${transactionsV2.transactionDate})`)
-    .orderBy(sql`EXTRACT(DOW FROM ${transactionsV2.transactionDate})`);
+  const weekendVsWeekday = { weekend: 0, weekday: 0 };
+  const dayWiseSpending = dayNames.map((day, dayNumber) => ({ day, dayNumber, spend: 0, orders: 0 }));
+  const dayTotals = dayNames.map(() => ({ spend: 0, orders: 0 }));
+  const monthly = new Map<string, number>();
+  let deliveryFeeTotal = 0;
+  let deliveryFeeCount = 0;
+  let totalSavings = 0;
 
-  // Most expensive day analysis
-  const dayResult = await db
-    .select({
-      dayOfWeek: sql<number>`EXTRACT(DOW FROM ${transactionsV2.transactionDate})`.as('day_of_week'),
-      avgOrderValue: sql<number>`AVG(${transactionsV2.amount}::numeric)`.as('avg_order_value'),
-      orderCount: sql<number>`COUNT(*)`.as('order_count'),
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, startDate),
-        lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
-      )
-    )
-    .groupBy(sql`EXTRACT(DOW FROM ${transactionsV2.transactionDate})`)
-    .orderBy(sql`AVG(${transactionsV2.amount}::numeric) DESC`)
-    .limit(1);
+  for (const row of rows) {
+    const date = row.transactionDate;
+    const day = date.getDay();
+    const period = day === 0 || day === 6 ? "weekend" : "weekday";
+    weekendVsWeekday[period] += row.amount;
+    dayWiseSpending[day]!.spend += row.amount;
+    dayWiseSpending[day]!.orders += 1;
+    dayTotals[day]!.spend += row.amount;
+    dayTotals[day]!.orders += 1;
 
-  // Monthly trend (last 6 months)
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const month = date.toISOString().slice(0, 7);
+    monthly.set(month, (monthly.get(month) ?? 0) + row.amount);
 
-  const trendResult = await db
-    .select({
-      month: sql<string>`DATE_TRUNC('month', ${transactionsV2.transactionDate})`.as('month'),
-      monthlySpend: sql<number>`SUM(${transactionsV2.amount}::numeric)`.as('monthly_spend'),
-      orderCount: sql<number>`COUNT(*)`.as('order_count'),
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, sixMonthsAgo),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
-      )
-    )
-    .groupBy(sql`DATE_TRUNC('month', ${transactionsV2.transactionDate})`)
-    .orderBy(sql`DATE_TRUNC('month', ${transactionsV2.transactionDate})`);
-
-  // Delivery fees and discounts
-  const savingsResult = await db
-    .select({
-      avgDeliveryFee: sql<number>`AVG((${transactionsV2.merchantData}->'transaction'->>'deliveryFee')::numeric)`.as('avg_delivery_fee'),
-      totalDiscounts: sql<number>`SUM((${transactionsV2.merchantData}->'transaction'->>'discount')::numeric)`.as('total_discounts'),
-      membershipSavings: sql<number>`SUM((${transactionsV2.merchantData}->'transaction'->>'membershipDiscount')::numeric)`.as('membership_savings'),
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, startDate),
-        lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
-      )
-    );
-
-  // Process results
-  const weekendVsWeekday = {
-    weekend: 0,
-    weekday: 0,
-  };
-
-  weekendResult.forEach((period) => {
-    if (period.period === 'weekend') {
-      weekendVsWeekday.weekend = period.totalSpend || 0;
-    } else {
-      weekendVsWeekday.weekday = period.totalSpend || 0;
+    const transaction = row.merchantData.transaction;
+    const fee = amount(transaction?.deliveryFee);
+    if (fee > 0) {
+      deliveryFeeTotal += fee;
+      deliveryFeeCount += 1;
     }
-  });
+    totalSavings += amount(transaction?.discount) + amount(transaction?.membershipDiscount);
+  }
 
-  // Process day-wise spending
-  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const dayWiseSpending = dayNames.map((dayName, index) => {
-    const dayData = dayWiseResult.find(d => Number(d.dayOfWeek) === index);
-    return {
-      day: dayName,
-      dayNumber: index,
-      spend: Number(dayData?.totalSpend) || 0,
-      orders: Number(dayData?.orderCount) || 0,
-    };
-  });
-
-  const mostExpensiveDay = dayNames[dayResult[0]?.dayOfWeek || 0] || 'Monday';
+  const mostExpensiveDayIndex = dayTotals
+    .map((value, index) => ({
+      index,
+      average: value.orders ? value.spend / value.orders : 0,
+    }))
+    .sort((a, b) => b.average - a.average)[0]?.index ?? 0;
 
   return {
     weekendVsWeekday,
-    mostExpensiveDay,
-    monthlyTrend: trendResult.map((t) => ({
-      month: new Date(t.month).toISOString().substring(0, 7), // YYYY-MM format
-      spend: t.monthlySpend || 0,
-    })),
-    avgDeliveryFee: savingsResult[0]?.avgDeliveryFee || 0,
-    totalSavings: (savingsResult[0]?.totalDiscounts || 0) + (savingsResult[0]?.membershipSavings || 0),
+    mostExpensiveDay: dayNames[mostExpensiveDayIndex] ?? "Sunday",
+    monthlyTrend: [...monthly.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, spend]) => ({ month, spend })),
+    avgDeliveryFee: deliveryFeeCount ? deliveryFeeTotal / deliveryFeeCount : 0,
+    totalSavings,
     dayWiseSpending,
   };
 }
 
-/**
- * Get Swiggy smart insights
- * Returns: peak hours, most expensive order, top delivery area (removed cost per meal and month-over-month)
- */
 export async function getSwiggySmartInsights(
   userId: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
 ): Promise<SwiggySmartInsights> {
-  // Peak ordering hour query
-  const hoursResult = await db
-    .select({
-      hour: sql<number>`EXTRACT(HOUR FROM ${transactionsV2.transactionDate})`.as('hour'),
-      orderCount: sql<number>`COUNT(*)`.as('order_count'),
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, startDate),
-        lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
-      )
-    )
-    .groupBy(sql`EXTRACT(HOUR FROM ${transactionsV2.transactionDate})`)
-    .orderBy(sql`COUNT(*) DESC`)
-    .limit(1);
+  const rows = (await getSwiggyRows(userId, startDate, endDate)).filter(
+    (row) => row.merchantData.transaction?.orderId,
+  );
 
-  // Most expensive order query
-  const expensiveResult = await db
-    .select({
-      maxOrderAmount: sql<number>`${transactionsV2.amount}::numeric`.as('max_order_amount'),
-      restaurant: sql<string>`${transactionsV2.merchantData}->'transaction'->>'restaurantName'`.as('restaurant'),
-      transactionDate: transactionsV2.transactionDate,
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, startDate),
-        lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`
-      )
-    )
-    .orderBy(sql`${transactionsV2.amount}::numeric DESC`)
-    .limit(1);
+  const hours = new Map<number, number>();
+  const areas = new Map<string, { area: string; pincode: string; orderCount: number }>();
+  let mostExpensive = rows[0];
 
-  // Top delivery area query
-  const areaResult = await db
-    .select({
-      area: sql<string>`${transactionsV2.merchantData}->'transaction'->'deliveryAddress'->>'area'`.as('area'),
-      pincode: sql<string>`${transactionsV2.merchantData}->'transaction'->'deliveryAddress'->>'pincode'`.as('pincode'),
-      orderCount: sql<number>`COUNT(*)`.as('order_count'),
-    })
-    .from(transactionsV2)
-    .where(
-      and(
-        eq(transactionsV2.merchantId, 'swiggy'),
-        eq(transactionsV2.userId, userId),
-        gte(transactionsV2.transactionDate, startDate),
-        lte(transactionsV2.transactionDate, endDate),
-        sql`${transactionsV2.merchantData}->'transaction'->>'orderId' IS NOT NULL`,
-        sql`${transactionsV2.merchantData}->'transaction'->'deliveryAddress'->>'area' IS NOT NULL`
-      )
-    )
-    .groupBy(
-      sql`${transactionsV2.merchantData}->'transaction'->'deliveryAddress'->>'area'`,
-      sql`${transactionsV2.merchantData}->'transaction'->'deliveryAddress'->>'pincode'`
-    )
-    .orderBy(sql`COUNT(*) DESC`)
-    .limit(1);
+  for (const row of rows) {
+    const hour = row.transactionDate.getHours();
+    hours.set(hour, (hours.get(hour) ?? 0) + 1);
+
+    if (!mostExpensive || row.amount > mostExpensive.amount) {
+      mostExpensive = row;
+    }
+
+    const address = row.merchantData.transaction?.deliveryAddress;
+    const area = address?.area?.trim();
+    if (area) {
+      const key = `${area}|${address?.pincode ?? ""}`;
+      const existing = areas.get(key) ?? { area, pincode: address?.pincode ?? "", orderCount: 0 };
+      existing.orderCount += 1;
+      areas.set(key, existing);
+    }
+  }
+
+  const peakOrderingHour = [...hours.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
+  const topDeliveryArea = [...areas.values()].sort((a, b) => b.orderCount - a.orderCount)[0] ?? {
+    area: "",
+    pincode: "",
+    orderCount: 0,
+  };
 
   return {
-    peakOrderingHour: hoursResult[0]?.hour || 0,
+    peakOrderingHour,
     mostExpensiveOrder: {
-      amount: expensiveResult[0]?.maxOrderAmount || 0,
-      restaurant: expensiveResult[0]?.restaurant || 'Unknown Restaurant',
-      date: expensiveResult[0]?.transactionDate?.toISOString().split('T')[0] || '',
+      amount: mostExpensive?.amount ?? 0,
+      restaurant: mostExpensive?.merchantData.transaction?.restaurantName ?? "Unknown Restaurant",
+      date: mostExpensive?.transactionDate.toISOString().split("T")[0] ?? "",
     },
-    topDeliveryArea: {
-      area: areaResult[0]?.area || '',
-      pincode: areaResult[0]?.pincode || '',
-      orderCount: areaResult[0]?.orderCount || 0,
-    },
+    topDeliveryArea,
   };
-} 
+}

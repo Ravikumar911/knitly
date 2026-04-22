@@ -1,18 +1,21 @@
-import { pgTable, text, timestamp, uuid, integer } from 'drizzle-orm/pg-core';
+import { randomUUID } from 'node:crypto';
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { profiles } from './users';
 
-export const feedback = pgTable('feedback', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => profiles.id),
+export const feedback = sqliteTable('feedback', {
+  id: text('id')
+    .$defaultFn(() => randomUUID())
+    .primaryKey(),
+  userId: text('user_id').references(() => profiles.id),
   subject: text('subject').notNull(),
   message: text('message').notNull(),
-  type: text('type').notNull(), // 'bug', 'feature', 'general', etc.
-  priority: text('priority').default('medium'), // 'low', 'medium', 'high'
-  status: text('status').default('open'), // 'open', 'in-progress', 'resolved', 'closed'
+  type: text('type').notNull(),
+  priority: text('priority').default('medium'),
+  status: text('status').default('open'),
   userEmail: text('user_email'),
   userAgent: text('user_agent'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()),
 });
 
 export type Feedback = typeof feedback.$inferSelect;

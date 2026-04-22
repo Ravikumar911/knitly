@@ -34,13 +34,13 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-004 — Google auth is owned by `gws`
 
-**Decision.** We never ship a Google OAuth client id. We never handle Google tokens. The user runs `gws auth login` during `slashcash onboard`, and `gws` owns everything about Google authentication and API access.
+**Decision.** We never ship a Google OAuth client id, never handle Google tokens, and never store refresh tokens. During `slashcash onboard` the user provisions their own per-machine OAuth client through `gws auth setup` (see ADR-022 for the full gcloud-backed flow) and then runs `gws auth login --services gmail --readonly` to consent to Gmail read-only access. `gws` owns everything about Google authentication and API access from that point onward.
 
-**Why.** This is the single biggest trust improvement over the hosted SaaS. The user's Google credentials never touch our code. `gws` is maintained by Google Workspace's team and keeps current with API changes.
+**Why.** This is the single biggest trust improvement over the hosted SaaS. The user's Google credentials never touch our code, and the OAuth client is scoped to their own Google Cloud project rather than a shared one we'd have to get verified. `gws` is maintained by Google Workspace's team and keeps current with API changes.
 
-**Rejected.** An installed-app OAuth flow using our own client id — we'd be back to owning refresh tokens. IMAP with an app password — weaker auth, no attachment API, deprecated direction.
+**Rejected.** An installed-app OAuth flow using our own shared client id — would require Google OAuth app verification (including an annual CASA security assessment for the restricted Gmail scope), commit us to a verified-app support surface, and cap us at 100 test users until that verification lands. IMAP with an app password — weaker auth, no attachment API, deprecated direction.
 
-**Revisit if.** `gws` ever becomes unmaintained or diverges from Google's current APIs in a way that breaks our use case.
+**Revisit if.** `gws` ever becomes unmaintained, or we decide to absorb the OAuth verification work to shave the two browser consents out of onboarding — at which point ADR-022 flips too.
 
 ## ADR-005 — Ollama with `gemma3n:e4b` as the default model
 
@@ -98,13 +98,13 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 **Revisit if.** Eval or user reports ever show aggregation drift.
 
-## ADR-011 — `gws` install method
+## ADR-011 — `gws` and `gcloud` install method
 
-**Decision.** `gws` is installed through Homebrew using whichever tap is the upstream-blessed source at the time of the Phase 2 W1 kickoff. The exact tap and formula name are captured here and referenced from a single constant in the code so any change is a one-file update.
+**Decision.** `gws` is installed through Homebrew using the `googleworkspace-cli` formula documented in the upstream `gws` README. `gcloud` is installed through the Homebrew cask `google-cloud-sdk`. Both install sources are referenced from single constants (`GWS_BREW_FORMULA`, `GCLOUD_BREW_CASK`) in `packages/cli/src/onboard/run.ts` so any change is one file plus this ADR.
 
-**Why.** `gws` distribution is evolving. Rather than hard-coding a tap across the codebase, we keep it in one place.
+**Why.** `gws` distribution is evolving (the older `googleworkspace/tap/gws` tap is being replaced by the direct `googleworkspace-cli` formula). `gcloud` is now a hard prerequisite for onboarding because `gws auth setup` drives the Google Cloud project / OAuth client provisioning through it (see ADR-022). Keeping both install sources in one place keeps the swap cheap.
 
-**Revisit on every Phase 2 W1 touch.** If the upstream distribution moves, update this ADR and the constant.
+**Revisit on every Phase 2 W1 or Phase 3 W1 touch.** If the upstream distribution for either tool moves, update this ADR and the two constants in the same PR as the `auth-invalid-client.fix` / `gcloud-missing.fix` diagnostic strings.
 
 ## ADR-012 — Local vs cloud eval delta threshold (provisional)
 
@@ -161,3 +161,90 @@ Short architectural decision records. Each entry captures a choice that shapes t
 **Rejected.** Unit tests only — misses integration failures. Manual QA only — not reproducible, drifts, doesn't block merges. A continuous long-running E2E — unnecessary overhead for phase-paced delivery.
 
 **Revisit if.** The E2E suite grows so expensive in CI minutes that it meaningfully slows phase cadence. At that point we subset the suite between phases and restore the full run at the gate.
+
+## ADR-018 — Single onboarding question
+
+**Decision.** `slashcash onboard` asks exactly one user-facing question: which chat model to pull and use. The default is `gemma3n:e4b`, with `gemma3:4b` and `qwen2.5:7b` offered as alternatives. `--yes` accepts the default and `--non-interactive` fails if a prompt would be needed.
+
+**Why.** Every additional prompt adds friction. The model choice is the only current setup question with a real user trade-off: download size, speed and answer quality.
+
+**Rejected.** Asking for port, sync schedule or initial skill selection. The defaults work for most users, and every value remains editable through `config.json` or `slashcash config set`.
+
+**Revisit if.** We add a second bundled skill or a model requirement whose download size is meaningfully larger than the default.
+
+## ADR-019 — CLI error block format
+
+**Decision.** CLI-facing failures use the same block everywhere: `error[area]: symptom`, then `cause`, then `fix`, plus optional `docs`. The implementation lives in `packages/cli/src/errors/format.ts`.
+
+**Why.** Users should never have to read raw JSON or a stack trace to understand the next step. The format is also easy for tests and future UI surfaces to parse.
+
+**Rejected.** Free-form `throw new Error(...)` text at command boundaries.
+
+**Revisit if.** A future UI needs structured error transport over something other than stdout/stderr.
+
+## ADR-020 — Performance budgets
+
+**Decision.** Phase 5 records two layers of budgets. The published-binary targets are cold `slashcash --version` under 100 ms p95, `slashcash doctor --quick` under 200 ms p95, dashboard first byte under 500 ms p95 against seed data, and assistant first token under 1500 ms p95 against stub Ollama. The current development harness runs through `pnpm` and asserts looser guardrails: `slashcash --version` under 1000 ms and `slashcash doctor --quick` under 3000 ms. Tight published-install budgets are enforced once the tarball smoke path is running against the installed package.
+
+**Why.** Local-first software feels broken when startup or first response time regresses silently. Budgets make performance a release concern rather than folklore.
+
+**Rejected.** Real-Ollama first-token as a hard CI budget; local model timing is too hardware-dependent.
+
+**Revisit if.** CI hardware changes or published-install dogfood shows the budgets are unrealistic.
+
+## ADR-021 — Release pipeline shape
+
+**Decision.** Releases publish from `vX.Y.Z` tags. The workflow validates the tag against `packages/cli/package.json`, runs the source gates, builds the standalone app, packs the CLI, publishes to npm with provenance, smoke-tests the published bin, and attaches a checksum plus SBOM to the GitHub release.
+
+**Why.** Tag-based release is auditable and matches npm provenance expectations. The published package is the artifact users install, so the release workflow must exercise the bundled-app path.
+
+**Rejected.** Publishing directly from every push to `main`.
+
+**Revisit if.** Changesets or npm provenance requirements change enough that this flow becomes brittle.
+
+## ADR-022 — BYO-GCP Google onboarding via `gcloud` + `gws auth setup`
+
+**Decision.** `slashcash onboard` provisions Google access for each user through their own Google Cloud project. The sequence is:
+
+1. Install the `gcloud` CLI (Homebrew cask from ADR-011).
+2. Run `gcloud auth login` interactively so gcloud has active user credentials.
+3. Install the `gws` CLI (Homebrew formula from ADR-011).
+4. Run `gws auth setup`, which (per the upstream `gws` README) uses gcloud to create or select a Google Cloud project, enable the Gmail API, create a Desktop-type OAuth client, add the signed-in account as a test user, and write `~/.config/gws/client_secret.json`.
+5. Run `gws auth login --services gmail --readonly` so the user consents to Gmail read-only access for Swiggy ingest.
+
+This is the path the `gws` authors recommend when `gcloud` is available; it is the cheapest way to bootstrap a working OAuth client without us owning one.
+
+**Verified probe on 2026-04-17.** The installed upstream binary was `gws 0.22.5` from `@googleworkspace/cli`, reached at `/Users/ravikumarr/.nvm/versions/node/v22.12.0/bin/gws`. `gws auth setup --help` exposes only these setup-specific flags: `--project <id>`, `--login`, and `--dry-run`. It does not expose setup-time flags for a scope list, service/API list, readonly mode, or test-user email. The guessed setup flags `--services gmail`, `--scopes gmail.readonly`, `--readonly`, and `--test-user nobody@example.com` all fail validation with exit code 3. `gws auth login --help` does expose `--scopes <scopes>`, `--readonly`, `--full`, and `--services <services>`, so slashcash keeps scope narrowing on the login step.
+
+**Live correction on 2026-04-17.** Passing `--scopes gmail.readonly` to `gws auth login` reached Google as the raw invalid OAuth scope `gmail.readonly` and produced `Error 400: invalid_scope`. The login step now uses the upstream service filter instead: `gws auth login --services gmail --readonly`. This lets `gws` resolve the valid Gmail read-only OAuth scope instead of slashcash spelling one manually.
+
+`gws auth setup --project slashcash-probe --dry-run` was also verified. It made no changes, accepted the project id, found the active gcloud account, and reported that setup would enable 22 Workspace-related APIs including `gmail.googleapis.com`, then configure OAuth credentials at `~/.config/gws/client_secret.json`. Because setup does not expose a non-interactive API-list or test-user flag, slashcash does not pass partial hidden setup flags from `config.json`; `gws-setup` inherits the user's TTY and lets upstream handle any project/API/OAuth prompts. There is intentionally no `google.projectId` config key in v1.
+
+**Scripted-gcloud fallback status on 2026-04-17.** The safe help probes verified the syntax for `gcloud projects create [PROJECT_ID]`, `gcloud config set project PROJECT_ID`, and `gcloud services enable gmail.googleapis.com`. No live project was created and no service was enabled from this development machine. The proposed `gcloud alpha iap oauth-brands` / `oauth-clients` family could not be verified without installing the `alpha` component; help attempted to install that component and exited because the session was non-interactive. More importantly, no verified `gcloud` command path has been proven to create a Desktop OAuth client, add a test user, and write a `gws`-compatible `client_secret.json`. Do not implement the scripted fallback until it has been exercised against a disposable Google account/project, or until upstream documents a supported non-interactive Desktop OAuth client path. For now, `gws auth setup` remains the only verified writer of the OAuth client file.
+
+**Why.** The alternative is shipping our own verified OAuth client, which for the restricted Gmail scope would require a public privacy policy, verified homepage, domain verification, and an annual CASA security assessment. For a local-first v1 that runs on a few hundred users' own machines, BYO-GCP is materially cheaper for us and keeps the user's Gmail token fully inside their own Cloud project. It is heavier for the user (two browser consents instead of one, plus a ~400 MB `google-cloud-sdk` download), but eliminates the current `invalid_client` / `redirect_uri_mismatch` failure modes because every user now has a properly provisioned client.
+
+**Scope policy.** We ask for Gmail read-only access only. Wider Gmail scopes (full Gmail scope, send, modify) are explicitly out of v1. Enlarging the scope set later is an ADR edit plus a wizard change.
+
+**Rejected.**
+
+- Shared verified OAuth client owned by us. Higher commitment, adds a support surface we do not want to run for a local-first CLI, blocked on CASA assessment for a restricted scope.
+- Reusing gcloud Application Default Credentials (`gcloud auth application-default login` + `GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE`). Tempting because it collapses the two consents into one, but ADC is not the intended carrier for user-owned Google Workspace API access and Google has been tightening that path. Not policy-safe to recommend.
+- Manual Cloud Console click-through (per the `gws` README's "Manual OAuth setup" path). Works, but is an entire multi-step UI walk through Cloud Console and is the opposite of "easy for customers."
+- A hand-rolled `gcloud` OAuth-client fallback in Phase 3. Project creation and Gmail API enablement are straightforward, but the Desktop OAuth client plus test-user path is not verified through `gcloud` and would be worse than delegating to upstream `gws auth setup`.
+
+**Revisit if.**
+
+- We decide to absorb Google's OAuth app verification cost (privacy policy, domain verification, annual CASA assessment) and ship a verified shared client. At that point ADR-004 and this ADR both change in the same PR.
+- `gws` gains a first-class path that provisions a client without `gcloud` (e.g. a Google-hosted setup endpoint). We would drop the `gcloud` prerequisite from onboard.
+- A verified shared client would also change the pre-`gws auth login` privacy line, because the consent screen would no longer describe an app created inside the user's own Cloud project.
+
+## ADR-023 — Privacy disclosures surface at onboarding
+
+**Decision.** The privacy claims that make this product worth installing (local-only data, BYO Google Cloud project, no telemetry, loopback-only dashboard) are printed by the wizard at four moments: top-of-onboard banner, pre-`gcloud auth login` line, pre-`gws auth login` line, and final summary. They are reachable forever through `slashcash privacy`. The wizard also prints one operational safety note before `gws auth setup`: upstream `gws` may ask whether to run `gws auth login` immediately, and slashcash tells the user to answer `n` so the next step can request Gmail read-only access with `gws auth login --services gmail --readonly`. The wizard does not gate on acknowledgement; trust is built by showing the facts at the moments the user is deciding whether to click Allow. Copy and setup guidance live in one file, `packages/cli/src/privacy/copy.ts`, so the wizard and the standing command never drift.
+
+**Why.** The developer audience (see `vision.md` "Target audience for v1") evaluates trust at the consent screen, not on a landing page. The product principle is "trust is surfaced, not buried", so onboarding itself has to say where data, tokens, PDFs, model calls and telemetry do or do not go.
+
+**Rejected.** A single upfront dump (users skim it). Legal "I accept" checkboxes (wrong product). Printing only via a separate command (missed by the users who most need it).
+
+**Revisit if.** ADR-022 changes to a verified shared Google client, if the hosted surface returns, or if any telemetry/version-check default changes. Any of those would require changing the copy and its snapshots in the same PR.

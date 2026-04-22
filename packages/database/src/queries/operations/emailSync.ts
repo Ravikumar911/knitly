@@ -1,8 +1,7 @@
 import { db } from '../../index';
 import { emailSyncStatus } from '../../schema/emailSyncStatus';
 import { parsedEmails } from '../../schema/parsedEmails';
-import { eq, count, and, or, isNotNull, isNull, lt, not, inArray, sql, notInArray } from 'drizzle-orm';
-import { userGoogleTokens } from '../../schema/tokens';
+import { eq, count, and, or, isNull, sql, notInArray } from 'drizzle-orm';
 
 interface SyncStatus {
   lastSyncedAt: Date | null;
@@ -219,7 +218,7 @@ export async function getSyncProgress(userId: string): Promise<SyncProgress> {
   return {
     totalEmails: data.totalEmails,
     processedEmails: data.processedEmails || 0,
-    progressPercentage: parseFloat(data.progressPercentage || '0'),
+    progressPercentage: Number(data.progressPercentage || 0),
     estimatedCompletion: data.estimatedCompletion,
     syncStatus: data.syncStatus,
     hasInitialSync: data.hasInitialSync || false,
@@ -247,7 +246,7 @@ export async function ensureSyncRow(userId: string): Promise<void> {
         syncStatus: null,
         errorDetails: null,
         processedEmails: 0,
-        progressPercentage: '0.00',
+        progressPercentage: 0,
         hasInitialSync: false,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -345,7 +344,7 @@ export async function getUnifiedSyncState(userId: string): Promise<UnifiedEmailS
   // Progress
   const total = row.totalEmails ?? null;
   const processed = row.processedEmails || 0;
-  const percent = parseFloat(row.progressPercentage || '0');
+  const percent = Number(row.progressPercentage || 0);
   const eta = row.estimatedCompletion ?? null;
 
   // OAuth
@@ -394,7 +393,7 @@ export async function initializeSync(userId: string, totalEmails: number): Promi
   const initialData = {
     totalEmails,
     processedEmails: 0,
-    progressPercentage: '0.00',
+    progressPercentage: 0,
     estimatedCompletion: null as Date | null,
     syncStatus: 'syncing' as const, // about to start processing
     lastSyncAttemptAt: new Date(), // Track attempt, not successful sync
@@ -473,11 +472,11 @@ export async function updateSyncProgress(userId: string, incrementBy: number): P
   await db.update(emailSyncStatus)
     .set({
       // ATOMIC: Use sql operator to increment directly in the database
-      processedEmails: sql`LEAST(COALESCE(${emailSyncStatus.processedEmails}, 0) + ${incrementBy}, COALESCE(${emailSyncStatus.totalEmails}, COALESCE(${emailSyncStatus.processedEmails}, 0) + ${incrementBy}))`,
+      processedEmails: sql`min(coalesce(${emailSyncStatus.processedEmails}, 0) + ${incrementBy}, coalesce(${emailSyncStatus.totalEmails}, coalesce(${emailSyncStatus.processedEmails}, 0) + ${incrementBy}))`,
       // Calculate percentage based on the new processed count
       progressPercentage: status.totalEmails && status.totalEmails > 0
-        ? sql`ROUND((LEAST(COALESCE(${emailSyncStatus.processedEmails}, 0) + ${incrementBy}, ${status.totalEmails})::numeric / ${status.totalEmails}::numeric) * 100, 2)`
-        : '0.00',
+        ? sql`round((min(coalesce(${emailSyncStatus.processedEmails}, 0) + ${incrementBy}, ${status.totalEmails}) * 100.0) / ${status.totalEmails}, 2)`
+        : 0,
       estimatedCompletion,
       // Mark complete and set hasInitialSync when all emails processed
       syncStatus: status.totalEmails && newProcessed >= status.totalEmails ? 'complete' : 'syncing',
@@ -687,7 +686,7 @@ export async function markSyncFailed(userId: string, errorDetails?: string) {
         // Clear progress on failure
         totalEmails: null,
         processedEmails: 0,
-        progressPercentage: '0.00',
+        progressPercentage: 0,
         estimatedCompletion: null,
         syncTimeoutAt: null, // Clear timeout
         lastSyncAttemptAt: new Date(), // Track attempt time
@@ -760,49 +759,7 @@ export async function getUsersNeedingSync(): Promise<Array<{
   userId: string;
   lastSyncedAt: Date | null;
 }>> {
-  // Get users with Google tokens who either:
-  // 1. Have never synced (no record in emailSyncStatus)
-  // 2. Haven't synced in the last 24 hours
-  // 3. Have a sync status that's not 'in_progress' or 'syncing' (to avoid double syncing)
-  
-  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  
-  const usersWithTokens = await db
-    .select({
-      userId: userGoogleTokens.userId,
-      lastSyncedAt: emailSyncStatus.lastSyncedAt,
-      syncStatus: emailSyncStatus.syncStatus,
-    })
-    .from(userGoogleTokens)
-    .leftJoin(emailSyncStatus, eq(userGoogleTokens.userId, emailSyncStatus.userId))
-    .where(
-      and(
-        // Has valid refresh token
-        isNotNull(userGoogleTokens.providerRefreshToken),
-        // Either never synced, synced more than 24 hours ago, or not currently syncing
-        or(
-          // Never synced (no emailSyncStatus record)
-          isNull(emailSyncStatus.userId),
-          // Synced more than 24 hours ago
-          and(
-            isNotNull(emailSyncStatus.lastSyncedAt),
-            lt(emailSyncStatus.lastSyncedAt, twentyFourHoursAgo)
-          ),
-          // Failed sync that needs retry
-          eq(emailSyncStatus.syncStatus, 'failed')
-        ),
-        // Not currently syncing
-        or(
-          isNull(emailSyncStatus.syncStatus),
-          not(inArray(emailSyncStatus.syncStatus, ['in_progress', 'syncing', 'counting_emails']))
-        )
-      )
-    );
-
-  return usersWithTokens.map(user => ({
-    userId: user.userId,
-    lastSyncedAt: user.lastSyncedAt,
-  }));
+  return [];
 }
 
 /**
@@ -898,7 +855,7 @@ export async function resetSyncStatusAfterReauth(userId: string): Promise<void> 
       // Clear progress tracking
       totalEmails: null,
       processedEmails: 0,
-      progressPercentage: '0.00',
+      progressPercentage: 0,
       estimatedCompletion: null,
       syncTimeoutAt: null, // Clear timeout
       updatedAt: new Date(),

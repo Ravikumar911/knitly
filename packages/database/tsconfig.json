@@ -1,11 +1,18 @@
 {
-    "extends": "@workspace/typescript-config/base.json",
-    "compilerOptions": {
-      "module": "NodeNext",
-      "moduleResolution": "NodeNext",
-      "target": "ES2021",
-      "outDir": "./dist",
-    },
-    "exclude": ["dist", "node_modules"]
-  }
-  
+  "extends": "@workspace/typescript-config/base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "target": "ES2021",
+    "outDir": "./dist"
+  },
+  "exclude": [
+    "dist",
+    "node_modules",
+    "test",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.integration.test.ts",
+    "**/*.integration.test.tsx"
+  ]
+}

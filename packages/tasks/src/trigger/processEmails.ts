@@ -1,664 +1,336 @@
-import { logger, task, wait, configure, batch } from "@trigger.dev/sdk/v3";
-import { refreshGoogleToken, fetchGmailMessages, fetchGmailMessage, extractEmailBody, extractEmailMetadata, buildMerchantBasedGmailSearchQuery, extractAttachments } from "../utils";
-import { slashAIV2Agent } from "../agents/slashAIV2";
-import { processAttachments } from "../utils/emailStorage";
-import { detectDuplicateTransactionsForUser } from "./duplicateDetector";
-import { 
-  getLastSyncTime, 
-  updateLastSyncTime, 
-  markSyncComplete,
-  markSyncFailed,
-  markSyncCountingEmails,
-  isEmailProcessed, 
-  storeEmailData,
-  updateEmailData,
-  updateSyncProgress,
-  getSyncProgress,
+import {
   initializeSync,
-  markSyncFailedWithOAuthError,
-  clearOAuthErrors,
-  forceClearOAuthErrors,
-  touchSyncStatus
+  isEmailProcessed,
+  markSyncComplete,
+  markSyncCountingEmails,
+  markSyncFailed,
+  storeEmailData,
+  storeTransactionV2Input,
+  updateSyncProgress,
 } from "@workspace/database";
+import { defaultModel } from "../ai/model";
+import { extractEmailData } from "../agents/slashAIV2";
+import type { EmailData } from "../types/slashAI";
+import {
+  decodeBase64Url,
+  getGmailAttachment,
+  getGmailMessage,
+  listGmailMessages,
+  type GwsMessage,
+  type GwsMessagePart,
+} from "../utils/gws";
+import { writeAttachmentFile } from "../utils/attachments-fs";
+import { runSingleFlight } from "../runtime/mutex";
 
-configure({
-  secretKey: process.env.TRIGGER_SECRET_KEY,
-});
+type EmailAttachment = NonNullable<EmailData["attachments"]>[number];
 
-// Constants for optimization
-const BATCH_SIZE = 20; // Process 20 emails per batch
-const MAX_CONCURRENT_BATCHES = 10; // Run 10 batches in parallel
-const RATE_LIMIT_DELAY = 0.1; // 0.1 seconds delay between API calls
-const SYNC_PERIOD_DAYS = 180; // 180 days of email history to process (increased for better testing)
+export type ProcessEmailsPayload = {
+  userId: string;
+  query?: string;
+  maxMessages?: number;
+  full?: boolean;
+};
 
-/**
- * Worker task that processes a batch of emails
- */
-export const processEmailBatch = task({
-  id: "process-email-batch",
-  maxDuration: 1800,
-  machine: "medium-2x", // 2 vCPU, 4GB RAM
-  retry: {
-    maxAttempts: 3,
-    factor: 2,
-    minTimeoutInMs: 1000,
-    maxTimeoutInMs: 10000,
-  },
-  run: async (payload: {
-    userId: string;
-    messages: Array<{id: string; threadId?: string}>;
-  }) => {
-    logger.log("Starting batch processing", {
-      userId: payload.userId,
-      batchSize: payload.messages.length,
-      firstMessageId: payload.messages[0]?.id,
-      lastMessageId: payload.messages[payload.messages.length - 1]?.id
-    });
+export type EmailSyncResult = {
+  success: true;
+  processedCount: number;
+  skippedCount: number;
+  errorCount: number;
+  totalFound: number;
+};
 
-    const stats = {
+export async function runEmailSync(
+  payload: ProcessEmailsPayload,
+): Promise<EmailSyncResult & { skipped?: boolean }> {
+  const singleFlight = await runSingleFlight(
+    async () => runEmailSyncUnsafe(payload),
+    "gmail-swiggy",
+  );
+  if (singleFlight.status === "skipped") {
+    return {
+      success: true,
       processedCount: 0,
-      skippedCount: 0,
+      skippedCount: 1,
       errorCount: 0,
-      totalFound: payload.messages.length
+      totalFound: 0,
+      skipped: true,
     };
-
-    // Refresh token once at the start of batch processing
-    const tokenResult = await refreshGoogleToken(payload.userId);
-    if (!tokenResult.success || !tokenResult.token) {
-      logger.error("Failed to refresh token for batch processing", {
-        userId: payload.userId,
-        errorType: tokenResult.error?.type,
-        errorCode: tokenResult.error?.code
-      });
-      throw new Error(`Token refresh failed: ${tokenResult.error?.message || 'Unknown error'}`);
-    }
-
-    let providerToken = tokenResult.token;
-
-    // Process messages in batch
-    for (const messageInfo of payload.messages) {
-      try {
-        // Skip already processed emails
-        const alreadyProcessed = await isEmailProcessed(payload.userId, messageInfo.id);
-        if (alreadyProcessed) {
-          stats.skippedCount++;
-          continue;
-        }
-
-        // Fetch message with rate limiting
-        await wait.for({ seconds: RATE_LIMIT_DELAY });
-        
-        let messageData = null;
-        let retryCount = 0;
-        const MAX_RETRIES = 1;
-        
-        // Fetch message with automatic token refresh on auth errors
-        while (retryCount <= MAX_RETRIES) {
-          try {
-            messageData = await fetchGmailMessage(providerToken, messageInfo.id);
-            break; // Success, exit retry loop
-          } catch (error: any) {
-            // Check if this is a 401 auth error
-            if ((error?.status === 401 || error?.code === 401) && retryCount < MAX_RETRIES) {
-              logger.warn("Auth error fetching message, refreshing token and retrying", {
-                userId: payload.userId,
-                messageId: messageInfo.id,
-                attempt: retryCount + 1,
-                error: error.message
-              });
-              
-              // Refresh token and retry
-              const refreshResult = await refreshGoogleToken(payload.userId);
-              if (refreshResult.success && refreshResult.token) {
-                providerToken = refreshResult.token;
-                retryCount++;
-                await wait.for({ seconds: 0.5 }); // Brief delay before retry
-                continue;
-              } else {
-                // Token refresh failed, rethrow error
-                logger.error("Token refresh failed during retry", {
-                  userId: payload.userId,
-                  messageId: messageInfo.id,
-                  errorType: refreshResult.error?.type
-                });
-                throw error;
-              }
-            } else {
-              // Not a 401 or out of retries, rethrow
-              throw error;
-            }
-          }
-        }
-        
-        if (!messageData) {
-          stats.errorCount++;
-          continue;
-        }
-
-        // Extract and process message data
-        const metadata = extractEmailMetadata(messageData);
-        const emailBody = extractEmailBody(messageData);
-        const attachments = extractAttachments(messageData);
-
-        // Process attachments if present
-        let attachmentStoragePaths: string[] | null = null;
-        let processedAttachments: Array<{
-          filename: string;
-          mimeType: string;
-          content: string;
-        }> | undefined = undefined;
-
-        if (attachments.length > 0) {
-          const attachmentResult = await processAttachments(
-            payload.userId,
-            messageInfo.id,
-            providerToken,
-            attachments
-          );
-
-          if (attachmentResult) {
-            attachmentStoragePaths = attachmentResult.storagePaths;
-            processedAttachments = attachmentResult.processedAttachments;
-          }
-        }
-
-        // Store email data first to get the email ID
-        const storedEmail = await storeEmailData({
-          threadId: messageData.threadId || null,
-          userId: payload.userId,
-          subject: metadata.subject || null,
-          senderEmailId: metadata.from || null,  
-          receivedDate: metadata.receivedDate || new Date(),
-          snippet: metadata.snippet || null,
-          parseSuccess: false,
-          parseErrors: null,
-          rawContent: emailBody || '',
-          attachmentStoragePath: attachmentStoragePaths ? JSON.stringify(attachmentStoragePaths) : null,
-          parsedAt: new Date()
-        });
-
-        if (!storedEmail || storedEmail.length === 0) {
-          logger.error("Failed to store email data", {
-            messageId: messageInfo.id,
-            userId: payload.userId,
-            threadId: messageData.threadId
-          });
-          stats.errorCount++;
-          continue;
-        }
-
-        const emailRecord = storedEmail[0];
-        if (!emailRecord) {
-          stats.errorCount++;
-          continue;
-        }
-
-        const emailId = emailRecord.id;
-
-        // Prepare email data for V2 processing
-        const emailData = {
-          userId: payload.userId,
-          emailId: emailId,
-          threadId: messageData.threadId || '',
-          subject: metadata.subject,
-          from: metadata.from,
-          date: metadata.date,
-          body: emailBody,
-          attachments: processedAttachments
-        };
-
-        // Process with V2 AI
-        let slashV2Result: any = null;
-
-        try {
-          logger.log("Processing email with AI", {
-            emailId,
-            messageId: messageInfo.id,
-            hasAttachments: processedAttachments ? processedAttachments.length : 0
-          });
-
-          slashV2Result = await slashAIV2Agent(emailData);
-          
-          if (slashV2Result?.transactionId) {
-            logger.log("Transaction extracted successfully", { 
-              emailId,
-              transactionId: slashV2Result.transactionId,
-              merchantId: slashV2Result.merchantId,
-              schemaUsed: slashV2Result.schemaUsed
-            });
-          } else if (slashV2Result?.parseSuccess) {
-            logger.log("Email processed but no transaction found", {
-              emailId,
-              reason: slashV2Result.noTransactionReason || 'Unknown'
-            });
-          }
-        } catch (error) {
-          logger.error("AI processing failed", {
-            emailId,
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined
-          });
-          stats.errorCount++;
-          continue;
-        }
-
-        // Update email data with V2 results
-        await updateEmailData(emailId, {
-          parseSuccess: slashV2Result?.parseSuccess || false,
-          parseErrors: slashV2Result?.parseErrors?.join(', ') || null,
-        });
-
-        stats.processedCount++;
-      } catch (error) {
-        logger.error("Batch message processing failed", {
-          messageId: messageInfo.id,
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-          currentStats: stats
-        });
-        stats.errorCount++;
-      } finally {
-        // FIX Issue #5: Increment progress with retry logic to handle race conditions
-        let retries = 3;
-        while (retries > 0) {
-          try {
-            await updateSyncProgress(payload.userId, 1);
-            break; // Success
-          } catch (e) {
-            retries--;
-            if (retries === 0) {
-              logger.error("Failed to increment sync progress after retries", {
-                userId: payload.userId,
-                messageId: messageInfo.id,
-                error: e instanceof Error ? e.message : String(e),
-                attemptsRemaining: 0
-              });
-            } else {
-              logger.warn("Retrying progress update", {
-                userId: payload.userId,
-                messageId: messageInfo.id,
-                attemptsRemaining: retries
-              });
-              await wait.for({ seconds: 0.5 }); // Brief backoff
-            }
-          }
-        }
-      }
-    }
-
-
-    logger.log("Batch processing completed", {
-      userId: payload.userId,
-      batchStats: stats,
-      successRate: `${((stats.processedCount / stats.totalFound) * 100).toFixed(1)}%`,
-      errorRate: `${((stats.errorCount / stats.totalFound) * 100).toFixed(1)}%`,
-      skipRate: `${((stats.skippedCount / stats.totalFound) * 100).toFixed(1)}%`
-    });
-
-    return stats;
   }
-});
 
-/**
- * Main coordinator task that splits emails into batches and processes them in parallel
- */
-export const processEmails = task({
-  id: "process-emails",
-  maxDuration: 3600,
-  retry: {
-    maxAttempts: 3,
-    factor: 2,
-    minTimeoutInMs: 1000,
-    maxTimeoutInMs: 10000,
-  },
-  run: async (payload: {
-    userId: string;
-    syncPeriodDays?: number;
-  }) => {
-    const syncPeriodDays = payload.syncPeriodDays || SYNC_PERIOD_DAYS;
-    
-    logger.log("Initializing email sync", { 
-      userId: payload.userId,
-      syncPeriodDays,
-      timestamp: new Date().toISOString()
-    });
-    
+  return singleFlight.value;
+}
+
+async function runEmailSyncUnsafe(
+  payload: ProcessEmailsPayload,
+): Promise<EmailSyncResult> {
+  const query =
+    payload.query ||
+    process.env.SLASHCASH_GMAIL_QUERY ||
+    "from:(swiggy.in) newer_than:365d";
+  const maxMessages =
+    payload.maxMessages || Number(process.env.SLASHCASH_SYNC_LIMIT || 50);
+
+  await markSyncCountingEmails(payload.userId);
+  const listed = listGmailMessages(query, maxMessages);
+  if (!listed.ok) {
+    await markSyncFailed(payload.userId, listed.message);
+    throw new Error(listed.message);
+  }
+
+  await initializeSync(payload.userId, listed.data.length);
+
+  let processedCount = 0;
+  let skippedCount = 0;
+  let errorCount = 0;
+
+  for (const ref of listed.data) {
     try {
-      
-      const searchQuery = buildMerchantBasedGmailSearchQuery();
-      const lastSyncTime = await getLastSyncTime(payload.userId);
-      const startDate = lastSyncTime || new Date(Date.now() - (syncPeriodDays * 24 * 60 * 60 * 1000));
-      const isFirstSync = !lastSyncTime;
-
-      logger.log("Sync parameters determined", {
-        userId: payload.userId,
-        isFirstSync,
-        lastSyncTime: lastSyncTime,
-        startDate: startDate.toISOString(),
-        endDate: new Date().toISOString(),
-        searchQuery
-      });
-      
-      // Enhanced token refresh with OAuth error handling
-      const tokenResult = await refreshGoogleToken(payload.userId);
-      if (!tokenResult.success) {
-        logger.error("Token refresh failed with OAuth error", {
-          userId: payload.userId,
-          errorType: tokenResult.error?.type,
-          errorCode: tokenResult.error?.code,
-          requiresReauth: tokenResult.error?.requiresReauth,
-          timestamp: new Date().toISOString()
-        });
-        
-        // Store OAuth error details in the database
-        if (tokenResult.error) {
-          await markSyncFailedWithOAuthError(payload.userId, tokenResult.error);
-        } else {
-          await markSyncFailed(payload.userId, "Failed to refresh provider token - unknown error");
-        }
-        
-        return {
-          success: false,
-          message: tokenResult.error?.userFriendlyMessage || "Failed to refresh provider token",
-          error: tokenResult.error?.type || "PROVIDER_TOKEN_REFRESH_FAILED",
-          errorType: tokenResult.error?.type,
-          requiresReauth: tokenResult.error?.requiresReauth || false,
-          userFriendlyMessage: tokenResult.error?.userFriendlyMessage
-        };
+      if (await isEmailProcessed(payload.userId, ref.id)) {
+        skippedCount += 1;
+        await updateSyncProgress(payload.userId, 1);
+        continue;
       }
 
-      const providerToken = tokenResult.token!;
-      const endDate = new Date();
-      
-      // FIX Issue #2: The tRPC router already marked sync as in_progress atomically,
-      // so we don't need to do it again here. Just proceed with fetching messages.
-      
-      // Step 3: Fetch all messages  
-      let allMessages: Array<{id: string; threadId?: string}> = [];
-      let nextPageToken = null;
-      let pageCount = 0;
+      const message = getGmailMessage(ref.id);
+      if (!message.ok) {
+        throw new Error(message.message);
+      }
 
-      logger.log("Starting Gmail message fetch", {
+      const emailData = await toEmailData(payload.userId, message.data);
+      const attachmentPaths =
+        emailData.attachments
+          ?.map((attachment) => attachment.storageUrl)
+          .filter((path): path is string => Boolean(path)) ?? [];
+      const attachmentPath = attachmentPaths[0] ?? null;
+
+      await storeEmailData({
+        id: emailData.emailId,
         userId: payload.userId,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        searchQuery
+        snippet: emailData.body.slice(0, 240),
+        senderEmailId: emailData.from,
+        threadId: ref.id,
+        subject: emailData.subject,
+        receivedDate: new Date(emailData.date),
+        parseSuccess: true,
+        parseErrors: null,
+        rawContent: emailData.body,
+        attachmentStoragePath:
+          attachmentPaths.length > 0 ? attachmentPaths : null,
+        parsedAt: new Date(),
       });
 
-      while (true) {
-        pageCount++;
-        logger.log("Fetching Gmail page", {
-          userId: payload.userId,
-          pageNumber: pageCount,
-          hasNextPageToken: !!nextPageToken
-        });
-
-        // FIX Issue #1: Update timestamp every 10 pages to prevent staleness detection
-        if (pageCount % 10 === 0) {
-          try {
-            await touchSyncStatus(payload.userId);
-            logger.log("Updated sync timestamp to prevent staleness", {
-              userId: payload.userId,
-              pageNumber: pageCount,
-              totalMessagesSoFar: allMessages.length
-            });
-          } catch (touchError) {
-            logger.warn("Failed to update sync timestamp", {
-              userId: payload.userId,
-              error: touchError instanceof Error ? touchError.message : String(touchError)
-            });
-            // Don't fail the sync just because timestamp update failed
-          }
-        }
-
-        try {
-          const gmailData = await fetchGmailMessages(providerToken, {
-            after: startDate,
-            before: endDate,
-            pageToken: nextPageToken || undefined,
-            query: searchQuery || undefined
-          });
-
-          if (!gmailData) {
-            const error = `Failed to fetch Gmail messages at page ${pageCount}`;
-            logger.error("Gmail fetch failed", {
-              userId: payload.userId,
-              pageNumber: pageCount,
-              error
-            });
-            await markSyncFailed(payload.userId, error);
-            return { success: false, message: error, error: "GMAIL_FETCH_FAILED" };
-          }
-
-          if (gmailData.messages) {
-            const validMessages = gmailData.messages
-              .filter((msg): msg is {id: string; threadId?: string} => 
-                typeof msg.id === 'string'
-              );
-            allMessages = [...allMessages, ...validMessages];
-            
-            logger.log("Gmail page processed", {
-              userId: payload.userId,
-              pageNumber: pageCount,
-              messagesInPage: validMessages.length,
-              totalMessagesSoFar: allMessages.length
-            });
-          }
-
-          if (!gmailData.nextPageToken) break;
-          nextPageToken = gmailData.nextPageToken;
-          await wait.for({ seconds: RATE_LIMIT_DELAY });
-          
-        } catch (error: any) {
-          // Check if this is an OAuth permission error
-          if (error?.isOAuthError) {
-            const oauthError = {
-              code: error.status?.toString() || 'UNKNOWN',
-              type: error.type || 'OAUTH_ERROR',
-              message: error.message,
-              requiresReauth: true,
-              userFriendlyMessage: error.type === 'INSUFFICIENT_PERMISSIONS' 
-                ? 'You haven\'t granted permission to access your Gmail. Please sign in again and allow email access.'
-                : 'Your Google account access is no longer valid. Please sign in again.'
-            };
-            
-            logger.error("Gmail API OAuth error during fetch", {
-              userId: payload.userId,
-              pageNumber: pageCount,
-              oauthErrorType: oauthError.type,
-              oauthErrorCode: oauthError.code,
-              requiresReauth: oauthError.requiresReauth
-            });
-            
-            await markSyncFailedWithOAuthError(payload.userId, oauthError);
-            return { 
-              success: false, 
-              message: oauthError.userFriendlyMessage,
-              error: oauthError.type,
-              errorType: "OAUTH_PERMISSION_ERROR",
-              requiresReauth: oauthError.requiresReauth,
-              userFriendlyMessage: oauthError.userFriendlyMessage
-            };
-          }
-          
-          // Handle other Gmail API errors
-          const errorMessage = `Gmail API error at page ${pageCount}: ${error instanceof Error ? error.message : String(error)}`;
-          logger.error("Gmail API error during fetch", {
-            userId: payload.userId,
-            pageNumber: pageCount,
-            error: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack : undefined
-          });
-          await markSyncFailed(payload.userId, errorMessage);
-          return { 
-            success: false, 
-            message: errorMessage, 
-            error: "GMAIL_API_ERROR",
-            errorType: "GMAIL_FETCH_ERROR"
-          };
-        }
+      const extracted = await extractOrFallback(emailData, attachmentPath);
+      if (!extracted) {
+        throw new Error("Could not extract transaction data from message.");
       }
 
-      // Mark as counting emails and initialize sync with total count
-      await markSyncCountingEmails(payload.userId);
-      await initializeSync(payload.userId, allMessages.length);
-
-      logger.log("Messages fetched successfully", {
-        userId: payload.userId,
-        totalMessages: allMessages.length,
-        batchCount: Math.ceil(allMessages.length / BATCH_SIZE),
-        concurrentBatches: MAX_CONCURRENT_BATCHES
-      });
-
-      // Step 4: Split messages into batches and process in parallel
-      const batches = [];
-      for (let i = 0; i < allMessages.length; i += BATCH_SIZE) {
-        const batchMessages = allMessages.slice(i, i + BATCH_SIZE);
-        batches.push({
-          task: processEmailBatch,
-          payload: {
-            userId: payload.userId,
-            messages: batchMessages
-          }
-        });
-      }
-
-      // Process batches in parallel with concurrency limit
-      const results = [];
-      let cumulativeProcessed = 0;
-      
-      for (let i = 0; i < batches.length; i += MAX_CONCURRENT_BATCHES) {
-        const batchNumber = Math.floor(i / MAX_CONCURRENT_BATCHES) + 1;
-        const totalBatchGroups = Math.ceil(batches.length / MAX_CONCURRENT_BATCHES);
-        
-        logger.log("Processing batch group", {
-          userId: payload.userId,
-          batchGroup: batchNumber,
-          totalGroups: totalBatchGroups,
-          batchesInGroup: Math.min(MAX_CONCURRENT_BATCHES, batches.length - i),
-          overallProgress: `${((i / batches.length) * 100).toFixed(1)}%`
-        });
-
-        const batchSlice = batches.slice(i, i + MAX_CONCURRENT_BATCHES);
-        const batchResults = await batch.triggerByTaskAndWait(batchSlice);
-        results.push(...batchResults.runs);
-        
-        // Update progress
-        for (const result of batchResults.runs) {
-          if (result.ok) {
-            cumulativeProcessed += result.output.processedCount;
-          }
-        }
-      }
-
-      // Aggregate final results
-      const totalStats = {
-        processedCount: 0,
-        skippedCount: 0,
-        errorCount: 0,
-        totalFound: allMessages.length,
-        batchFailures: 0
-      };
-
-      for (const result of results) {
-        if (result.ok) {
-          totalStats.processedCount += result.output.processedCount;
-          totalStats.skippedCount += result.output.skippedCount;
-          totalStats.errorCount += result.output.errorCount;
-        } else {
-          totalStats.batchFailures++;
-          logger.error("Batch processing failed", {
-            userId: payload.userId,
-            batchError: result.error,
-            runId: result.id
-          });
-        }
-      }
-
-      // Check if there were any critical failures that should prevent sync completion
-      if (totalStats.batchFailures > 0) {
-        const error = `Sync partially failed: ${totalStats.batchFailures} batch(es) failed out of ${results.length} total batches`;
-        logger.error("Partial sync failure detected", {
-          userId: payload.userId,
-          batchFailures: totalStats.batchFailures,
-          totalBatches: results.length,
-          processedEmails: totalStats.processedCount
-        });
-        
-        await markSyncFailed(payload.userId, error);
-        
-        return {
-          success: false,
-          message: error,
-          error: "PARTIAL_BATCH_FAILURE",
-          ...totalStats,
-          syncStartDate: startDate,
-          isFirstSync
-        };
-      }
-
-      // Only update sync completion if all batches succeeded
-      await updateLastSyncTime(payload.userId, new Date());
-      await markSyncComplete(payload.userId);
-
-      // Clear any OAuth errors since sync completed successfully
-      await clearOAuthErrors(payload.userId);
-
-      // Trigger duplicate detection for this specific user
-      await detectDuplicateTransactionsForUser.trigger({ userId: payload.userId });
-
-      logger.log("Email sync completed successfully", {
-        userId: payload.userId,
-        duration: `${((Date.now() - startDate.getTime()) / 1000 / 60).toFixed(1)} minutes`,
-        stats: {
-          ...totalStats,
-          successRate: `${((totalStats.processedCount / totalStats.totalFound) * 100).toFixed(1)}%`,
-          errorRate: `${((totalStats.errorCount / totalStats.totalFound) * 100).toFixed(1)}%`,
-          skipRate: `${((totalStats.skippedCount / totalStats.totalFound) * 100).toFixed(1)}%`,
-          batchFailureRate: `${((totalStats.batchFailures / results.length) * 100).toFixed(1)}%`
-        },
-        syncPeriod: {
-          start: startDate.toISOString(),
-          end: new Date().toISOString(),
-          isFirstSync
-        },
-        batchInfo: {
-          totalBatches: results.length,
-          successfulBatches: results.length - totalStats.batchFailures,
-          failedBatches: totalStats.batchFailures
-        }
-      });
-
-      return {
-        success: true,
-        message: `Processed ${totalStats.processedCount} emails, skipped ${totalStats.skippedCount} already processed emails, encountered ${totalStats.errorCount} errors, out of ${totalStats.totalFound} total emails found since ${startDate.toISOString()}. All ${results.length} batches completed successfully.`,
-        ...totalStats,
-        syncStartDate: startDate,
-        isFirstSync,
-        reconciliationTriggered: true,
-        batchInfo: {
-          totalBatches: results.length,
-          successfulBatches: results.length,
-          failedBatches: 0
-        }
-      };
-
+      processedCount += 1;
     } catch (error) {
-      logger.error("Critical sync error", {
-        userId: payload.userId,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        timestamp: new Date().toISOString()
-      });
-      
-      await markSyncFailed(payload.userId, error instanceof Error ? error.message : String(error));
-      
-      return {
-        success: false,
-        message: "Email processing failed with a critical error",
-        error: error instanceof Error ? error.message : String(error),
-        errorType: "CRITICAL_PROCESSING_ERROR"
-      };
+      errorCount += 1;
+      console.error("Failed to process Gmail message", ref.id, error);
+    } finally {
+      await updateSyncProgress(payload.userId, 1);
     }
   }
-});
+
+  if (errorCount > 0 && processedCount === 0) {
+    await markSyncFailed(
+      payload.userId,
+      `${errorCount} messages failed to process.`,
+    );
+  } else {
+    await markSyncComplete(payload.userId);
+  }
+
+  return {
+    success: true,
+    processedCount,
+    skippedCount,
+    errorCount,
+    totalFound: listed.data.length,
+  };
+}
+
+async function toEmailData(
+  userId: string,
+  message: GwsMessage,
+): Promise<EmailData> {
+  const headers = message.payload?.headers ?? [];
+  const subject = header(headers, "subject") || "Swiggy transaction";
+  const from = header(headers, "from") || "unknown";
+  const date = header(headers, "date")
+    ? new Date(header(headers, "date")!).toISOString()
+    : message.internalDate
+      ? new Date(Number(message.internalDate)).toISOString()
+      : new Date().toISOString();
+
+  const body =
+    collectText(message.payload).join("\n").trim() || message.snippet || "";
+  const attachments = await collectAttachments(message.id, message.payload);
+
+  return {
+    userId,
+    emailId: message.id,
+    threadId: message.threadId || message.id,
+    subject,
+    body,
+    date,
+    from,
+    attachments,
+  };
+}
+
+function header(headers: Array<{ name: string; value: string }>, name: string) {
+  return headers.find(
+    (candidate) => candidate.name.toLowerCase() === name.toLowerCase(),
+  )?.value;
+}
+
+function collectText(part?: GwsMessagePart): string[] {
+  if (!part) return [];
+
+  const current =
+    part.body?.data && isTextPart(part)
+      ? [decodeBase64Url(part.body.data).toString("utf8")]
+      : [];
+
+  return [
+    ...current,
+    ...(part.parts ?? []).flatMap((child) => collectText(child)),
+  ];
+}
+
+async function collectAttachments(
+  messageId: string,
+  part?: GwsMessagePart,
+): Promise<EmailAttachment[]> {
+  if (!part) return [];
+
+  const children = await Promise.all(
+    (part.parts ?? []).map((child) => collectAttachments(messageId, child)),
+  );
+  const nested = children.flat();
+
+  const filename = part.filename?.trim();
+  const attachmentId = part.body?.attachmentId;
+  if (!filename || !attachmentId) return nested;
+
+  const attachment = getGmailAttachment(messageId, attachmentId);
+  if (!attachment.ok) return nested;
+
+  const storageUrl = writeAttachmentFile({
+    messageId,
+    filename,
+    content: attachment.data,
+  });
+
+  return [
+    ...nested,
+    {
+      filename,
+      mimeType: part.mimeType || "application/octet-stream",
+      content: attachment.data.toString("base64"),
+      storageUrl,
+    },
+  ];
+}
+
+function isTextPart(part: GwsMessagePart) {
+  return (
+    part.mimeType === "text/plain" ||
+    part.mimeType === "text/html" ||
+    !part.mimeType
+  );
+}
+
+async function extractOrFallback(
+  emailData: EmailData,
+  attachmentPath: string | null,
+) {
+  if (process.env.SLASHCASH_SYNC_SKIP_AI !== "1") {
+    try {
+      const result = await extractEmailData(emailData, defaultModel(), {
+        storeTransaction: true,
+      });
+      if (result.transactionId || result.parseSuccess) {
+        return result;
+      }
+    } catch (error) {
+      console.warn(
+        "Local model extraction failed, using deterministic fallback.",
+        error,
+      );
+    }
+  }
+
+  const fallback = fallbackSwiggy(emailData);
+  if (!fallback) return null;
+
+  return storeTransactionV2Input({
+    userId: emailData.userId,
+    parsedEmailId: emailData.emailId,
+    merchantId: "swiggy",
+    merchantCode: "SWIGGY",
+    merchantName: "Swiggy",
+    amount: fallback.amount,
+    currency: "INR",
+    type: "DEBIT",
+    status: "COMPLETED",
+    transactionDate: new Date(emailData.date),
+    description: fallback.description,
+    category: "Food",
+    paymentMethod: "UPI",
+    referenceIds: { orderId: fallback.orderId },
+    merchantData: {
+      swiggyMetadata: { service: "FOOD_DELIVERY" },
+      transaction: {
+        orderId: fallback.orderId,
+        restaurantName: fallback.restaurant,
+        deliveryAddress: fallback.deliveryAddress,
+        attachmentPath,
+      },
+    },
+    extractionConfidence: 0.7,
+    schemaUsed: "swiggy.fallback.v1",
+    dataSource: attachmentPath ? "PDF_ATTACHMENT" : "EMAIL_BODY",
+    isVerified: false,
+  });
+}
+
+function fallbackSwiggy(emailData: EmailData) {
+  const text = `${emailData.subject}\n${emailData.body}`;
+  const amountMatch = text.match(
+    /(?:total|amount|paid|₹|INR)\s*:?\s*₹?\s*([0-9]+(?:\.[0-9]{1,2})?)/i,
+  );
+  const amount = amountMatch ? Number(amountMatch[1]) : 0;
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  const orderId =
+    text.match(/order(?:\s*id)?\s*:?\s*([A-Z0-9-]{5,})/i)?.[1] ||
+    emailData.threadId;
+  const restaurant =
+    text.match(/restaurant\s*:?\s*([^\n]+)/i)?.[1]?.trim() || "Swiggy";
+  const area = text.match(/area\s*:?\s*([^\n]+)/i)?.[1]?.trim() || "";
+  const pincode = text.match(/pincode\s*:?\s*([0-9]{6})/i)?.[1] || "";
+
+  return {
+    amount,
+    orderId,
+    restaurant,
+    description: `Swiggy order - ${restaurant}`,
+    deliveryAddress: { area, pincode },
+  };
+}
+
+export const processEmails = {
+  trigger: runEmailSync,
+};
+
+export const processEmailBatch = {
+  trigger: async () => ({
+    processedCount: 0,
+    skippedCount: 0,
+    errorCount: 0,
+    totalFound: 0,
+  }),
+};

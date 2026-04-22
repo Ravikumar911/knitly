@@ -1,0 +1,17 @@
+{
+  "id": "gmail-swiggy",
+  "name": "Gmail Swiggy",
+  "version": "1.0.0",
+  "category": "ingest",
+  "description": "Ingest Swiggy transaction emails from Gmail through gws.",
+  "requires": {
+    "bins": ["gws"]
+  },
+  "jobs": [
+    {
+      "id": "gmail-swiggy-sync",
+      "handler": "runEmailSync",
+      "mutexKey": "gmail-swiggy"
+    }
+  ]
+}

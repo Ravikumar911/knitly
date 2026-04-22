@@ -1,16 +1,12 @@
-import { pgSchema, pgTable, text, timestamp, varchar, uuid } from "drizzle-orm/pg-core";
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-const auth = pgSchema('auth');
-const authUsers = auth.table('users', {
-	id: uuid().primaryKey().notNull(),
+export const LOCAL_USER_ID = "local";
+
+export const profiles = sqliteTable("profiles", {
+  id: text("id").primaryKey().notNull(),
+  first_name: text("first_name"),
+  last_name: text("last_name"),
+  updated_at: integer("updated_at", { mode: "timestamp_ms" })
+    .$defaultFn(() => new Date())
+    .notNull(),
 });
-
-// Core user profiles table in public schema
-export const profiles = pgTable("profiles", {
-  id: uuid("id")
-  .primaryKey()
-  .references(() => authUsers.id, { onDelete: "cascade" }),
-  first_name: varchar("first_name", { length: 255 }),
-  last_name: varchar("last_name", { length: 255 }),
-  updated_at: timestamp("updated_at", { mode: 'date' }).defaultNow().notNull(),
-}); 

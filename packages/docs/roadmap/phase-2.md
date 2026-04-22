@@ -36,7 +36,9 @@ Sizing is S, M or L as in Phase 1.
 
 The wizard is idempotent and cancel-safe. Re-running it after success should be a fast no-op; cancelling mid-way should leave the machine in a recoverable state that `slashcash doctor --fix` can finish. No sudo; every installation is through Homebrew. If Homebrew itself is missing, the wizard prints the official install one-liner and waits for the user to run it rather than executing a remote shell script on their behalf.
 
-Steps, in order. Check Homebrew and prompt for install if missing. Install Ollama through Homebrew if not present; start it as a brew service; wait for its API port to respond. Pull `gemma3n:e4b`, streaming the progress output as-is rather than hiding it behind a spinner. Install `gws` through its upstream tap (the exact install source is recorded in ADR-011 in `reference/decisions.md` and referenced from a single constant in the code). Run `gws auth login` interactively, inheriting the terminal so the user can complete consent in their own browser. Create `~/.slashcash/` with correct permissions, write a default `config.json`, run SQLite migrations, copy the bundled `gmail-swiggy` skill into `~/.slashcash/skills/` and mark it enabled in config. Print a final message pointing at `slashcash start`.
+Steps, in order. Check Homebrew and prompt for install if missing. Install Ollama through Homebrew if not present; start it as a brew service; wait for its API port to respond. Pull `gemma3n:e4b`, streaming the progress output as-is rather than hiding it behind a spinner. Install the `gcloud` CLI (via the Homebrew cask recorded in ADR-011) if it isn't already on `PATH`. If no gcloud account is active, run `gcloud auth login` interactively so gcloud inherits the terminal and the user completes consent in their own browser. Install `gws` through the Homebrew formula recorded in ADR-011 (referenced from a single constant in the code). Run `gws auth setup` interactively — per the `gws` README this is the command that uses the active gcloud credentials to create (or reuse) a Google Cloud project, enable the Gmail API, create a Desktop-type OAuth client, add the logged-in user as an OAuth test user, and drop the resulting `client_secret.json` under `~/.config/gws/`. Then run `gws auth login --services gmail --readonly` so the user consents to Gmail read-only access for Swiggy ingest. Create `~/.slashcash/` with correct permissions, write a default `config.json`, run SQLite migrations, copy the bundled `gmail-swiggy` skill into `~/.slashcash/skills/` and mark it enabled in config. Print a final message pointing at `slashcash start`.
+
+The onboarding therefore requires **two browser consents** (one for gcloud, one for the per-user OAuth client), but **zero manual clicks in Cloud Console**: `gws auth setup` owns project creation, API enablement, OAuth client creation, and test-user provisioning. This is the trade-off captured in ADR-022 — we keep ADR-004 (no shared OAuth client) and accept the heavier flow instead of committing to Google's OAuth app verification track for v1.
 
 Acceptance is the clean-machine flow in success criterion 1, plus a fast re-run of `onboard` that touches nothing.
 
@@ -113,6 +115,28 @@ Onboard (W1) and `gws` ingest (W2) are the critical path: until they exist, the 
 ## End-to-end verification
 
 Before declaring Phase 2 done, the Phase 2 scenario in [`../reference/testing.md`](../reference/testing.md) must pass on a clean macOS machine that has no Homebrew, no Ollama, no `gws`, no `~/.slashcash/` and no prior install of the CLI. At a high level the scenario is: `npm i -g slashcash`, `slashcash onboard` (with a test Google account), `slashcash start`, an automated check that dashboards show transactions extracted from that account's real Gmail, the assistant streams a meaningful answer from `gemma3n:e4b`, clicking a PDF in the UI serves it from the local attachments root, `slashcash skills list` shows the bundled skill enabled, disabling the skill stops further ingest on the next cron tick, and `slashcash stop` leaves no stray processes or orphaned `gws` children. Time-to-green on a typical broadband connection stays inside the budget in success criterion 1. The eval suite also runs as part of this gate and meets the thresholds in ADR-012. This whole flow is scripted and runs in CI against a dedicated test Google account; the mechanics live in `reference/testing.md`.
+
+## Pending — hand to next agent
+
+The fixture-backed Phase 2 gates are green (`pnpm e2e:phase-2`, `gws`-fixture ingest, local attachments route, skill toggle, analytics snapshots against seed). What the repo still has not verified against a real account:
+
+- [ ] Install `gcloud` on a clean machine and run `gcloud auth login` as part of onboard (new step per ADR-022).
+- [ ] Run real `gws auth setup` on top of the live gcloud session — confirm it creates the project, enables the Gmail API, creates the Desktop OAuth client, adds the account as a test user, and writes `~/.config/gws/client_secret.json`.
+- [ ] Run real `gws auth login --services gmail --readonly` with a dedicated Google test account and confirm the consent screen lists only Gmail read-only access.
+- [ ] Sync against a real deterministic Swiggy inbox, not `SLASHCASH_GWS_FIXTURE_DIR`.
+- [ ] Run extraction without `SLASHCASH_SYNC_SKIP_AI=1`, using a real local Ollama model.
+- [ ] Verify cron ticks ingest real mail over time (not only manual `slashcash sync --full`).
+- [ ] Ask the assistant a real Swiggy analytics question after ingest and verify the numeric answer matches what the snapshot-backed analytics return.
+
+Verification commands the next agent should rerun:
+
+```bash
+pnpm e2e:phase-2
+pnpm --filter @workspace/tasks test
+pnpm --filter @workspace/database test
+pnpm architecture-smells
+pnpm fixtures:check
+```
 
 ## Exit gate
 

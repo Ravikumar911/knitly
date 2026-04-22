@@ -1,5 +1,7 @@
 # Current state — what exists today
 
+> Update after Phase 3/4/5 follow-up: the repository now contains a local-first CLI, SQLite schema, local Ollama provider wiring, fixture-backed `gws` ingest, a skill registry, structured logs, architecture smell checks, and tag-based release workflow scaffolding. Each phase doc under `roadmap/` ends with a `## Pending — hand to next agent` checklist of what still needs to be run against a real machine or real service before that phase can be called done. The historical notes below are kept to explain the pivot; the cloud-coupling lists describe what was removed or is guarded against by `pnpm architecture-smells`.
+
 Snapshot of the monorepo before the pivot starts. This is the input to Phase 1 and the file-change list in `reference/file-changes.md`. All paths are repo-root relative.
 
 ## Monorepo shape

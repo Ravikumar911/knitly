@@ -1,7 +1,9 @@
-import { logger } from "@trigger.dev/sdk/v3";
 import { storeEmailData as dbStoreEmail, storeTransactionV2 as dbStoreTransaction, ParsedEmail, Transaction } from "@workspace/database";
-import { createSupabaseClient } from "./supabase";
-import { downloadAttachment } from "./gmailApi";
+
+const logger = {
+  log: console.log,
+  error: console.error,
+};
 
 /**
  * Stores processed email data using the database functions
@@ -64,9 +66,6 @@ export const storeTransactionData = async (data: Transaction) => {
   }
 };
 
-/**
- * Downloads Gmail attachments, stores them in Supabase, and returns their data directly
- */
 export const processAttachments = async (
   userId: string,
   messageId: string,
@@ -85,90 +84,12 @@ export const processAttachments = async (
     storageUrl: string;
   }>;
 } | null> => {
-  try {
-    if (!attachments.length) {
-      return {
-        storagePaths: [],
-        processedAttachments: []
-      };
-    }
-
-    const supabase = createSupabaseClient();
-    const storagePaths: string[] = [];
-    const processedAttachments = [];
-
-    for (const attachment of attachments) {
-      // Download attachment from Gmail
-      const attachmentData = await downloadAttachment(providerToken, messageId, attachment.attachmentId);
-      
-      if (!attachmentData?.data) {
-        logger.error("Failed to download attachment", {
-          messageId,
-          attachmentId: attachment.attachmentId,
-          filename: attachment.filename
-        });
-        continue;
-      }
-
-      // Generate a unique storage path for each attachment
-      const safeName = attachment.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const storagePath = `attachments/${userId}/${messageId}/${safeName}`;
-
-      logger.log("Uploading attachment to storage", {
-        messageId,
-        filename: attachment.filename,
-        storagePath
-      });
-
-      const buffer = Buffer.from(attachmentData.data, "base64");
-
-      // Upload to Supabase storage
-      const { error: uploadError } = await supabase.storage
-        .from('email-attachments')
-        .upload(storagePath, buffer, {
-          contentType: attachment.mimeType,
-          upsert: true
-        });
-
-      if (uploadError) {
-        logger.error("Failed to upload attachment to storage", {
-          messageId,
-          filename: attachment.filename,
-          error: uploadError
-        });
-        continue;
-      }
-
-      // Generate public URL for the attachment
-      const { data: publicUrlData } = supabase.storage
-        .from('email-attachments')
-        .getPublicUrl(storagePath);
-
-      logger.log("Attachment processed successfully", {
-        messageId,
-        filename: attachment.filename,
-        storagePath,
-        publicUrl: publicUrlData.publicUrl
-      });
-
-      storagePaths.push(storagePath);
-      processedAttachments.push({
-        filename: attachment.filename,
-        mimeType: attachment.mimeType,
-        content: attachmentData.data,
-        storageUrl: publicUrlData.publicUrl
-      });
-    }
-
-    return {
-      storagePaths,
-      processedAttachments
-    };
-  } catch (error) {
-    logger.error("Error processing attachments", {
-      messageId,
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return null;
-  }
+  void userId;
+  void messageId;
+  void providerToken;
+  void attachments;
+  return {
+    storagePaths: [],
+    processedAttachments: [],
+  };
 }; 

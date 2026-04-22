@@ -1,4 +1,4 @@
-import { eq, and, desc, ilike, sql, isNotNull } from "drizzle-orm";
+import { asc, eq, and, desc, like, sql, isNotNull } from "drizzle-orm";
 import { db } from "../";
 import { transactionsV2 } from "../schema/transactionsV2";
 import { parsedEmails } from "../schema/parsedEmails";
@@ -10,7 +10,7 @@ export interface TransactionWithEmail {
   merchantId: string | null;
   merchantCode: string | null;
   merchantName: string | null;
-  amount: string;
+  amount: number;
   currency: string | null;
   type: string;
   status: string | null;
@@ -70,7 +70,7 @@ export async function getTransactionsWithEmails(
   }
 
   if (filters?.merchantName) {
-    conditions.push(ilike(transactionsV2.merchantName, `%${filters.merchantName}%`));
+    conditions.push(like(sql`lower(${transactionsV2.merchantName})`, `%${filters.merchantName.toLowerCase()}%`));
   }
 
   if (filters?.status) {
@@ -94,11 +94,12 @@ export async function getTransactionsWithEmails(
   }
 
   if (filters?.searchQuery) {
+    const pattern = `%${filters.searchQuery.toLowerCase()}%`;
     conditions.push(
       sql`(
-        ${transactionsV2.description} ILIKE ${`%${filters.searchQuery}%`} OR
-        ${transactionsV2.merchantName} ILIKE ${`%${filters.searchQuery}%`} OR
-        ${parsedEmails.subject} ILIKE ${`%${filters.searchQuery}%`}
+        lower(${transactionsV2.description}) LIKE ${pattern} OR
+        lower(${transactionsV2.merchantName}) LIKE ${pattern} OR
+        lower(${parsedEmails.subject}) LIKE ${pattern}
       )`
     );
   }
@@ -109,7 +110,7 @@ export async function getTransactionsWithEmails(
   // Build the orderBy clause based on sortBy and sortOrder
   let orderByClause;
   if (filters?.sortBy === 'amount') {
-    orderByClause = sortOrder === 'asc' ? sql`${transactionsV2.amount}::numeric ASC` : sql`${transactionsV2.amount}::numeric DESC`;
+    orderByClause = sortOrder === 'asc' ? asc(transactionsV2.amount) : desc(transactionsV2.amount);
   } else if (filters?.sortBy === 'merchant') {
     orderByClause = sortOrder === 'asc' ? transactionsV2.merchantName : desc(transactionsV2.merchantName);
   } else {
@@ -174,7 +175,7 @@ export async function getTransactionsCount(userId: string, filters?: Transaction
   }
 
   if (filters?.merchantName) {
-    conditions.push(ilike(transactionsV2.merchantName, `%${filters.merchantName}%`));
+    conditions.push(like(sql`lower(${transactionsV2.merchantName})`, `%${filters.merchantName.toLowerCase()}%`));
   }
 
   if (filters?.status) {
@@ -198,10 +199,11 @@ export async function getTransactionsCount(userId: string, filters?: Transaction
   }
 
   if (filters?.searchQuery) {
+    const pattern = `%${filters.searchQuery.toLowerCase()}%`;
     conditions.push(
       sql`(
-        ${transactionsV2.description} ILIKE ${`%${filters.searchQuery}%`} OR
-        ${transactionsV2.merchantName} ILIKE ${`%${filters.searchQuery}%`}
+        lower(${transactionsV2.description}) LIKE ${pattern} OR
+        lower(${transactionsV2.merchantName}) LIKE ${pattern}
       )`
     );
   }

@@ -1,210 +1,47 @@
-# Knitly Evaluations
+# @workspace/evals
 
-This package contains Braintrust evaluations for testing AI model performance across different extraction tasks.
+Local evaluation scripts for extraction quality.
+
+Phase 1 runs evals from the terminal and talks to the same Ollama-compatible endpoint as the app.
 
 ## Setup
 
-1. Install dependencies:
 ```bash
 pnpm install
+cp packages/evals/.env.example packages/evals/.env.local
 ```
 
-2. Set up environment variables:
-Create a `.env` or `.env.local` file with your API keys:
-```bash
-OPENAI_API_KEY=your_openai_api_key
-BRAINTRUST_API_KEY=your_braintrust_api_key
+```env
+OLLAMA_BASE_URL=http://127.0.0.1:11434/v1
+OLLAMA_CHAT_MODEL=gemma3n:e4b
 ```
 
-## Available Evaluations
-
-### Hello Eval (Example)
-
-A simple example evaluation to verify Braintrust setup:
+## Commands
 
 ```bash
-pnpm eval          # Run in CLI mode
-pnpm eval:ui       # Run with Braintrust UI
+pnpm --filter @workspace/evals eval
+pnpm --filter @workspace/evals eval:swiggy
 ```
 
-### Swiggy Extraction Eval
+## Swiggy Extraction Eval
 
-Tests Swiggy invoice data extraction accuracy with different AI models.
+The Swiggy eval loads ten sample PDF invoices from `packages/evals/test-data`, calls `extractEmailData`, and scores:
 
-#### Quick Start
-
-```bash
-# Run with default model (gpt-5-nano)
-pnpm eval:swiggy
-
-# Run with specific models
-pnpm eval:swiggy:nano    # Using gpt-5-nano
-pnpm eval:swiggy:mini    # Using gpt-5-mini
-
-# Run with Braintrust UI for visual comparison
-pnpm eval:swiggy:ui
-```
-
-#### What It Tests
-
-The evaluation tests extraction of the following fields from Swiggy PDF invoices:
-
-**Critical Fields:**
-- Order ID (exact match required)
-- Transaction amount (with decimal tolerance)
-- Parse success status
-
-**Merchant Fields:**
-- Restaurant name (fuzzy match)
-- Swiggy service type (FOOD_DELIVERY/INSTAMART)
-- Order type (DELIVERY/PICKUP)
-
-**Order Details:**
-- Order items count and accuracy
-- Delivery address
+- Parse success
+- Order ID
+- Amount
+- Restaurant name
+- Order item count and matches
+- Delivery address presence
 - Currency and transaction type
+- Swiggy service metadata
 - Confidence score
 
-#### Test Data
+Expected outputs live in `src/fixtures/swiggy-expected.ts`.
 
-Location: `/Users/ravikumarr/Downloads/swiggy-test-data/`
+## Adding Evals
 
-The evaluation uses 10 sample Swiggy PDF invoices. Test cases are defined in:
-- `src/fixtures/swiggy-samples.ts` - EmailData fixtures with PDF attachments
-- `src/fixtures/swiggy-expected.ts` - Expected extraction outputs
-
-#### ⚠️ IMPORTANT: Update Expected Outputs
-
-**Before running the evaluation, you MUST update the expected outputs** in `src/fixtures/swiggy-expected.ts`.
-
-The file currently contains template structures with TODO markers. You need to:
-
-1. Open each PDF in `/Users/ravikumarr/Downloads/swiggy-test-data/`
-2. Manually extract the following data from each PDF:
-   - Order ID (CRITICAL)
-   - Total amount
-   - Restaurant name
-   - Order items (name, quantity, price)
-   - Delivery address
-   - Transaction date
-   - Service type (FOOD_DELIVERY/INSTAMART)
-
-3. Update the corresponding entry in `SWIGGY_EXPECTED_OUTPUTS` array
-
-Example of a completed entry:
-```typescript
-{
-  detectedProvider: "Swiggy",
-  emailType: "ORDER_CONFIRMATION",
-  emailSubject: "Your Swiggy order has been delivered",
-  parseSuccess: true,
-  parseErrors: [],
-  confidenceScore: 0.95,
-  dataSource: "PDF_ATTACHMENT",
-  transaction: {
-    amount: 450.50,
-    currency: "INR",
-    type: "DEBIT",
-    status: "COMPLETED",
-    transactionDate: "2024-05-27T14:30:00.000Z",
-    description: "Swiggy Food Order",
-    category: "FOOD_AND_DINING",
-    orderId: "218052900102",
-    restaurantName: "Domino's Pizza",
-    orderItems: [
-      { 
-        name: "Margherita Pizza", 
-        quantity: 1, 
-        price: 299 
-      },
-      { 
-        name: "Garlic Bread", 
-        quantity: 2, 
-        price: 99 
-      }
-    ],
-    deliveryAddress: {
-      fullAddress: "123 Main St, Apartment 4B, Mumbai, 400001",
-    },
-  },
-  swiggyMetadata: {
-    service: "FOOD_DELIVERY",
-    orderType: "DELIVERY",
-  },
-}
-```
-
-#### Scoring
-
-The evaluation uses custom scorers defined in `src/scorers/swiggy-field-scorer.ts`:
-
-1. **Field Accuracy Scorer** (`swiggyFieldScorer`)
-   - Compares each field against expected output
-   - Critical fields (orderId, amount) are weighted heavily
-   - Restaurant names use fuzzy matching (Levenshtein distance)
-   - Returns field-by-field breakdown
-
-2. **Schema Validation Scorer** (`schemaValidationScorer`)
-   - Validates output conforms to SwiggyExtractionSchema
-   - Checks presence of required fields
-   - Verifies correct schema selection
-
-#### Results
-
-After running the evaluation, you can:
-- View detailed results in the Braintrust dashboard
-- Compare model performance side-by-side
-- Identify problematic fields and patterns
-- Export results for further analysis
-
-## Architecture
-
-### Refactored slashAIV2Agent
-
-The `slashAIV2Agent` has been refactored for testability:
-
-**New Function:** `extractEmailData(emailData, model, options)`
-- Pure extraction logic without side effects
-- Accepts any AI model as parameter
-- Optional logger (uses console.log for tests)
-- No database storage (just returns data)
-
-**Original Function:** `slashAIV2Agent(emailData)`
-- Wrapper around `extractEmailData`
-- Uses default model
-- Handles database storage
-- Maintains backward compatibility
-
-## Adding New Evaluations
-
-To add a new evaluation:
-
-1. Create test fixtures in `src/fixtures/`
-2. Create expected outputs
-3. Create custom scorers in `src/scorers/` (optional)
-4. Create evaluation file in `src/` (e.g., `my-eval.eval.ts`)
-5. Add npm scripts to `package.json`
-
-## Troubleshooting
-
-### Missing API Keys
-Ensure `OPENAI_API_KEY` and `BRAINTRUST_API_KEY` are set in your `.env` file.
-
-### PDF Files Not Found
-Verify the PDF path in `src/fixtures/swiggy-samples.ts` matches your local directory.
-
-### TypeScript Errors
-Run `pnpm install` to ensure all workspace dependencies are linked correctly.
-
-### Model Not Found
-Check that the model name in your script matches available OpenAI models. Supported models:
-- `gpt-5-nano`
-- `gpt-5-mini`
-- `gpt-4o`
-- `gpt-4o-mini`
-
-## Resources
-
-- [Braintrust Documentation](https://www.braintrust.dev/docs)
-- [Braintrust Evals Guide](https://www.braintrust.dev/docs/guides/evals)
-- [Autoevals Scorers](https://github.com/braintrustdata/autoevals)
+1. Add fixtures under `src/fixtures`.
+2. Add expected output data.
+3. Add scorers under `src/scorers` when exact matching is not enough.
+4. Add a `*.eval.ts` script and package script.

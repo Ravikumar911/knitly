@@ -3,9 +3,6 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, VariantProps } from "class-variance-authority";
 import React from "react";
 
-interface RainbowButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
-
 const rainbowButtonVariants = cva(
   cn(
     "relative cursor-pointer group transition-all animate-rainbow",
@@ -37,11 +34,10 @@ const rainbowButtonVariants = cva(
   },
 );
 
-interface RainbowButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof rainbowButtonVariants> {
-  asChild?: boolean;
-}
+type RainbowButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
+  VariantProps<typeof rainbowButtonVariants> & {
+    asChild?: boolean;
+  };
 
 const RainbowButton = React.forwardRef<HTMLButtonElement, RainbowButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {

@@ -5,13 +5,11 @@ import {
   Bell,
   ChevronsUpDown,
   CreditCard,
-  LogOut,
   Moon,
   Sun,
   Laptop,
   Sparkles,
 } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 
 import {
@@ -37,7 +35,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@workspace/ui/components/sidebar"
-import { createClient } from "@/supabase/client"
 
 export function NavUser({
   user,
@@ -49,14 +46,7 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
-  const router = useRouter()
   const { setTheme } = useTheme()
-
-  const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push("/login") 
-  }
 
   return (
     <SidebarMenu>
@@ -140,11 +130,6 @@ export function NavUser({
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
-              <LogOut className="mr-2" />
-              Log out
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
