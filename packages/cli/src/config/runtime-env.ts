@@ -25,9 +25,12 @@ export async function applyRuntimeEnv(input: {
     input.maxMessages || config.sync.maxMessages,
   );
   process.env.SLASHCASH_IMAP_SERVER = gmail.imapServer;
-  process.env.OLLAMA_BASE_URL = config.ai.ollamaBaseUrl;
-  process.env.OLLAMA_CHAT_MODEL = config.ai.chatModel;
-  process.env.OLLAMA_VISION_MODEL = config.ai.visionModel;
+  process.env.OLLAMA_BASE_URL =
+    process.env.OLLAMA_BASE_URL || config.ai.ollamaBaseUrl;
+  process.env.OLLAMA_CHAT_MODEL =
+    process.env.OLLAMA_CHAT_MODEL || config.ai.chatModel;
+  process.env.OLLAMA_VISION_MODEL =
+    process.env.OLLAMA_VISION_MODEL || config.ai.visionModel;
 
   if (input.port !== undefined) {
     process.env.SLASHCASH_PORT = String(input.port);
