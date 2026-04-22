@@ -1,6 +1,18 @@
 # Current state — what exists today
 
-> Update after Phase 3/4/5 follow-up: the repository now contains a local-first CLI, SQLite schema, local Ollama provider wiring, fixture-backed `gws` ingest, a skill registry, structured logs, architecture smell checks, and tag-based release workflow scaffolding. Each phase doc under `roadmap/` ends with a `## Pending — hand to next agent` checklist of what still needs to be run against a real machine or real service before that phase can be called done. The historical notes below are kept to explain the pivot; the cloud-coupling lists describe what was removed or is guarded against by `pnpm architecture-smells`.
+> **Revision on 2026-04-22.** The repo as checked in still carries the `gws`/`gcloud` Gmail access path (ADR-004 + ADR-011 + ADR-022) and a readline-only onboarding script. Both are being retired inside the pivot captured in [`roadmap/pivot-imap.md`](./roadmap/pivot-imap.md): Gmail access moves to IMAP + a user-issued app password (ADR-024), and onboarding rebases onto an interactive `@clack/prompts` wizard modelled on `../openclaw/src/wizard/*` (ADR-025). The next agent removes the `gws`/`gcloud` code (pivot stage B1) before building the new surface. The historical notes below are kept for context; treat any claim here that conflicts with `pivot-imap.md` as already out of date.
+
+> Update after Phase 3/4/5 follow-up: the repository now contains a local-first CLI, SQLite schema, local Ollama provider wiring, fixture-backed `gws` ingest, a skill registry, structured logs, architecture smell checks, and tag-based release workflow scaffolding. The phase docs under `roadmap/` carry their own `## Pending — hand to next agent` checklists for items not yet verified against a real machine or real service. The historical notes below are kept to explain the pivot; the cloud-coupling lists describe what was removed or is guarded against by `pnpm architecture-smells`.
+
+## Original Phase 1 — retired
+
+The **original** Phase 1 (Foundation: delete Supabase/Trigger/remote-AI, swap Postgres → SQLite, put the dashboard on loopback, wire local Ollama, stand up the `slashcash` CLI skeleton with `start`/`stop`/`doctor`/`db seed`) shipped against fixtures. Its planning doc and the Phase 1/2 boundary audit doc were deleted on 2026-04-22. The remaining phase docs were then renumbered (old phase-2 → phase-1, old phase-3 → phase-2, old phase-4 → phase-3, old phase-5 → phase-4), so today's `roadmap/phase-1.md` covers local-first feature parity, **not** the original Foundation phase. This section is the only surviving home for the original-Phase-1 residue:
+
+- Run a clean-macOS boot through `slashcash start` **without** `SLASHCASH_DOCTOR_SKIP_OLLAMA=1`, against a real local Ollama. Repo-only gates pass with the skip flag set.
+- Confirm the assistant streams from real local `gemma3n:e4b` rather than the skipped fixture path.
+- Extend `pnpm architecture-smells` beyond source-level greps to inspect the **built** outputs (`apps/main` `next build` tree and the published CLI tarball) for any surviving Supabase / Trigger / remote-provider references.
+
+The audit-doc's process lesson — every phase ends with re-running previous E2Es + architecture-smells + `--help` ↔ `reference/cli.md` parity + migrating the previous phase's gaps into the next phase's Pending list — is codified in **ADR-017** and in the `## Pending — hand to next agent` section of every surviving phase doc; it does not need a separate home.
 
 Snapshot of the monorepo before the pivot starts. This is the input to Phase 1 and the file-change list in `reference/file-changes.md`. All paths are repo-root relative.
 

@@ -1,5 +1,7 @@
 # Vision
 
+> **Revision on 2026-04-22.** The Gmail access story pivots from `gws` + `gcloud` (ADR-004, ADR-011, ADR-022) to IMAP + a user-issued Gmail app password (ADR-024). The onboarding shell pivots from a readline-only script to an interactive `@clack/prompts` wizard modelled on `../openclaw/src/wizard/*` (ADR-025). The rest of this document — local-first posture, loopback auth boundary, single-user, Ollama, `~/.slashcash/`, no telemetry — is unchanged. See [`roadmap/pivot-imap.md`](./roadmap/pivot-imap.md) for the active execution plan. Paragraphs below that still mention `gws` are kept for historical continuity; treat them as superseded where they conflict with the revision.
+
 ## The problem we are pivoting away from
 
 slash.cash today is a hosted SaaS at `slash.cash` / `app.slash.cash`. To use it, a person signs up, grants Google OAuth to our Google client so we can read their Gmail, and then lives with the fact that refresh tokens, parsed emails and PDF attachments sit in **our** Supabase project and PDFs get parsed in **our** OpenAI/Mistral account.
@@ -10,15 +12,15 @@ Most prospects don't get past that ask. They want the product. They don't want a
 
 ## What we're building instead
 
-A local-first, single-user app that the person installs on their own laptop. Globally installed from npm. Onboarded by a single command that prepares the machine (Homebrew, Ollama, the `gemma3n:e4b` model, `gcloud`, the `gws` Google Workspace CLI, `gws auth setup`, and scoped Gmail consent). Started by a single command that boots the existing dashboard on `127.0.0.1` and schedules an in-process cron worker that pulls Gmail through `gws`, parses it with the local model, and writes everything to a single SQLite file.
+A local-first, single-user app that the person installs on their own laptop. Globally installed from npm. Onboarded by a single interactive wizard that prepares the machine (Homebrew, Ollama, the `gemma3n:e4b` model) and asks for the user's Gmail address and a 16-character app password generated at <https://myaccount.google.com/apppasswords>. Started by a single command that boots the existing dashboard on `127.0.0.1` and schedules an in-process cron worker that pulls Gmail over IMAP (`imap.gmail.com:993` with the user's app password), parses it with the local model, and writes everything to a single SQLite file.
 
 The hosted app at `slash.cash` / `app.slash.cash` is being **retired** as part of this pivot. The marketing site stays, as a landing page that points at the CLI; the hosted dashboard goes away once the CLI reaches feature parity. There is no "cloud mode" in the codebase — one code path, one product, fully local.
 
 ## What changes under the hood
 
 - Data lives on the user's disk, under `~/.slashcash/`.
-- There is no auth. The server binds to loopback only; that's the boundary.
-- Gmail is read through `gws`, using the user's own Google credentials managed by `gws`. We don't ship a Google client ID.
+- There is no hosted auth. The server binds to loopback only; that's the boundary.
+- Gmail is read over IMAP using a user-issued app password stored in the macOS Keychain (or, as a clearly-flagged fallback, in `~/.slashcash/credentials.json` with mode `0600`). We don't ship a Google client ID, don't run an OAuth flow, and don't install `gcloud` or `gws`.
 - Parsing happens through a local Ollama server with `gemma3n:e4b`. We don't call OpenAI, Mistral, Anthropic or anything else.
 - Background work is a `node-cron` schedule inside the same Node process that runs the Next.js dashboard. No Trigger.dev, no queues.
 - Distribution is a public npm package. The product is the CLI.
@@ -33,7 +35,7 @@ These are the tiebreakers for any ambiguous design choice in either phase.
 4. **Reuse what works, delete what doesn't.** The Next.js dashboard, the Drizzle schema and the Swiggy analytics are keepers. The Supabase surface, the Trigger.dev package, the Google OAuth dance, the PostgREST storage path and the hosted-only pages are on the chopping block.
 5. **One code path.** No mode switches, no cloud escape hatches, no branches to maintain. If a file is cloud-only, it's deleted, not gated.
 6. **No telemetry.** The local app makes no outbound calls we didn't ask for. Version checks, if any, are opt-in.
-7. **gws owns Google.** We don't ship OAuth flows, client secrets or token tables. `gws` handles auth, its own state, and its own renewal.
+7. **User owns their Gmail credential.** We don't ship OAuth flows, client secrets or token tables. The user generates an app password at Google, pastes it once during onboard, and we store it in the OS keychain where possible. Revocation is the user's one-click action in their Google account.
 8. **Skills are user-extensible.** Reading Gmail is one capability; bank statements, Sheets, and calendar are others. These are modeled as skills — folders with a frontmatter runbook and a manifest — so the surface area can grow without CLI changes.
 9. **Doctor over silent migrations.** When the config or the filesystem drifts, `slashcash doctor --fix` repairs it explicitly. Startup does not mutate user state on its own.
 10. **Schemas at boundaries.** Every external input — CLI argv, config file, `gws` output, Gmail responses, persisted JSON — is validated with a schema before it enters typed code.
@@ -41,7 +43,7 @@ These are the tiebreakers for any ambiguous design choice in either phase.
 
 ## Target audience for v1
 
-v1 ships for **developers on macOS** — people who are already comfortable typing `npm i -g <package>`, following a CLI prompt through two browser OAuth consents, and clicking past a one-time "Google hasn't verified this app" warning. Primary markets are the US and India. This is the constraint that makes the ADR-004 / ADR-022 "BYO-GCP via gcloud + `gws auth setup`" flow the right v1 default: technical users pay the two-consent cost once and gain a fully-local product where their Gmail token lives in their own Google Cloud project, not ours. A non-developer audience would be a distinct product motion with a signed macOS bundle and a verified shared OAuth client; that is explicitly out of v1 scope and is the future condition recorded in ADR-022's "Revisit if" block.
+v1 ships for **developers on macOS** — people who are already comfortable typing `npm i -g <package>`, enabling 2-Step Verification on their Google account if they haven't already, and pasting a 16-character app password into a terminal once. Primary markets are the US and India. The ADR-024 "IMAP + app password" flow is the v1 default: a single paste, no OAuth app-verification track, no Cloud Console walk, no `gcloud` cask. A non-developer audience and any scenario that genuinely requires OAuth-scoped read-only access (e.g. Advanced Protection Program users or locked-down Workspace tenants) is a distinct product motion that would reopen ADR-004; it is out of v1 scope.
 
 ## Non-goals
 

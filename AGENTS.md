@@ -94,4 +94,5 @@ If commands fail from missing deps, run `pnpm install` once and retry.
 
 - Do not add database queries outside `packages/database`.
 - Do not add hosted auth, cloud DB, or Trigger.dev-style task platforms without an explicit product decision and dependency review.
+- **Active pivot (2026-04-22):** Gmail access is moving from `gws` / `gcloud` (ADR-004, ADR-011, ADR-022 — all marked superseded) to IMAP + a user-generated app password (ADR-024), and the onboarding is being rebased onto an interactive `@clack/prompts` wizard (ADR-025). See [`packages/docs/roadmap/pivot-imap.md`](./packages/docs/roadmap/pivot-imap.md) for the active execution plan. Do not add new `gws` / `gcloud` / `google-cloud-sdk` / `googleworkspace-cli` surface anywhere outside `packages/docs/` (where the superseded ADRs live).
 - When changing schema, use Drizzle generate/migrate flows from `packages/database` (`package.json` scripts: `generate`, `migrate`).

@@ -34,6 +34,8 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-004 — Google auth is owned by `gws`
 
+> **Superseded on 2026-04-22 by ADR-024.** Gmail access in v1 moves from `gws`-brokered OAuth to user-issued IMAP app passwords. The original decision and its trade-offs are preserved below per repo convention; do not implement against it. See [`../roadmap/pivot-imap.md`](../roadmap/pivot-imap.md) for the active plan.
+
 **Decision.** We never ship a Google OAuth client id, never handle Google tokens, and never store refresh tokens. During `slashcash onboard` the user provisions their own per-machine OAuth client through `gws auth setup` (see ADR-022 for the full gcloud-backed flow) and then runs `gws auth login --services gmail --readonly` to consent to Gmail read-only access. `gws` owns everything about Google authentication and API access from that point onward.
 
 **Why.** This is the single biggest trust improvement over the hosted SaaS. The user's Google credentials never touch our code, and the OAuth client is scoped to their own Google Cloud project rather than a shared one we'd have to get verified. `gws` is maintained by Google Workspace's team and keeps current with API changes.
@@ -100,6 +102,8 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-011 — `gws` and `gcloud` install method
 
+> **Superseded on 2026-04-22 by ADR-024.** `gws` and `gcloud` are no longer installed by `slashcash onboard`; Gmail access now goes through IMAP + an app password. The `GWS_BREW_FORMULA` / `GCLOUD_BREW_CASK` constants are deleted during the pivot's B1 workstream. See [`../roadmap/pivot-imap.md`](../roadmap/pivot-imap.md). The original decision is kept below for history.
+
 **Decision.** `gws` is installed through Homebrew using the `googleworkspace-cli` formula documented in the upstream `gws` README. `gcloud` is installed through the Homebrew cask `google-cloud-sdk`. Both install sources are referenced from single constants (`GWS_BREW_FORMULA`, `GCLOUD_BREW_CASK`) in `packages/cli/src/onboard/run.ts` so any change is one file plus this ADR.
 
 **Why.** `gws` distribution is evolving (the older `googleworkspace/tap/gws` tap is being replaced by the direct `googleworkspace-cli` formula). `gcloud` is now a hard prerequisite for onboarding because `gws auth setup` drives the Google Cloud project / OAuth client provisioning through it (see ADR-022). Keeping both install sources in one place keeps the swap cheap.
@@ -164,6 +168,8 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-018 — Single onboarding question
 
+> **Amended on 2026-04-22 by ADR-024.** The onboarding surface now has three user inputs instead of one: the chat-model `select`, the Gmail address `text`, and the app-password `password`. The justification below still stands for "don't ask for anything else" (port, schedule, skill choice, etc.); the Gmail pair is not a "question" in the ADR-018 sense but a credential input that has no defensible default. Do not add prompts beyond these three without a new ADR.
+
 **Decision.** `slashcash onboard` asks exactly one user-facing question: which chat model to pull and use. The default is `gemma3n:e4b`, with `gemma3:4b` and `qwen2.5:7b` offered as alternatives. `--yes` accepts the default and `--non-interactive` fails if a prompt would be needed.
 
 **Why.** Every additional prompt adds friction. The model choice is the only current setup question with a real user trade-off: download size, speed and answer quality.
@@ -204,6 +210,8 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-022 — BYO-GCP Google onboarding via `gcloud` + `gws auth setup`
 
+> **Superseded on 2026-04-22 by ADR-024.** BYO-GCP is replaced by IMAP + user-generated app password. The ~400 MB `google-cloud-sdk` cask, the `gws` install, `gws auth setup`, `gws auth login --services gmail --readonly`, the Desktop OAuth client provisioning and the test-user dance are all retired. The original decision, its probe transcripts and scripted-gcloud fallback notes are preserved below so the reasoning is traceable if we ever revisit OAuth (see ADR-024's "Revisit if" block). See [`../roadmap/pivot-imap.md`](../roadmap/pivot-imap.md) for the active plan.
+
 **Decision.** `slashcash onboard` provisions Google access for each user through their own Google Cloud project. The sequence is:
 
 1. Install the `gcloud` CLI (Homebrew cask from ADR-011).
@@ -241,6 +249,8 @@ This is the path the `gws` authors recommend when `gcloud` is available; it is t
 
 ## ADR-023 — Privacy disclosures surface at onboarding
 
+> **Amended on 2026-04-22 by ADR-024.** The *principle* — surface privacy facts at every consent moment, keep them reachable forever through `slashcash privacy`, never gate on acknowledgement — is unchanged. The *moments* change: there is no `gcloud auth login` or `gws auth login` browser consent under ADR-024, so the `PRE_GCLOUD_AUTH`, `PRE_GWS_SETUP`, and `PRE_GWS_LOGIN` constants are deleted and replaced by a single `PRE_APP_PASSWORD_INPUT` block shown before the password prompt. `TOP_BANNER` and `FINAL_SUMMARY` are rewritten to describe keychain storage and IMAP connections instead of Google Cloud projects and refresh tokens. Snapshot tests regenerate in the same PR as the copy edit. See [`../roadmap/pivot-imap.md`](../roadmap/pivot-imap.md) § B4 for the exact new copy.
+
 **Decision.** The privacy claims that make this product worth installing (local-only data, BYO Google Cloud project, no telemetry, loopback-only dashboard) are printed by the wizard at four moments: top-of-onboard banner, pre-`gcloud auth login` line, pre-`gws auth login` line, and final summary. They are reachable forever through `slashcash privacy`. The wizard also prints one operational safety note before `gws auth setup`: upstream `gws` may ask whether to run `gws auth login` immediately, and slashcash tells the user to answer `n` so the next step can request Gmail read-only access with `gws auth login --services gmail --readonly`. The wizard does not gate on acknowledgement; trust is built by showing the facts at the moments the user is deciding whether to click Allow. Copy and setup guidance live in one file, `packages/cli/src/privacy/copy.ts`, so the wizard and the standing command never drift.
 
 **Why.** The developer audience (see `vision.md` "Target audience for v1") evaluates trust at the consent screen, not on a landing page. The product principle is "trust is surfaced, not buried", so onboarding itself has to say where data, tokens, PDFs, model calls and telemetry do or do not go.
@@ -248,3 +258,60 @@ This is the path the `gws` authors recommend when `gcloud` is available; it is t
 **Rejected.** A single upfront dump (users skim it). Legal "I accept" checkboxes (wrong product). Printing only via a separate command (missed by the users who most need it).
 
 **Revisit if.** ADR-022 changes to a verified shared Google client, if the hosted surface returns, or if any telemetry/version-check default changes. Any of those would require changing the copy and its snapshots in the same PR.
+
+## ADR-024 — Gmail access via IMAP + user-issued app password
+
+**Decision.** `slashcash onboard` does not install `gcloud`, does not install `gws`, and does not drive a Google OAuth flow. Instead, the wizard:
+
+1. Asks the user for their Gmail address (`text` prompt).
+2. Points them at <https://myaccount.google.com/apppasswords> to generate a 16-character app password.
+3. Asks for that password (`password` prompt, spaces tolerated in input).
+4. Tests an IMAP `LOGIN` against `imap.gmail.com:993` over TLS to validate the credential before writing it.
+5. Persists the credential pair in the macOS Keychain through `keytar` (service `slashcash`, account `gmail-app-password@<email>`) or, as a clearly-flagged fallback when `keytar` is unavailable, in `~/.slashcash/credentials.json` with file mode `0600`.
+
+Gmail ingest reads messages through IMAP (`imapflow`) using the Gmail `X-GM-RAW` extension for the skill query string, and parses MIME with `mailparser`. The rest of the Phase 2 pipeline (extraction, attachment persistence, dedupe, analytics, skills) is unchanged — only the carrier swaps.
+
+**Why.** BYO-GCP + `gws` (ADR-004 + ADR-011 + ADR-022) bought us a clean "the user's Gmail token lives in their own Cloud project" story, but it charged the user a ~400 MB `google-cloud-sdk` cask, two browser consent screens, one "Google hasn't verified this app" warning, and a Cloud-Console-adjacent setup that materially hurt onboarding completion rates in dogfood. For a local-first single-user product, the dramatically simpler IMAP + app password flow is the right v1 trade: one URL, one paste, no cask, no project, no client, no test user. The credential still never leaves the user's machine; the privacy guarantees in ADR-023 still hold.
+
+**Scope of access.** An app password grants full IMAP/SMTP access to the mailbox; we use IMAP read-only from our code and never open an SMTP connection. This is broader than an OAuth `gmail.readonly` scope (which ADR-022 could enforce at the Google side). We accept that trade and disclose it honestly in the onboarding banner. Users who need a stronger guarantee today can use a dedicated Gmail account for slashcash.
+
+**Preconditions the wizard verifies or classifies.**
+
+- 2-Step Verification must be enabled on the Google account (prerequisite for generating an app password).
+- The Google Advanced Protection Program (APP) disables app passwords; incompatibility is classified as a distinct IMAP auth failure and the wizard tells the user v1 does not support APP.
+- Workspace admins can disable app passwords; the classifier signals "policy-disabled" and points the user at a personal account.
+- IMAP must be enabled in Gmail (default since January 2025); the wizard classifies the `[ALERT] Please log in via your web browser` failure and points the user at <https://mail.google.com/mail/u/0/#settings/fwdandpop>.
+
+**Rejected.**
+
+- **Keep ADR-022 (BYO-GCP + `gws`).** The install-friction cost is higher than the incremental trust gain for this audience. ADR-004's "Revisit if" block contemplated exactly this pivot.
+- **OAuth device-flow with a shared verified client owned by us.** Still requires Google's OAuth app verification including CASA for the restricted scope, which ADR-004 rejected and nothing about the pivot changes that calculus.
+- **SMTP-disabled app passwords.** Google does not offer scope-limited app passwords; this is not a toggle we can set.
+- **Gmail API with user-pasted API keys.** Gmail does not issue user-scoped API keys for mail access.
+
+**Revisit if.**
+
+- We ever absorb Google's OAuth app verification track (privacy policy, domain verification, annual CASA). At that point ADR-024 is replaced by a new ADR defining a verified-client OAuth flow, ADR-004's revisit fires, and the wizard gains an OAuth path.
+- Google discontinues app passwords for consumer accounts. The current signal is the opposite (they remain supported for 2FA-on accounts), but this is the single external dependency that could force a reversal.
+- A meaningful fraction of target users turn out to be on APP or on Workspace tenants that disallow app passwords. In that case the "dedicated Gmail account" workaround is insufficient and we need a second auth path.
+
+## ADR-025 — Interactive onboarding wizard on `@clack/prompts`
+
+**Decision.** `slashcash onboard` uses `@clack/prompts` (^1.2.0) as its interactive shell, wrapped by a thin `WizardPrompter` interface modelled on `../openclaw/src/wizard/prompts.ts` and `../openclaw/src/wizard/clack-prompter.ts`. Step orchestration continues to live behind the `Step { detect / install / verify }` pipeline from Phase 3 W1; the prompter replaces the current readline-based `packages/cli/src/cli/prompt.ts`. The wizard renders `intro` / grouped `note` / `select` / `text` / `password` / `confirm` / `spinner` at the moments defined in [`../roadmap/pivot-imap.md`](../roadmap/pivot-imap.md) § B2.
+
+**Why.** The current straight-line `onboard` ships none of the Phase 3 UX we promised: no progress line, no idempotent re-run, no grouped disclosures, no live `ollama pull` stream, no safe cancel. Openclaw has already absorbed the cost of discovering what a local-CLI setup wizard needs to look like, and `@clack/prompts` is the same primitive it uses. Re-deriving our own readline helpers from scratch is pointless duplication against ADR-016 ("continuously learn from openclaw").
+
+**What we do not adopt.**
+
+- `osc-progress` terminal escapes (openclaw ships them; we stay ASCII so logs render anywhere).
+- Openclaw's plugin/sandbox/gateway prompt groups (different product surface).
+- Direct copy of openclaw source — patterns only, per ADR-016.
+
+**Rejected.**
+
+- **Stay on readline.** Cheap to write, but we have already paid the cost of a readline-only helper and it's the reason the Phase 1/2 boundary audit (the retired `roadmap/audit-phase-1-2.md`, see git history) flagged the "block" items against onboarding. Continuing on that path re-spends the same effort for a worse result.
+- **Adopt `inquirer` or `prompts`.** Both are fine; `@clack/prompts` is the pattern openclaw already proved out and gives us zero-cost parity with their `note`, `spinner` and cancel semantics.
+- **Build an Ink-based UI.** Out of scale for a few-dozen-line wizard.
+
+**Revisit if.** `@clack/prompts` is unmaintained or its API churns enough to break our thin adapter. The adapter contains the blast radius; we could swap to `prompts` with ~50 lines of change.
+

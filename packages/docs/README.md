@@ -1,24 +1,25 @@
 # slashcash — Plan & Reference
 
-This package is the single source of truth for the **slashcash** pivot: from a hosted SaaS at `slash.cash` / `app.slash.cash` to a **local-first, single-user CLI** that runs the existing dashboard on a user's machine, talks to a local LLM via Ollama, reads Gmail through the [`gws`](https://github.com/googleworkspace/cli) Google Workspace CLI, and stores everything in a local SQLite file.
+This package is the single source of truth for the **slashcash** pivot: from a hosted SaaS at `slash.cash` / `app.slash.cash` to a **local-first, single-user CLI** that runs the existing dashboard on a user's machine, talks to a local LLM via Ollama, reads Gmail over IMAP with a user-issued app password (see ADR-024), and stores everything in a local SQLite file.
 
-This is a **fully local** pivot. There is no dual-run mode and no cloud fallback. The hosted app at `app.slash.cash` is being retired; the marketing site at `slash.cash` is updated at the end of Phase 2 to point at the CLI. See ADR-013 in [`reference/decisions.md`](./reference/decisions.md).
+This is a **fully local** pivot. There is no dual-run mode and no cloud fallback. The hosted app at `app.slash.cash` is being retired; the marketing site at `slash.cash` is updated when the CLI reaches feature parity to point at it. See ADR-013 in [`reference/decisions.md`](./reference/decisions.md).
 
 ## How to read this
 
 Read in order on your first pass:
 
 1. [`vision.md`](./vision.md) — *Why we are doing this and the product principles.*
-2. [`current-state.md`](./current-state.md) — *What exists today, every cloud coupling, every file that will move.*
+2. [`current-state.md`](./current-state.md) — *What exists today, every cloud coupling, every file that moved, and the retired-phase summary.*
 3. [`architecture.md`](./architecture.md) — *Target topology, process model, data flow, config layout.*
-4. [`roadmap/phase-1.md`](./roadmap/phase-1.md) — *Phase 1 — Foundation. The CLI skeleton, SQLite swap, local auth, AI provider swap.*
-5. [`roadmap/phase-2.md`](./roadmap/phase-2.md) — *Phase 2 — Local-first feature parity. gws Gmail ingress, node-cron, analytics rewrite, attachments, skills.*
-6. [`roadmap/audit-phase-1-2.md`](./roadmap/audit-phase-1-2.md) — *Audit. What slipped through Phases 1 and 2; the input to Phase 3.*
-7. [`roadmap/phase-3.md`](./roadmap/phase-3.md) — *Phase 3 — Onboarding, progress and error UX. The wizard rewrite, gws error classification, doctor flags.*
-8. [`roadmap/phase-4.md`](./roadmap/phase-4.md) — *Phase 4 — The full testing pyramid. Unit, integration, E2E, smell tests, CI matrix.*
-9. [`roadmap/phase-5.md`](./roadmap/phase-5.md) — *Phase 5 — Release, packaging, observability, docs polish. npm publish, evals as a gate, logs, perf budgets, decommission.*
+4. [`roadmap/pivot-imap.md`](./roadmap/pivot-imap.md) — **Active execution plan** (2026-04-22). Gmail access pivots from `gws`/`gcloud` to IMAP + app password; onboarding rebases onto an interactive `@clack/prompts` wizard.
+5. [`roadmap/phase-1.md`](./roadmap/phase-1.md) — *Phase 1 — Local-first feature parity. Real-account dogfood items; fixture-backed workstreams already shipped.*
+6. [`roadmap/phase-2.md`](./roadmap/phase-2.md) — *Phase 2 — Onboarding, progress and error UX. One remaining clean-machine cancel-recovery item; wizard rewrite owned by `pivot-imap.md`.*
+7. [`roadmap/phase-3.md`](./roadmap/phase-3.md) — *Phase 3 — The full testing pyramid. Coverage floors, boundary integration specs, analytics snapshots, smell-test extensions.*
+8. [`roadmap/phase-4.md`](./roadmap/phase-4.md) — *Phase 4 — Release, packaging, observability, docs polish. Real tag release, clean-machine publish verify, real eval threshold, server-side perf gates.*
 
-Each phase doc ends with a `## Pending — hand to next agent` checklist of the items that were scoped to that phase but have not yet been verified against a real machine or real service. A fresh chat can pick up any phase doc and work the pending list from top to bottom.
+> **Retired on 2026-04-22.** The original Phase 1 (Foundation: Supabase/Trigger/remote-AI rip-out, Postgres → SQLite, loopback dashboard, CLI skeleton) and the Phase 1/2 boundary audit shipped and were deleted; surviving items live under "Phase 1 — retired" in [`current-state.md`](./current-state.md). The remaining roadmap was then renumbered: old phase-2 → phase-1, old phase-3 → phase-2, old phase-4 → phase-3, old phase-5 → phase-4. Older text elsewhere in this doc set still uses the original numbering where it was naming workstreams ("Phase 2 W10", "Phase 3 W1", etc.); those are plan identifiers, not file paths, and they remain meaningful against git history.
+
+Each phase doc now contains only the `## Pending — hand to next agent` items (shipped history lives in git). A fresh chat can pick up any phase doc (or `pivot-imap.md`) and work the list from top to bottom.
 
 Then dip into reference as needed:
 
@@ -44,15 +45,14 @@ Two rules apply across every phase and every workstream. They are called out aga
 packages/docs/
 ├── README.md              ← you are here
 ├── vision.md              ← the "why"
-├── current-state.md       ← snapshot of today
+├── current-state.md       ← snapshot of today + retired-phase summary
 ├── architecture.md        ← the target
 ├── roadmap/
-│   ├── phase-1.md         ← Foundation
-│   ├── phase-2.md         ← Local-first parity
-│   ├── audit-phase-1-2.md ← Gap audit between Phase 2 and Phase 3
-│   ├── phase-3.md         ← Onboarding, progress, error UX
-│   ├── phase-4.md         ← Full testing pyramid
-│   └── phase-5.md         ← Release, packaging, observability, docs polish
+│   ├── pivot-imap.md      ← ACTIVE execution plan (IMAP + interactive wizard)
+│   ├── phase-1.md         ← Local-first parity — Pending items
+│   ├── phase-2.md         ← Onboarding, progress, error UX — Pending items
+│   ├── phase-3.md         ← Full testing pyramid — Pending items
+│   └── phase-4.md         ← Release, packaging, observability — Pending items
 └── reference/
     ├── cli.md
     ├── config.md
