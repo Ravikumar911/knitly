@@ -1,22 +1,34 @@
-# Testing — philosophy and end-to-end gates
+# Testing — customer journeys and release gates
 
-This document defines how we prove each phase is done. It is the single source of truth for what "end to end" means in this local-first product.
+This document defines how we prove slash.cash works for a real customer. Phases still exist as roadmap checkpoints, but they are no longer the main way we describe product coverage. The primary language is customer behaviour: what a user can do in the app, what the CLI can do on their machine, and what release gates still need to hold.
 
-The model we use has three layers. The bottom layer is **unit tests** colocated next to the code. They are a permanent baseline and run on every commit. The middle layer is **targeted integration tests** for the handful of modules where the behaviour really lives at a boundary (the `gws` wrapper, the Ollama provider, the doctor checks, the cron single-flight, the attachment-serving route, the skill registry). These also run on every commit. The top layer is an **end-to-end scenario per phase** that spins up the real CLI against a real local stack and exercises the user flow the phase promises. The E2E scenario is the merge gate for the phase; unit and integration tests are the merge gate for individual PRs inside the phase.
+The model we use has four layers. The bottom layer is **unit tests** colocated next to the code. They are a permanent baseline and run on every commit. The next layer is **targeted integration tests** for the handful of modules where the behaviour really lives at a boundary (the `gws` wrapper, the Ollama provider, the doctor checks, the cron single-flight, the attachment-serving route, the skill registry). The next layer is **customer-journey UI coverage** in Playwright, which drives the seeded app through the same `slashcash start` path a user runs locally. The top layer is a set of **phase acceptance gates** that still spin up the real CLI against a local stack and prove the roadmap promises have not regressed. The phase gates are milestones; the journey suite is the day-to-day product story.
 
 The point of the E2E gate is that none of the steps below are simulated. We don't mock `gws`, we don't stub Ollama, we don't swap SQLite for memory, and we don't assert on internal functions. The scenario runs the same binary a user would run and checks observable outcomes — HTTP responses, rows in SQLite, files in the attachments directory, processes on the machine.
 
 ## Where tests live
 
-Unit and integration tests live next to their code under each workspace package. The E2E harness lives in `packages/e2e-tests` (the existing Playwright package is repurposed; it no longer tests the hosted app). Fixtures and expected snapshots for analytics live under `packages/database/test-fixtures/`. Eval datasets stay in `packages/evals/` as they are today but run against the local provider.
+Unit and integration tests live next to their code under each workspace package. The E2E harness lives in `packages/e2e-tests`. Fixtures and expected snapshots for analytics live under `packages/database/test-fixtures/`. Eval datasets stay in `packages/evals/` as they are today but run against the local provider.
 
-The harness exposes `pnpm e2e:phase-1` through `pnpm e2e:phase-5`, `pnpm e2e:all`, `pnpm architecture-smells`, `pnpm fixtures:check`, `pnpm bench`, and `pnpm eval:gate`. Phase E2E scripts are intended to run from a clean machine state; the harness itself handles clean-up of temporary `SLASHCASH_HOME` directories between runs, but it never touches files outside that directory and Homebrew's install prefix.
+The harness exposes `pnpm e2e:journeys`, `pnpm e2e:phase-1` through `pnpm e2e:phase-5`, `pnpm e2e:all`, `pnpm architecture-smells`, `pnpm fixtures:check`, `pnpm bench`, and `pnpm eval:gate`. Journey tests always create a deterministic local state directory, seed the database, import one Gmail fixture receipt, and start the app through `slashcash start`. Phase E2E scripts are still intended to run from a clean machine state; the harness itself handles clean-up of temporary `SLASHCASH_HOME` directories between runs, but it never touches files outside that directory and Homebrew's install prefix.
 
 ## Learning from `../openclaw`
 
-Openclaw already runs a smoke-flow test of its CLI end to end. Study the shape before writing ours: how it boots a test config directory, how it invokes the compiled binary, how it waits for readiness via healthz, how it asserts on stdout with structured matchers, and how it tears down between cases. The harness we build here should feel familiar to anyone who has read openclaw's version. Adopt the shape; don't copy the code.
+Openclaw is the reference for how to organise this work: scenario-driven coverage, repo-backed fixtures, isolated local state per run, and behaviour suites that read like the product rather than the implementation schedule. The harness we build here should feel familiar to anyone who has read openclaw's QA docs. Adopt the shape; don't copy the code.
 
-## Phase 1 end-to-end scenario
+## Customer-journey suite
+
+`pnpm e2e:journeys` is the main UI-facing product suite. Today it covers:
+
+- Dashboard exploration: open the app without sign-in, land on `/dashboard`, and confirm the seeded analytics context is visible.
+- Product navigation: move between dashboard, transactions, assistant, settings, and feedback from the app shell.
+- Transaction review: inspect seeded + fixture-imported transactions, reverse sort order, and open a receipt in the PDF viewer.
+- Assistant behaviour: start a chat, observe a streamed reply from a local mock Ollama-compatible server, and return to a fresh chat.
+- Feedback capture: submit in-app feedback and see the success state.
+
+This suite is intentionally written in customer language. The underlying setup details — seed data, fixture Gmail sync, mock Ollama — are harness responsibilities, not the thing the spec names lead with.
+
+## Phase 1 acceptance gate
 
 The preconditions are a fresh clone of the monorepo and no `~/.slashcash/` on disk. Ollama is installed and the machine has pulled `gemma3n:e4b` (the harness checks this and fails loudly if not, because pulling a model inside a test run is slow and flaky). Node 20+ and pnpm are available.
 
@@ -24,7 +36,7 @@ The scenario walks through the following observable steps in order. Install work
 
 Any failed assertion fails the phase gate. The scenario produces a short machine-readable summary (pass/fail per step, elapsed time, and the `~/.slashcash/logs/` tail) that is attached as a CI artifact.
 
-## Phase 2 end-to-end scenario
+## Phase 2 acceptance gate
 
 The preconditions are harsher on purpose: a clean macOS environment where Homebrew, Ollama, `gws` and `~/.slashcash/` do not exist, no copy of the monorepo installed, and a dedicated test Google account with a small, deterministic set of Swiggy emails already in its inbox. The CI machine or a dedicated test box provides the credentials path for `gws` via an environment variable that points at a pre-authorised credentials file, so the scenario can run non-interactively; on a developer machine the same scenario runs interactively and waits for the OAuth consent screen.
 
@@ -34,21 +46,21 @@ The repository also includes `packages/e2e-tests/scenarios/phase-2.ts`, a fixtur
 
 As with Phase 1, every assertion failure fails the gate and artefacts are uploaded.
 
-## Phase 3 end-to-end scenario
+## Phase 3 acceptance gate
 
 `packages/e2e-tests/scenarios/phase-3.ts` exercises the onboarding UX and doctor JSON surface against an isolated home directory. It runs `slashcash onboard --dry-run --yes`, re-runs the wizard to prove the idempotent path is quick, then parses `slashcash doctor --quick --json` to confirm the machine-readable check shape is valid. Hidden skip flags remain gated behind `SLASHCASH_E2E=1`.
 
 The full clean-machine cancellation test is still a manual dogfood step because it requires killing a real `ollama pull` mid-stream. The automated fixture scenario protects the CLI contract and the idempotency regression surface on every PR.
 
-## Phase 4 end-to-end scenario
+## Phase 4 acceptance gate
 
-`packages/e2e-tests/scenarios/phase-4.ts` is the meta gate for the test pyramid. It runs the architecture smell test, fixture validation, and the per-package Vitest scripts for `packages/cli`, `packages/tasks`, `packages/database`, `packages/ui`, and `apps/main`. The app and UI suites are still smoke-level tests until the broader Playwright and component suites are filled in, but they now share the same Vitest discovery, watch-mode and v8 coverage plumbing as the backend packages.
+`packages/e2e-tests/scenarios/phase-4.ts` is the meta gate for the test pyramid. It runs the architecture smell test, fixture validation, and the per-package Vitest scripts for `packages/cli`, `packages/tasks`, `packages/database`, `packages/ui`, and `apps/main`. The Playwright layer now covers customer journeys through the real CLI boot path; the remaining work in this phase is broader boundary integration depth and higher coverage, not replacing stale hosted-app specs.
 
 The first boundary integration spec is `packages/tasks/src/utils/gws.integration.test.ts`. Run it with `VITEST_INTEGRATION=1 pnpm --filter @workspace/tasks test`. It stays fixture-backed: the test parses recorded Gmail list/message/attachment JSON, feeds command stdout through an injected `gws` runner, and asserts every documented `GwsErrorCode` is reachable without invoking the real `gws` binary or any Google service. The rest of the W3 boundary specs are still pending.
 
 `pnpm fixtures:check` parses every committed JSON fixture under the database, tasks, and E2E fixture roots and verifies canonical formatting. This gives fixture changes an explicit CI surface instead of letting drift hide inside unrelated PRs.
 
-## Phase 5 end-to-end scenario
+## Phase 5 acceptance gate
 
 `packages/e2e-tests/scenarios/phase-5.ts` covers the release-readiness gates that can run without external credentials: the eval gate, the performance budget harness, and the logs reader against a structured fixture event. Release-only verification of the published npm tarball lives in `.github/workflows/release.yml`, where the package is published with provenance, a SBOM and checksum are attached, and the published bin is smoke-tested through `slashcash --version`.
 

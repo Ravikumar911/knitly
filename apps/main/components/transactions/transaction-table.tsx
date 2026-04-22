@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { format } from 'date-fns';
-import { useTRPC } from '@/trpc/client';
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useState, useMemo } from "react";
+import { format } from "date-fns";
+import { useTRPC } from "@/trpc/client";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   Table,
   TableBody,
@@ -11,17 +11,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@workspace/ui/components/table';
-import { Button } from '@workspace/ui/components/button';
-import { Badge } from '@workspace/ui/components/badge';
-import { 
-  FileText, 
-  ChevronLeft, 
+} from "@workspace/ui/components/table";
+import { Button } from "@workspace/ui/components/button";
+import { Badge } from "@workspace/ui/components/badge";
+import {
+  FileText,
+  ChevronLeft,
   ChevronRight,
   ArrowUp,
-  ArrowDown
-} from 'lucide-react';
-import { TransactionPDFViewer } from './transaction-pdf-viewer';
+  ArrowDown,
+} from "lucide-react";
+import { TransactionPDFViewer } from "./transaction-pdf-viewer";
 
 // Type representing the serialized transaction data from tRPC (dates become strings)
 type TransactionFromTRPC = {
@@ -63,8 +63,10 @@ type TransactionFromTRPC = {
 function TransactionTableContent() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
-  const [selectedTransaction, setSelectedTransaction] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [selectedTransaction, setSelectedTransaction] = useState<string | null>(
+    null,
+  );
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   const trpc = useTRPC();
 
@@ -74,7 +76,7 @@ function TransactionTableContent() {
       page,
       pageSize,
       filters: {
-        sortBy: 'date',
+        sortBy: "date",
         sortOrder: sortDirection,
       },
     });
@@ -85,36 +87,39 @@ function TransactionTableContent() {
 
   // Toggle sort direction
   const handleSortToggle = () => {
-    setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
   };
 
-  const formatCurrency = (amount: string | number, currency: string = 'INR') => {
-    const numAmount = typeof amount === 'number' ? amount : parseFloat(amount);
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
+  const formatCurrency = (
+    amount: string | number,
+    currency: string = "INR",
+  ) => {
+    const numAmount = typeof amount === "number" ? amount : parseFloat(amount);
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
       currency,
     }).format(numAmount);
   };
 
   const getStatusColor = (status: string) => {
     switch (status?.toUpperCase()) {
-      case 'COMPLETED':
-        return 'bg-chart-1/10 text-chart-1 border-chart-1/20';
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800';
-      case 'FAILED':
-        return 'bg-destructive/10 text-destructive border-destructive/20';
-      case 'CANCELLED':
-        return 'bg-muted text-muted-foreground border-border';
+      case "COMPLETED":
+        return "bg-chart-1/10 text-chart-1 border-chart-1/20";
+      case "PENDING":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800";
+      case "FAILED":
+        return "bg-destructive/10 text-destructive border-destructive/20";
+      case "CANCELLED":
+        return "bg-muted text-muted-foreground border-border";
       default:
-        return 'bg-muted text-muted-foreground border-border';
+        return "bg-muted text-muted-foreground border-border";
     }
   };
 
   const getTypeColor = (type: string) => {
-    return type === 'DEBIT' 
-      ? 'bg-destructive/10 text-destructive border-destructive/20' 
-      : 'bg-chart-1/10 text-chart-1 border-chart-1/20';
+    return type === "DEBIT"
+      ? "bg-destructive/10 text-destructive border-destructive/20"
+      : "bg-chart-1/10 text-chart-1 border-chart-1/20";
   };
 
   if (!data || data.transactions.length === 0) {
@@ -141,18 +146,26 @@ function TransactionTableContent() {
                     onClick={handleSortToggle}
                   >
                     Date
-                    {sortDirection === 'asc' ? (
+                    {sortDirection === "asc" ? (
                       <ArrowUp className="ml-1 h-3 w-3" />
                     ) : (
                       <ArrowDown className="ml-1 h-3 w-3" />
                     )}
                   </Button>
                 </TableHead>
-                <TableHead className="h-9 text-sm font-medium">Merchant</TableHead>
-                <TableHead className="h-9 text-sm font-medium">Description</TableHead>
-                <TableHead className="h-9 text-sm font-medium">Amount</TableHead>
+                <TableHead className="h-9 text-sm font-medium">
+                  Merchant
+                </TableHead>
+                <TableHead className="h-9 text-sm font-medium">
+                  Description
+                </TableHead>
+                <TableHead className="h-9 text-sm font-medium">
+                  Amount
+                </TableHead>
                 <TableHead className="h-9 text-sm font-medium">Type</TableHead>
-                <TableHead className="h-9 text-sm font-medium">Status</TableHead>
+                <TableHead className="h-9 text-sm font-medium">
+                  Status
+                </TableHead>
                 <TableHead className="h-9 text-sm font-medium">PDF</TableHead>
               </TableRow>
             </TableHeader>
@@ -162,32 +175,39 @@ function TransactionTableContent() {
                 return (
                   <TableRow key={t.id}>
                     <TableCell className="py-2.5 text-xs">
-                      {format(new Date(t.transactionDate), 'MMM dd, yyyy')}
+                      {format(new Date(t.transactionDate), "MMM dd, yyyy")}
                     </TableCell>
                     <TableCell className="py-2.5">
                       <div>
                         <div className="font-medium text-xs">
-                          {t.merchantName || 'Unknown'}
+                          {t.merchantName || "Unknown"}
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="py-2.5">
-                      <div className="max-w-xs truncate text-xs" title={t.description || ''}>
-                        {t.description || 'No description'}
+                      <div
+                        className="max-w-xs truncate text-xs"
+                        title={t.description || ""}
+                      >
+                        {t.description || "No description"}
                       </div>
                     </TableCell>
                     <TableCell className="py-2.5">
                       <div className="font-medium text-xs">
-                        {formatCurrency(t.amount, t.currency || 'INR')}
+                        {formatCurrency(t.amount, t.currency || "INR")}
                       </div>
                     </TableCell>
                     <TableCell className="py-2.5">
-                      <Badge className={`${getTypeColor(t.type)} text-xs px-1.5 py-0.5`}>
+                      <Badge
+                        className={`${getTypeColor(t.type)} text-xs px-1.5 py-0.5`}
+                      >
                         {t.type}
                       </Badge>
                     </TableCell>
                     <TableCell className="py-2.5">
-                      <Badge className={`${getStatusColor(t.status || '')} text-xs px-1.5 py-0.5`}>
+                      <Badge
+                        className={`${getStatusColor(t.status || "")} text-xs px-1.5 py-0.5`}
+                      >
                         {t.status}
                       </Badge>
                     </TableCell>
@@ -198,6 +218,7 @@ function TransactionTableContent() {
                           size="sm"
                           onClick={() => setSelectedTransaction(t.id)}
                           className="h-7 w-7 p-0"
+                          aria-label={`Open invoice for ${t.description || t.merchantName || "this transaction"}`}
                         >
                           <FileText className="h-3.5 w-3.5" />
                         </Button>
@@ -217,13 +238,15 @@ function TransactionTableContent() {
       {data?.pagination && data.pagination.totalPages > 1 && (
         <div className="flex items-center justify-between p-3 rounded border">
           <div className="text-xs text-gray-600">
-            {((page - 1) * pageSize) + 1}-{Math.min(page * pageSize, data.pagination.totalCount)} of {data.pagination.totalCount}
+            {(page - 1) * pageSize + 1}-
+            {Math.min(page * pageSize, data.pagination.totalCount)} of{" "}
+            {data.pagination.totalCount}
           </div>
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={!data.pagination?.hasPrev}
               className="h-7 px-2 text-xs"
             >
@@ -235,7 +258,7 @@ function TransactionTableContent() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPage(p => p + 1)}
+              onClick={() => setPage((p) => p + 1)}
               disabled={!data.pagination?.hasNext}
               className="h-7 px-2 text-xs"
             >
@@ -259,4 +282,4 @@ function TransactionTableContent() {
 export default TransactionTableContent;
 
 // Named export for backwards compatibility
-export { TransactionTableContent as TransactionTable }; 
+export { TransactionTableContent as TransactionTable };

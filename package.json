@@ -14,6 +14,7 @@
     "fixtures:check": "pnpm --filter @workspace/e2e-tests fixtures:check",
     "bench": "pnpm --filter @workspace/e2e-tests bench",
     "test:e2e": "turbo test --filter=@workspace/e2e-tests",
+    "e2e:journeys": "pnpm --filter @workspace/e2e-tests test",
     "slashcash": "pnpm --filter slashcash dev",
     "e2e:phase-1": "pnpm --filter @workspace/e2e-tests e2e:phase-1",
     "e2e:phase-2": "pnpm --filter @workspace/e2e-tests e2e:phase-2",

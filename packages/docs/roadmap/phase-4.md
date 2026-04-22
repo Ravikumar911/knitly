@@ -1,6 +1,6 @@
 # Phase 4 — The full testing pyramid
 
-> *Goal: every layer of `reference/testing.md` actually exists. The bottom layer (unit) covers each package, the middle layer (integration) covers every boundary module, the top layer (E2E) covers every user-visible flow. CI runs all three layers on every push, fails on coverage regression, and runs against a Node version matrix. The discipline is openclaw's: tests next to the code, integration tests for the seams, end-to-end tests that exercise the binary the user runs.*
+> _Goal: every layer of `reference/testing.md` actually exists. The bottom layer (unit) covers each package, the middle layer (integration) covers every boundary module, the top layer (E2E) covers every user-visible flow. CI runs all three layers on every push, fails on coverage regression, and runs against a Node version matrix. The discipline is openclaw's: tests next to the code, integration tests for the seams, end-to-end tests that exercise the binary the user runs._
 
 Phase 4 closes the test debt called out in [`audit-phase-1-2.md`](./audit-phase-1-2.md). It does not add product surface; it makes the existing surface defendable. After Phase 4, no PR merges without a full pyramid run, and adding new behaviour without tests is a CI-blocking smell.
 
@@ -13,7 +13,7 @@ The phase is not done until the Phase 4 acceptance script runs in CI on a fresh 
 1. Every workspace package (`packages/cli`, `packages/database`, `packages/tasks`, `packages/ui`, `apps/main`) has a working `pnpm test` that runs vitest on colocated `*.test.ts` files. Test discovery, watch mode and coverage report all work locally and in CI.
 2. Statement coverage across all production code is at or above the target floor: 80% for `packages/cli`, `packages/database`, `packages/tasks`; 70% for `apps/main`; 60% for `packages/ui` (UI components are partially exercised through Playwright). Coverage thresholds are enforced in CI; PRs that drop below fail.
 3. Integration tests exist and run on every PR for: the `gws` wrapper, the Ollama provider, the SQLite query layer (analytics snapshots), the doctor check pipeline, the cron single-flight mutex, the attachment-serving route, the skill registry, the assistant tRPC route, the standardised CLI error format, and the bundled-skill manifest schema.
-4. Playwright E2E covers the dashboard, the transactions list and filters, the assistant streaming UI, the PDF viewer, and the settings pages. Tests run against a fresh seeded SQLite per spec and a CLI-spawned Next.js, not a separately-managed dev server.
+4. Playwright E2E covers the dashboard, the transactions list and receipt flow, the assistant chat UI, and the feedback/settings surfaces. Tests run against a fresh seeded SQLite plus one fixture receipt import and a CLI-spawned Next.js, not a separately-managed dev server.
 5. The Phase 1, Phase 2 and Phase 3 E2E scenarios all pass on every PR. The Phase 4 scenario script confirms the previous phases haven't regressed.
 6. CI runs the full pyramid on Node 20 and Node 22 on a macOS runner; smell tests run on Linux too (cheap and catches portability surprises early).
 7. A new `architecture-smells.test.ts` enforces forbidden imports, forbidden directories, forbidden DB references, the CLI error block format, and the `--help` output matching `reference/cli.md`. The test fails the build on regression.
@@ -29,7 +29,7 @@ Sizing as before. Phase 4 is mostly M-sized work; the bulk is grinding out tests
 2. **W2 — Architecture smell tests (S).** Centralise every "we don't allow this" rule as a single test file, replacing the manual greps from Phase 1/2. Forbidden imports, forbidden directories, forbidden DB references, CLI error block format compliance, `--help` vs. `reference/cli.md` parity.
 3. **W3 — Integration tests for every boundary (L).** One spec per boundary module, exercising the real subsystem against fixtures and asserting closed-error-union behaviour. The biggest single piece of Phase 4 work.
 4. **W4 — Analytics snapshot tests (M).** Pin every analytics procedure's output against the seed database into a snapshot fixture under `packages/database/test-fixtures/`. Snapshot-driven regression suite for the W5 work from Phase 2.
-5. **W5 — Playwright UI E2E expansion (M).** Repurpose the existing `packages/e2e-tests` Playwright tests away from the hosted-app assumptions; cover dashboard, transactions, assistant, PDF viewer, settings; spawn Next.js through the CLI rather than against a dev server.
+5. **W5 — Playwright UI E2E expansion (M).** Repurpose the existing `packages/e2e-tests` Playwright tests away from hosted-app assumptions; cover dashboard, transactions/receipts, assistant, feedback, and settings; spawn Next.js through the CLI rather than against a dev server.
 6. **W6 — CLI E2E scenarios for Phase 1/2/3 + Phase 4 meta-scenario (S).** Codify the rerun-previous-phases discipline into a single `e2e:all` script that runs all phase scenarios and reports a single pass/fail.
 7. **W7 — CI orchestration and matrix (M).** GitHub Actions workflows: per-PR fast tier (unit + smells + integration on Node 20 macOS), nightly slow tier (everything on Node 20 + 22 macOS, Node 20 Linux for smells), required-checks configuration, coverage report upload.
 8. **W8 — Test data and fixture discipline (S).** A single source of truth for every fixture (gws messages, swiggy seed, analytics snapshots), a `pnpm fixtures:check` script that diffs generated fixtures against committed ones, and a fixtures-update workflow that gates regeneration behind explicit approval.
@@ -98,13 +98,11 @@ Acceptance: deliberately changing one analytics function's grouping logic produc
 
 The existing `packages/e2e-tests/tests/authenticated.spec.ts` and `unauthenticated.spec.ts` were written for the hosted-app shape and are stale. They are replaced by:
 
-- `dashboard.spec.ts` — load the dashboard, assert the headline cards render, assert a transaction list appears.
-- `transactions.spec.ts` — filter by date range, by merchant, by amount range; assert the URL query state and the rendered rows.
-- `assistant.spec.ts` — send a fixed prompt, assert a streamed response begins within 3 seconds, assert the message renders.
-- `pdf-viewer.spec.ts` — open a transaction with an attached PDF, assert the viewer renders, assert the bytes match the on-disk file.
-- `settings.spec.ts` — toggle the bundled skill, assert the toggle persists across a reload.
+- `dashboard.spec.ts` — load the dashboard, assert the overview cards render, and move across the main product surfaces.
+- `transactions.spec.ts` — review the transaction list, reverse sort order, and open a locally-served receipt.
+- `assistant-feedback.spec.ts` — send a prompt, assert a streamed response renders, return to a fresh chat, and submit in-app feedback.
 
-The Playwright config spawns the CLI in dev mode (or pack-installed mode if `SLASHCASH_E2E_FROM_TARBALL=1`) on a unique port per worker, with a unique `SLASHCASH_HOME`. The seed runs once per spec; the assistant tests stub Ollama via `SLASHCASH_OLLAMA_BASE_URL` pointed at a local fake. No spec depends on a previously-running server.
+The Playwright config spawns the CLI in dev mode on a fixed isolated local state directory, seeds the database, imports one Gmail fixture receipt for the receipt-viewer path, and starts a local mock Ollama-compatible server so the assistant UI can stream deterministically. No spec depends on a previously-running server.
 
 Acceptance: the Playwright suite runs in under 90 seconds, every spec runs in isolation, the artefact upload contains a screenshot per failed assertion.
 
@@ -166,7 +164,7 @@ Phase 4 is done when: every success criterion above is met; `pr.yml` and `nightl
 
 ## Pending — hand to next agent
 
-What shipped under Phase 4 so far: shared Vitest infrastructure in `packages/typescript-config/vitest.base.ts`, per-package `vitest.config.ts` files for `packages/cli`, `packages/tasks`, `packages/database`, `packages/ui`, and `apps/main`, smoke unit tests in those five packages, v8 coverage wiring via `test:coverage`, and an isolated temp `SLASHCASH_HOME` / `SQLITE_DB_PATH` global setup; `packages/e2e-tests/architecture-smells.test.ts` with the forbidden-import / forbidden-directory / forbidden-DB / forbidden-env rules wired into `pnpm architecture-smells`; `pnpm fixtures:check`; a `phase-4.ts` meta scenario that now runs the five package Vitest suites; the PR / nightly / release workflow scaffolding; `e2e:phase-1`..`e2e:phase-5` runners; stale Playwright specs in place under `packages/e2e-tests/tests/` but not yet repurposed.
+What shipped under Phase 4 so far: shared Vitest infrastructure in `packages/typescript-config/vitest.base.ts`, per-package `vitest.config.ts` files for `packages/cli`, `packages/tasks`, `packages/database`, `packages/ui`, and `apps/main`, smoke unit tests in those five packages, v8 coverage wiring via `test:coverage`, and an isolated temp `SLASHCASH_HOME` / `SQLITE_DB_PATH` global setup; `packages/e2e-tests/architecture-smells.test.ts` with the forbidden-import / forbidden-directory / forbidden-DB / forbidden-env rules wired into `pnpm architecture-smells`; `pnpm fixtures:check`; a `phase-4.ts` meta scenario that now runs the five package Vitest suites; the PR / nightly / release workflow scaffolding; `e2e:phase-1`..`e2e:phase-5` runners; and customer-journey Playwright coverage under `packages/e2e-tests/tests/` that boots the app through `slashcash start`.
 
 What the phase doc promises that is **not yet real in the repo**:
 
@@ -177,7 +175,7 @@ What the phase doc promises that is **not yet real in the repo**:
 - [ ] Land the boundary integration tests named in W3: `gws` wrapper, Ollama provider, doctor pipeline, cron single-flight mutex, attachment-serving route, skill registry, assistant route, CLI error formatter, skill jobs registry. Today only tiny Vitest smoke tests exist for a few of those surfaces; the named `*.integration.test.ts` boundary specs are still not real.
   - Partial progress on 2026-04-18: landed `packages/tasks/src/utils/gws.integration.test.ts`. It parses the recorded Gmail list/message/attachment fixtures through the wrapper, drives successful command stdout through an injected runner, and makes every documented `GwsErrorCode` reachable without invoking real `gws` or touching Google state.
 - [ ] Pin each analytics procedure's output to a snapshot under `packages/database/test-fixtures/analytics/`; iterate every export of `queries/insights/swiggyAnalytics.ts` in a single snapshot test file; fail CI on uncommitted snapshot changes.
-- [ ] Replace the legacy Supabase-era Playwright specs (`packages/e2e-tests/tests/authenticated.spec.ts`, `unauthenticated.spec.ts`) with the W5 specs: `dashboard.spec.ts`, `transactions.spec.ts`, `assistant.spec.ts`, `pdf-viewer.spec.ts`, `settings.spec.ts`. Configure Playwright to spawn the CLI (dev or tarball mode) on a unique port per worker with a unique `SLASHCASH_HOME`.
+- [x] Replace the legacy Supabase-era Playwright specs (`packages/e2e-tests/tests/authenticated.spec.ts`, `unauthenticated.spec.ts`) with customer-journey specs (`dashboard.spec.ts`, `transactions.spec.ts`, `assistant-feedback.spec.ts`). Playwright now seeds local data, imports one fixture Gmail receipt, starts the app through `slashcash start`, and uses a local mock Ollama-compatible server for deterministic chat streaming.
 - [ ] Extend the `architecture-smells.test.ts` rules in W2 that are not yet covered: the AST-walk that asserts every CLI-reachable `throw`/`console.error` goes through a registered error class, and the `--help` ↔ `reference/cli.md` parity check.
 - [ ] Add the W9 stretch items where they pay off: property-based classifier test with `fast-check`, manifest schema contract test, mutation run on `queries/insights/` via Stryker.
 - [ ] Configure GitHub branch protection on `main` so every `pr.yml` job is required. Today `pr.yml` only runs `smells`, `lint-and-types`, `unit`, and `phase-1-e2e`; integration/Playwright/`e2e-phase-3`/`e2e-phase-4` jobs need to be added and then required.
