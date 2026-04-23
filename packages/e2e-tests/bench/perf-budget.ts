@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const imapFixtureDir = resolve(repoRoot, "packages/e2e-tests/fixtures/imap");
 const budgets = {
   versionMs: Number(process.env.SLASHCASH_BENCH_VERSION_MS ?? 1000),
   doctorQuickMs: Number(process.env.SLASHCASH_BENCH_DOCTOR_QUICK_MS ?? 3000),
@@ -19,6 +20,7 @@ const doctor = measure("slashcash doctor --quick", () =>
     SLASHCASH_HOME: doctorHome,
     SQLITE_DB_PATH: join(doctorHome, "db.sqlite"),
     SLASHCASH_DOCTOR_SKIP_OLLAMA: "1",
+    SLASHCASH_IMAP_FIXTURE_DIR: imapFixtureDir,
   }),
 );
 rmSync(doctorHome, { recursive: true, force: true });

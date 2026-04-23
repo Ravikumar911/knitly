@@ -7,7 +7,11 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@workspace/database": ["../../packages/database/src/index.ts"],
+      "@workspace/database/*": ["../../packages/database/src/*"],
+      "@workspace/tasks": ["../../packages/tasks/src/index.ts"],
+      "@workspace/tasks/*": ["../../packages/tasks/src/*"]
     }
   },
   "include": [

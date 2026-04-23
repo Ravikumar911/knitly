@@ -8,11 +8,13 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const home = mkdtempSync(join(tmpdir(), "slashcash-phase-1-"));
 const port = Number(process.env.SLASHCASH_E2E_PORT || 3219);
 const baseUrl = `http://127.0.0.1:${port}`;
+const fixtureDir = join(repoRoot, "packages", "e2e-tests", "fixtures", "imap");
 
 const env = {
   ...process.env,
   SLASHCASH_HOME: home,
   SQLITE_DB_PATH: join(home, "db.sqlite"),
+  SLASHCASH_IMAP_FIXTURE_DIR: fixtureDir,
   SLASHCASH_PORT: String(port),
   SLASHCASH_NO_OPEN: "1",
 };
@@ -24,7 +26,12 @@ async function main() {
     run("doctor", ["--fix"]);
     run("db", ["seed"]);
 
-    startProcess = spawnSlashcash(["start", "--port", String(port), "--no-open"]);
+    startProcess = spawnSlashcash([
+      "start",
+      "--port",
+      String(port),
+      "--no-open",
+    ]);
     await waitForHealthz();
 
     await assertDashboardHtml();
@@ -72,15 +79,11 @@ function run(command: string, args: string[]) {
 }
 
 function spawnSlashcash(args: string[]) {
-  const child = spawn(
-    "pnpm",
-    ["--filter", "slashcash", "dev", "--", ...args],
-    {
-      cwd: repoRoot,
-      env,
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  );
+  const child = spawn("pnpm", ["--filter", "slashcash", "dev", "--", ...args], {
+    cwd: repoRoot,
+    env,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
 
   child.stdout?.on("data", (chunk) => process.stdout.write(chunk));
   child.stderr?.on("data", (chunk) => process.stderr.write(chunk));
@@ -102,12 +105,14 @@ async function waitForHealthz() {
     try {
       const response = await fetch(`${baseUrl}/api/healthz`);
       if (response.ok) {
-        const body = await response.json() as { ok?: boolean; mode?: string };
+        const body = (await response.json()) as { ok?: boolean; mode?: string };
         if (body.ok && body.mode === "local") {
           console.log("healthz: ok");
           return;
         }
-        lastError = new Error(`unexpected healthz body ${JSON.stringify(body)}`);
+        lastError = new Error(
+          `unexpected healthz body ${JSON.stringify(body)}`,
+        );
       } else {
         lastError = new Error(`HTTP ${response.status}`);
       }
@@ -121,18 +126,28 @@ async function waitForHealthz() {
 }
 
 async function assertDashboardHtml() {
-  const response = await fetch(`${baseUrl}/dashboard`, { redirect: "manual" });
-  if (response.status !== 200) {
-    throw new Error(`dashboard returned HTTP ${response.status}`);
+  const deadline = Date.now() + 30_000;
+  let lastStatus: number | undefined;
+
+  while (Date.now() < deadline) {
+    const response = await fetch(`${baseUrl}/dashboard`, { redirect: "manual" });
+    lastStatus = response.status;
+
+    if (response.status === 200) {
+      const html = await response.text();
+      assertIncludes(html, "slash.cash", "dashboard HTML includes product name");
+      if (html.includes("/login")) {
+        throw new Error("dashboard HTML still references a login route");
+      }
+
+      console.log("dashboard: ok");
+      return;
+    }
+
+    await sleep(500);
   }
 
-  const html = await response.text();
-  assertIncludes(html, "slash.cash", "dashboard HTML includes product name");
-  if (html.includes("/login")) {
-    throw new Error("dashboard HTML still references a login route");
-  }
-
-  console.log("dashboard: ok");
+  throw new Error(`dashboard did not become ready: last HTTP ${lastStatus}`);
 }
 
 async function assertAssistantStream() {
@@ -145,7 +160,12 @@ async function assertAssistantStream() {
       message: {
         id: "phase-1-message",
         role: "user",
-        parts: [{ type: "text", text: "Say one short sentence about my Swiggy data." }],
+        parts: [
+          {
+            type: "text",
+            text: "Say one short sentence about my Swiggy data.",
+          },
+        ],
       },
     }),
   });

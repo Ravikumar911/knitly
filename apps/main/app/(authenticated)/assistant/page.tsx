@@ -1,21 +1,14 @@
 import { prefetch, HydrateClient, trpc } from '@/trpc/server';
-import { ChatInterface } from '@/components/assistant/chat-interface';
 import { ChatSidebar } from '@/components/assistant/chat-sidebar';
 import { AssistantHeader } from '@/components/assistant/assistant-header';
-import { randomUUID } from 'crypto';
+import { NewChatShell } from '@/components/assistant/new-chat-shell';
 import { Suspense } from 'react';
 import { Skeleton } from '@workspace/ui/components/skeleton';
 
 export const dynamic = 'force-dynamic';
 
-function generateUUID(): string {
-  return randomUUID();
-}
-
 export default async function AssistantPage() {
   await prefetch(trpc.chat.list.queryOptions({ limit: 50 }));
-
-  const newChatId = generateUUID();
 
   return (
     <HydrateClient>
@@ -26,7 +19,7 @@ export default async function AssistantPage() {
             <ChatSidebar />
           </Suspense>
           <main className="flex-1 flex flex-col min-w-0 w-full">
-            <ChatInterface chatId={newChatId} initialMessages={[]} />
+            <NewChatShell />
           </main>
         </div>
       </div>

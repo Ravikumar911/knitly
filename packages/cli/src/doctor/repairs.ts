@@ -1,3 +1,4 @@
+import { resetStoredCredentials } from "../config/credentials.js";
 import { loadConfig } from "../config/load.js";
 import { ensureStateDirs, resolvePaths } from "../config/paths.js";
 import { loadDatabase } from "../runtime/database.js";
@@ -11,4 +12,8 @@ export async function repairPhase1State() {
   process.env.SQLITE_DB_PATH = paths.db;
   const { ensureLocalDatabase } = await loadDatabase();
   ensureLocalDatabase();
+}
+
+export async function resetDoctorCredentials() {
+  await resetStoredCredentials();
 }

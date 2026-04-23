@@ -1,6 +1,12 @@
 import { Experimental_Agent as Agent, createUIMessageStream, convertToModelMessages, JsonToSseTransformStream, stepCountIs } from 'ai';
-import { chatModel } from '@/lib/ai/provider';
-import { getChatById, createChat, saveMessage, LOCAL_USER_ID } from '@workspace/database';
+import { chatModel, resolveAiRuntimeConfig } from '@/lib/ai/provider';
+import {
+  getChatById,
+  createChat,
+  saveMessage,
+  LOCAL_USER_ID,
+  getSwiggySpendingOverview,
+} from '@workspace/database';
 import { swiggyAnalyticsTools } from '@/lib/ai/tools/swiggy-analytics';
 
 export const maxDuration = 60;
@@ -54,6 +60,30 @@ export async function POST(req: Request) {
     ];
 
     console.log('[assistant] Total messages for context:', uiMessages.length);
+    const fallbackReply = await buildFallbackReply();
+    const runtimeConfig = resolveAiRuntimeConfig();
+
+    if (!(await modelSupportsTools(runtimeConfig))) {
+      console.log('[assistant] Tool calling unavailable, using deterministic fallback');
+      const fallbackStream = createUIMessageStream({
+        execute: ({ writer }) => {
+          writer.write({ type: 'start' });
+          writer.write({ type: 'start-step' });
+          writer.write({ type: 'text-start', id: 'text-1' });
+          writer.write({ type: 'text-delta', id: 'text-1', delta: fallbackReply });
+          writer.write({ type: 'text-end', id: 'text-1' });
+          writer.write({ type: 'finish-step' });
+          writer.write({ type: 'finish' });
+        },
+        onFinish: async ({ messages: responseMessages }) => {
+          await saveAssistantMessages(chatId, responseMessages);
+        },
+      });
+
+      return new Response(
+        fallbackStream.pipeThrough(new JsonToSseTransformStream()),
+      );
+    }
 
     console.log('[assistant] Creating local assistant agent');
     const agent = new Agent({
@@ -92,26 +122,23 @@ export async function POST(req: Request) {
 
         // Consume and merge the stream
         console.log('[assistant] Consuming and merging agent stream');
-        result.consumeStream();
-        dataStream.merge(result.toUIMessageStream());
+        result.consumeStream({
+          onError: (error) => {
+            console.error('[assistant] stream consume error:', error);
+          },
+        });
+        dataStream.merge(
+          result.toUIMessageStream({
+            onError: (error) => {
+              console.error('[assistant] stream fallback:', error);
+              return fallbackReply;
+            },
+          }),
+        );
         console.log('[assistant] Stream setup complete');
       },
       onFinish: async ({ messages: responseMessages }) => {
-        console.log('[assistant] 🏁 Stream finished, saving assistant messages');
-        console.log('[assistant] Response messages count:', responseMessages.length);
-        
-        // ✅ Save assistant messages to database
-        await Promise.all(
-          responseMessages.map((msg: any) => {
-            console.log('[assistant] Saving message:', {
-              role: msg.role,
-              partsCount: msg.parts?.length,
-            });
-            return saveMessage(chatId, msg.role, msg.parts);
-          })
-        );
-        
-        console.log('[assistant] ✅ All assistant messages saved to database');
+        await saveAssistantMessages(chatId, responseMessages);
       },
     });
 
@@ -132,4 +159,90 @@ export async function POST(req: Request) {
       }
     );
   }
+}
+
+async function buildFallbackReply() {
+  try {
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const overview = await getSwiggySpendingOverview(
+      LOCAL_USER_ID,
+      startDate,
+      endDate,
+    );
+
+    if (overview.orderCount === 0) {
+      return 'No completed Swiggy orders were found in your local data yet, so there is nothing to summarize right now.';
+    }
+
+    const topRestaurant = overview.topRestaurants[0]?.name;
+    const totalSpend = Math.round(overview.totalSpend);
+    const avgOrderValue = Math.round(overview.avgOrderValue);
+    const restaurantLine = topRestaurant
+      ? ` Your top restaurant is ${topRestaurant}.`
+      : '';
+
+    return `Your last 90 days show ${overview.orderCount} Swiggy orders totaling Rs ${totalSpend}, with an average order value of Rs ${avgOrderValue}.${restaurantLine}`;
+  } catch (error) {
+    console.error('[assistant] fallback summary failed:', error);
+    return 'I could not load the detailed assistant tools just now, but your local data is still available in the dashboard and transactions views.';
+  }
+}
+
+async function modelSupportsTools(input: { baseURL: string; chatModel: string }) {
+  try {
+    const response = await fetch(`${input.baseURL}/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: input.chatModel,
+        messages: [{ role: 'user', content: 'ping' }],
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'probe_tool_support',
+              description: 'Internal capability probe for tool calling.',
+              parameters: {
+                type: 'object',
+                properties: {},
+                additionalProperties: false,
+              },
+            },
+          },
+        ],
+        tool_choice: 'auto',
+        max_tokens: 1,
+        stream: false,
+      }),
+    });
+
+    if (response.ok) {
+      return true;
+    }
+
+    const body = await response.text();
+    console.warn('[assistant] Tool support probe failed:', body);
+    return false;
+  } catch (error) {
+    console.warn('[assistant] Tool support probe errored:', error);
+    return false;
+  }
+}
+
+async function saveAssistantMessages(chatId: string, responseMessages: any[]) {
+  console.log('[assistant] 🏁 Stream finished, saving assistant messages');
+  console.log('[assistant] Response messages count:', responseMessages.length);
+
+  await Promise.all(
+    responseMessages.map((msg: any) => {
+      console.log('[assistant] Saving message:', {
+        role: msg.role,
+        partsCount: msg.parts?.length,
+      });
+      return saveMessage(chatId, msg.role, msg.parts);
+    }),
+  );
+
+  console.log('[assistant] ✅ All assistant messages saved to database');
 }

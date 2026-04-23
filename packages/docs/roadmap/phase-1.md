@@ -1,11 +1,11 @@
 # Phase 1 — Local-first feature parity
 
-> *Goal: a user on a clean macOS box runs `npm i -g slashcash`, then `slashcash onboard`, then `slashcash start`, and ends up with the full Swiggy analytics and chat assistant experience, powered by their own Gmail and their own machine — with no outbound traffic outside their laptop after `onboard` finishes.*
+> _Goal: a user on a clean macOS box runs `npm i -g slashcash`, then `slashcash onboard`, then `slashcash start`, and ends up with the full Swiggy analytics and chat assistant experience, powered by their own Gmail and their own machine — with no outbound traffic outside their laptop after `onboard` finishes._
 
 ## Status
 
 - **Shipped against fixtures.** Cron + single-flight mutex, PDF attachment storage + serving route, Swiggy analytics on SQLite (typed Drizzle tools; no raw SQL from the assistant), Ollama vision parsing path, skills registry v1 (bundled `gmail-swiggy`, `skills list/enable/disable`), packaging / release workflow scaffolding, expanded doctor surface, and evals-as-a-gate wiring.
-- **Superseded by [`pivot-imap.md`](./pivot-imap.md).** The `slashcash onboard` interactive wizard and the `gws` Gmail ingest rewrite — work under this phase had those on the critical path, but both are now owned by the pivot's B1–B4 workstreams (remove `gws`/`gcloud`, ship `@clack/prompts` wizard, IMAP client + credential store + `imap-*` classifier). Do not reopen the `gws` ingest here.
+- **Shipped through [`pivot-imap.md`](./pivot-imap.md).** The onboarding wizard, IMAP client + credential store, privacy copy rewrite, and fixture-backed IMAP E2E all landed through pivot stages P1-P5. Do not reopen the retired mailbox-tooling path here.
 
 ## Pending — hand to next agent
 

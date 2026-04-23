@@ -2,7 +2,7 @@
 
 Local-first personal finance dashboard built with Next.js, SQLite, Drizzle ORM, tRPC, and Ollama-compatible local AI.
 
-> **Pivot in progress (2026-04-22).** Gmail access is moving from the `gws`/`gcloud` flow to IMAP + a user-generated Gmail app password, and the CLI onboarding is being rebased onto an interactive wizard (`@clack/prompts`, modelled on `../openclaw/src/wizard/*`). Active plan: [`packages/docs/roadmap/pivot-imap.md`](./packages/docs/roadmap/pivot-imap.md). ADRs: [`ADR-024`](./packages/docs/reference/decisions.md#adr-024--gmail-access-via-imap--user-issued-app-password), [`ADR-025`](./packages/docs/reference/decisions.md#adr-025--interactive-onboarding-wizard-on-clackprompts). References in this README to `gws` / `gcloud` are kept for historical continuity; new installs should follow the pivot plan.
+> Gmail sync now uses IMAP + a user-generated Gmail app password, and `slashcash onboard` walks that setup through an interactive `@clack/prompts` wizard. Active plan and rollout notes: [`packages/docs/roadmap/pivot-imap.md`](./packages/docs/roadmap/pivot-imap.md). ADRs: [`ADR-024`](./packages/docs/reference/decisions.md#adr-024--gmail-access-via-imap--user-issued-app-password), [`ADR-025`](./packages/docs/reference/decisions.md#adr-025--interactive-onboarding-wizard-on-clackprompts).
 
 ## Project Structure
 
@@ -29,7 +29,7 @@ The current local app runs fully on the developer machine:
 - No hosted auth, remote job queue, cloud storage, or hosted database.
 - Ollama-compatible chat/extraction models through `OLLAMA_BASE_URL` and `OLLAMA_CHAT_MODEL`.
 - A `slashcash` CLI for onboarding, start, stop, status, doctor, config, db, sync, skills, and logs commands.
-- Gmail ingestion over IMAP (`imap.gmail.com:993`) using a user-generated app password stored in the macOS Keychain. The legacy `gws` path is being retired; see [`packages/docs/roadmap/pivot-imap.md`](./packages/docs/roadmap/pivot-imap.md).
+- Gmail ingestion over IMAP (`imap.gmail.com:993`) using a user-generated app password stored in the macOS Keychain or `~/.slashcash/credentials.json` when Keychain is unavailable.
 - Local PDF attachment storage under `~/.slashcash/attachments`.
 - Typed SQLite-backed Swiggy analytics tools for the assistant.
 
@@ -107,6 +107,8 @@ For local doctor checks without requiring Ollama:
 ```bash
 SLASHCASH_DOCTOR_SKIP_OLLAMA=1 pnpm --filter slashcash dev -- doctor
 ```
+
+Package verification notes for published releases live in [`packages/docs/reference/release.md`](./packages/docs/reference/release.md).
 
 ## Tech Stack
 

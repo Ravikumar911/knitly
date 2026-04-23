@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,14 +37,13 @@ try {
   run("doctor", ["--quick"]);
 
   const sync = run("sync", ["--full"]);
-  assertIncludes(sync.stdout, "0 processed", "sync records a placeholder receipt");
+  assertIncludes(sync.stdout, "1 processed", "sync ingests the IMAP fixture");
+  if (readdirSync(join(home, "attachments")).length === 0) {
+    throw new Error("sync did not write any attachment fixtures");
+  }
 
   run("skills", ["disable", "gmail-swiggy"]);
-  runExpectFailure(
-    "sync",
-    ["--full"],
-    "gmail-swiggy skill is disabled",
-  );
+  runExpectFailure("sync", ["--full"], "gmail-swiggy skill is disabled");
   run("skills", ["enable", "gmail-swiggy"]);
 
   console.log("Phase 2 E2E passed.");

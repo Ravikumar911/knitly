@@ -1,5 +1,6 @@
 import type { SlashcashPaths } from "../config/paths.js";
 import type { SlashcashConfig } from "../config/schema.js";
+import { applyRuntimeEnv } from "../config/runtime-env.js";
 import { loadDatabase } from "../runtime/database.js";
 import { writeLog } from "../runtime/log.js";
 import { loadEmailSync } from "../runtime/tasks.js";
@@ -50,14 +51,10 @@ async function runSkillJob(
     throw new Error(`Unknown skill job handler: ${handler}`);
   }
 
-  process.env.SQLITE_DB_PATH = paths.db;
-  process.env.SLASHCASH_HOME = paths.home;
-  process.env.SLASHCASH_ATTACHMENTS_DIR = paths.attachments;
-  process.env.SLASHCASH_GMAIL_QUERY = config.sync.gmailQuery;
-  process.env.SLASHCASH_SYNC_LIMIT = String(config.sync.maxMessages);
-  process.env.OLLAMA_BASE_URL = config.ai.ollamaBaseUrl;
-  process.env.OLLAMA_CHAT_MODEL = config.ai.chatModel;
-  process.env.OLLAMA_VISION_MODEL = config.ai.visionModel;
+  await applyRuntimeEnv({
+    config,
+    paths,
+  });
 
   const { ensureLocalDatabase, LOCAL_USER_ID } = await loadDatabase();
   ensureLocalDatabase();

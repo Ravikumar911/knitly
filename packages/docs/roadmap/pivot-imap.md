@@ -1,7 +1,6 @@
 # Pivot — IMAP + App Password + Interactive Wizard (active plan)
 
-> *Revision date: 2026-04-22. This document supersedes the onboarding + Gmail access sections of what used to be Phase 2 and Phase 3 (now [`phase-1.md`](./phase-1.md) and [`phase-2.md`](./phase-2.md) after the 2026-04-22 renumbering). Other workstreams (SQLite migration, analytics rewrite, skills, doctor, release, evals) are not changed by this pivot and keep their original plans.*
-> *This is the **active** plan. The next execution agent works from this file. The phase docs and ADR-004 / ADR-011 (gws/gcloud parts) / ADR-022 are kept for history and marked superseded; do not implement against them.*
+> _Revision date: 2026-04-22. This document supersedes the onboarding + Gmail access sections of what used to be Phase 2 and Phase 3 (now [`phase-1.md`](./phase-1.md) and [`phase-2.md`](./phase-2.md) after the 2026-04-22 renumbering). Other workstreams (SQLite migration, analytics rewrite, skills, doctor, release, evals) are not changed by this pivot and keep their original plans._ > _This is the **active** plan. The next execution agent works from this file. The phase docs and ADR-004 / ADR-011 (gws/gcloud parts) / ADR-022 are kept for history and marked superseded; do not implement against them._ > _Status on 2026-04-22:_ repo-local stages **P0 through P5 are shipped** (IMAP client, credential store, wizard, privacy copy, doc parity, fixture-backed E2E). **P6 remains manual dogfood** because it needs a real Gmail account, a clean machine, and release-like install conditions.
 
 ## Why we're pivoting inside the pivot
 
@@ -147,15 +146,15 @@ Exit: `pnpm architecture-smells` is green with the new `gws`/`gcloud` forbidden-
 
 The next agent runs these in this order. Each stage ends on a commit that leaves the repo green on `pnpm typecheck`, `pnpm lint`, `pnpm architecture-smells`, and the relevant `pnpm e2e:phase-*`.
 
-| # | Workstream | Size | Depends on |
-|---|------------|------|-----------|
-| P0 | B5 docs/ADR scaffolding (this file lands, ADR-024 and ADR-025 drafted) | S | — |
-| P1 | B1 remove gws/gcloud code + tests + fixtures | S | P0 |
-| P2 | B3 IMAP client + credentials store + ingest rewrite (fixture-first) | M | P1 |
-| P3 | B2 interactive wizard on `@clack/prompts`, wired to B3 | M | P2 |
-| P4 | B4 privacy copy rewrite + snapshots + `slashcash privacy` update | S | P3 |
-| P5 | B5 finish: `reference/*.md` parity, architecture doc diff, README/AGENTS.md | S | P4 |
-| P6 | Real-account E2E dogfood: clean-machine `npm i -g slashcash`, generate an app password, full Swiggy ingest; mark the `phase-1.md` / `phase-2.md` (post-rename) "Pending — hand to next agent" items that this pivot retires | S | P5 |
+| #   | Workstream                                                                                                                                                                                                                  | Size | Depends on |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ---------- |
+| P0  | B5 docs/ADR scaffolding (this file lands, ADR-024 and ADR-025 drafted)                                                                                                                                                      | S    | —          |
+| P1  | B1 remove gws/gcloud code + tests + fixtures                                                                                                                                                                                | S    | P0         |
+| P2  | B3 IMAP client + credentials store + ingest rewrite (fixture-first)                                                                                                                                                         | M    | P1         |
+| P3  | B2 interactive wizard on `@clack/prompts`, wired to B3                                                                                                                                                                      | M    | P2         |
+| P4  | B4 privacy copy rewrite + snapshots + `slashcash privacy` update                                                                                                                                                            | S    | P3         |
+| P5  | B5 finish: `reference/*.md` parity, architecture doc diff, README/AGENTS.md                                                                                                                                                 | S    | P4         |
+| P6  | Real-account E2E dogfood: clean-machine `npm i -g slashcash`, generate an app password, full Swiggy ingest; mark the `phase-1.md` / `phase-2.md` (post-rename) "Pending — hand to next agent" items that this pivot retires | S    | P5         |
 
 The testing-pyramid and release phases (post-rename [`phase-3.md`](./phase-3.md) and [`phase-4.md`](./phase-4.md)) are unaffected by this pivot and stay in their original order after P6.
 

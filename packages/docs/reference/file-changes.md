@@ -2,6 +2,23 @@
 
 Concrete per-file changes for Phase 1. This is the checklist the execution chat works against. Paths are repo-root relative. Every line is categorised as **create**, **modify**, or **delete**.
 
+## 2026-04-22 pivot addendum
+
+The active IMAP pivot adds the following high-signal file changes on top of the original Phase 1 checklist:
+
+- **modify** `packages/cli/src/config/schema.ts` — add the `gmail` section (`address`, `passwordStore`, pinned `imapServer`).
+- **create** `packages/cli/src/config/credentials.ts` — keychain-first Gmail app-password storage with a `credentials.json` fallback.
+- **create** `packages/cli/src/config/runtime-env.ts` — centralizes runtime env export for sync, cron, and start.
+- **create** `packages/tasks/src/gmail/imap-client.ts` — IMAP + fixture-backed Gmail client.
+- **create** `packages/tasks/src/utils/imap-errors.ts` — closed IMAP error classifier.
+- **modify** `packages/tasks/src/trigger/processEmails.ts` — real IMAP ingest path.
+- **create** `packages/cli/src/wizard/*` and **modify** `packages/cli/src/onboard/run.ts` — interactive `@clack/prompts` wizard.
+- **modify** `packages/cli/src/doctor/*` — Gmail credential and IMAP verification checks, plus `--reset-credentials`.
+- **modify** `packages/cli/src/privacy/copy.ts` — IMAP privacy copy and app-password disclosure note.
+- **delete** `packages/e2e-tests/fixtures/imap/*.json` and **create** `packages/e2e-tests/fixtures/imap/*.eml` — IMAP fixture format switch.
+- **modify** `packages/e2e-tests/scenarios/phase-2.ts` / `phase-3.ts` / `scripts/fixtures-check.ts` — fixture-backed IMAP acceptance flow.
+- **modify** `README.md`, `AGENTS.md`, and the reference docs listed in `pivot-imap.md` § B5 — IMAP + wizard parity.
+
 ## Root and tooling
 
 - **modify** `package.json` — remove `@supabase/ssr`, `@supabase/supabase-js`, `@trigger.dev/sdk`, `@trigger.dev/build`, `@vercel/analytics`, `@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/mistral`, `postgres`. Add `better-sqlite3`, `@ai-sdk/openai-compatible`, `commander`, `picocolors`, `prompts`, `node-cron`, `zod` (if not already hoisted). Keep `drizzle-orm`, `drizzle-kit`, `ai`, `@ai-sdk/react`, `@trpc/*`, `tailwindcss-animate`, shadcn deps, Next and React deps.

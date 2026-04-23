@@ -2,6 +2,7 @@ import type { Command } from "commander";
 import pc from "picocolors";
 import { loadConfig } from "../../config/load.js";
 import { resolvePaths } from "../../config/paths.js";
+import { applyRuntimeEnv } from "../../config/runtime-env.js";
 import { loadDatabase } from "../../runtime/database.js";
 import { loadEmailSync } from "../../runtime/tasks.js";
 import {
@@ -35,17 +36,12 @@ export function register(program: Command) {
           });
         }
 
-        process.env.SQLITE_DB_PATH = paths.db;
-        process.env.SLASHCASH_HOME = paths.home;
-        process.env.SLASHCASH_ATTACHMENTS_DIR = paths.attachments;
-        process.env.SLASHCASH_GMAIL_QUERY =
-          options.query || config.sync.gmailQuery;
-        process.env.SLASHCASH_SYNC_LIMIT = String(
-          options.limit || config.sync.maxMessages,
-        );
-        process.env.OLLAMA_BASE_URL = config.ai.ollamaBaseUrl;
-        process.env.OLLAMA_CHAT_MODEL = config.ai.chatModel;
-        process.env.OLLAMA_VISION_MODEL = config.ai.visionModel;
+        await applyRuntimeEnv({
+          config,
+          paths,
+          query: options.query || config.sync.gmailQuery,
+          maxMessages: options.limit || config.sync.maxMessages,
+        });
 
         const { ensureLocalDatabase, LOCAL_USER_ID } = await loadDatabase();
         ensureLocalDatabase();
@@ -53,8 +49,8 @@ export function register(program: Command) {
         const { runEmailSync } = await loadEmailSync();
         const result = await runEmailSync({
           userId: LOCAL_USER_ID,
-          query: process.env.SLASHCASH_GMAIL_QUERY,
-          maxMessages: Number(process.env.SLASHCASH_SYNC_LIMIT),
+          query: options.query || config.sync.gmailQuery,
+          maxMessages: options.limit || config.sync.maxMessages,
           full: options.full,
         });
 

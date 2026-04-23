@@ -12,12 +12,10 @@ export function register(program: Command) {
       "Only create slash.cash local state and bundled skills",
     )
     .option("--skip-external", "Skip Homebrew and Ollama checks")
-    .option("--skip-auth", "Skip future credential prompts (E2E only)")
     .action(
       async (options: {
         dryRun?: boolean;
         skipExternal?: boolean;
-        skipAuth?: boolean;
         yes?: boolean;
         nonInteractive?: boolean;
       }) => {
@@ -29,6 +27,5 @@ export function register(program: Command) {
     command.options
       .find((option) => option.long === "--skip-external")
       ?.hideHelp();
-    command.options.find((option) => option.long === "--skip-auth")?.hideHelp();
   }
 }
