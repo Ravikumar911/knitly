@@ -73,6 +73,10 @@ const forbidden = shippedFiles.filter((file) => {
     /(^|\/)\.env/.test(name) ||
     /(^|\/)\.gitignore$/.test(name) ||
     /(^|\/)\.turbo(\/|$)/.test(name) ||
+    /(^|\/)\.venv(\/|$)/.test(name) ||
+    /(^|\/)\.pytest_cache(\/|$)/.test(name) ||
+    /(^|\/)[^/]+\.egg-info(\/|$)/.test(name) ||
+    /(^|\/)uv\.lock$/.test(name) ||
     /(^|\/)coverage(\/|$)/.test(name) ||
     /(^|\/)__pycache__(\/|$)/.test(name) ||
     /(^|\/)\.next\/cache(\/|$)/.test(name) ||

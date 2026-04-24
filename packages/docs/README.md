@@ -8,10 +8,10 @@ This is a **fully local** product. There is no dual-run mode and no cloud fallba
 
 Read in order on your first pass:
 
-1. [`vision.md`](./vision.md) — *Why we are doing this and the product principles.*
-2. [`current-state.md`](./current-state.md) — *What ships today, the retired-phase summary, and the pre-pivot snapshot kept for historical context.*
-3. [`architecture.md`](./architecture.md) — *Target topology, process model, data flow, config layout — including the two-lane extractor (email-body via Gemma, PDFs via Docling, merged via a Gemma reconciliation pass).*
-4. [`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md) — **Active execution plan** (2026-04-23). Swap Gemma-based PDF extraction for a deterministic Python extractor (Docling) + a Gemma reconciliation pass. Includes the new `packages/pdf-extractor/` Python package and the `doctor --fix` venv bootstrap.
+1. [`vision.md`](./vision.md) — _Why we are doing this and the product principles._
+2. [`current-state.md`](./current-state.md) — _What ships today, the retired-phase summary, and the pre-pivot snapshot kept for historical context._
+3. [`architecture.md`](./architecture.md) — _Target topology, process model, data flow, config layout — including Docling PDF text conversion and the single Gemma source extraction call._
+4. [`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md) — **Active execution plan** (2026-04-23). Swap Gemma-based PDF extraction for local Docling PDF text conversion plus one structured source extraction call. Includes the new `packages/pdf-extractor/` Python package and the `doctor --fix` venv bootstrap.
 
 > **Retired on 2026-04-23.** The five roadmap files that drove the hosted → local-first migration (`phase-1.md` … `phase-4.md`, `pivot-imap.md`) shipped and were deleted on this date. Their one-line summaries live in the "Retired phase docs" section of [`current-state.md`](./current-state.md); their full history is reachable via `git log -- packages/docs/roadmap/<file>`. A fresh chat should pick up `roadmap/pdf-extractor.md` and work it top to bottom.
 
@@ -42,7 +42,7 @@ packages/docs/
 ├── current-state.md       ← what ships today + retired-phase summary
 ├── architecture.md        ← the target
 ├── roadmap/
-│   └── pdf-extractor.md   ← ACTIVE execution plan (Docling + reconciliation)
+│   └── pdf-extractor.md   ← ACTIVE execution plan (Docling text + source extraction)
 └── reference/
     ├── cli.md
     ├── config.md

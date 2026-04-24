@@ -1,27 +1,20 @@
-import { z } from "zod";
-import { SwiggyMerchant } from "../merchants/swiggy";
-import type { EmailData } from "../types/slashAI";
-import { syncDebug } from "../utils/sync-debug";
+import { logPipelineStep, syncDebug } from "../utils/sync-debug";
 import { extractPdf } from "./pdf-extractor";
 
-type SwiggyExtraction = z.infer<typeof SwiggyMerchant.schema>;
-
-export type PdfExtractionCandidate = {
-  extractionData: SwiggyExtraction;
-  extractionConfidence: number;
-  parseErrors: string[];
+export type PdfTextSource = {
+  text: string;
   warnings: string[];
-  schemaUsed: "swiggy.docling.v1";
-  dataSource: "PDF_ATTACHMENT";
   attachmentPath: string;
-  contributedByPdf: true;
+  extractor: string;
+  extractorVersion: string;
+  pageCount?: number | null;
+  tableCount: number;
 };
 
-export async function extractFromPdf(input: {
-  emailData: EmailData;
+export async function extractTextFromPdf(input: {
   attachmentPath: string;
 }): Promise<
-  { ok: true; value: PdfExtractionCandidate } | { ok: false; message: string }
+  { ok: true; value: PdfTextSource } | { ok: false; message: string }
 > {
   const result = await extractPdf(input.attachmentPath);
   if (!result.ok) {
@@ -30,6 +23,20 @@ export async function extractFromPdf(input: {
       code: result.error.code,
       message: result.error.message,
     });
+    const stderr = result.error.stderr
+      ? result.error.stderr.length > 400
+        ? `${result.error.stderr.slice(0, 400)}…`
+        : result.error.stderr
+      : undefined;
+    logPipelineStep("pdf-extractor", {
+      step: 2,
+      outcome: "error",
+      code: result.error.code,
+      message: result.error.message,
+      exitCode: result.error.exitCode ?? null,
+      stderr: stderr,
+      path: input.attachmentPath,
+    });
     return {
       ok: false,
       message: result.error.message,
@@ -37,78 +44,45 @@ export async function extractFromPdf(input: {
   }
 
   const pdf = result.value;
-  syncDebug("pdf-wrapper-fields", {
+  logPipelineStep("pdf-extractor", {
+    step: 2,
+    outcome: "ok",
+    path: input.attachmentPath,
+    extractor: pdf.extractor,
+    extractorVersion: pdf.extractorVersion,
+    rawTextChars: pdf.raw.text.length,
+    tableCount: pdf.raw.tables.length,
+    warningCount: pdf.warnings.length,
+  });
+  syncDebug("pdf-wrapper-text", {
     attachmentPath: input.attachmentPath,
     extractor: pdf.extractor,
     extractorVersion: pdf.extractorVersion,
-    confidence: pdf.confidence,
-    hasTotalAmount: pdf.fields.totalAmount !== undefined,
-    hasOrderId: Boolean(pdf.fields.orderId),
-    itemCount: pdf.fields.items.length,
     warningCount: pdf.warnings.length,
     rawTextChars: pdf.raw.text.length,
+    tableCount: pdf.raw.tables.length,
   });
 
-  const address = pdf.fields.delivery?.address;
-  const pincode = pdf.fields.delivery?.pincode;
-  const extractionData = SwiggyMerchant.schema.parse({
-    detectedProvider: "Swiggy",
-    emailType: "ORDER_CONFIRMATION",
-    emailSubject: input.emailData.subject,
-    parseSuccess: true,
-    parseErrors: [],
-    confidenceScore: pdf.confidence,
-    dataSource: "PDF_ATTACHMENT",
-    merchantId: SwiggyMerchant.id,
-    merchantCode: SwiggyMerchant.code,
-    transaction: {
-      amount: pdf.fields.totalAmount ?? 0,
-      currency: pdf.fields.currency || "INR",
-      type: "DEBIT",
-      status: "COMPLETED",
-      transactionDate: pdf.fields.transactionDate || input.emailData.date,
-      description: `Swiggy order - ${pdf.fields.restaurantName || "Swiggy"}`,
-      category: "Food",
-      merchantName: pdf.fields.restaurantName || "Swiggy",
-      paymentMethod: pdf.fields.paymentMethod || undefined,
-      referenceIds: pdf.fields.orderId ? { orderId: pdf.fields.orderId } : {},
-      orderId: pdf.fields.orderId || undefined,
-      orderItems: pdf.fields.items.map((item) => ({
-        name: item.name,
-        quantity: item.quantity,
-        price: item.unitPrice,
-        category: "Food",
-        customizations: [],
-      })),
-      deliveryAddress: {
-        fullAddress: address || undefined,
-        pincode: pincode || undefined,
-        area: address || undefined,
-      },
-      restaurantName: pdf.fields.restaurantName || undefined,
-      taxes:
-        (pdf.fields.taxes?.gst || 0) + (pdf.fields.taxes?.serviceCharge || 0) ||
-        undefined,
-      deliveryFee: pdf.fields.delivery?.fee || undefined,
-    } satisfies NonNullable<SwiggyExtraction["transaction"]>,
-    swiggyMetadata: {
-      service: "FOOD_DELIVERY",
-      orderType: "DELIVERY",
-      paymentGateway: pdf.fields.paymentMethod || undefined,
-    },
-  });
+  const text = pdf.raw.text.trim();
+  if (!text) {
+    return {
+      ok: false,
+      message: "The PDF extractor returned no text.",
+    };
+  }
 
   return {
     ok: true,
     value: {
-      extractionData,
-      extractionConfidence: pdf.confidence,
-      parseErrors: [],
+      text,
       warnings: pdf.warnings,
-      schemaUsed: "swiggy.docling.v1",
-      dataSource: "PDF_ATTACHMENT",
       attachmentPath: input.attachmentPath,
-      contributedByPdf: true,
+      extractor: pdf.extractor,
+      extractorVersion: pdf.extractorVersion,
+      pageCount: pdf.raw.pageCount,
+      tableCount: pdf.raw.tables.length,
     },
   };
 }
+
+export const extractFromPdf = extractTextFromPdf;

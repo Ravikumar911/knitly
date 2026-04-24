@@ -50,9 +50,9 @@ describe("extractPdf", () => {
         "'extractorVersion': '1.0.0',",
         "'merchant': 'swiggy',",
         "'confidence': 0.92,",
-        "'fields': {'orderId': 'SWG-PDF-1001', 'totalAmount': 512.4, 'currency': 'INR', 'items': []},",
+        "'fields': {},",
         "'warnings': [],",
-        "'raw': {'pageCount': 1, 'tables': [], 'text': 'fixture'}",
+        "'raw': {'pageCount': 1, 'tables': [], 'text': 'Total: INR 512.40'}",
         "}))",
       ].join("\n"),
     );
@@ -63,7 +63,8 @@ describe("extractPdf", () => {
     const result = await extractPdf(pdfPath);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.fields.totalAmount).toBe(512.4);
+      expect(result.value.raw.text).toBe("Total: INR 512.40");
+      expect(result.value.fields.totalAmount).toBeUndefined();
     }
   });
 

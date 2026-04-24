@@ -22,20 +22,19 @@ Python environment bootstrap (D2):
 - **modify** `packages/cli/src/doctor/repairs.ts` — add the `python-env` repair that creates the venv and runs `pip install --require-hashes`.
 - **modify** `packages/cli/src/onboard/run.ts` — insert a `python-env` step between `db-migrate` and `bundled-skills` that delegates to the doctor repair.
 
-Node-side extractor wrapper and split pipeline (D3 + D4):
+Node-side extractor wrapper and source-text pipeline (D3 + D4):
 
 - **create** `packages/tasks/src/extract/pdf-extractor-schema.ts` — Zod mirror of `schema.py`.
 - **create** `packages/tasks/src/extract/pdf-extractor.ts` — `extractPdf()` via `child_process.spawn`, returns `Result<PdfExtraction, PdfExtractError>`.
 - **create** `packages/tasks/src/extract/extract-from-email-body.ts`.
 - **create** `packages/tasks/src/extract/extract-from-pdf.ts`.
-- **create** `packages/tasks/src/extract/reconcile-extractions.ts`.
 - **create** `packages/tasks/src/extract/pipeline.ts` — orchestrator consumed by `processEmails.ts`.
 - **create** `packages/tasks/src/extract/body-fallback.ts` — moved from `processEmails.ts:245-268`.
 - **create** `packages/tasks/src/extract/pdf-extractor.test.ts` and sibling unit tests for each branch of the split pipeline.
 - **modify** `packages/tasks/src/trigger/processEmails.ts` — call `pipeline.extract()` instead of `extractOrFallback`; remove the inline regex fallback.
 - **modify** `packages/tasks/src/agents/slashAIV2.ts` — reduced to a one-release deprecation compat re-export that points at the new pipeline; deleted in the follow-up release.
 - **modify** `packages/tasks/src/merchants/base/basePrompt.ts` — delete the `ATTACHMENT HANDLING` block.
-- **modify** `packages/tasks/src/merchants/swiggy/prompt.ts` — add the "reconciliation rules" block.
+- **modify** `packages/tasks/src/merchants/swiggy/prompt.ts` — keep merchant schema guidance; source conflict handling lives in `extract-from-email-body.ts`.
 - **modify** `packages/tasks/src/ai/model.ts` — delete `OCRModel()`.
 
 Architecture smells + schema parity (D5):

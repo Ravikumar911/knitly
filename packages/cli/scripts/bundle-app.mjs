@@ -112,6 +112,10 @@ function shouldCopyToBundle(source) {
     !installedRuntimePackagePattern.test(normalized) &&
     !/(^|\/)\.env/.test(normalized) &&
     !/(^|\/)\.gitignore$/.test(normalized) &&
+    !/(^|\/)\.venv(\/|$)/.test(normalized) &&
+    !/(^|\/)\.pytest_cache(\/|$)/.test(normalized) &&
+    !/(^|\/)[^/]+\.egg-info(\/|$)/.test(normalized) &&
+    !/(^|\/)uv\.lock$/.test(normalized) &&
     !/(^|\/)coverage(\/|$)/.test(normalized) &&
     !/(^|\/)__pycache__(\/|$)/.test(normalized) &&
     !/(^|\/)(test|tests|fixtures|test-fixtures)(\/|$)/.test(normalized) &&

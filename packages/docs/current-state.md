@@ -1,8 +1,8 @@
 # Current state — what exists today
 
-> **Revision on 2026-04-23.** The entire hosted → local-first migration has shipped end-to-end (Foundation → local-feature-parity → onboarding/UX → testing pyramid → release → IMAP pivot). The five roadmap files that drove that work (`roadmap/phase-1.md` … `phase-4.md` and `roadmap/pivot-imap.md`) were deleted on this date; their surviving residue lives in the **"Retired phase docs"** section below as one-line summaries, with detail in git history. The next active execution plan is [`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md), which replaces Gemma-based PDF extraction with a deterministic local Python extractor (Docling) plus an AI reconciliation pass.
+> **Revision on 2026-04-23.** The entire hosted → local-first migration has shipped end-to-end (Foundation → local-feature-parity → onboarding/UX → testing pyramid → release → IMAP pivot). The five roadmap files that drove that work (`roadmap/phase-1.md` … `phase-4.md` and `roadmap/pivot-imap.md`) were deleted on this date; their surviving residue lives in the **"Retired phase docs"** section below as one-line summaries, with detail in git history. The next active execution plan is [`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md), which replaces Gemma-based PDF extraction with local Docling PDF text conversion plus a single AI source extraction pass.
 
-> The historical notes further down describe the pre-pivot monorepo that the now-retired phases were written against. They are kept only to explain *why* each retired phase existed. Treat any claim here that conflicts with `roadmap/pdf-extractor.md` as already out of date.
+> The historical notes further down describe the pre-pivot monorepo that the now-retired phases were written against. They are kept only to explain _why_ each retired phase existed. Treat any claim here that conflicts with `roadmap/pdf-extractor.md` as already out of date.
 
 ## Retired phase docs — one-line shipped summaries
 

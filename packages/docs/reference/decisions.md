@@ -46,7 +46,7 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-005 — Ollama with `gemma3n:e4b` as the default model
 
-> **Scope updated on 2026-04-23 by ADR-026.** Gemma remains the sole model for chat, for email-body extraction, and for the reconciliation pass that merges body + PDF candidates. Deterministic PDF extraction is no longer Gemma's job; it is delegated to Docling (see ADR-026). The rest of this ADR is unchanged.
+> **Scope updated on 2026-04-24 by ADR-026.** Gemma remains the sole model for chat and for structured Swiggy extraction. PDF conversion is no longer Gemma's job; it is delegated to Docling, then the resulting text is passed into the same `generateObject` call as the email body (see ADR-026). The rest of this ADR is unchanged.
 
 **Decision.** The CLI pulls and targets `gemma3n:e4b` during `onboard`. The AI SDK's OpenAI-compatible adapter is pointed at Ollama's local endpoint.
 
@@ -251,7 +251,7 @@ This is the path the `gws` authors recommend when `gcloud` is available; it is t
 
 ## ADR-023 — Privacy disclosures surface at onboarding
 
-> **Amended on 2026-04-22 by ADR-024.** The *principle* — surface privacy facts at every consent moment, keep them reachable forever through `slashcash privacy`, never gate on acknowledgement — is unchanged. The *moments* change: there is no `gcloud auth login` or `gws auth login` browser consent under ADR-024, so the `PRE_GCLOUD_AUTH`, `PRE_GWS_SETUP`, and `PRE_GWS_LOGIN` constants are deleted and replaced by a single `PRE_APP_PASSWORD_INPUT` block shown before the password prompt. `TOP_BANNER` and `FINAL_SUMMARY` are rewritten to describe keychain storage and IMAP connections instead of Google Cloud projects and refresh tokens. Snapshot tests regenerate in the same PR as the copy edit. The retired `roadmap/pivot-imap.md` § B4 (see [`../current-state.md`](../current-state.md) § Retired phase docs) documented the exact copy at the time of landing.
+> **Amended on 2026-04-22 by ADR-024.** The _principle_ — surface privacy facts at every consent moment, keep them reachable forever through `slashcash privacy`, never gate on acknowledgement — is unchanged. The _moments_ change: there is no `gcloud auth login` or `gws auth login` browser consent under ADR-024, so the `PRE_GCLOUD_AUTH`, `PRE_GWS_SETUP`, and `PRE_GWS_LOGIN` constants are deleted and replaced by a single `PRE_APP_PASSWORD_INPUT` block shown before the password prompt. `TOP_BANNER` and `FINAL_SUMMARY` are rewritten to describe keychain storage and IMAP connections instead of Google Cloud projects and refresh tokens. Snapshot tests regenerate in the same PR as the copy edit. The retired `roadmap/pivot-imap.md` § B4 (see [`../current-state.md`](../current-state.md) § Retired phase docs) documented the exact copy at the time of landing.
 
 **Decision.** The privacy claims that make this product worth installing (local-only data, BYO Google Cloud project, no telemetry, loopback-only dashboard) are printed by the wizard at four moments: top-of-onboard banner, pre-`gcloud auth login` line, pre-`gws auth login` line, and final summary. They are reachable forever through `slashcash privacy`. The wizard also prints one operational safety note before `gws auth setup`: upstream `gws` may ask whether to run `gws auth login` immediately, and slashcash tells the user to answer `n` so the next step can request Gmail read-only access with `gws auth login --services gmail --readonly`. The wizard does not gate on acknowledgement; trust is built by showing the facts at the moments the user is deciding whether to click Allow. Copy and setup guidance live in one file, `packages/cli/src/privacy/copy.ts`, so the wizard and the standing command never drift.
 
@@ -319,16 +319,15 @@ Gmail ingest reads messages through IMAP (`imapflow`) using the Gmail `X-GM-RAW`
 
 ## ADR-026 — Docling as the local PDF invoice extractor
 
-**Decision.** PDF attachments are extracted by [Docling](https://github.com/DS4SD/docling) (IBM, MIT-licensed), running fully locally in a Python 3.11+ venv at `~/.slashcash/py-venv`. Gemma over Ollama is no longer responsible for reading PDFs. Gemma continues to handle (a) email-body extraction, (b) the reconciliation pass that merges the body candidate with the Docling candidate into the authoritative `transactions_v2` row, and (c) the dashboard chat assistant.
+**Decision.** PDF attachments are converted to text by [Docling](https://github.com/DS4SD/docling) (IBM, MIT-licensed), running fully locally in a Python 3.11+ venv at `~/.slashcash/py-venv`. Gemma over Ollama is no longer responsible for reading PDF bytes. Gemma continues to handle (a) structured source-text extraction from the email body plus Docling text, and (b) the dashboard chat assistant.
 
 The split pipeline, per ingested message, is:
 
-1. Email body + inline images → Gemma `generateObject` against the merchant Zod schema.
-2. Each `application/pdf` attachment → `python -m slashcash_pdf_extractor <path>` → validated JSON candidate.
-3. Both candidates → Gemma merge pass with a merchant-specific reconciliation rules block → the final row.
-4. If the PDF extractor is unavailable or fails on a given attachment, ingest degrades to body-only extraction and surfaces the Python lane state via `slashcash doctor`.
+1. Each `application/pdf` attachment → `python -m slashcash_pdf_extractor <path>` → validated JSON with raw Docling text.
+2. Email body + Docling PDF text → Gemma `generateObject` against the merchant Zod schema.
+3. If the PDF extractor is unavailable or fails on a given attachment, ingest degrades to email-body-only extraction and surfaces the Python lane state via `slashcash doctor`.
 
-**Why.** `gemma3n:e4b` is tuned for chat and light structured output at ~3 GB of weights. PDF receipts (Swiggy in v1, bank statements later) carry totals, per-line items and tax breakdowns inside layout-aware tables that Gemma reads poorly — and today the repo does not even hand it the PDF bytes (see `slashAIV2.ts:30–52`, where attachments are described in prose to the model rather than shown). Docling is purpose-built for document understanding, reads tables correctly, runs offline, and is permissively licensed. Confining the model to deterministic fields (layout, text, tables) and letting Gemma do the softer "merchant field mapping + reconcile with the body" step is a cleaner division of labour than forcing Gemma to do both.
+**Why.** `gemma3n:e4b` is tuned for chat and light structured output at ~3 GB of weights. PDF receipts (Swiggy in v1, bank statements later) carry totals, per-line items and tax breakdowns inside layout-aware tables that Gemma reads poorly from raw PDF bytes. Docling is purpose-built for document understanding, reads tables correctly, runs offline, and is permissively licensed. Confining Docling to text conversion and letting Gemma map all source text into the merchant schema keeps the pipeline simple: one model call, one output object.
 
 **Rejected.**
 
@@ -338,9 +337,9 @@ The split pipeline, per ingested message, is:
 - **Cloud OCR (AWS Textract, Google Document AI, Mistral OCR).** Violates the local-first posture in ADR-013 and the no-telemetry posture in vision.md § principles.
 - **A long-lived Python sidecar over HTTP.** See ADR-027 — we chose per-PDF subprocess for v1; sidecar is the next-step promotion if latency becomes user-visible.
 
-**Scope.** Docling is a deterministic text+table extractor, not a financial reasoner. The `slashcash_pdf_extractor` Python entry wraps it with a merchant adapter (v1: Swiggy) that maps the Docling output into our stable JSON schema. Adding another merchant is "write another adapter"; it is not an ADR-level decision.
+**Scope.** Docling is a deterministic text+table extractor, not a financial reasoner. The `slashcash_pdf_extractor` Python entry exposes raw text and table text in our stable JSON schema. Merchant-specific mapping stays in the TypeScript source extraction prompt and Zod schema.
 
-**Revisit if.** Docling is discontinued or its license changes; reconciliation confidence on real dogfood runs stays below the ADR-012 threshold even with Docling-level PDF fields; or we add a merchant whose receipts are primarily image-only (then the adapter layer grows an OCR step or switches libraries, possibly per-merchant).
+**Revisit if.** Docling is discontinued or its license changes; source extraction confidence on real dogfood runs stays below the ADR-012 threshold even with Docling text; or we add a merchant whose receipts are primarily image-only (then the converter layer grows an OCR step or switches libraries, possibly per-merchant).
 
 ## ADR-027 — Python extractor as a per-PDF subprocess, venv bootstrapped by `doctor --fix`
 

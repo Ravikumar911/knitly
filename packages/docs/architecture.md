@@ -4,7 +4,7 @@ This is the shipped local-first shape after the IMAP pivot, with the PDF-extract
 
 ## One-paragraph picture
 
-The user installs `slashcash` from npm. `slashcash onboard` checks Homebrew, detects or installs Ollama, pulls the chosen model, provisions a Python 3.11+ venv at `~/.slashcash/py-venv` with Docling pinned, asks for a Gmail address and app password, verifies IMAP login against `imap.gmail.com:993`, and prepares `~/.slashcash/`. `slashcash start` then boots the Next.js dashboard on `127.0.0.1`, starts the in-process cron worker, reads Gmail through IMAP, extracts data from each message in two lanes — email body and inline images through Gemma over Ollama, PDF attachments through a per-PDF Docling subprocess — reconciles the two candidates with one more Gemma pass, writes results to SQLite at `~/.slashcash/db.sqlite`, and stores attachments under `~/.slashcash/attachments/`. The dashboard reads the same SQLite file through tRPC and Drizzle. There is no hosted auth; loopback bind is the boundary.
+The user installs `slashcash` from npm. `slashcash onboard` checks Homebrew, detects or installs Ollama, pulls the chosen model, provisions a Python 3.11+ venv at `~/.slashcash/py-venv` with Docling pinned, asks for a Gmail address and app password, verifies IMAP login against `imap.gmail.com:993`, and prepares `~/.slashcash/`. `slashcash start` then boots the Next.js dashboard on `127.0.0.1`, starts the in-process cron worker, reads Gmail through IMAP, converts PDF attachments to text through a per-PDF Docling subprocess, sends the email body plus Docling text through one Gemma `generateObject` call, writes results to SQLite at `~/.slashcash/db.sqlite`, and stores attachments under `~/.slashcash/attachments/`. The dashboard reads the same SQLite file through tRPC and Drizzle. There is no hosted auth; loopback bind is the boundary.
 
 ## Process model
 
@@ -61,12 +61,11 @@ Fixture mode is controlled by `SLASHCASH_IMAP_FIXTURE_DIR`, which points the cli
 
 ## Extraction pipeline
 
-`packages/tasks/src/extract/pipeline.ts` owns the per-message extraction contract. For each `FetchedImapMessage` it fans out into two lanes and then reconciles:
+`packages/tasks/src/extract/pipeline.ts` owns the per-message extraction contract:
 
-- **Email-body lane.** `extract-from-email-body.ts` calls Gemma (`generateObject`) with the merchant Zod schema over the message text, HTML, and any inline images. Returns a structured candidate with a confidence score, or `null` for empty / non-matching bodies.
-- **PDF lane.** For each `application/pdf` attachment, `extract-from-pdf.ts` spawns `~/.slashcash/py-venv/bin/python -m slashcash_pdf_extractor <attachment-path>`. The Node wrapper in `pdf-extractor.ts` returns a `Result<PdfExtraction, PdfExtractError>` with a 30-second timeout and a closed error union; it never throws.
-- **Reconciliation pass.** When both lanes produce a candidate, `reconcile-extractions.ts` calls Gemma once more, passing both JSON candidates and a merchant-specific reconciliation rules block (for Swiggy: prefer the PDF amount and orderId, prefer the email `from`/`date`, penalise confidence on disagreement).
-- **Fallbacks.** If the PDF lane fails, ingest degrades to the body-only candidate. If the reconciliation pass refuses twice, the PDF candidate wins when present; otherwise the body candidate; otherwise `body-fallback.ts` runs the regex fallback for amount and orderId. `dataSource` on `transactions_v2` reflects which lane produced the authoritative fields.
+- **PDF text collection.** For each `application/pdf` attachment, `extract-from-pdf.ts` spawns `~/.slashcash/py-venv/bin/python -m slashcash_pdf_extractor <attachment-path>`. The Python package uses Docling to convert the PDF to raw text; it does not map invoice fields.
+- **Single source extraction.** `extract-from-email-body.ts` calls Gemma (`generateObject`) once with the merchant Zod schema, passing the email headers/body plus all Docling PDF text blocks. The model returns the one authoritative Swiggy object that is stored in SQLite.
+- **Fallbacks.** If the model is disabled or no transaction is extracted, `body-fallback.ts` runs the regex fallback for amount and orderId from the email body only. `dataSource` on `transactions_v2` is `BOTH`, `PDF_ATTACHMENT`, or `EMAIL_BODY` based on the structured model output.
 
 The Python lane is disabled end-to-end by `SLASHCASH_PDF_EXTRACTOR_DISABLED=1`, which is what E2E fixtures and Python-less CI nodes use.
 

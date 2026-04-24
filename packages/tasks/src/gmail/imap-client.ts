@@ -40,14 +40,14 @@ export type ImapResult<T> =
 
 export async function listMessages(
   query: string,
-  maxResults: number,
+  maxResults?: number | null,
 ): Promise<ImapResult<ImapMessageRef[]>> {
   try {
     if (isFixtureMode()) {
       const messages = await listFixtureMessages();
       return {
         ok: true,
-        data: messages.slice(0, maxResults),
+        data: maxResults ? messages.slice(0, maxResults) : messages,
       };
     }
 
@@ -58,7 +58,9 @@ export async function listMessages(
         const uids = found || [];
         if (uids.length === 0) return [];
 
-        const recentUids = uids.slice(-maxResults).reverse();
+        const recentUids = maxResults
+          ? uids.slice(-maxResults).reverse()
+          : [...uids].reverse();
         const fetched = await client.fetchAll(
           recentUids,
           { uid: true, threadId: true },

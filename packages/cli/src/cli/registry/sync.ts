@@ -25,6 +25,8 @@ export function register(program: Command) {
       async (options: { full?: boolean; query?: string; limit?: number }) => {
         const config = loadConfig({ createIfMissing: true });
         const paths = resolvePaths();
+        const maxMessages =
+          options.limit ?? (options.full ? undefined : config.sync.maxMessages);
 
         installBundledSkills();
         if (!isSkillEnabled(BUNDLED_GMAIL_SWIGGY_SKILL)) {
@@ -40,7 +42,7 @@ export function register(program: Command) {
           config,
           paths,
           query: options.query || config.sync.gmailQuery,
-          maxMessages: options.limit || config.sync.maxMessages,
+          maxMessages: maxMessages ?? config.sync.maxMessages,
         });
 
         const { ensureLocalDatabase, LOCAL_USER_ID } = await loadDatabase();
@@ -50,7 +52,7 @@ export function register(program: Command) {
         const result = await runEmailSync({
           userId: LOCAL_USER_ID,
           query: options.query || config.sync.gmailQuery,
-          maxMessages: options.limit || config.sync.maxMessages,
+          maxMessages,
           full: options.full,
         });
 

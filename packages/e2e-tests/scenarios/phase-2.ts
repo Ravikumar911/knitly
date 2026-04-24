@@ -212,13 +212,18 @@ function assertPdfLanePersisted() {
   if (Math.abs(payload.tx.amount - 512.4) > 0.001) {
     throw new Error(`expected PDF amount 512.4, got ${payload.tx.amount}`);
   }
-  if (payload.tx.schema_used !== "swiggy.docling.v1") {
+  if (payload.tx.schema_used !== "swiggy.sources.v1") {
     throw new Error(
-      `expected swiggy.docling.v1, got ${payload.tx.schema_used}`,
+      `expected swiggy.sources.v1, got ${payload.tx.schema_used}`,
     );
   }
-  if (payload.tx.data_source !== "PDF_ATTACHMENT") {
-    throw new Error(`expected PDF_ATTACHMENT, got ${payload.tx.data_source}`);
+  if (
+    payload.tx.data_source !== "BOTH" &&
+    payload.tx.data_source !== "PDF_ATTACHMENT"
+  ) {
+    throw new Error(
+      `expected BOTH or PDF_ATTACHMENT, got ${payload.tx.data_source}`,
+    );
   }
   if (payload.email.parse_success !== 1) {
     throw new Error(

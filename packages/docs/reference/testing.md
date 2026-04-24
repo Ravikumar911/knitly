@@ -1,6 +1,6 @@
 # Testing — customer journeys and release gates
 
-This document defines how slashcash is verified now that Gmail ingest runs through IMAP and app-password-backed local state, and that PDF attachments are extracted by the local Python lane (Docling) before the Gemma reconciliation pass.
+This document defines how slashcash is verified now that Gmail ingest runs through IMAP and app-password-backed local state, and that PDF attachments are converted to text by the local Python lane (Docling) before the single Gemma source extraction pass.
 
 ## Testing layers
 
@@ -17,7 +17,7 @@ There are four layers:
 - The E2E harness lives in `packages/e2e-tests`.
 - IMAP fixtures live in `packages/e2e-tests/fixtures/imap/` as `.eml` files.
 - Analytics fixtures live under `packages/database/test-fixtures/`.
-- Python extractor fixtures (small committed PDFs + golden JSON) live under `packages/pdf-extractor/tests/fixtures/` and are exercised by `pytest`.
+- Python extractor fixtures (small committed PDFs) live under `packages/pdf-extractor/tests/fixtures/` and are exercised by `pytest` or `unittest`.
 
 ## Customer-journey suite
 
@@ -54,7 +54,7 @@ Phase 2 now means fixture-backed IMAP ingest + the new Python extractor lane.
 - runs `slashcash doctor --quick`
 - runs `slashcash sync --full` against `.eml` IMAP fixtures
 - asserts at least one attachment file is written locally
-- with `SLASHCASH_PDF_EXTRACTOR_DISABLED` unset on nodes that have Python 3.11+: asserts at least one `transactions_v2` row has `schemaUsed = swiggy.docling.v1` and `dataSource = PDF_ATTACHMENT`
+- with `SLASHCASH_PDF_EXTRACTOR_DISABLED` unset on nodes that have Python 3.11+: asserts at least one `transactions_v2` row has `schemaUsed = swiggy.sources.v1` and `dataSource = BOTH` or `PDF_ATTACHMENT`
 - with `SLASHCASH_PDF_EXTRACTOR_DISABLED=1`: asserts ingest still succeeds via body-only extraction (`schemaUsed = swiggy.body.v1` or `swiggy.fallback.v1`)
 - verifies that disabling `gmail-swiggy` blocks sync
 
@@ -105,10 +105,10 @@ Published-package smoke still lives in release automation and manual dogfood.
 
 ## Python extractor tests
 
-`packages/pdf-extractor/tests/` ships a `pytest` suite that exercises:
+`packages/pdf-extractor/tests/` ships Python tests that exercise:
 
-- happy path: a fixture Swiggy-shaped PDF produces a JSON object whose `fields.totalAmount` matches the golden value
-- negative fixture: a non-invoice PDF returns a classified low-confidence result without crashing
+- happy path: a fixture Swiggy-shaped PDF produces a JSON object whose `raw.text` contains the invoice text
+- non-transaction fixture: a non-invoice PDF still returns raw text without crashing
 - CLI exit codes: missing file → `2`, unreadable PDF → `1`, unexpected exception → `3`, success → `0`
 
 These run via `pnpm --filter @workspace/pdf-extractor test` (wrapping `python -m pytest`) once the D1 stage in [`../roadmap/pdf-extractor.md`](../roadmap/pdf-extractor.md) lands.
@@ -122,7 +122,7 @@ The Python pydantic models in `packages/pdf-extractor/src/slashcash_pdf_extracto
 These still require a real machine, a real Gmail account, or release credentials:
 
 - clean-machine `npm i -g slashcash` verification (including `slashcash doctor --fix` provisioning the Python venv from scratch)
-- real Gmail app-password dogfood, with at least five `transactions_v2` rows hand-diffed against real Swiggy receipts to validate the reconciliation pass
+- real Gmail app-password dogfood, with at least five `transactions_v2` rows hand-diffed against real Swiggy receipts to validate the source extraction pass
 - cancel-during-`ollama pull` interrupt, then `slashcash doctor --fix` completing the pull and landing green (survived from the retired phase-2 doc)
 - npm publish / provenance / SBOM verification
 - DNS and hosted-surface shutdown tasks

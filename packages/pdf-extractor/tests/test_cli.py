@@ -44,4 +44,5 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         payload = json.loads(result.stdout)
         self.assertEqual(payload["merchant"], "swiggy")
-        self.assertEqual(payload["fields"]["totalAmount"], 512.4)
+        self.assertIn("Total: INR 512.40", payload["raw"]["text"])
+        self.assertIsNone(payload["fields"]["totalAmount"])

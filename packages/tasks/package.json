@@ -3,7 +3,7 @@
   "version": "0.1.3",
   "private": true,
   "scripts": {
-    "build": "tsc",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
     "lint": "echo 'Linting not configured for tasks package'",
     "lint:fix": "echo 'Linting not configured for tasks package'",
     "test": "vitest run",

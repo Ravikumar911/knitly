@@ -71,7 +71,9 @@ async function runEmailSyncUnsafe(
     process.env.SLASHCASH_GMAIL_QUERY ||
     "from:(swiggy.in) newer_than:365d";
   const maxMessages =
-    payload.maxMessages || Number(process.env.SLASHCASH_SYNC_LIMIT || 50);
+    payload.full && payload.maxMessages === undefined
+      ? null
+      : payload.maxMessages || Number(process.env.SLASHCASH_SYNC_LIMIT || 50);
 
   syncDebug("sync-start", {
     userId: payload.userId,

@@ -161,6 +161,30 @@ describe("sync command", () => {
     );
   });
 
+  it("does not cap --full sync unless a limit is provided", async () => {
+    mocks.isSkillEnabled.mockReturnValue(true);
+    mocks.runEmailSync.mockResolvedValue({
+      processedCount: 4,
+      skippedCount: 1,
+      errorCount: 0,
+    });
+    vi.spyOn(console, "log").mockImplementation(() => {});
+
+    const { register } = await import("./sync.js");
+    const program = new Command();
+    register(program);
+
+    await program.parseAsync(["sync", "--full"], { from: "user" });
+
+    expect(mocks.runEmailSync).toHaveBeenCalledWith({
+      userId: "local-user-id",
+      query: "label:slashcash",
+      maxMessages: undefined,
+      full: true,
+    });
+    expect(process.env.SLASHCASH_SYNC_LIMIT).toBe("25");
+  });
+
   it("warns when another sync is already running", async () => {
     mocks.isSkillEnabled.mockReturnValue(true);
     mocks.runEmailSync.mockResolvedValue({

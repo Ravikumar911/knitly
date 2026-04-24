@@ -42,10 +42,10 @@ A committed `.eml` file under `packages/e2e-tests/fixtures/imap/` used to test t
 A folder under `~/.slashcash/skills/` that can add jobs and guidance. The bundled v1 skill is `gmail-swiggy`.
 
 **Ollama**
-The local model server slashcash uses for chat, email-body extraction, and the reconciliation pass.
+The local model server slashcash uses for chat and source-text extraction.
 
 **gemma3n:e4b**
-The default Ollama model. Handles chat, email-body extraction, and the reconciliation merge pass between body and PDF candidates. PDF parsing itself is handled by Docling, not Gemma.
+The default Ollama model. Handles chat and the structured Swiggy extraction pass over email body plus Docling PDF text. PDF conversion itself is handled by Docling, not Gemma.
 
 **Docling**
 The Python library ([github.com/DS4SD/docling](https://github.com/DS4SD/docling), IBM, MIT-licensed) slashcash uses for deterministic PDF invoice extraction. See ADR-026.
@@ -56,8 +56,8 @@ The Node-side wrapper at `packages/tasks/src/extract/pdf-extractor.ts` plus the 
 **py-venv**
 The Python 3 virtualenv at `~/.slashcash/py-venv/`. Provisioned by `slashcash doctor --fix` from the pinned `packages/pdf-extractor/requirements.txt`. Tracked by the `.slashcash.install-hash` file so `pip install` only re-runs on drift.
 
-**reconciliation pass**
-The second Gemma call in the ingest pipeline that merges the email-body candidate with the PDF (Docling) candidate into the authoritative `transactions_v2` row, using merchant-specific rules (for Swiggy: prefer PDF amount and orderId, prefer email `from`/`date`).
+**source extraction pass**
+The single Gemma `generateObject` call in the ingest pipeline that receives the email body plus Docling PDF text and returns the authoritative `transactions_v2` object.
 
 **single-flight**
 The guarantee that the ingest job never overlaps with itself. Enforced by a module-level mutex.
