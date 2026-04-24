@@ -7,25 +7,39 @@ type DatabaseModule = typeof import("@workspace/database");
 let loadedDatabase: Promise<DatabaseModule> | undefined;
 
 export async function loadDatabase(): Promise<DatabaseModule> {
-  loadedDatabase ??= import(
-    packagedDatabaseEntry() ?? workspaceDatabaseEntry() ?? "@workspace/database"
-  ).then((mod) => {
+  loadedDatabase ??= import(resolveDatabaseModuleSpecifier()).then((mod) => {
     const databaseModule = mod as Partial<DatabaseModule> & {
       default?: DatabaseModule;
     };
-    return (databaseModule.ensureLocalDatabase
-      ? databaseModule
-      : databaseModule.default ?? mod) as DatabaseModule;
+    return (
+      databaseModule.ensureLocalDatabase
+        ? databaseModule
+        : (databaseModule.default ?? mod)
+    ) as DatabaseModule;
   });
 
   return loadedDatabase;
+}
+
+export function resolveDatabaseModuleSpecifier() {
+  return (
+    packagedDatabaseEntry() ?? workspaceDatabaseEntry() ?? "@workspace/database"
+  );
 }
 
 function packagedDatabaseEntry() {
   const here = dirname(fileURLToPath(import.meta.url));
   if (!here.includes(`${sep}dist${sep}`)) return null;
 
-  const candidate = join(here, "..", "app", "packages", "database", "dist", "src", "index.js");
+  const candidate = join(
+    here,
+    "..",
+    "app",
+    "packages",
+    "database",
+    "dist",
+    "index.js",
+  );
   try {
     accessSync(candidate);
     return pathToFileURL(candidate).href;
@@ -38,15 +52,7 @@ function workspaceDatabaseEntry() {
   const here = dirname(fileURLToPath(import.meta.url));
   if (here.includes(`${sep}dist${sep}`)) return null;
 
-  const candidate = join(
-    here,
-    "..",
-    "..",
-    "..",
-    "database",
-    "src",
-    "index.ts",
-  );
+  const candidate = join(here, "..", "..", "..", "database", "src", "index.ts");
   try {
     accessSync(candidate);
     return pathToFileURL(candidate).href;

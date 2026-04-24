@@ -77,6 +77,9 @@ const forbidden = shippedFiles.filter((file) => {
     /(^|\/)__pycache__(\/|$)/.test(name) ||
     /(^|\/)\.next\/cache(\/|$)/.test(name) ||
     installedRuntimePackagePattern.test(name) ||
+    /(^|\/)(?:packages\/database|node_modules\/@workspace\/database)\/dist\/(?:src|database)(\/|$)/.test(
+      name,
+    ) ||
     /(^|\/)(test|tests|fixtures|test-fixtures)(\/|$)/.test(name) ||
     /\.(?:d\.ts|ts|tsx|map|pyc|pyo)$/.test(name)
   );

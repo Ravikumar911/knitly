@@ -1,5 +1,5 @@
 import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const cliRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -79,7 +79,9 @@ function copyBuiltWorkspacePackage(name) {
   cpSync(join(source, "package.json"), join(target, "package.json"));
   cpSync(join(source, "dist"), join(target, "dist"), {
     recursive: true,
-    filter: shouldCopyToBundle,
+    filter: (candidate) =>
+      shouldCopyToBundle(candidate) &&
+      shouldCopyBuiltWorkspaceDist(candidate, join(source, "dist")),
   });
 }
 
@@ -114,6 +116,16 @@ function shouldCopyToBundle(source) {
     !/(^|\/)__pycache__(\/|$)/.test(normalized) &&
     !/(^|\/)(test|tests|fixtures|test-fixtures)(\/|$)/.test(normalized) &&
     !/\.(?:d\.ts|ts|tsx|map|pyc|pyo)$/.test(normalized)
+  );
+}
+
+function shouldCopyBuiltWorkspaceDist(source, distRoot) {
+  const relativePath = relative(distRoot, source).split("\\").join("/");
+  return !(
+    relativePath === "src" ||
+    relativePath.startsWith("src/") ||
+    relativePath === "database" ||
+    relativePath.startsWith("database/")
   );
 }
 
