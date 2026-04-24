@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .extractor import PdfExtractorError, extract_pdf
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -37,6 +36,8 @@ def main(argv: list[str] | None = None) -> int:
     if not pdf_path.exists():
         print(f"File not found: {pdf_path}", file=sys.stderr)
         return 2
+
+    from .extractor import PdfExtractorError, extract_pdf
 
     try:
         extraction = extract_pdf(pdf_path)

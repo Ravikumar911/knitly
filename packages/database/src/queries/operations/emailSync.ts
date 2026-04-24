@@ -590,6 +590,11 @@ export async function markSyncComplete(userId: string) {
   const updateData = {
     nextPageToken: null,
     syncStatus: 'complete',
+    errorDetails: null,
+    oauthErrorType: null,
+    oauthErrorCode: null,
+    requiresReauth: false,
+    userFriendlyError: null,
     lastSyncedAt: new Date(),
     hasInitialSync: true, // Always set to true on successful sync completion
     updatedAt: new Date(),

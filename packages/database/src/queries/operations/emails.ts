@@ -1,5 +1,6 @@
 import { db } from "../../index";
 import { parsedEmails } from "../../schema/parsedEmails";
+import { transactionsV2 } from "../../schema/transactionsV2";
 import { eq, and, or } from "drizzle-orm";
 import { ParsedEmail } from "../../types";
 /**
@@ -8,22 +9,41 @@ import { ParsedEmail } from "../../types";
 export async function storeEmailData(
   data: Omit<ParsedEmail, "id" | "createdAt" | "updatedAt"> & { id?: string },
 ) {
+  const now = new Date();
+  const values = {
+    id: data.id,
+    userId: data.userId,
+    senderEmailId: data.senderEmailId,
+    threadId: data.threadId,
+    subject: data.subject,
+    receivedDate: data.receivedDate,
+    parseSuccess: data.parseSuccess,
+    parseErrors: data.parseErrors,
+    rawContent: data.rawContent,
+    attachmentStoragePath: data.attachmentStoragePath,
+    parsedAt: now,
+    createdAt: now,
+    updatedAt: now,
+  };
+
   return await db
     .insert(parsedEmails)
-    .values({
-      id: data.id,
-      userId: data.userId,
-      senderEmailId: data.senderEmailId,
-      threadId: data.threadId,
-      subject: data.subject,
-      receivedDate: data.receivedDate,
-      parseSuccess: data.parseSuccess,
-      parseErrors: data.parseErrors,
-      rawContent: data.rawContent,
-      attachmentStoragePath: data.attachmentStoragePath,
-      parsedAt: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    .values(values)
+    .onConflictDoUpdate({
+      target: parsedEmails.id,
+      set: {
+        userId: values.userId,
+        senderEmailId: values.senderEmailId,
+        threadId: values.threadId,
+        subject: values.subject,
+        receivedDate: values.receivedDate,
+        parseSuccess: values.parseSuccess,
+        parseErrors: values.parseErrors,
+        rawContent: values.rawContent,
+        attachmentStoragePath: values.attachmentStoragePath,
+        parsedAt: values.parsedAt,
+        updatedAt: values.updatedAt,
+      },
     })
     .returning();
 }
@@ -52,9 +72,14 @@ export async function isEmailProcessed(userId: string, messageId: string) {
   const result = await db
     .select({ id: parsedEmails.id })
     .from(parsedEmails)
+    .innerJoin(
+      transactionsV2,
+      eq(transactionsV2.parsedEmailId, parsedEmails.id),
+    )
     .where(
       and(
         eq(parsedEmails.userId, userId),
+        eq(parsedEmails.parseSuccess, true),
         or(
           eq(parsedEmails.id, messageId),
           eq(parsedEmails.threadId, messageId),

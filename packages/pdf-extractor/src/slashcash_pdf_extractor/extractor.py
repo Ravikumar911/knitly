@@ -155,17 +155,13 @@ def parse_swiggy_fields(text: str) -> tuple[PdfExtractionFields, list[str]]:
             r"\border\s*number\b\s*[:#-]?\s*([A-Z0-9-]{5,})",
         ],
     )
-    total_amount = first_number(
-        text,
-        [
-            r"\btotal\b\s*[:#-]?\s*(?:INR|Rs\.?|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)",
-            r"\bamount\s*paid\b\s*[:#-]?\s*(?:INR|Rs\.?|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)",
-            r"\bpaid\b\s*[:#-]?\s*(?:INR|Rs\.?|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)",
-        ],
-    )
+    total_amount = infer_total_amount(text)
     restaurant_name = first_group(
         text,
-        [r"\brestaurant\b\s*[:#-]?\s*([^\n]+)"],
+        [
+            r"\brestaurant\b\s*[:#-]?\s*([^\n]+)",
+            r"\bseller\s*name\b\s*[:#-]?\s*([^\n]+)",
+        ],
     )
     area = first_group(text, [r"\barea\b\s*[:#-]?\s*([^\n]+)"])
     pincode = first_group(text, [r"\bpincode\b\s*[:#-]?\s*([0-9]{6})"])
@@ -228,10 +224,85 @@ def first_number(text: str, patterns: list[str]) -> float | None:
     return None
 
 
+def infer_total_amount(text: str) -> float | None:
+    explicit = first_labelled_number(
+        text,
+        [
+            "amount paid",
+            "total paid",
+            "grand total",
+            "order total",
+            "final amount",
+            "paid",
+        ],
+    )
+    if explicit is not None:
+        return explicit
+
+    invoice_values = labelled_numbers(text, ["invoice value"])
+    invoice_totals = labelled_numbers(text, ["invoice total"])
+
+    if invoice_values and invoice_totals and re.search(
+        r"\bhandling\s+fees?\s+for\s+order\b", text, re.IGNORECASE
+    ):
+        primary_invoice = max(invoice_values)
+        service_invoice = max(
+            (value for value in invoice_totals if value < primary_invoice),
+            default=max(invoice_totals),
+        )
+        return round(primary_invoice + service_invoice, 2)
+
+    if invoice_values:
+        return max(invoice_values)
+
+    if invoice_totals:
+        return max(invoice_totals)
+
+    return first_number(
+        text,
+        [
+            r"\btotal\b\s*[:#-]?\s*(?:INR|Rs\.?|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)",
+            r"\bamount\s*paid\b\s*[:#-]?\s*(?:INR|Rs\.?|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)",
+            r"\bpaid\b\s*[:#-]?\s*(?:INR|Rs\.?|₹)?\s*([0-9]+(?:\.[0-9]{1,2})?)",
+        ],
+    )
+
+
+def first_labelled_number(text: str, labels: list[str]) -> float | None:
+    values = labelled_numbers(text, labels)
+    return values[0] if values else None
+
+
+def labelled_numbers(text: str, labels: list[str]) -> list[float]:
+    values: list[float] = []
+    for label in labels:
+        label_pattern = r"\s+".join(re.escape(part) for part in label.split())
+        pattern = (
+            rf"\b{label_pattern}\b\s*[:#-]?\s*"
+            rf"(?:INR|Rs\.?|₹)?\s*([0-9]+(?:\.[0-9]{{1,2}})?)"
+        )
+        for match in re.finditer(pattern, text, re.IGNORECASE):
+            try:
+                value = float(match.group(1))
+            except ValueError:
+                continue
+            if not any(abs(existing - value) < 0.005 for existing in values):
+                values.append(value)
+    return values
+
+
 def infer_restaurant_name(lines: list[str]) -> str | None:
     for line in lines:
         lowered = line.lower()
         if "swiggy" in lowered or "invoice" in lowered:
+            continue
+        if lowered.startswith("amount in words"):
+            continue
+        if lowered.startswith("discounts mentioned"):
+            continue
+        if lowered.startswith("disclaimer"):
+            continue
+        if lowered in {"tax invoice", "invoice to:", "customer"}:
             continue
         if lowered.startswith("order ") or lowered.startswith("total"):
             continue

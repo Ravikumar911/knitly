@@ -1,6 +1,7 @@
 export type PythonEnvErrorCode =
   | "python-missing"
   | "python-too-old"
+  | "python-too-new"
   | "venv-create-failed"
   | "pip-install-failed"
   | "extractor-import-failed"

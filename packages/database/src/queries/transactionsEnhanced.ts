@@ -102,7 +102,7 @@ export async function getTransactionsEnhancedByUserId(userId: string, limit?: nu
     .orderBy(desc(transactionsV2.transactionDate));
     
   if (limit) {
-    query.limit(limit);
+    return query.limit(limit);
   }
   
   return query;

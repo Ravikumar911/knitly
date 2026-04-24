@@ -1,11 +1,29 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { SlashcashPaths } from "../config/paths.js";
 import type { SlashcashConfig } from "../config/schema.js";
 import { commandExists, runCommand } from "../runtime/subprocess.js";
 import { pythonEnvError, type PythonEnvError } from "./errors.js";
+
+const PREFERRED_HOMEBREW_PYTHON_FORMULA = "python@3.12";
+const PREFERRED_HOMEBREW_PYTHON_BIN = "python3.12";
+const MANAGED_PYTHON_MIN_MINOR = 11;
+const MANAGED_PYTHON_MAX_MINOR = 13;
+const BOOTSTRAP_PYTHON_COMMANDS = [
+  "python3.13",
+  "python3.12",
+  "python3.11",
+  "python3",
+];
 
 export type PythonExtractorRuntime = {
   pythonBin: string;
@@ -14,6 +32,13 @@ export type PythonExtractorRuntime = {
   requirementsPath: string;
   installHashPath: string;
   usesManagedVenv: boolean;
+};
+
+type PythonVersion = {
+  major: number;
+  minor: number;
+  patch: number;
+  raw: string;
 };
 
 export async function ensurePythonEnvReady(input: {
@@ -26,34 +51,30 @@ export async function ensurePythonEnvReady(input: {
 > {
   const runtime = resolvePythonRuntime(input);
   const pythonVersion = verifyPythonVersion(runtime.pythonBin);
-  if (!pythonVersion.ok) {
+  const managedPythonUnsupported =
+    pythonVersion.ok &&
+    runtime.usesManagedVenv &&
+    !isSupportedManagedPythonVersion(pythonVersion.version);
+
+  if (!pythonVersion.ok || managedPythonUnsupported) {
     if (!runtime.usesManagedVenv || !input.fix) {
-      return { ok: false, error: pythonVersion.error };
-    }
-
-    const bootstrapPython = resolveBootstrapPython();
-    if (!bootstrapPython.ok) {
-      return { ok: false, error: bootstrapPython.error };
-    }
-
-    const created = runCommand(
-      bootstrapPython.pythonBin,
-      ["-m", "venv", runtime.venvDir],
-      { timeoutMs: 60_000 },
-    );
-    if (!created.ok) {
       return {
         ok: false,
-        error: pythonEnvError("venv-create-failed", {
-          message:
-            created.stderr || created.stdout || "python venv creation failed.",
-          symptom: "The managed Python virtualenv could not be created.",
-          cause:
-            "The system Python is missing venv support or the target directory is not writable.",
-          fix: "Install Python 3.11+ with venv support and rerun `slashcash doctor --fix`.",
-        }),
+        error: pythonVersion.ok
+          ? unsupportedManagedPythonError(pythonVersion.version)
+          : pythonVersion.error,
       };
     }
+
+    const created = recreateManagedVenv(runtime);
+    if (!created.ok) return created;
+  } else if (
+    runtime.usesManagedVenv &&
+    input.fix &&
+    !pythonHasPip(runtime.pythonBin)
+  ) {
+    const created = recreateManagedVenv(runtime);
+    if (!created.ok) return created;
   }
 
   if (
@@ -142,39 +163,73 @@ export function defaultManagedPython(paths: SlashcashPaths) {
   return join(paths.pyVenv, "bin", "python");
 }
 
-function resolveBootstrapPython():
-  | { ok: true; pythonBin: string }
-  | { ok: false; error: PythonEnvError } {
-  const pythonBin = commandExists("python3")
-    ? "python3"
-    : commandExists("python")
-      ? "python"
-      : null;
+export function resolveBootstrapPython(
+  options: { installWithHomebrew?: boolean } = {},
+): { ok: true; pythonBin: string } | { ok: false; error: PythonEnvError } {
+  const existing = findHealthyBootstrapPython();
+  if (existing.ok) return existing;
 
-  if (!pythonBin) {
+  if (options.installWithHomebrew) {
+    const installed = ensureHomebrewPython();
+    if (!installed.ok) return installed;
+
+    const homebrewPython = preferredHomebrewPythonBin();
+    const checked = checkBootstrapPython(homebrewPython);
+    if (checked.ok) return { ok: true, pythonBin: homebrewPython };
+
+    return checked;
+  }
+
+  return existing;
+}
+
+function recreateManagedVenv(
+  runtime: PythonExtractorRuntime,
+): { ok: true } | { ok: false; error: PythonEnvError } {
+  const bootstrapPython = resolveBootstrapPython({ installWithHomebrew: true });
+  if (!bootstrapPython.ok) {
+    return { ok: false, error: bootstrapPython.error };
+  }
+
+  rmSync(runtime.venvDir, { recursive: true, force: true });
+  const created = runCommand(
+    bootstrapPython.pythonBin,
+    ["-m", "venv", runtime.venvDir],
+    { timeoutMs: 60_000 },
+  );
+  if (!created.ok) {
     return {
       ok: false,
-      error: pythonEnvError("python-missing", {
-        message: "python3 was not found on PATH.",
-        symptom: "Python 3.11+ is not installed.",
+      error: pythonEnvError("venv-create-failed", {
+        message:
+          created.stderr || created.stdout || "python venv creation failed.",
+        symptom: "The managed Python virtualenv could not be created.",
         cause:
-          "slashcash needs a local Python interpreter to run the PDF extractor.",
-        fix: "Install Python 3.11+ (for example `brew install python@3.12`) and rerun `slashcash doctor --fix`.",
+          "No installed Python could create a pip-enabled virtualenv for slash.cash.",
+        fix: `Run \`brew reinstall ${PREFERRED_HOMEBREW_PYTHON_FORMULA}\`, then rerun \`slashcash doctor --fix\`.`,
       }),
     };
   }
 
-  const version = verifyPythonVersion(pythonBin);
-  if (!version.ok) {
-    return { ok: false, error: version.error };
+  if (!pythonHasPip(runtime.pythonBin)) {
+    return {
+      ok: false,
+      error: pythonEnvError("venv-create-failed", {
+        message: `${runtime.pythonBin} cannot run pip after venv creation.`,
+        symptom: "The managed Python virtualenv was created without pip.",
+        cause:
+          "The selected Python installation has broken ensurepip or venv support.",
+        fix: `Run \`brew reinstall ${PREFERRED_HOMEBREW_PYTHON_FORMULA}\`, then rerun \`slashcash doctor --fix\`.`,
+      }),
+    };
   }
 
-  return { ok: true, pythonBin };
+  return { ok: true };
 }
 
 function verifyPythonVersion(
   pythonBin: string,
-): { ok: true } | { ok: false; error: PythonEnvError } {
+): { ok: true; version: PythonVersion } | { ok: false; error: PythonEnvError } {
   const result = runCommand(pythonBin, ["--version"], { timeoutMs: 15_000 });
   if (!result.ok) {
     return {
@@ -207,7 +262,8 @@ function verifyPythonVersion(
 
   const major = Number(versionMatch[1]);
   const minor = Number(versionMatch[2]);
-  if (major < 3 || (major === 3 && minor < 11)) {
+  const patch = Number(versionMatch[3]);
+  if (major < 3 || (major === 3 && minor < MANAGED_PYTHON_MIN_MINOR)) {
     return {
       ok: false,
       error: pythonEnvError("python-too-old", {
@@ -219,7 +275,225 @@ function verifyPythonVersion(
     };
   }
 
-  return { ok: true };
+  return {
+    ok: true,
+    version: {
+      major,
+      minor,
+      patch,
+      raw: output.trim(),
+    },
+  };
+}
+
+function findHealthyBootstrapPython():
+  | { ok: true; pythonBin: string }
+  | { ok: false; error: PythonEnvError } {
+  for (const pythonBin of BOOTSTRAP_PYTHON_COMMANDS) {
+    const checked = checkBootstrapPython(pythonBin);
+    if (checked.ok) return { ok: true, pythonBin };
+  }
+
+  for (const pythonBin of homebrewPythonCandidates()) {
+    const checked = checkBootstrapPython(pythonBin);
+    if (checked.ok) return { ok: true, pythonBin };
+  }
+
+  return {
+    ok: false,
+    error: pythonEnvError("python-missing", {
+      message: "No healthy Python 3.11-3.13 interpreter was found.",
+      symptom: "Python 3.11-3.13 with working venv support is required.",
+      cause:
+        "slash.cash needs a local Python interpreter to install the PDF extractor into its managed virtualenv.",
+      fix: `Run \`brew install ${PREFERRED_HOMEBREW_PYTHON_FORMULA}\`, then rerun \`slashcash doctor --fix\`.`,
+    }),
+  };
+}
+
+function checkBootstrapPython(
+  pythonBin: string,
+): { ok: true } | { ok: false; error: PythonEnvError } {
+  if (!isExecutableCandidate(pythonBin)) {
+    return {
+      ok: false,
+      error: pythonEnvError("python-missing", {
+        message: `${pythonBin} was not found.`,
+        symptom: "Python 3.11-3.13 is not installed.",
+        cause:
+          "slash.cash could not find a stable Python interpreter for the PDF extractor.",
+        fix: `Run \`brew install ${PREFERRED_HOMEBREW_PYTHON_FORMULA}\`, then rerun \`slashcash doctor --fix\`.`,
+      }),
+    };
+  }
+
+  const version = verifyPythonVersion(pythonBin);
+  if (!version.ok) return { ok: false, error: version.error };
+
+  if (!isSupportedManagedPythonVersion(version.version)) {
+    return {
+      ok: false,
+      error: unsupportedManagedPythonError(version.version),
+    };
+  }
+
+  return verifyCanCreatePipVenv(pythonBin);
+}
+
+function verifyCanCreatePipVenv(
+  pythonBin: string,
+): { ok: true } | { ok: false; error: PythonEnvError } {
+  const testVenvDir = mkdtempSync(join(tmpdir(), "slashcash-python-check-"));
+  try {
+    const created = runCommand(pythonBin, ["-m", "venv", testVenvDir], {
+      timeoutMs: 60_000,
+    });
+    if (!created.ok) {
+      return {
+        ok: false,
+        error: pythonEnvError("venv-create-failed", {
+          message:
+            created.stderr || created.stdout || "python venv creation failed.",
+          symptom: "Python could not create a virtualenv.",
+          cause:
+            "The interpreter is installed, but its venv/ensurepip support is broken.",
+          fix: `Run \`brew reinstall ${PREFERRED_HOMEBREW_PYTHON_FORMULA}\`, then rerun \`slashcash doctor --fix\`.`,
+        }),
+      };
+    }
+
+    const venvPython = join(testVenvDir, "bin", "python");
+    return pythonHasPip(venvPython)
+      ? { ok: true }
+      : {
+          ok: false,
+          error: pythonEnvError("venv-create-failed", {
+            message: `${venvPython} cannot run pip after venv creation.`,
+            symptom: "Python created a virtualenv without pip.",
+            cause:
+              "The interpreter has broken ensurepip support, so dependencies cannot be installed.",
+            fix: `Run \`brew reinstall ${PREFERRED_HOMEBREW_PYTHON_FORMULA}\`, then rerun \`slashcash doctor --fix\`.`,
+          }),
+        };
+  } finally {
+    rmSync(testVenvDir, { recursive: true, force: true });
+  }
+}
+
+function pythonHasPip(pythonBin: string) {
+  return runCommand(pythonBin, ["-m", "pip", "--version"], {
+    timeoutMs: 15_000,
+  }).ok;
+}
+
+function ensureHomebrewPython():
+  | { ok: true }
+  | { ok: false; error: PythonEnvError } {
+  if (!commandExists("brew")) {
+    return {
+      ok: false,
+      error: pythonEnvError("python-missing", {
+        message: "Homebrew was not found on PATH.",
+        symptom: "A stable Python could not be installed automatically.",
+        cause:
+          "slash.cash uses Homebrew to install a stable Python for the managed PDF extractor environment.",
+        fix: `Install Homebrew, then run \`brew install ${PREFERRED_HOMEBREW_PYTHON_FORMULA}\` and \`slashcash doctor --fix\`.`,
+      }),
+    };
+  }
+
+  const installed = runCommand(
+    "brew",
+    ["list", "--formula", PREFERRED_HOMEBREW_PYTHON_FORMULA],
+    { timeoutMs: 30_000 },
+  );
+  const repaired = installed.ok
+    ? runCommand("brew", ["upgrade", PREFERRED_HOMEBREW_PYTHON_FORMULA], {
+        timeoutMs: 10 * 60_000,
+      })
+    : runCommand("brew", ["install", PREFERRED_HOMEBREW_PYTHON_FORMULA], {
+        timeoutMs: 10 * 60_000,
+      });
+
+  if (repaired.ok) return { ok: true };
+
+  if (installed.ok) {
+    const reinstalled = runCommand(
+      "brew",
+      ["reinstall", PREFERRED_HOMEBREW_PYTHON_FORMULA],
+      { timeoutMs: 10 * 60_000 },
+    );
+    if (reinstalled.ok) return { ok: true };
+  }
+
+  return {
+    ok: false,
+    error: pythonEnvError("python-missing", {
+      message: repaired.stderr || repaired.stdout || "brew install failed.",
+      symptom: "Homebrew could not install a stable Python.",
+      cause:
+        "The automatic Python repair failed before the PDF extractor dependencies could be installed.",
+      fix: `Run \`brew install ${PREFERRED_HOMEBREW_PYTHON_FORMULA}\`, then rerun \`slashcash doctor --fix\`.`,
+    }),
+  };
+}
+
+function homebrewPythonCandidates() {
+  return Array.from(
+    new Set([
+      preferredHomebrewPythonBin(),
+      join(
+        "/opt/homebrew/opt",
+        PREFERRED_HOMEBREW_PYTHON_FORMULA,
+        "bin",
+        PREFERRED_HOMEBREW_PYTHON_BIN,
+      ),
+      join(
+        "/usr/local/opt",
+        PREFERRED_HOMEBREW_PYTHON_FORMULA,
+        "bin",
+        PREFERRED_HOMEBREW_PYTHON_BIN,
+      ),
+    ]),
+  );
+}
+
+function preferredHomebrewPythonBin() {
+  if (!commandExists("brew")) return PREFERRED_HOMEBREW_PYTHON_BIN;
+
+  const prefix = runCommand(
+    "brew",
+    ["--prefix", PREFERRED_HOMEBREW_PYTHON_FORMULA],
+    { timeoutMs: 30_000 },
+  );
+  const prefixPath = prefix.ok ? prefix.stdout.trim() : "";
+  return prefixPath
+    ? join(prefixPath, "bin", PREFERRED_HOMEBREW_PYTHON_BIN)
+    : PREFERRED_HOMEBREW_PYTHON_BIN;
+}
+
+function isExecutableCandidate(pythonBin: string) {
+  return pythonBin.includes(sep)
+    ? existsSync(pythonBin)
+    : commandExists(pythonBin);
+}
+
+function isSupportedManagedPythonVersion(version: PythonVersion) {
+  return (
+    version.major === 3 &&
+    version.minor >= MANAGED_PYTHON_MIN_MINOR &&
+    version.minor <= MANAGED_PYTHON_MAX_MINOR
+  );
+}
+
+function unsupportedManagedPythonError(version: PythonVersion) {
+  return pythonEnvError("python-too-new", {
+    message: version.raw,
+    symptom: "The managed PDF extractor Python version is not supported yet.",
+    cause:
+      "slash.cash uses Python 3.11-3.13 for the managed PDF extractor environment because newer interpreters can lag dependency wheel and ensurepip support.",
+    fix: `Run \`slashcash doctor --fix\` to rebuild the managed venv with ${PREFERRED_HOMEBREW_PYTHON_FORMULA}.`,
+  });
 }
 
 function shouldInstallRequirements(runtime: PythonExtractorRuntime) {

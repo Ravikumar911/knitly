@@ -848,12 +848,11 @@ export const PromptInput = ({
       event.preventDefault();
 
       const form = event.currentTarget;
+      const formData = new FormData(form);
+      const formText = (formData.get("message") as string) || "";
       const text = usingProvider
-        ? controller.textInput.value
-        : (() => {
-            const formData = new FormData(form);
-            return (formData.get("message") as string) || "";
-          })();
+        ? controller.textInput.value || formText
+        : formText;
 
       // Reset form immediately after capturing text to avoid race condition
       // where user input during async blob conversion would be lost

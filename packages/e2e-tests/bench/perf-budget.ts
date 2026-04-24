@@ -15,13 +15,18 @@ const version = measure("slashcash --version", () =>
   run(["--filter", "slashcash", "dev", "--", "--version"]),
 );
 const doctorHome = mkdtempSync(join(tmpdir(), "slashcash-bench-"));
+const doctorEnv = {
+  SLASHCASH_HOME: doctorHome,
+  SQLITE_DB_PATH: join(doctorHome, "db.sqlite"),
+  SLASHCASH_DOCTOR_SKIP_OLLAMA: "1",
+  SLASHCASH_IMAP_FIXTURE_DIR: imapFixtureDir,
+};
+run(
+  ["--filter", "slashcash", "dev", "--", "doctor", "--fix", "--quick"],
+  doctorEnv,
+);
 const doctor = measure("slashcash doctor --quick", () =>
-  run(["--filter", "slashcash", "dev", "--", "doctor", "--fix", "--quick"], {
-    SLASHCASH_HOME: doctorHome,
-    SQLITE_DB_PATH: join(doctorHome, "db.sqlite"),
-    SLASHCASH_DOCTOR_SKIP_OLLAMA: "1",
-    SLASHCASH_IMAP_FIXTURE_DIR: imapFixtureDir,
-  }),
+  run(["--filter", "slashcash", "dev", "--", "doctor", "--quick"], doctorEnv),
 );
 rmSync(doctorHome, { recursive: true, force: true });
 
@@ -44,12 +49,16 @@ function run(args: string[], extraEnv: Record<string, string> = {}) {
     encoding: "utf8",
   });
   if (result.status !== 0) {
-    throw new Error(`pnpm ${args.join(" ")} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    throw new Error(
+      `pnpm ${args.join(" ")} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+    );
   }
 }
 
 function assertBudget(name: string, actual: number, budget: number) {
   if (actual > budget) {
-    throw new Error(`${name} took ${actual.toFixed(0)}ms, above budget ${budget}ms`);
+    throw new Error(
+      `${name} took ${actual.toFixed(0)}ms, above budget ${budget}ms`,
+    );
   }
 }

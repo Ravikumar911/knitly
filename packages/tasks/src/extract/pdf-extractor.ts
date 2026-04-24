@@ -5,6 +5,7 @@ import {
   PdfExtractionSchema,
   type PdfExtraction,
 } from "./pdf-extractor-schema";
+import { syncDebug } from "../utils/sync-debug";
 
 export type PdfExtractErrorCode =
   | "pdf-extractor-not-ready"
@@ -52,6 +53,13 @@ export async function extractPdf(
 
   const pythonBin = resolvePdfExtractorPython();
   const timeoutMs = resolveTimeoutMs(opts.timeoutMs);
+  const startedAt = Date.now();
+
+  syncDebug("pdf-subprocess-start", {
+    path: resolve(absolutePath),
+    pythonBin,
+    timeoutMs,
+  });
 
   return new Promise<PdfExtractResult>((resolveResult) => {
     let settled = false;
@@ -72,6 +80,14 @@ export async function extractPdf(
       if (settled) return;
       settled = true;
       if (killTimer) clearTimeout(killTimer);
+      syncDebug("pdf-subprocess-finish", {
+        ok: result.ok,
+        elapsedMs: Date.now() - startedAt,
+        code: result.ok ? null : result.error.code,
+        message: result.ok ? null : result.error.message,
+        stderrChars: stderr.length,
+        stdoutChars: stdout.length,
+      });
       resolveResult(result);
     };
 

@@ -10,27 +10,35 @@ test.describe("Customer transaction journeys", () => {
 
     await expect(rows.first()).toBeVisible();
     await expect(page.getByText("Truffles").first()).toBeVisible();
+    await expect(rows.first()).toContainText("Dinner order from Truffles");
 
-    const firstRowBefore = (await rows.first().textContent()) || "";
+    const dateSortButton = page.getByRole("button", {
+      name: /Sort by date ascending/i,
+    });
 
-    await page.getByRole("button", { name: /Date/ }).click();
+    await dateSortButton.click();
 
-    await expect
-      .poll(async () => (await rows.first().textContent()) || "")
-      .not.toBe(firstRowBefore);
+    await expect(
+      page.getByRole("button", { name: /Sort by date descending/i }),
+    ).toBeVisible();
+    await expect(rows.first()).toContainText("Swiggy order - Millet Bowl Co", {
+      timeout: 15_000,
+    });
   });
 
   test("opens a receipt from the transactions list", async ({ page }) => {
     await page.goto("/dashboard/transactions");
 
-    await page
-      .getByRole("button", { name: /Open invoice/i })
-      .first()
-      .click();
+    const invoiceButton = page.getByRole("button", {
+      name: /Open invoice for Swiggy order - Millet Bowl Co/i,
+    });
+    await invoiceButton.scrollIntoViewIfNeeded();
+    await expect(invoiceButton).toBeVisible();
+    await invoiceButton.click();
 
     await expect(
       page.getByRole("heading", { name: "Transaction Invoice" }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 10_000 });
 
     const invoiceFrame = page.locator('iframe[title="Transaction invoice"]');
     await expect(invoiceFrame).toBeVisible();

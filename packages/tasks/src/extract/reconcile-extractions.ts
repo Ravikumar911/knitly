@@ -2,6 +2,7 @@ import { generateObject, NoObjectGeneratedError, type LanguageModel } from "ai";
 import { z } from "zod";
 import { SwiggyMerchant } from "../merchants/swiggy";
 import { SWIGGY_RECONCILIATION_RULES } from "../merchants/swiggy/prompt";
+import { createAiAbortController } from "../utils/ai-timeout";
 
 type SwiggyExtraction = z.infer<typeof SwiggyMerchant.schema>;
 
@@ -22,11 +23,17 @@ export async function reconcileExtractions(input: {
 }): Promise<ReconciliationCandidate> {
   const mismatch = hasAmountMismatch(input.body, input.pdf);
   const deterministic = deterministicMerge(input.body, input.pdf, mismatch);
+  const abort = createAiAbortController();
 
   try {
     const { object } = await generateObject({
       model: input.model,
       schema: SwiggyMerchant.schema,
+      schemaName: "SwiggyExtraction",
+      schemaDescription: "A reconciled slash.cash Swiggy transaction result.",
+      mode: "json",
+      maxRetries: 0,
+      abortSignal: abort.signal,
       temperature: 0,
       prompt: [
         "Reconcile these two Swiggy extraction candidates into one final object.",
@@ -78,6 +85,8 @@ export async function reconcileExtractions(input: {
       return deterministic;
     }
     return deterministic;
+  } finally {
+    abort.clear();
   }
 }
 

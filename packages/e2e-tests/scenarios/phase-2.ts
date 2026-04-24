@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { accessSync, constants, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,22 +11,53 @@ const fixtureDir = join(repoRoot, "packages", "e2e-tests", "fixtures", "imap");
 
 function resolvePythonBin(): string {
   const fromEnv = process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON?.trim();
-  if (fromEnv) return fromEnv;
+  if (fromEnv) {
+    if (isUsablePython(fromEnv)) return fromEnv;
+    throw new Error(
+      `SLASHCASH_PDF_EXTRACTOR_PYTHON is not a usable Python 3.11-3.13 with pip: ${fromEnv}`,
+    );
+  }
 
   const candidates = [
-    "/opt/homebrew/bin/python3",
+    "python3.13",
+    "python3.12",
+    "python3.11",
+    "/opt/homebrew/opt/python@3.13/bin/python3.13",
+    "/opt/homebrew/opt/python@3.12/bin/python3.12",
+    "/opt/homebrew/opt/python@3.11/bin/python3.11",
+    "/usr/local/opt/python@3.13/bin/python3.13",
+    "/usr/local/opt/python@3.12/bin/python3.12",
+    "/usr/local/opt/python@3.11/bin/python3.11",
     "/usr/local/bin/python3",
+    "/opt/homebrew/bin/python3",
     "/usr/bin/python3",
   ];
   for (const candidate of candidates) {
-    try {
-      accessSync(candidate, constants.X_OK);
+    if (isUsablePython(candidate)) {
       return candidate;
-    } catch {
-      /* try next */
     }
   }
-  return "python3";
+  throw new Error("No usable Python 3.11-3.13 with pip was found.");
+}
+
+function isUsablePython(candidate: string) {
+  const version = spawnSync(candidate, ["--version"], {
+    encoding: "utf8",
+  });
+  if (version.status !== 0) return false;
+
+  const output = `${version.stdout}\n${version.stderr}`;
+  const match = output.match(/Python\s+3\.(\d+)\./i);
+  if (!match) return false;
+
+  const minor = Number(match[1]);
+  if (minor < 11 || minor > 13) return false;
+
+  return (
+    spawnSync(candidate, ["-m", "pip", "--version"], {
+      encoding: "utf8",
+    }).status === 0
+  );
 }
 
 const pythonBin = resolvePythonBin();

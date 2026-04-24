@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { SwiggyMerchant } from "../merchants/swiggy";
 import type { EmailData } from "../types/slashAI";
+import { syncDebug } from "../utils/sync-debug";
 import { extractPdf } from "./pdf-extractor";
 
 type SwiggyExtraction = z.infer<typeof SwiggyMerchant.schema>;
@@ -24,6 +25,11 @@ export async function extractFromPdf(input: {
 > {
   const result = await extractPdf(input.attachmentPath);
   if (!result.ok) {
+    syncDebug("pdf-wrapper-error", {
+      attachmentPath: input.attachmentPath,
+      code: result.error.code,
+      message: result.error.message,
+    });
     return {
       ok: false,
       message: result.error.message,
@@ -31,6 +37,18 @@ export async function extractFromPdf(input: {
   }
 
   const pdf = result.value;
+  syncDebug("pdf-wrapper-fields", {
+    attachmentPath: input.attachmentPath,
+    extractor: pdf.extractor,
+    extractorVersion: pdf.extractorVersion,
+    confidence: pdf.confidence,
+    hasTotalAmount: pdf.fields.totalAmount !== undefined,
+    hasOrderId: Boolean(pdf.fields.orderId),
+    itemCount: pdf.fields.items.length,
+    warningCount: pdf.warnings.length,
+    rawTextChars: pdf.raw.text.length,
+  });
+
   const address = pdf.fields.delivery?.address;
   const pincode = pdf.fields.delivery?.pincode;
   const extractionData = SwiggyMerchant.schema.parse({

@@ -10,6 +10,7 @@ import {
   type PdfExtractionCandidate,
 } from "./extract-from-pdf";
 import { reconcileExtractions } from "./reconcile-extractions";
+import { syncDebug } from "../utils/sync-debug";
 
 type SwiggyExtraction = z.infer<typeof SwiggyMerchant.schema>;
 
@@ -40,8 +41,22 @@ export async function extractTransactionFromEmail(
   const skipAi = process.env.SLASHCASH_SYNC_SKIP_AI === "1";
   const model = skipAi ? null : defaultModel();
 
+  syncDebug("pipeline-start", {
+    emailId: emailData.emailId || null,
+    attachmentCount: emailData.attachments?.length || 0,
+    pdfAttachmentCount:
+      emailData.attachments?.filter(
+        (attachment) => attachment.mimeType === "application/pdf",
+      ).length || 0,
+    skipAi,
+  });
+
   let bodyCandidate: PipelineCandidate | null = null;
   if (model) {
+    syncDebug("body-extraction-start", {
+      emailId: emailData.emailId || null,
+      model: process.env.OLLAMA_CHAT_MODEL || null,
+    });
     const body = await extractFromEmailBody(emailData, model, {
       storeTransaction: false,
     });
@@ -58,8 +73,17 @@ export async function extractTransactionFromEmail(
         dataSource: "EMAIL_BODY",
         contributedByPdf: false,
       };
+      syncDebug("body-extraction-ok", {
+        emailId: emailData.emailId || null,
+        confidence: bodyCandidate.extractionConfidence,
+        amount: bodyCandidate.extractionData.transaction?.amount ?? null,
+      });
     } else {
       parseErrors.push(...body.parseErrors);
+      syncDebug("body-extraction-empty", {
+        emailId: emailData.emailId || null,
+        parseErrorCount: body.parseErrors.length,
+      });
     }
   }
 
@@ -69,15 +93,32 @@ export async function extractTransactionFromEmail(
       continue;
     }
 
+    syncDebug("pdf-extraction-start", {
+      emailId: emailData.emailId || null,
+      filename: attachment.filename,
+      path: attachment.storageUrl,
+    });
     const pdf = await extractFromPdf({
       emailData,
       attachmentPath: attachment.storageUrl,
     });
     if (pdf.ok) {
       pdfCandidate = pdf.value;
+      syncDebug("pdf-extraction-ok", {
+        emailId: emailData.emailId || null,
+        confidence: pdfCandidate.extractionConfidence,
+        amount: pdfCandidate.extractionData.transaction?.amount ?? null,
+        orderId: pdfCandidate.extractionData.transaction?.orderId ?? null,
+        warningCount: pdfCandidate.warnings.length,
+      });
       break;
     }
     parseErrors.push(pdf.message);
+    syncDebug("pdf-extraction-failed", {
+      emailId: emailData.emailId || null,
+      filename: attachment.filename,
+      message: pdf.message,
+    });
   }
 
   let finalCandidate: PipelineCandidate | null = null;
@@ -90,10 +131,25 @@ export async function extractTransactionFromEmail(
         })
       : pdfCandidate;
     parseErrors.push(...bodyCandidate.parseErrors, ...pdfCandidate.parseErrors);
+    syncDebug("pipeline-reconciled", {
+      emailId: emailData.emailId || null,
+      confidence: finalCandidate.extractionConfidence,
+      amount: finalCandidate.extractionData.transaction?.amount ?? null,
+      warningCount: finalCandidate.warnings.length,
+      parseErrorCount: finalCandidate.parseErrors.length,
+    });
   } else if (pdfCandidate) {
     finalCandidate = pdfCandidate;
+    syncDebug("pipeline-using-pdf", {
+      emailId: emailData.emailId || null,
+      confidence: finalCandidate.extractionConfidence,
+    });
   } else if (bodyCandidate) {
     finalCandidate = bodyCandidate;
+    syncDebug("pipeline-using-body", {
+      emailId: emailData.emailId || null,
+      confidence: finalCandidate.extractionConfidence,
+    });
   } else {
     const fallback = fallbackSwiggy(emailData);
     if (fallback) {
@@ -136,10 +192,19 @@ export async function extractTransactionFromEmail(
         dataSource: "EMAIL_BODY",
         contributedByPdf: false,
       };
+      syncDebug("pipeline-using-fallback", {
+        emailId: emailData.emailId || null,
+        confidence: finalCandidate.extractionConfidence,
+        amount: finalCandidate.extractionData.transaction?.amount ?? null,
+      });
     }
   }
 
   if (!finalCandidate || !finalCandidate.extractionData.transaction?.amount) {
+    syncDebug("pipeline-no-transaction", {
+      emailId: emailData.emailId || null,
+      parseErrors,
+    });
     return {
       extractionData: SwiggyMerchant.schema.parse({
         detectedProvider: "Swiggy",
@@ -208,6 +273,16 @@ export async function extractTransactionFromEmail(
       isVerified: false,
     });
     transactionId = stored?.id;
+    syncDebug("transaction-written", {
+      emailId: emailData.emailId || null,
+      parsedEmailId: options.parsedEmailId || emailData.emailId || null,
+      transactionId: transactionId || null,
+      schemaUsed: finalCandidate.schemaUsed,
+      dataSource: finalCandidate.contributedByPdf
+        ? "PDF_ATTACHMENT"
+        : "EMAIL_BODY",
+      confidence: finalCandidate.extractionConfidence,
+    });
   }
 
   return {

@@ -8,6 +8,7 @@ import {
   updateEmailData,
   updateSyncProgress,
   isEmailProcessed,
+  dbPath,
 } from "@workspace/database";
 import { extractTransactionFromEmail } from "../extract/pipeline";
 import {
@@ -18,6 +19,7 @@ import {
 import { runSingleFlight } from "../runtime/mutex";
 import type { EmailData } from "../types/slashAI";
 import { writeAttachmentFile } from "../utils/attachments-fs";
+import { errorSummary, syncDebug } from "../utils/sync-debug";
 import {
   classifyImapError,
   isCredentialError,
@@ -71,6 +73,17 @@ async function runEmailSyncUnsafe(
   const maxMessages =
     payload.maxMessages || Number(process.env.SLASHCASH_SYNC_LIMIT || 50);
 
+  syncDebug("sync-start", {
+    userId: payload.userId,
+    query,
+    maxMessages,
+    full: Boolean(payload.full),
+    skipAi: process.env.SLASHCASH_SYNC_SKIP_AI === "1",
+    model: process.env.OLLAMA_CHAT_MODEL || null,
+    dbPath,
+    pdfExtractorPython: process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON || null,
+  });
+
   await markSyncCountingEmails(payload.userId);
   const listed = await listMessages(query, maxMessages);
   if (!listed.ok) {
@@ -78,16 +91,31 @@ async function runEmailSyncUnsafe(
     throw toImapCliError(listed.error);
   }
 
+  syncDebug("messages-listed", {
+    totalFound: listed.data.length,
+    ids: listed.data.map((ref) => ref.id),
+  });
+
   await initializeSync(payload.userId, listed.data.length);
 
   let processedCount = 0;
   let skippedCount = 0;
   let errorCount = 0;
 
-  for (const ref of listed.data) {
+  for (const [index, ref] of listed.data.entries()) {
     try {
+      syncDebug("message-start", {
+        index: index + 1,
+        total: listed.data.length,
+        messageId: ref.id,
+        threadId: ref.threadId,
+      });
+
       if (await isEmailProcessed(payload.userId, ref.id)) {
         skippedCount += 1;
+        syncDebug("message-skipped-existing", {
+          messageId: ref.id,
+        });
         continue;
       }
 
@@ -97,6 +125,25 @@ async function runEmailSyncUnsafe(
       }
 
       const emailData = toEmailData(payload.userId, fetched.data);
+      syncDebug("message-fetched", {
+        messageId: ref.id,
+        gmailThreadId: fetched.data.gmailThreadId,
+        from: fetched.data.from,
+        date: fetched.data.date,
+        textChars: fetched.data.text.length,
+        htmlChars: fetched.data.html.length,
+        bodyChars: emailData.body.length,
+        bodyTruncated:
+          emailData.body.length >= resolveMaxEmailBodyChars() &&
+          fetched.data.text.length + fetched.data.html.length >
+            emailData.body.length,
+        attachmentCount: emailData.attachments?.length || 0,
+        pdfAttachmentCount:
+          emailData.attachments?.filter(
+            (attachment) => attachment.mimeType === "application/pdf",
+          ).length || 0,
+      });
+
       const storedEmail = await storeEmailData({
         id: emailData.emailId,
         userId: payload.userId,
@@ -105,7 +152,7 @@ async function runEmailSyncUnsafe(
         threadId: ref.id,
         subject: emailData.subject,
         receivedDate: new Date(emailData.date),
-        parseSuccess: true,
+        parseSuccess: false,
         parseErrors: null,
         rawContent: fetched.data.raw,
         attachmentStoragePath:
@@ -116,6 +163,15 @@ async function runEmailSyncUnsafe(
       });
 
       const parsedEmailId = storedEmail[0]?.id ?? emailData.emailId ?? ref.id;
+      syncDebug("email-stored", {
+        messageId: ref.id,
+        parsedEmailId,
+        attachmentStoragePathCount:
+          emailData.attachments?.filter((attachment) =>
+            Boolean(attachment.storageUrl),
+          ).length || 0,
+      });
+
       const extracted = await extractTransactionFromEmail(emailData, {
         parsedEmailId,
         storeTransaction: true,
@@ -127,6 +183,21 @@ async function runEmailSyncUnsafe(
             ? JSON.stringify(extracted.parseErrors)
             : null,
       });
+      syncDebug("extraction-stored", {
+        messageId: ref.id,
+        parsedEmailId,
+        parseSuccess: extracted.parseSuccess,
+        transactionId: extracted.transactionId || null,
+        schemaUsed: extracted.schemaUsed,
+        dataSource: extracted.dataSource,
+        contributedByPdf: extracted.contributedByPdf,
+        confidence: extracted.extractionConfidence,
+        amount: extracted.extractionData.transaction?.amount ?? null,
+        orderId: extracted.extractionData.transaction?.orderId ?? null,
+        warningCount: extracted.warnings.length,
+        parseErrorCount: extracted.parseErrors.length,
+      });
+
       if (!extracted.parseSuccess) {
         throw new Error(
           "Could not extract transaction data from the Gmail message.",
@@ -134,6 +205,12 @@ async function runEmailSyncUnsafe(
       }
 
       processedCount += 1;
+      syncDebug("message-complete", {
+        messageId: ref.id,
+        processedCount,
+        skippedCount,
+        errorCount,
+      });
     } catch (error) {
       errorCount += 1;
       const classified = classifyImapError(error);
@@ -142,6 +219,11 @@ async function runEmailSyncUnsafe(
         ref.id,
         classified.message,
       );
+      syncDebug("message-failed", {
+        messageId: ref.id,
+        classified: classified.code,
+        error: errorSummary(error),
+      });
     } finally {
       await updateSyncProgress(payload.userId, 1);
     }
@@ -186,11 +268,45 @@ function toEmailData(userId: string, message: FetchedImapMessage): EmailData {
     emailId: message.id,
     threadId: message.id,
     subject: message.subject,
-    body: [message.text, message.html].filter(Boolean).join("\n\n").trim(),
+    body: compactEmailBody(message),
     date: message.date,
     from: message.from,
     attachments,
   };
+}
+
+function compactEmailBody(message: FetchedImapMessage) {
+  const text = message.text.trim();
+  const body = text || textFromHtml(message.html);
+  const maxChars = resolveMaxEmailBodyChars();
+
+  if (body.length <= maxChars) {
+    return body;
+  }
+
+  return body.slice(0, maxChars).trim();
+}
+
+function resolveMaxEmailBodyChars() {
+  const configured = Number(
+    process.env.SLASHCASH_EMAIL_BODY_MAX_CHARS || 12_000,
+  );
+  return Number.isFinite(configured) && configured > 0 ? configured : 12_000;
+}
+
+function textFromHtml(html: string) {
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 async function recordSyncFailure(userId: string, error: ImapError) {

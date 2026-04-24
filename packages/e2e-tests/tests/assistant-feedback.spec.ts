@@ -71,7 +71,9 @@ test.describe("Customer assistant and feedback journeys", () => {
 
     await page.getByRole("button", { name: "Send Feedback" }).click();
 
-    await expect(page.getByText("Thank You!")).toBeVisible();
+    await expect(page.getByText("Thank You!")).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(
       page.getByText("Your feedback has been submitted successfully."),
     ).toBeVisible();

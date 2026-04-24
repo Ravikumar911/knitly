@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { useTRPC } from "@/trpc/client";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   Table,
   TableBody,
@@ -14,6 +14,7 @@ import {
 } from "@workspace/ui/components/table";
 import { Button } from "@workspace/ui/components/button";
 import { Badge } from "@workspace/ui/components/badge";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 import {
   FileText,
   ChevronLeft,
@@ -82,8 +83,12 @@ function TransactionTableContent() {
     });
   }, [trpc.transactions.list, page, pageSize, sortDirection]);
 
-  // Fetch transactions using proper tRPC pattern
-  const { data } = useSuspenseQuery(queryOptions);
+  // Keep current rows visible while sort/pagination refreshes.
+  const { data, isFetching } = useQuery({
+    ...queryOptions,
+    placeholderData: keepPreviousData,
+    staleTime: 0,
+  });
 
   // Toggle sort direction
   const handleSortToggle = () => {
@@ -122,7 +127,20 @@ function TransactionTableContent() {
       : "bg-chart-1/10 text-chart-1 border-chart-1/20";
   };
 
-  if (!data || data.transactions.length === 0) {
+  if (!data) {
+    return (
+      <div
+        className="space-y-3"
+        aria-busy="true"
+        aria-label="Loading transactions"
+      >
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-80 w-full" />
+      </div>
+    );
+  }
+
+  if (data.transactions.length === 0) {
     return (
       <div className="p-4 text-center text-gray-600 text-sm border rounded">
         No transactions found
@@ -133,17 +151,23 @@ function TransactionTableContent() {
   return (
     <div className="space-y-3">
       {/* Table without Card wrapper */}
-      <div className="border rounded overflow-hidden">
+      <div className="border rounded overflow-hidden" aria-busy={isFetching}>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-b">
-                <TableHead className="h-9 text-sm font-medium">
+                <TableHead
+                  className="h-9 text-sm font-medium"
+                  aria-sort={
+                    sortDirection === "asc" ? "ascending" : "descending"
+                  }
+                >
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-7 px-2 -ml-2 font-medium text-sm"
                     onClick={handleSortToggle}
+                    aria-label={`Sort by date ${sortDirection === "asc" ? "descending" : "ascending"}`}
                   >
                     Date
                     {sortDirection === "asc" ? (

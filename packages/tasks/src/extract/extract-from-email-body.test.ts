@@ -91,6 +91,9 @@ describe("extractFromEmailBody", () => {
     expect(call.prompt).not.toContain("invoice.pdf");
     expect(call.prompt).not.toContain("VGhpcyBpcyBub3QgYSByZWFsIFBERg==");
     expect(call.prompt).not.toContain("ATTACHMENTS:");
+    expect(call.mode).toBe("json");
+    expect(call.maxRetries).toBe(0);
+    expect(call.abortSignal).toBeInstanceOf(AbortSignal);
     expect(mocks.storeTransactionV2Input).not.toHaveBeenCalled();
   });
 });

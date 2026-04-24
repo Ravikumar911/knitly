@@ -4,6 +4,7 @@ import { storeTransactionV2Input } from "@workspace/database";
 import { defaultModel } from "../ai/model";
 import { SwiggyMerchant } from "../merchants/swiggy";
 import type { EmailData } from "../types/slashAI";
+import { createAiAbortController } from "../utils/ai-timeout";
 
 type SwiggyExtractionResult = z.infer<typeof SwiggyMerchant.schema>;
 
@@ -71,11 +72,18 @@ export async function extractFromEmailBody(
     error: console.error,
   };
 
+  const abort = createAiAbortController();
+
   try {
     const { object } = await generateObject({
       model,
       prompt: buildEmailBodyPrompt(SwiggyMerchant.prompt, emailData),
       schema: SwiggyMerchant.schema,
+      schemaName: "SwiggyExtraction",
+      schemaDescription: "A slash.cash Swiggy transaction extraction result.",
+      mode: "json",
+      maxRetries: 0,
+      abortSignal: abort.signal,
       temperature: 0.1,
     });
 
@@ -139,10 +147,9 @@ export async function extractFromEmailBody(
     };
   } catch (error) {
     if (NoObjectGeneratedError.isInstance(error)) {
-      log.error(
-        "Local model response did not match the Swiggy schema",
-        error.text,
-      );
+      log.error("Local model response did not match the Swiggy schema", {
+        responseChars: error.text?.length ?? 0,
+      });
     } else {
       log.error("Swiggy extraction failed", error);
     }
@@ -158,6 +165,8 @@ export async function extractFromEmailBody(
         error instanceof Error ? error.message : "Unknown extraction error",
       ],
     };
+  } finally {
+    abort.clear();
   }
 }
 
