@@ -26,11 +26,12 @@ jobs:
     name: Packed install
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: macos-latest
-    env:
-      SLASHCASH_HOME: ${{ runner.temp }}/slashcash-home
-      SQLITE_DB_PATH: ${{ runner.temp }}/slashcash-home/db.sqlite
     steps:
       - uses: actions/checkout@v4
+      - name: Configure isolated slash.cash state
+        run: |
+          echo "SLASHCASH_HOME=${RUNNER_TEMP}/slashcash-home" >> "$GITHUB_ENV"
+          echo "SQLITE_DB_PATH=${RUNNER_TEMP}/slashcash-home/db.sqlite" >> "$GITHUB_ENV"
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
