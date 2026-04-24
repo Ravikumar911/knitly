@@ -281,6 +281,14 @@ export async function seedLocalDatabase() {
     first_name: "Local",
     last_name: "User",
     updated_at: now,
+  }).onConflictDoUpdate({
+    target: profiles.id,
+    set: {
+      email: null,
+      first_name: "Local",
+      last_name: "User",
+      updated_at: now,
+    },
   });
 
   await db.insert(emailSyncStatus).values({
