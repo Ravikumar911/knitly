@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { accessSync, constants, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,7 +8,28 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const home = mkdtempSync(join(tmpdir(), "slashcash-phase-2-"));
 const pythonSiteDir = mkdtempSync(join(tmpdir(), "slashcash-phase-2-py-"));
 const fixtureDir = join(repoRoot, "packages", "e2e-tests", "fixtures", "imap");
-const pythonBin = "/usr/local/bin/python3";
+
+function resolvePythonBin(): string {
+  const fromEnv = process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON?.trim();
+  if (fromEnv) return fromEnv;
+
+  const candidates = [
+    "/opt/homebrew/bin/python3",
+    "/usr/local/bin/python3",
+    "/usr/bin/python3",
+  ];
+  for (const candidate of candidates) {
+    try {
+      accessSync(candidate, constants.X_OK);
+      return candidate;
+    } catch {
+      /* try next */
+    }
+  }
+  return "python3";
+}
+
+const pythonBin = resolvePythonBin();
 const pythonSource = join(repoRoot, "packages", "pdf-extractor", "src");
 
 const env = {

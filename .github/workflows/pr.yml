@@ -26,7 +26,7 @@ jobs:
 
   lint-and-types:
     name: Lint and Typecheck
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -40,7 +40,7 @@ jobs:
 
   unit:
     name: Unit and Integration
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     env:
       SLASHCASH_EVAL_SKIP_MODEL: "1"
     steps:
@@ -58,7 +58,7 @@ jobs:
 
   phase-1-e2e:
     name: Phase 1 E2E
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     env:
       SLASHCASH_E2E: "1"
       SLASHCASH_DOCTOR_SKIP_OLLAMA: "1"

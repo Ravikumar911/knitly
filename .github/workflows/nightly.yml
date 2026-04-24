@@ -12,7 +12,7 @@ concurrency:
 jobs:
   node-matrix:
     name: Node ${{ matrix.node }} Checks
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -24,6 +24,9 @@ jobs:
       SLASHCASH_NO_OPEN: "1"
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -37,7 +40,7 @@ jobs:
 
   bundle-smoke:
     name: Bundle Smoke
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     env:
       SLASHCASH_E2E: "1"
       SLASHCASH_DOCTOR_SKIP_OLLAMA: "1"
