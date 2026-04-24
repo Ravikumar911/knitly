@@ -6,7 +6,7 @@ This document describes the end-user verification story for published `slashcash
 
 The tag-triggered release workflow runs a preflight job, publishes the exact packed tarball with provenance, verifies the published install from npm, and uploads:
 
-- an SBOM artifact (`slashcash-sbom.json`)
+- a package manifest generated from the packed tarball (`slashcash-package-manifest.json`)
 - a SHA-256 checksum file (`slashcash.sha256`)
 - the packed `slashcash-*.tgz` artifact used for publish
 
@@ -16,7 +16,7 @@ After a release:
 
 1. Install or inspect the published package version from npm.
 2. Compare the published tarball checksum against `slashcash.sha256`.
-3. Review the attached `slashcash-sbom.json` to see bundled dependencies.
+3. Review the attached `slashcash-package-manifest.json` to see the published tarball metadata and file list.
 4. Inspect the npm provenance attestation for the published package version in the release run.
 
 ## Local smoke path

@@ -64,13 +64,39 @@ jobs:
       - run: SLASHCASH_EVAL_SKIP_MODEL=1 pnpm eval:gate
       - run: pnpm pack:local
       - run: pnpm release:check
-      - name: Generate SBOM
-        working-directory: ${{ env.PACKAGE_DIR }}
-        run: npm sbom --json > ../../slashcash-sbom.json
       - name: Attach checksum
         run: |
           TARBALL=$(ls "${PACKAGE_DIR}"/${PACKAGE_NAME}-*.tgz | head -n 1)
           shasum -a 256 "$TARBALL" > ${PACKAGE_NAME}.sha256
+      - name: Generate release manifest
+        run: |
+          TARBALL=$(ls "${PACKAGE_DIR}"/${PACKAGE_NAME}-*.tgz | head -n 1)
+          SHA256=$(shasum -a 256 "$TARBALL" | awk '{print $1}')
+          TAR_FILE="$TARBALL" SHA256="$SHA256" node <<'NODE' > slashcash-package-manifest.json
+          const { execFileSync } = require("node:child_process");
+          const path = require("node:path");
+
+          const pkg = require(`./${process.env.PACKAGE_DIR}/package.json`);
+          const files = execFileSync("tar", ["-tzf", process.env.TAR_FILE], { encoding: "utf8" })
+            .trim()
+            .split("\n")
+            .filter(Boolean);
+
+          const manifest = {
+            schemaVersion: 1,
+            packageName: pkg.name,
+            packageVersion: pkg.version,
+            gitRef: process.env.GITHUB_REF_NAME,
+            gitSha: process.env.GITHUB_SHA,
+            tarball: path.basename(process.env.TAR_FILE),
+            sha256: process.env.SHA256,
+            generatedAt: new Date().toISOString(),
+            fileCount: files.length,
+            files,
+          };
+
+          process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
+          NODE
       - name: Upload release bundle
         id: bundle
         run: |
@@ -82,13 +108,13 @@ jobs:
           path: |
             ${{ env.PACKAGE_DIR }}/${{ env.PACKAGE_NAME }}-*.tgz
             ${{ env.PACKAGE_NAME }}.sha256
-            slashcash-sbom.json
+            slashcash-package-manifest.json
           if-no-files-found: error
       - name: Release rehearsal summary
         if: github.event_name == 'workflow_dispatch'
         run: |
           echo "Dry run complete for ${PACKAGE_NAME}@${{ steps.version.outputs.version }}."
-          echo "The packaged tarball, checksum, and SBOM were uploaded as workflow artifacts."
+          echo "The packaged tarball, checksum, and package manifest were uploaded as workflow artifacts."
           echo "Push v${{ steps.version.outputs.version }} to publish ${PACKAGE_NAME} to npm and create the GitHub release."
 
   publish:
@@ -134,6 +160,6 @@ jobs:
       - name: Create GitHub release
         run: |
           TARBALL=$(find release-bundle -type f -name "${PACKAGE_NAME}-*.tgz" | sort | head -n 1)
-          gh release create "${GITHUB_REF_NAME}" "$TARBALL" "release-bundle/${PACKAGE_NAME}.sha256" "release-bundle/slashcash-sbom.json" --title "${GITHUB_REF_NAME}" --generate-notes
+          gh release create "${GITHUB_REF_NAME}" "$TARBALL" "release-bundle/${PACKAGE_NAME}.sha256" "release-bundle/slashcash-package-manifest.json" --title "${GITHUB_REF_NAME}" --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
