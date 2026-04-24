@@ -1,6 +1,6 @@
 {
   "name": "slashcash",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": false,
   "description": "Local-first personal finance dashboard CLI for slash.cash.",
   "license": "ISC",
