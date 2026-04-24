@@ -43,3 +43,17 @@ mcp.json
 
 # Playwright auth state
 packages/e2e-tests/playwright/.auth/
+
+# Python (e.g. packages/pdf-extractor)
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
+venv/
+
+# Local pack tarball (pnpm pack in packages/cli)
+packages/cli/*.tgz

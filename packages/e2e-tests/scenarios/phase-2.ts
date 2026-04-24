@@ -6,7 +6,10 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const home = mkdtempSync(join(tmpdir(), "slashcash-phase-2-"));
+const pythonSiteDir = mkdtempSync(join(tmpdir(), "slashcash-phase-2-py-"));
 const fixtureDir = join(repoRoot, "packages", "e2e-tests", "fixtures", "imap");
+const pythonBin = "/usr/local/bin/python3";
+const pythonSource = join(repoRoot, "packages", "pdf-extractor", "src");
 
 const env = {
   ...process.env,
@@ -17,9 +20,12 @@ const env = {
   SLASHCASH_SYNC_SKIP_AI: "1",
   SLASHCASH_DOCTOR_SKIP_OLLAMA: "1",
   SLASHCASH_NO_OPEN: "1",
+  SLASHCASH_PDF_EXTRACTOR_PYTHON: pythonBin,
+  PYTHONPATH: `${pythonSiteDir}:${pythonSource}`,
 };
 
 try {
+  preparePythonExtractorRuntime();
   run("onboard", ["--dry-run"]);
 
   const skills = run("skills", ["list"]);
@@ -41,6 +47,7 @@ try {
   if (readdirSync(join(home, "attachments")).length === 0) {
     throw new Error("sync did not write any attachment fixtures");
   }
+  assertPdfLanePersisted();
 
   run("skills", ["disable", "gmail-swiggy"]);
   runExpectFailure("sync", ["--full"], "gmail-swiggy skill is disabled");
@@ -49,6 +56,7 @@ try {
   console.log("Phase 2 E2E passed.");
 } finally {
   rmSync(home, { recursive: true, force: true });
+  rmSync(pythonSiteDir, { recursive: true, force: true });
 }
 
 function run(command: string, args: string[]) {
@@ -99,4 +107,88 @@ function assertIncludes(value: string, expected: string, label: string) {
   if (!value.includes(expected)) {
     throw new Error(`${label}: expected to find ${expected}`);
   }
+}
+
+function preparePythonExtractorRuntime() {
+  runCommand(pythonBin, [
+    "-m",
+    "pip",
+    "install",
+    "--target",
+    pythonSiteDir,
+    "pydantic==2.13.3",
+  ]);
+  runCommand(pythonBin, ["-m", "slashcash_pdf_extractor", "--self-check"], {
+    env,
+  });
+}
+
+function assertPdfLanePersisted() {
+  const script = [
+    "import json, sqlite3, sys",
+    "db = sqlite3.connect(sys.argv[1])",
+    "db.row_factory = sqlite3.Row",
+    'tx = db.execute("select amount, schema_used, data_source, extraction_confidence from transactions_v2 order by created_at desc limit 1").fetchone()',
+    'email = db.execute("select parse_success, parse_errors from parsed_emails order by created_at desc limit 1").fetchone()',
+    "print(json.dumps({",
+    "  'tx': dict(tx) if tx else None,",
+    "  'email': dict(email) if email else None,",
+    "}))",
+  ].join("\n");
+  const output = runCommand(
+    pythonBin,
+    ["-c", script, join(home, "db.sqlite")],
+    { env },
+  );
+  const payload = JSON.parse(output.stdout) as {
+    tx: {
+      amount: number;
+      schema_used: string;
+      data_source: string;
+      extraction_confidence: number;
+    } | null;
+    email: {
+      parse_success: number;
+      parse_errors: string | null;
+    } | null;
+  };
+
+  if (!payload.tx || !payload.email) {
+    throw new Error(`phase-2 db assertions missing rows: ${output.stdout}`);
+  }
+
+  if (Math.abs(payload.tx.amount - 512.4) > 0.001) {
+    throw new Error(`expected PDF amount 512.4, got ${payload.tx.amount}`);
+  }
+  if (payload.tx.schema_used !== "swiggy.docling.v1") {
+    throw new Error(
+      `expected swiggy.docling.v1, got ${payload.tx.schema_used}`,
+    );
+  }
+  if (payload.tx.data_source !== "PDF_ATTACHMENT") {
+    throw new Error(`expected PDF_ATTACHMENT, got ${payload.tx.data_source}`);
+  }
+  if (payload.email.parse_success !== 1) {
+    throw new Error(
+      `expected parsed_emails.parse_success = 1, got ${payload.email.parse_success}`,
+    );
+  }
+}
+
+function runCommand(
+  command: string,
+  args: string[],
+  options: { env?: NodeJS.ProcessEnv } = {},
+) {
+  const result = spawnSync(command, args, {
+    cwd: repoRoot,
+    env: options.env || env,
+    encoding: "utf8",
+  });
+  if (result.status !== 0) {
+    throw new Error(
+      `${command} ${args.join(" ")} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`,
+    );
+  }
+  return result;
 }

@@ -34,7 +34,7 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-004 — Google auth is owned by `gws`
 
-> **Superseded on 2026-04-22 by ADR-024.** Gmail access in v1 moves from `gws`-brokered OAuth to user-issued IMAP app passwords. The original decision and its trade-offs are preserved below per repo convention; do not implement against it. See [`../roadmap/pivot-imap.md`](../roadmap/pivot-imap.md) for the active plan.
+> **Superseded on 2026-04-22 by ADR-024.** Gmail access in v1 moves from `gws`-brokered OAuth to user-issued IMAP app passwords. The original decision and its trade-offs are preserved below per repo convention; do not implement against it. The IMAP pivot shipped as `roadmap/pivot-imap.md` (retired on 2026-04-23; see [`../current-state.md`](../current-state.md) § Retired phase docs and `git log -- packages/docs/roadmap/pivot-imap.md`).
 
 **Decision.** We never ship a Google OAuth client id, never handle Google tokens, and never store refresh tokens. During `slashcash onboard` the user provisions their own per-machine OAuth client through `gws auth setup` (see ADR-022 for the full gcloud-backed flow) and then runs `gws auth login --services gmail --readonly` to consent to Gmail read-only access. `gws` owns everything about Google authentication and API access from that point onward.
 
@@ -45,6 +45,8 @@ Short architectural decision records. Each entry captures a choice that shapes t
 **Revisit if.** `gws` ever becomes unmaintained, or we decide to absorb the OAuth verification work to shave the two browser consents out of onboarding — at which point ADR-022 flips too.
 
 ## ADR-005 — Ollama with `gemma3n:e4b` as the default model
+
+> **Scope updated on 2026-04-23 by ADR-026.** Gemma remains the sole model for chat, for email-body extraction, and for the reconciliation pass that merges body + PDF candidates. Deterministic PDF extraction is no longer Gemma's job; it is delegated to Docling (see ADR-026). The rest of this ADR is unchanged.
 
 **Decision.** The CLI pulls and targets `gemma3n:e4b` during `onboard`. The AI SDK's OpenAI-compatible adapter is pointed at Ollama's local endpoint.
 
@@ -102,7 +104,7 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-011 — `gws` and `gcloud` install method
 
-> **Superseded on 2026-04-22 by ADR-024.** `gws` and `gcloud` are no longer installed by `slashcash onboard`; Gmail access now goes through IMAP + an app password. The `GWS_BREW_FORMULA` / `GCLOUD_BREW_CASK` constants are deleted during the pivot's B1 workstream. See [`../roadmap/pivot-imap.md`](../roadmap/pivot-imap.md). The original decision is kept below for history.
+> **Superseded on 2026-04-22 by ADR-024.** `gws` and `gcloud` are no longer installed by `slashcash onboard`; Gmail access now goes through IMAP + an app password. The `GWS_BREW_FORMULA` / `GCLOUD_BREW_CASK` constants were deleted during the retired pivot's B1 workstream (see [`../current-state.md`](../current-state.md) § Retired phase docs). The original decision is kept below for history.
 
 **Decision.** `gws` is installed through Homebrew using the `googleworkspace-cli` formula documented in the upstream `gws` README. `gcloud` is installed through the Homebrew cask `google-cloud-sdk`. Both install sources are referenced from single constants (`GWS_BREW_FORMULA`, `GCLOUD_BREW_CASK`) in `packages/cli/src/onboard/run.ts` so any change is one file plus this ADR.
 
@@ -210,7 +212,7 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-022 — BYO-GCP Google onboarding via `gcloud` + `gws auth setup`
 
-> **Superseded on 2026-04-22 by ADR-024.** BYO-GCP is replaced by IMAP + user-generated app password. The ~400 MB `google-cloud-sdk` cask, the `gws` install, `gws auth setup`, `gws auth login --services gmail --readonly`, the Desktop OAuth client provisioning and the test-user dance are all retired. The original decision, its probe transcripts and scripted-gcloud fallback notes are preserved below so the reasoning is traceable if we ever revisit OAuth (see ADR-024's "Revisit if" block). See [`../roadmap/pivot-imap.md`](../roadmap/pivot-imap.md) for the active plan.
+> **Superseded on 2026-04-22 by ADR-024.** BYO-GCP is replaced by IMAP + user-generated app password. The ~400 MB `google-cloud-sdk` cask, the `gws` install, `gws auth setup`, `gws auth login --services gmail --readonly`, the Desktop OAuth client provisioning and the test-user dance are all retired. The original decision, its probe transcripts and scripted-gcloud fallback notes are preserved below so the reasoning is traceable if we ever revisit OAuth (see ADR-024's "Revisit if" block). The IMAP pivot shipped and its roadmap doc was retired on 2026-04-23; see [`../current-state.md`](../current-state.md) § Retired phase docs.
 
 **Decision.** `slashcash onboard` provisions Google access for each user through their own Google Cloud project. The sequence is:
 
@@ -249,7 +251,7 @@ This is the path the `gws` authors recommend when `gcloud` is available; it is t
 
 ## ADR-023 — Privacy disclosures surface at onboarding
 
-> **Amended on 2026-04-22 by ADR-024.** The *principle* — surface privacy facts at every consent moment, keep them reachable forever through `slashcash privacy`, never gate on acknowledgement — is unchanged. The *moments* change: there is no `gcloud auth login` or `gws auth login` browser consent under ADR-024, so the `PRE_GCLOUD_AUTH`, `PRE_GWS_SETUP`, and `PRE_GWS_LOGIN` constants are deleted and replaced by a single `PRE_APP_PASSWORD_INPUT` block shown before the password prompt. `TOP_BANNER` and `FINAL_SUMMARY` are rewritten to describe keychain storage and IMAP connections instead of Google Cloud projects and refresh tokens. Snapshot tests regenerate in the same PR as the copy edit. See [`../roadmap/pivot-imap.md`](../roadmap/pivot-imap.md) § B4 for the exact new copy.
+> **Amended on 2026-04-22 by ADR-024.** The *principle* — surface privacy facts at every consent moment, keep them reachable forever through `slashcash privacy`, never gate on acknowledgement — is unchanged. The *moments* change: there is no `gcloud auth login` or `gws auth login` browser consent under ADR-024, so the `PRE_GCLOUD_AUTH`, `PRE_GWS_SETUP`, and `PRE_GWS_LOGIN` constants are deleted and replaced by a single `PRE_APP_PASSWORD_INPUT` block shown before the password prompt. `TOP_BANNER` and `FINAL_SUMMARY` are rewritten to describe keychain storage and IMAP connections instead of Google Cloud projects and refresh tokens. Snapshot tests regenerate in the same PR as the copy edit. The retired `roadmap/pivot-imap.md` § B4 (see [`../current-state.md`](../current-state.md) § Retired phase docs) documented the exact copy at the time of landing.
 
 **Decision.** The privacy claims that make this product worth installing (local-only data, BYO Google Cloud project, no telemetry, loopback-only dashboard) are printed by the wizard at four moments: top-of-onboard banner, pre-`gcloud auth login` line, pre-`gws auth login` line, and final summary. They are reachable forever through `slashcash privacy`. The wizard also prints one operational safety note before `gws auth setup`: upstream `gws` may ask whether to run `gws auth login` immediately, and slashcash tells the user to answer `n` so the next step can request Gmail read-only access with `gws auth login --services gmail --readonly`. The wizard does not gate on acknowledgement; trust is built by showing the facts at the moments the user is deciding whether to click Allow. Copy and setup guidance live in one file, `packages/cli/src/privacy/copy.ts`, so the wizard and the standing command never drift.
 
@@ -297,7 +299,7 @@ Gmail ingest reads messages through IMAP (`imapflow`) using the Gmail `X-GM-RAW`
 
 ## ADR-025 — Interactive onboarding wizard on `@clack/prompts`
 
-**Decision.** `slashcash onboard` uses `@clack/prompts` (^1.2.0) as its interactive shell, wrapped by a thin `WizardPrompter` interface modelled on `../openclaw/src/wizard/prompts.ts` and `../openclaw/src/wizard/clack-prompter.ts`. Step orchestration continues to live behind the `Step { detect / install / verify }` pipeline from Phase 3 W1; the prompter replaces the current readline-based `packages/cli/src/cli/prompt.ts`. The wizard renders `intro` / grouped `note` / `select` / `text` / `password` / `confirm` / `spinner` at the moments defined in [`../roadmap/pivot-imap.md`](../roadmap/pivot-imap.md) § B2.
+**Decision.** `slashcash onboard` uses `@clack/prompts` (^1.2.0) as its interactive shell, wrapped by a thin `WizardPrompter` interface modelled on `../openclaw/src/wizard/prompts.ts` and `../openclaw/src/wizard/clack-prompter.ts`. Step orchestration continues to live behind the `Step { detect / install / verify }` pipeline from the retired Phase 3 W1 workstream; the prompter replaces the old readline-based `packages/cli/src/cli/prompt.ts`. The wizard renders `intro` / grouped `note` / `select` / `text` / `password` / `confirm` / `spinner` at the moments defined in the retired `roadmap/pivot-imap.md` § B2 (see [`../current-state.md`](../current-state.md) § Retired phase docs and `git log -- packages/docs/roadmap/pivot-imap.md`).
 
 **Why.** The current straight-line `onboard` ships none of the Phase 3 UX we promised: no progress line, no idempotent re-run, no grouped disclosures, no live `ollama pull` stream, no safe cancel. Openclaw has already absorbed the cost of discovering what a local-CLI setup wizard needs to look like, and `@clack/prompts` is the same primitive it uses. Re-deriving our own readline helpers from scratch is pointless duplication against ADR-016 ("continuously learn from openclaw").
 
@@ -314,4 +316,64 @@ Gmail ingest reads messages through IMAP (`imapflow`) using the Gmail `X-GM-RAW`
 - **Build an Ink-based UI.** Out of scale for a few-dozen-line wizard.
 
 **Revisit if.** `@clack/prompts` is unmaintained or its API churns enough to break our thin adapter. The adapter contains the blast radius; we could swap to `prompts` with ~50 lines of change.
+
+## ADR-026 — Docling as the local PDF invoice extractor
+
+**Decision.** PDF attachments are extracted by [Docling](https://github.com/DS4SD/docling) (IBM, MIT-licensed), running fully locally in a Python 3.11+ venv at `~/.slashcash/py-venv`. Gemma over Ollama is no longer responsible for reading PDFs. Gemma continues to handle (a) email-body extraction, (b) the reconciliation pass that merges the body candidate with the Docling candidate into the authoritative `transactions_v2` row, and (c) the dashboard chat assistant.
+
+The split pipeline, per ingested message, is:
+
+1. Email body + inline images → Gemma `generateObject` against the merchant Zod schema.
+2. Each `application/pdf` attachment → `python -m slashcash_pdf_extractor <path>` → validated JSON candidate.
+3. Both candidates → Gemma merge pass with a merchant-specific reconciliation rules block → the final row.
+4. If the PDF extractor is unavailable or fails on a given attachment, ingest degrades to body-only extraction and surfaces the Python lane state via `slashcash doctor`.
+
+**Why.** `gemma3n:e4b` is tuned for chat and light structured output at ~3 GB of weights. PDF receipts (Swiggy in v1, bank statements later) carry totals, per-line items and tax breakdowns inside layout-aware tables that Gemma reads poorly — and today the repo does not even hand it the PDF bytes (see `slashAIV2.ts:30–52`, where attachments are described in prose to the model rather than shown). Docling is purpose-built for document understanding, reads tables correctly, runs offline, and is permissively licensed. Confining the model to deterministic fields (layout, text, tables) and letting Gemma do the softer "merchant field mapping + reconcile with the body" step is a cleaner division of labour than forcing Gemma to do both.
+
+**Rejected.**
+
+- **Keep Gemma + feed PDF bytes via base64 in the prompt.** The model still reads layouts poorly; `generateObject` calls regularly truncate long base64 payloads; and the per-call cost is higher for a worse result.
+- **pdfplumber or PyMuPDF alone.** Both are lightweight and tempting, but they leave the "is this the total?" classification to us. Docling already handles table semantics and multi-column layouts; we would be reinventing a weaker version of Docling in our schema layer.
+- **unstructured.io.** Good general extractor; less focused on invoice-shaped tables than Docling. Closer second than pdfplumber; revisit trigger is "Docling maintainership drops off".
+- **Cloud OCR (AWS Textract, Google Document AI, Mistral OCR).** Violates the local-first posture in ADR-013 and the no-telemetry posture in vision.md § principles.
+- **A long-lived Python sidecar over HTTP.** See ADR-027 — we chose per-PDF subprocess for v1; sidecar is the next-step promotion if latency becomes user-visible.
+
+**Scope.** Docling is a deterministic text+table extractor, not a financial reasoner. The `slashcash_pdf_extractor` Python entry wraps it with a merchant adapter (v1: Swiggy) that maps the Docling output into our stable JSON schema. Adding another merchant is "write another adapter"; it is not an ADR-level decision.
+
+**Revisit if.** Docling is discontinued or its license changes; reconciliation confidence on real dogfood runs stays below the ADR-012 threshold even with Docling-level PDF fields; or we add a merchant whose receipts are primarily image-only (then the adapter layer grows an OCR step or switches libraries, possibly per-merchant).
+
+## ADR-027 — Python extractor as a per-PDF subprocess, venv bootstrapped by `doctor --fix`
+
+**Decision.** Node calls the Python extractor via `child_process.spawn`, once per PDF, with a 30-second default timeout, against the interpreter at `~/.slashcash/py-venv/bin/python`. The venv is created and populated by `slashcash doctor --fix` from a pinned `packages/pdf-extractor/requirements.txt` (exact versions with SHA256 hashes, installed via `pip install --require-hashes`). The install state is tracked by a hash file at `~/.slashcash/py-venv/.slashcash.install-hash` so doctor re-runs `pip install` only when `requirements.txt` changes. No Python code ships inside the npm tarball; the Python package lives at `packages/pdf-extractor/` and `doctor --fix` installs it from the globally-installed CLI's `node_modules` copy.
+
+The extractor is pure: `(pdf path) -> JSON on stdout`. Exit codes: `0` success, `1` deterministic extractor failure, `2` bad argv, `3` unexpected exception. Stderr is human-readable diagnostics only. The Node wrapper returns a `Result<PdfExtraction, PdfExtractError>` with a closed error union (`pdf-extractor-not-ready`, `pdf-extractor-timeout`, `pdf-extractor-crashed`, `pdf-extractor-bad-output`, `pdf-extractor-unsupported-format`, `pdf-extractor-empty`, `unknown`) and never throws.
+
+**Why.** Three properties matter for this surface:
+
+1. **No state leaks between calls.** A per-PDF subprocess gets a fresh Python interpreter; if Docling's internal caches ever misbehave, the blast radius is one email.
+2. **No daemon lifecycle.** We already fought this battle with Trigger.dev and Supabase. Adding a long-lived `127.0.0.1:<port>` Python service re-introduces "is it up?", "is it the right version?", "did the user kill it?", plus a second healthz surface in doctor.
+3. **Fork cost is not the bottleneck.** Ingest runs ≤ 50 messages per tick (see `SLASHCASH_SYNC_LIMIT` default) and runs every 15 minutes. A ~200ms Python cold start per PDF is imperceptible against the Gemma calls.
+
+A pinned venv under `~/.slashcash/` (rather than a project-local `pnpm-packed` Python) is the only option that survives `npm i -g slashcash` on an end-user machine: the npm tarball cannot ship Python wheels portably, and installing into a globally-writable Python path fights macOS's "externally-managed-environment" PEP 668 shield. A per-user venv is the macOS-sanctioned answer.
+
+**Rejected.**
+
+- **Long-lived FastAPI / uvicorn sidecar on 127.0.0.1.** Better batch latency, but ADR-006's "one Node process" simplicity argument applies again here: a second supervised process on 127.0.0.1 is the exact complexity this product keeps avoiding. Promotion is the next step if per-PDF spawn ever dominates sync runtime.
+- **pipx install as a user-global tool.** Works, but makes `slashcash doctor --fix` depend on another package manager (`pipx`) that itself needs installing. Native `python3 -m venv` is already on any Python 3 install.
+- **Ship Python wheels inside the npm tarball.** Cross-architecture (Intel vs Apple Silicon) wheels for Docling's native deps are too fragile to embed; we would reinvent what `pip` already does. Also blows the npm-publish-with-provenance story.
+- **Use `uv` from astral.** `uv` is excellent, but "add `uv` to the install chain" crosses a line: the user went from one brew dep (Ollama) to two (Ollama + Python 3) for this pivot; adding `uv` makes it three. Revisit if doctor-provisioned `pip install` reliably exceeds 90 seconds on normal broadband.
+- **Run the extractor via `pnpm` or tsx as a Node-hosted Python interpreter (PyOdide, RustPython).** No Docling support; not a serious option.
+
+**Install story that the user actually sees.**
+
+- First `slashcash onboard` on a clean machine includes a `python-env` step in the wizard that runs the same code as `doctor --fix`: detect `python3 --version`, create the venv if missing, `pip install --require-hashes -r requirements.txt`. The step shows a single spinner line `Installing PDF extractor (~60s first time, cached after)`.
+- On subsequent `slashcash start` / `slashcash sync` runs, the CLI checks the install-hash file cheaply (no `pip` call); if it matches, the lane is ready immediately.
+- If Python 3 itself is missing, the error block points at `brew install python@3.12`. We do not auto-install Python; the user retains control over their system Python installation.
+
+**Revisit if.**
+
+- Per-PDF spawn cost ever dominates a sync tick (measure via `slashcash logs --filter extract.pdf`; budget is ≤ 20% of sync wall time). Promotion target: long-lived sidecar behind an in-process IPC shim.
+- `pip install` reliably takes longer than 90 seconds on a normal broadband link (switch to `uv`).
+- Python 3 becomes non-trivial to obtain on macOS (unlikely; Xcode CLT ships Python 3, brew ships current Python).
+- A meaningful fraction of users end up on PEP 668-locked Python installs that also refuse `python -m venv` (no signal of that today on macOS).
 

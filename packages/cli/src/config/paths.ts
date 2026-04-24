@@ -11,6 +11,8 @@ export type SlashcashPaths = {
   cache: string;
   logs: string;
   skills: string;
+  pyVenv: string;
+  pyInstallHash: string;
   pidDir: string;
   pidFile: string;
 };
@@ -30,6 +32,8 @@ export function resolvePaths(): SlashcashPaths {
     cache: join(home, "cache"),
     logs: join(home, "logs"),
     skills: join(home, "skills"),
+    pyVenv: join(home, "py-venv"),
+    pyInstallHash: join(home, "py-venv", ".slashcash.install-hash"),
     pidDir: join(home, "pid"),
     pidFile: join(home, "pid", "slashcash.pid.json"),
   };

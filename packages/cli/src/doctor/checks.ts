@@ -2,6 +2,7 @@ import { accessSync } from "node:fs";
 import { getCredentialState } from "../config/credentials.js";
 import { loadConfig } from "../config/load.js";
 import { ensureStateDirs, resolvePaths } from "../config/paths.js";
+import { runPythonEnvCheck } from "./python-env.js";
 import { loadDatabase } from "../runtime/database.js";
 import { loadImapClient } from "../runtime/tasks.js";
 import { commandExists } from "../runtime/subprocess.js";
@@ -113,6 +114,14 @@ export async function runChecks(
       fix: "Run `slashcash doctor --fix`.",
     });
   }
+
+  checks.push(
+    await runPythonEnvCheck({
+      config: loadConfig({ createIfMissing: true }),
+      paths,
+      fix: options.fix,
+    }),
+  );
 
   begin("gmail-credentials");
   try {

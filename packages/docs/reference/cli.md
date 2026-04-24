@@ -17,7 +17,9 @@ Interactive first-run wizard backed by `@clack/prompts` and the `Step { detect /
 5. Prompts for a Gmail address.
 6. Shows the app-password note and prompts for a 16-character Gmail app password.
 7. Verifies IMAP login against `imap.gmail.com:993` before saving credentials.
-8. Creates `~/.slashcash/`, migrates SQLite, installs bundled skills, and prints the final summary.
+8. Creates `~/.slashcash/`, migrates SQLite, and installs bundled skills.
+9. Provisions `~/.slashcash/py-venv/` from the pinned `packages/pdf-extractor/requirements.txt` (reuses the `python-env` repair code that `slashcash doctor --fix` calls).
+10. Prints the final summary.
 
 The wizard is idempotent: rerunning on an already-configured machine is a fast no-op summary. Cancellation is safe; the user can rerun `slashcash onboard` or `slashcash doctor --fix`.
 
@@ -58,12 +60,13 @@ Runs host and local-state checks:
 - bundled skills
 - Ollama reachability and model pull status
 - Gmail IMAP login verification
+- Python environment for the PDF extractor (interpreter ≥ 3.11, venv at `~/.slashcash/py-venv`, pinned `pip install` hash matches, `python -m slashcash_pdf_extractor --version` succeeds)
 
 Flags:
 
-- `--fix` recreates missing local state and installs bundled skills.
+- `--fix` recreates missing local state, installs bundled skills, and provisions / re-provisions `~/.slashcash/py-venv` from the pinned `requirements.txt` when the install-hash file at `~/.slashcash/py-venv/.slashcash.install-hash` is missing or stale.
 - `--json` emits the machine-readable check array.
-- `--quick` skips network probes (`ollama`, `gmail-imap`).
+- `--quick` skips network probes (`ollama`, `gmail-imap`) and the `python-env` import smoke test (venv presence is still checked cheaply).
 - `--reset-credentials` deletes saved Gmail IMAP credentials before rerunning checks.
 
 ## `slashcash config get|set|path`

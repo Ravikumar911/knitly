@@ -55,6 +55,8 @@ describe("sync command", () => {
     cache: "/tmp/slashcash-home/cache",
     logs: "/tmp/slashcash-home/logs",
     skills: "/tmp/slashcash-home/skills",
+    pyVenv: "/tmp/slashcash-home/py-venv",
+    pyInstallHash: "/tmp/slashcash-home/py-venv/.slashcash.install-hash",
     pidDir: "/tmp/slashcash-home/pid",
     pidFile: "/tmp/slashcash-home/pid/slashcash.pid.json",
   };
@@ -67,6 +69,11 @@ describe("sync command", () => {
         ollamaBaseUrl: "http://127.0.0.1:11434/v1",
         chatModel: "tiny-chat",
         visionModel: "tiny-vision",
+      },
+      pdfExtractor: {
+        enabled: true,
+        timeoutMs: 30_000,
+        pythonBin: "",
       },
       sync: {
         gmailQuery: "label:slashcash",

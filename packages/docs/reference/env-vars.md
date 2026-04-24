@@ -48,6 +48,28 @@ Most users never need to set any of these. `config.json` is the normal control s
 
 - Runtime override for the vision model id.
 - Default: `gemma3n:e4b`.
+- Legacy after the PDF-extractor pivot; PDF extraction is handled by the Python lane (see `SLASHCASH_PDF_EXTRACTOR_*`).
+
+## PDF extractor runtime
+
+`SLASHCASH_PDF_EXTRACTOR_DISABLED`
+
+- Set to `1` to skip the Python lane entirely. Ingest degrades to body-only extraction.
+- Used by E2E fixtures and Python-less CI nodes.
+
+`SLASHCASH_PDF_EXTRACTOR_PYTHON`
+
+- Override the Python interpreter path used to spawn the extractor.
+- Default: `${SLASHCASH_HOME}/py-venv/bin/python`.
+
+`SLASHCASH_PDF_EXTRACTOR_TIMEOUT_MS`
+
+- Override the per-PDF subprocess timeout.
+- Default: `30000`.
+
+`SLASHCASH_DOCTOR_SKIP_PYTHON`
+
+- Set to `1` to treat the `python-env` check as skipped in `doctor`. Mirrors `SLASHCASH_DOCTOR_SKIP_OLLAMA`.
 
 ## Gmail / IMAP runtime
 
@@ -146,4 +168,4 @@ The shipping code should not read these:
 
 ## Where variables are read
 
-The paths module reads `SLASHCASH_HOME` and `SQLITE_DB_PATH`. Attachment helpers read `SLASHCASH_ATTACHMENTS_DIR`. The start/sync/job bootstraps set and read the IMAP and Ollama runtime variables. The E2E and fixture harnesses use `SLASHCASH_IMAP_FIXTURE_DIR`, `SLASHCASH_SYNC_SKIP_AI`, and `SLASHCASH_DOCTOR_SKIP_OLLAMA`.
+The paths module reads `SLASHCASH_HOME` and `SQLITE_DB_PATH`. Attachment helpers read `SLASHCASH_ATTACHMENTS_DIR`. The start/sync/job bootstraps set and read the IMAP and Ollama runtime variables. The Python extractor wrapper at `packages/tasks/src/extract/pdf-extractor.ts` reads `SLASHCASH_PDF_EXTRACTOR_*`. The E2E and fixture harnesses use `SLASHCASH_IMAP_FIXTURE_DIR`, `SLASHCASH_SYNC_SKIP_AI`, `SLASHCASH_PDF_EXTRACTOR_DISABLED`, `SLASHCASH_DOCTOR_SKIP_OLLAMA`, and `SLASHCASH_DOCTOR_SKIP_PYTHON`.

@@ -1,6 +1,60 @@
 # Reference — File change list
 
-Concrete per-file changes for Phase 1. This is the checklist the execution chat works against. Paths are repo-root relative. Every line is categorised as **create**, **modify**, or **delete**.
+Concrete per-file changes. Paths are repo-root relative. Every line is categorised as **create**, **modify**, or **delete**. The sections are chronological; the newest pivot is at the top. Everything below the "2026-04-22 pivot addendum" line is historical Phase-1 detail retained for context.
+
+## 2026-04-23 PDF extractor pivot addendum
+
+The active plan in [`../roadmap/pdf-extractor.md`](../roadmap/pdf-extractor.md) adds the following file-level changes:
+
+New Python package (D1):
+
+- **create** `packages/pdf-extractor/pyproject.toml`, `requirements.txt`, `requirements-dev.txt`, `.python-version`, `README.md`.
+- **create** `packages/pdf-extractor/src/slashcash_pdf_extractor/{__init__.py,__main__.py,cli.py,extractor.py,schema.py}`.
+- **create** `packages/pdf-extractor/scripts/emit_ts_schema.py` — emits the Zod mirror for the architecture-smells parity gate.
+- **create** `packages/pdf-extractor/tests/test_extractor.py`, `tests/test_cli.py`, and committed fixture PDFs under `tests/fixtures/`.
+
+Python environment bootstrap (D2):
+
+- **create** `packages/cli/src/python/env.ts` — shared helper returning `{ pythonBin, venvDir, extractorEntry }` or throwing a classified `PythonEnvError`.
+- **create** `packages/cli/src/python/errors.ts` — closed `PythonEnvError` union.
+- **create** `packages/cli/src/doctor/python-env.ts` — the new `Check`.
+- **modify** `packages/cli/src/doctor/checks.ts` — register the `python-env` check.
+- **modify** `packages/cli/src/doctor/repairs.ts` — add the `python-env` repair that creates the venv and runs `pip install --require-hashes`.
+- **modify** `packages/cli/src/onboard/run.ts` — insert a `python-env` step between `db-migrate` and `bundled-skills` that delegates to the doctor repair.
+
+Node-side extractor wrapper and split pipeline (D3 + D4):
+
+- **create** `packages/tasks/src/extract/pdf-extractor-schema.ts` — Zod mirror of `schema.py`.
+- **create** `packages/tasks/src/extract/pdf-extractor.ts` — `extractPdf()` via `child_process.spawn`, returns `Result<PdfExtraction, PdfExtractError>`.
+- **create** `packages/tasks/src/extract/extract-from-email-body.ts`.
+- **create** `packages/tasks/src/extract/extract-from-pdf.ts`.
+- **create** `packages/tasks/src/extract/reconcile-extractions.ts`.
+- **create** `packages/tasks/src/extract/pipeline.ts` — orchestrator consumed by `processEmails.ts`.
+- **create** `packages/tasks/src/extract/body-fallback.ts` — moved from `processEmails.ts:245-268`.
+- **create** `packages/tasks/src/extract/pdf-extractor.test.ts` and sibling unit tests for each branch of the split pipeline.
+- **modify** `packages/tasks/src/trigger/processEmails.ts` — call `pipeline.extract()` instead of `extractOrFallback`; remove the inline regex fallback.
+- **modify** `packages/tasks/src/agents/slashAIV2.ts` — reduced to a one-release deprecation compat re-export that points at the new pipeline; deleted in the follow-up release.
+- **modify** `packages/tasks/src/merchants/base/basePrompt.ts` — delete the `ATTACHMENT HANDLING` block.
+- **modify** `packages/tasks/src/merchants/swiggy/prompt.ts` — add the "reconciliation rules" block.
+- **modify** `packages/tasks/src/ai/model.ts` — delete `OCRModel()`.
+
+Architecture smells + schema parity (D5):
+
+- **modify** `packages/e2e-tests/architecture-smells.test.ts` — forbid ad-hoc `spawn('python'` outside the extractor module, forbid direct imports of the legacy `slashAIV2` re-export, enforce `packages/pdf-extractor/requirements.txt` pinning, diff the pydantic and Zod schemas.
+- **modify** `packages/e2e-tests/scripts/fixtures-check.ts` — add a `pdf-extractor` fixture check.
+
+E2E + fixtures + script renames (D6):
+
+- **create** `packages/e2e-tests/fixtures/imap/swiggy-with-pdf.eml` wrapping the existing `fixture-msg-1.pdf`.
+- **modify** `packages/e2e-tests/scenarios/phase-2.ts` — assert the split-pipeline outcomes (schemaUsed, dataSource, confidence-on-divergence).
+- **modify** `package.json` + `packages/e2e-tests/package.json` — add `e2e:ingest`, `e2e:cli`, `e2e:pyramid`, `e2e:release` aliases; keep the old `e2e:phase-*` names as deprecated aliases for one release cycle.
+
+Docs + decisions (D0):
+
+- **create** `packages/docs/roadmap/pdf-extractor.md`.
+- **delete** `packages/docs/roadmap/phase-1.md`, `phase-2.md`, `phase-3.md`, `phase-4.md`, `pivot-imap.md`.
+- **modify** `packages/docs/README.md`, `architecture.md`, `current-state.md`, and the reference docs touched below.
+- **modify** `packages/docs/reference/decisions.md` — append ADR-026 (Docling) and ADR-027 (Python subprocess + venv), date-stamp ADR-005 with a scope-update note.
 
 ## 2026-04-22 pivot addendum
 

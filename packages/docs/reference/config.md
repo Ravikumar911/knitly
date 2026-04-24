@@ -12,8 +12,10 @@ All user state lives under `~/.slashcash/`. The config schema lives in `packages
 - `logs/` — structured JSON logs
 - `pid/slashcash.pid.json` — PID file for `slashcash start`
 - `skills/` — installed skills
+- `py-venv/` — Python 3 virtualenv holding Docling and the `slashcash_pdf_extractor` package
+- `py-venv/.slashcash.install-hash` — sha256 of the `requirements.txt` the venv was installed from; doctor compares this to the shipped file to decide whether to re-run `pip install`
 
-`slashcash doctor --fix` recreates missing state directories and bundled skills.
+`slashcash doctor --fix` recreates missing state directories and bundled skills, and provisions or re-provisions the Python venv when the hash file is missing or stale.
 
 ## Config keys
 
@@ -26,7 +28,13 @@ All user state lives under `~/.slashcash/`. The config schema lives in `packages
 
 - `ai.ollamaBaseUrl` — default `http://127.0.0.1:11434/v1`
 - `ai.chatModel` — default `gemma3n:e4b`
-- `ai.visionModel` — default `gemma3n:e4b`
+- `ai.visionModel` — default `gemma3n:e4b` (legacy key; reads from the same model as `ai.chatModel` after the PDF-extractor pivot and will be removed once the migration lands)
+
+### `pdfExtractor`
+
+- `pdfExtractor.enabled` — default `true`. When `false`, ingest skips the Docling lane and degrades to body-only extraction, same as setting `SLASHCASH_PDF_EXTRACTOR_DISABLED=1`.
+- `pdfExtractor.timeoutMs` — per-PDF subprocess timeout. Default `30000`.
+- `pdfExtractor.pythonBin` — override the interpreter path. Default is `${SLASHCASH_HOME}/py-venv/bin/python`.
 
 ### `sync`
 
@@ -70,6 +78,10 @@ Config migration currently happens on load: defaults are applied, and the normal
 - config schema drift
 - migration drift
 - required binaries for enabled skills missing
+- Python 3 interpreter missing or older than 3.11
+- `~/.slashcash/py-venv/` missing or not a valid venv
+- `pip install --require-hashes` state stale (`.slashcash.install-hash` mismatch)
+- `python -m slashcash_pdf_extractor` import failure (Docling wheel missing, broken ABI, etc.)
 
 `slashcash doctor --reset-credentials` deletes the saved Gmail credential and lets the user rerun onboarding cleanly.
 

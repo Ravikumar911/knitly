@@ -2,7 +2,10 @@ import { config } from "dotenv";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import { extractEmailData, SlashAIV2Result } from "@workspace/tasks/agents/slashAIV2";
+import {
+  extractEmailData,
+  type SlashAIV2Result,
+} from "@workspace/tasks/extract/extract-from-email-body";
 import {
   defaultModel,
   DEFAULT_OLLAMA_CHAT_MODEL,
@@ -10,7 +13,10 @@ import {
 import { EmailData } from "@workspace/tasks/types/slashAI";
 import { getAllTestCases } from "./fixtures/swiggy-samples";
 import { SWIGGY_EXPECTED_OUTPUTS } from "./fixtures/swiggy-expected";
-import { swiggyFieldScorer, schemaValidationScorer } from "./scorers/swiggy-field-scorer";
+import {
+  swiggyFieldScorer,
+  schemaValidationScorer,
+} from "./scorers/swiggy-field-scorer";
 
 // Get the directory name in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -33,8 +39,8 @@ type EvalScore = Awaited<ReturnType<typeof swiggyFieldScorer>>;
 
 /**
  * Swiggy Data Extraction Evaluation
- * 
- * Tests the slashAIV2 extraction accuracy with the configured local model
+ *
+ * Tests the body-only Swiggy extraction accuracy with the configured local model
  * Compares field-level extraction against expected outputs
  */
 function loadData(): EvalCase[] {
@@ -60,7 +66,9 @@ function loadData(): EvalCase[] {
   });
 }
 
-async function runExtraction(input: EvalCase["input"]): Promise<SlashAIV2Result> {
+async function runExtraction(
+  input: EvalCase["input"],
+): Promise<SlashAIV2Result> {
   const emailData = input.emailData as EmailData;
 
   return extractEmailData(emailData, defaultModel(), {
@@ -114,8 +122,10 @@ Test Cases: ${SWIGGY_EXPECTED_OUTPUTS.length} Swiggy PDF invoices
     );
   }
 
-  const fieldAverage = rows.reduce((sum, row) => sum + row.fieldScore.score, 0) / rows.length;
-  const schemaAverage = rows.reduce((sum, row) => sum + row.schemaScore.score, 0) / rows.length;
+  const fieldAverage =
+    rows.reduce((sum, row) => sum + row.fieldScore.score, 0) / rows.length;
+  const schemaAverage =
+    rows.reduce((sum, row) => sum + row.schemaScore.score, 0) / rows.length;
 
   console.log(`
 ==============================================

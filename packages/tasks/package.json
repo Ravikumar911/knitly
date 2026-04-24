@@ -32,6 +32,11 @@
       "import": "./dist/agents/*.js",
       "default": "./dist/agents/*.js"
     },
+    "./extract/*": {
+      "types": "./src/extract/*.ts",
+      "import": "./dist/extract/*.js",
+      "default": "./dist/extract/*.js"
+    },
     "./gmail/*": {
       "types": "./src/gmail/*.ts",
       "import": "./dist/gmail/*.js",

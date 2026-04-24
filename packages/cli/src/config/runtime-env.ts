@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { CliError } from "../errors/format.js";
 import { readStoredCredentials } from "./credentials.js";
 import type { SlashcashPaths } from "./paths.js";
@@ -31,6 +32,19 @@ export async function applyRuntimeEnv(input: {
     process.env.OLLAMA_CHAT_MODEL || config.ai.chatModel;
   process.env.OLLAMA_VISION_MODEL =
     process.env.OLLAMA_VISION_MODEL || config.ai.visionModel;
+  process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON =
+    process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON ||
+    config.pdfExtractor.pythonBin ||
+    join(paths.pyVenv, "bin", "python");
+  process.env.SLASHCASH_PDF_EXTRACTOR_TIMEOUT_MS =
+    process.env.SLASHCASH_PDF_EXTRACTOR_TIMEOUT_MS ||
+    String(config.pdfExtractor.timeoutMs);
+  if (
+    config.pdfExtractor.enabled === false &&
+    process.env.SLASHCASH_PDF_EXTRACTOR_DISABLED !== "1"
+  ) {
+    process.env.SLASHCASH_PDF_EXTRACTOR_DISABLED = "1";
+  }
 
   if (input.port !== undefined) {
     process.env.SLASHCASH_PORT = String(input.port);

@@ -5,12 +5,11 @@ import {
   markSyncFailed,
   markSyncFailedWithOAuthError,
   storeEmailData,
-  storeTransactionV2Input,
+  updateEmailData,
   updateSyncProgress,
   isEmailProcessed,
 } from "@workspace/database";
-import { defaultModel } from "../ai/model";
-import { extractEmailData } from "../agents/slashAIV2";
+import { extractTransactionFromEmail } from "../extract/pipeline";
 import {
   fetchMessage,
   listMessages,
@@ -98,12 +97,7 @@ async function runEmailSyncUnsafe(
       }
 
       const emailData = toEmailData(payload.userId, fetched.data);
-      const attachmentPath =
-        emailData.attachments
-          ?.map((attachment) => attachment.storageUrl)
-          .find((path): path is string => Boolean(path)) ?? null;
-
-      await storeEmailData({
+      const storedEmail = await storeEmailData({
         id: emailData.emailId,
         userId: payload.userId,
         snippet: fetched.data.snippet,
@@ -121,8 +115,19 @@ async function runEmailSyncUnsafe(
         parsedAt: new Date(),
       });
 
-      const extracted = await extractOrFallback(emailData, attachmentPath);
-      if (!extracted) {
+      const parsedEmailId = storedEmail[0]?.id ?? emailData.emailId ?? ref.id;
+      const extracted = await extractTransactionFromEmail(emailData, {
+        parsedEmailId,
+        storeTransaction: true,
+      });
+      await updateEmailData(parsedEmailId, {
+        parseSuccess: extracted.parseSuccess,
+        parseErrors:
+          extracted.parseErrors.length > 0
+            ? JSON.stringify(extracted.parseErrors)
+            : null,
+      });
+      if (!extracted.parseSuccess) {
         throw new Error(
           "Could not extract transaction data from the Gmail message.",
         );
@@ -185,85 +190,6 @@ function toEmailData(userId: string, message: FetchedImapMessage): EmailData {
     date: message.date,
     from: message.from,
     attachments,
-  };
-}
-
-async function extractOrFallback(
-  emailData: EmailData,
-  attachmentPath: string | null,
-) {
-  if (process.env.SLASHCASH_SYNC_SKIP_AI !== "1") {
-    try {
-      const result = await extractEmailData(emailData, defaultModel(), {
-        storeTransaction: true,
-      });
-      if (result.transactionId || result.parseSuccess) {
-        return result;
-      }
-    } catch (error) {
-      console.warn(
-        "Local model extraction failed, using deterministic fallback.",
-        error,
-      );
-    }
-  }
-
-  const fallback = fallbackSwiggy(emailData);
-  if (!fallback) return null;
-
-  return storeTransactionV2Input({
-    userId: emailData.userId,
-    parsedEmailId: emailData.emailId,
-    merchantId: "swiggy",
-    merchantCode: "SWIGGY",
-    merchantName: "Swiggy",
-    amount: fallback.amount,
-    currency: "INR",
-    type: "DEBIT",
-    status: "COMPLETED",
-    transactionDate: new Date(emailData.date),
-    description: fallback.description,
-    category: "Food",
-    paymentMethod: "UPI",
-    referenceIds: { orderId: fallback.orderId },
-    merchantData: {
-      swiggyMetadata: { service: "FOOD_DELIVERY" },
-      transaction: {
-        orderId: fallback.orderId,
-        restaurantName: fallback.restaurant,
-        deliveryAddress: fallback.deliveryAddress,
-        attachmentPath,
-      },
-    },
-    extractionConfidence: 0.7,
-    schemaUsed: "swiggy.fallback.v1",
-    dataSource: attachmentPath ? "PDF_ATTACHMENT" : "EMAIL_BODY",
-    isVerified: false,
-  });
-}
-
-function fallbackSwiggy(emailData: EmailData) {
-  const text = `${emailData.subject}\n${emailData.body}`;
-  const amountMatch = text.match(
-    /(?:total|amount|paid|₹|INR)\s*:?\s*₹?\s*([0-9]+(?:\.[0-9]{1,2})?)/i,
-  );
-  const amount = amountMatch ? Number(amountMatch[1]) : 0;
-  if (!Number.isFinite(amount) || amount <= 0) return null;
-
-  const orderId =
-    text.match(/order(?:\s*id)?\s*:?\s*([A-Z0-9-]{5,})/i)?.[1] ||
-    emailData.threadId;
-  const restaurant =
-    text.match(/restaurant\s*:?\s*([^\n]+)/i)?.[1]?.trim() || "Swiggy";
-  const area = text.match(/area\s*:?\s*([^\n]+)/i)?.[1]?.trim() || "";
-  const pincode = text.match(/pincode\s*:?\s*([0-9]{6})/i)?.[1] || "";
-
-  return {
-    amount,
-    orderId,
-    restaurant,
-    description: `Swiggy order - ${restaurant}`,
-    deliveryAddress: [area, pincode].filter(Boolean).join(" ").trim() || null,
   };
 }
 

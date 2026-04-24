@@ -16,6 +16,9 @@ describe("applyRuntimeEnv", () => {
     delete process.env.OLLAMA_BASE_URL;
     delete process.env.OLLAMA_CHAT_MODEL;
     delete process.env.OLLAMA_VISION_MODEL;
+    delete process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON;
+    delete process.env.SLASHCASH_PDF_EXTRACTOR_TIMEOUT_MS;
+    delete process.env.SLASHCASH_PDF_EXTRACTOR_DISABLED;
     delete process.env.SLASHCASH_IMAP_FIXTURE_DIR;
   });
 
@@ -38,6 +41,8 @@ describe("applyRuntimeEnv", () => {
         cache: "/tmp/slashcash-home/cache",
         logs: "/tmp/slashcash-home/logs",
         skills: "/tmp/slashcash-home/skills",
+        pyVenv: "/tmp/slashcash-home/py-venv",
+        pyInstallHash: "/tmp/slashcash-home/py-venv/.slashcash.install-hash",
         pidDir: "/tmp/slashcash-home/pid",
         pidFile: "/tmp/slashcash-home/pid/slashcash.pid.json",
       },
@@ -46,6 +51,10 @@ describe("applyRuntimeEnv", () => {
     expect(process.env.OLLAMA_BASE_URL).toBe("http://127.0.0.1:3302/v1");
     expect(process.env.OLLAMA_CHAT_MODEL).toBe("mock-swiggy");
     expect(process.env.OLLAMA_VISION_MODEL).toBe("mock-swiggy");
+    expect(process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON).toBe(
+      "/tmp/slashcash-home/py-venv/bin/python",
+    );
+    expect(process.env.SLASHCASH_PDF_EXTRACTOR_TIMEOUT_MS).toBe("30000");
     expect(process.env.SQLITE_DB_PATH).toBe("/tmp/slashcash-home/db.sqlite");
   });
 });

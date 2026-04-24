@@ -25,11 +25,18 @@ const installedRuntimePackagePattern = new RegExp(
   `\\/node_modules\\/(?:\\.pnpm\\/(?:${installedRuntimePackages
     .map(toPnpmPackageDirPrefix)
     .map(escapeRegExp)
-    .join("|")})@[^/]+|(?:${installedRuntimePackages.map(escapeRegExp).join("|")}))(?:\\/|$)`,
+    .join(
+      "|",
+    )})@[^/]+|(?:${installedRuntimePackages.map(escapeRegExp).join("|")}))(?:\\/|$)`,
 );
 
-if (!existsSync(join(standaloneRoot, "apps", "main", "server.js")) && !existsSync(join(standaloneRoot, "server.js"))) {
-  throw new Error("Next standalone output is missing. Run `pnpm --filter @knitly/main build` first.");
+if (
+  !existsSync(join(standaloneRoot, "apps", "main", "server.js")) &&
+  !existsSync(join(standaloneRoot, "server.js"))
+) {
+  throw new Error(
+    "Next standalone output is missing. Run `pnpm --filter @knitly/main build` first.",
+  );
 }
 
 rmSync(targetRoot, { recursive: true, force: true });
@@ -42,7 +49,9 @@ cpSync(standaloneRoot, targetRoot, {
 
 if (existsSync(appStatic)) {
   mkdirSync(join(targetMainRoot, ".next"), { recursive: true });
-  cpSync(appStatic, join(targetMainRoot, ".next", "static"), { recursive: true });
+  cpSync(appStatic, join(targetMainRoot, ".next", "static"), {
+    recursive: true,
+  });
 }
 
 if (existsSync(appPublic)) {
@@ -52,6 +61,7 @@ if (existsSync(appPublic)) {
 copyBuiltWorkspacePackage("database");
 copyBuiltWorkspacePackage("tasks");
 copyBuiltWorkspacePackageToNodeModules("database");
+copyWorkspaceSourcePackage("pdf-extractor");
 
 console.log(`Bundled Next standalone app into ${targetRoot}`);
 
@@ -59,7 +69,9 @@ function copyBuiltWorkspacePackage(name) {
   const source = join(packagesRoot, name);
   const target = join(targetRoot, "packages", name);
   if (!existsSync(join(source, "dist"))) {
-    throw new Error(`Missing ${name} dist output. Run pnpm --filter @workspace/${name} build first.`);
+    throw new Error(
+      `Missing ${name} dist output. Run pnpm --filter @workspace/${name} build first.`,
+    );
   }
 
   rmSync(target, { recursive: true, force: true });
@@ -77,6 +89,17 @@ function copyBuiltWorkspacePackageToNodeModules(name) {
   rmSync(target, { recursive: true, force: true });
   mkdirSync(dirname(target), { recursive: true });
   cpSync(source, target, { recursive: true, filter: shouldCopyToBundle });
+}
+
+function copyWorkspaceSourcePackage(name) {
+  const source = join(packagesRoot, name);
+  const target = join(targetRoot, "packages", name);
+  rmSync(target, { recursive: true, force: true });
+  mkdirSync(target, { recursive: true });
+  cpSync(source, target, {
+    recursive: true,
+    filter: shouldCopyToBundle,
+  });
 }
 
 function shouldCopyToBundle(source) {

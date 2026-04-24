@@ -69,6 +69,11 @@ describe("config loader", () => {
         chatModel: "tiny-local",
         visionModel: "gemma3n:e4b",
       },
+      pdfExtractor: {
+        enabled: true,
+        timeoutMs: 30_000,
+        pythonBin: "",
+      },
       sync: {
         schedule: "*/15 * * * *",
         gmailQuery: "label:slashcash",

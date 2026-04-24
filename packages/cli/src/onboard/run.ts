@@ -13,6 +13,7 @@ import {
   type SlashcashPaths,
 } from "../config/paths.js";
 import { CliError } from "../errors/format.js";
+import { ensurePythonEnvReady } from "../python/env.js";
 import { loadDatabase } from "../runtime/database.js";
 import { loadImapClient } from "../runtime/tasks.js";
 import {
@@ -127,6 +128,7 @@ function buildSteps(): Step[] {
     imapVerifyStep,
     stateDirStep,
     dbMigrateStep,
+    pythonEnvStep,
     bundledSkillsStep,
   ];
 }
@@ -580,6 +582,56 @@ const bundledSkillsStep: Step = {
   },
   verify() {
     installBundledSkills();
+  },
+};
+
+const pythonEnvStep: Step = {
+  id: "python-env",
+  label: "PDF extractor",
+  async detect(ctx) {
+    if (
+      process.env.SLASHCASH_PDF_EXTRACTOR_DISABLED === "1" ||
+      ctx.config.pdfExtractor.enabled === false
+    ) {
+      return { done: true, message: "disabled" };
+    }
+
+    const result = await ensurePythonEnvReady({
+      config: ctx.config,
+      paths: ctx.paths,
+      fix: false,
+    });
+    if (!result.ok) {
+      return { done: false };
+    }
+
+    return { done: true, message: result.runtime.pythonBin };
+  },
+  async install(ctx) {
+    const stepSpinner = ctx.prompter.spinner();
+    stepSpinner.start(
+      "Installing PDF extractor (~60s first time, cached after)",
+    );
+    const result = await ensurePythonEnvReady({
+      config: ctx.config,
+      paths: ctx.paths,
+      fix: true,
+    });
+    if (!result.ok) {
+      stepSpinner.error("Python extractor setup failed");
+      throw new Error(result.error.message);
+    }
+    stepSpinner.stop(`PDF extractor ready at ${result.runtime.pythonBin}`);
+  },
+  async verify(ctx) {
+    const result = await ensurePythonEnvReady({
+      config: ctx.config,
+      paths: ctx.paths,
+      fix: false,
+    });
+    if (!result.ok) {
+      throw new Error(result.error.message);
+    }
   },
 };
 

@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   runCommand: vi.fn(),
   installBundledSkills: vi.fn(),
   listInstalledSkills: vi.fn(),
+  runPythonEnvCheck: vi.fn(),
 }));
 
 vi.mock("node:fs", async (importOriginal) => ({
@@ -52,6 +53,10 @@ vi.mock("../skills/registry.js", () => ({
   listInstalledSkills: mocks.listInstalledSkills,
 }));
 
+vi.mock("./python-env.js", () => ({
+  runPythonEnvCheck: mocks.runPythonEnvCheck,
+}));
+
 describe("doctor checks", () => {
   const previousSkipOllama = process.env.SLASHCASH_DOCTOR_SKIP_OLLAMA;
 
@@ -68,6 +73,8 @@ describe("doctor checks", () => {
       cache: "/tmp/slashcash-home/cache",
       logs: "/tmp/slashcash-home/logs",
       skills: "/tmp/slashcash-home/skills",
+      pyVenv: "/tmp/slashcash-home/py-venv",
+      pyInstallHash: "/tmp/slashcash-home/py-venv/.slashcash.install-hash",
       pidDir: "/tmp/slashcash-home/pid",
       pidFile: "/tmp/slashcash-home/pid/slashcash.pid.json",
     });
@@ -75,6 +82,11 @@ describe("doctor checks", () => {
       ai: {
         ollamaBaseUrl: "http://127.0.0.1:11434/v1",
         chatModel: "tiny-chat",
+      },
+      pdfExtractor: {
+        enabled: true,
+        timeoutMs: 30_000,
+        pythonBin: "",
       },
       sync: {
         schedule: "*/15 * * * *",
@@ -109,6 +121,16 @@ describe("doctor checks", () => {
         },
       },
     ]);
+    mocks.runPythonEnvCheck.mockResolvedValue({
+      id: "python-env",
+      name: "Python env",
+      label: "Python env",
+      category: "binary",
+      status: "ok",
+      message: "/tmp/slashcash-home/py-venv/bin/python",
+      durationMs: 1,
+      fix: "Run `slashcash doctor --fix`.",
+    });
     mocks.commandExists.mockReturnValue(true);
     mocks.accessSync.mockImplementation(() => {});
   });
@@ -130,6 +152,7 @@ describe("doctor checks", () => {
       "state-dir",
       "config",
       "sync-schedule",
+      "python-env",
       "gmail-credentials",
       "sqlite",
       "skills",
@@ -152,6 +175,7 @@ describe("doctor checks", () => {
       "state-dir",
       "config",
       "sync-schedule",
+      "python-env",
       "gmail-credentials",
       "sqlite",
       "skills",

@@ -1,6 +1,6 @@
 import { Levenshtein } from "autoevals";
 import { SwiggyExpectedOutput } from "../fixtures/swiggy-expected";
-import type { SlashAIV2Result } from "@workspace/tasks/agents/slashAIV2";
+import type { SlashAIV2Result } from "@workspace/tasks/extract/extract-from-email-body";
 
 type Scorer<Input, Output> = (args: {
   input: Input;
@@ -53,7 +53,7 @@ export const swiggyFieldScorer: Scorer<
     score: number,
     expected: unknown,
     actual: unknown,
-    message?: string
+    message?: string,
   ) => {
     fieldScores.push({ field, score, expected, actual, message });
     totalScore += score;
@@ -65,7 +65,7 @@ export const swiggyFieldScorer: Scorer<
     "parseSuccess",
     actual.parseSuccess === expected.parseSuccess ? 1 : 0,
     expected.parseSuccess,
-    actual.parseSuccess
+    actual.parseSuccess,
   );
 
   // 2. Order ID (Critical - Exact Match)
@@ -77,7 +77,7 @@ export const swiggyFieldScorer: Scorer<
       orderIdMatch ? 1 : 0,
       expected.transaction.orderId,
       actual.transaction?.orderId,
-      orderIdMatch ? "Exact match" : "Mismatch"
+      orderIdMatch ? "Exact match" : "Mismatch",
     );
   }
 
@@ -92,7 +92,7 @@ export const swiggyFieldScorer: Scorer<
       amountScore,
       expectedAmount,
       actualAmount,
-      `Difference: ${amountDiff.toFixed(2)}`
+      `Difference: ${amountDiff.toFixed(2)}`,
     );
   }
 
@@ -100,7 +100,7 @@ export const swiggyFieldScorer: Scorer<
   if (expected.transaction?.restaurantName) {
     const expectedName = expected.transaction.restaurantName;
     const actualName = actual.transaction?.restaurantName || "";
-    
+
     if (expectedName && actualName) {
       const levenshteinResult = await Levenshtein({
         output: actualName,
@@ -112,7 +112,7 @@ export const swiggyFieldScorer: Scorer<
         restaurantScore,
         expectedName,
         actualName,
-        `Similarity: ${(restaurantScore * 100).toFixed(0)}%`
+        `Similarity: ${(restaurantScore * 100).toFixed(0)}%`,
       );
     } else {
       addFieldScore(
@@ -120,7 +120,7 @@ export const swiggyFieldScorer: Scorer<
         actualName ? 0.5 : 0,
         expectedName,
         actualName,
-        actualName ? "Name extracted but no expected value" : "Missing"
+        actualName ? "Name extracted but no expected value" : "Missing",
       );
     }
   }
@@ -129,13 +129,16 @@ export const swiggyFieldScorer: Scorer<
   if (expected.transaction?.orderItems) {
     const expectedCount = expected.transaction.orderItems.length;
     const actualCount = actual.transaction?.orderItems?.length || 0;
-    const countScore = expectedCount === actualCount ? 1 : Math.max(0, 1 - Math.abs(expectedCount - actualCount) * 0.2);
+    const countScore =
+      expectedCount === actualCount
+        ? 1
+        : Math.max(0, 1 - Math.abs(expectedCount - actualCount) * 0.2);
     addFieldScore(
       "transaction.orderItems.count",
       countScore,
       expectedCount,
       actualCount,
-      `Expected ${expectedCount}, got ${actualCount}`
+      `Expected ${expectedCount}, got ${actualCount}`,
     );
   }
 
@@ -155,18 +158,19 @@ export const swiggyFieldScorer: Scorer<
         (item: { name?: string }) =>
           item.name &&
           expectedItem.name &&
-          item.name.toLowerCase().includes(expectedItem.name.toLowerCase())
+          item.name.toLowerCase().includes(expectedItem.name.toLowerCase()),
       );
       if (match) itemMatches++;
     }
 
-    const itemAccuracy = expectedItems.length > 0 ? itemMatches / expectedItems.length : 0;
+    const itemAccuracy =
+      expectedItems.length > 0 ? itemMatches / expectedItems.length : 0;
     addFieldScore(
       "transaction.orderItems.accuracy",
       itemAccuracy,
       expectedItems.length,
       itemMatches,
-      `${itemMatches}/${expectedItems.length} items matched`
+      `${itemMatches}/${expectedItems.length} items matched`,
     );
   }
 
@@ -177,18 +181,19 @@ export const swiggyFieldScorer: Scorer<
       "transaction.deliveryAddress",
       hasAddress ? 1 : 0,
       "Present",
-      hasAddress ? "Present" : "Missing"
+      hasAddress ? "Present" : "Missing",
     );
   }
 
   // 8. Currency
   if (expected.transaction?.currency) {
-    const currencyMatch = actual.transaction?.currency === expected.transaction.currency;
+    const currencyMatch =
+      actual.transaction?.currency === expected.transaction.currency;
     addFieldScore(
       "transaction.currency",
       currencyMatch ? 1 : 0,
       expected.transaction.currency,
-      actual.transaction?.currency
+      actual.transaction?.currency,
     );
   }
 
@@ -199,57 +204,60 @@ export const swiggyFieldScorer: Scorer<
       "transaction.type",
       typeMatch ? 1 : 0,
       expected.transaction.type,
-      actual.transaction?.type
+      actual.transaction?.type,
     );
   }
 
   // 10. Swiggy Service Type
   if (expected.swiggyMetadata?.service) {
-    const serviceMatch = actual.swiggyMetadata?.service === expected.swiggyMetadata.service;
+    const serviceMatch =
+      actual.swiggyMetadata?.service === expected.swiggyMetadata.service;
     addFieldScore(
       "swiggyMetadata.service",
       serviceMatch ? 1 : 0,
       expected.swiggyMetadata.service,
-      actual.swiggyMetadata?.service
+      actual.swiggyMetadata?.service,
     );
   }
 
   // 11. Order Type (DELIVERY/PICKUP)
   if (expected.swiggyMetadata?.orderType) {
-    const orderTypeMatch = actual.swiggyMetadata?.orderType === expected.swiggyMetadata.orderType;
+    const orderTypeMatch =
+      actual.swiggyMetadata?.orderType === expected.swiggyMetadata.orderType;
     addFieldScore(
       "swiggyMetadata.orderType",
       orderTypeMatch ? 1 : 0,
       expected.swiggyMetadata.orderType,
-      actual.swiggyMetadata?.orderType
+      actual.swiggyMetadata?.orderType,
     );
   }
 
   // 12. Confidence Score (should be reasonable)
   const confidenceScore = actual.confidenceScore || 0;
-  const confidenceOk = confidenceScore >= 0.5 ? 1 : confidenceScore >= 0.3 ? 0.5 : 0;
+  const confidenceOk =
+    confidenceScore >= 0.5 ? 1 : confidenceScore >= 0.3 ? 0.5 : 0;
   addFieldScore(
     "confidenceScore",
     confidenceOk,
     ">= 0.5",
     confidenceScore,
-    `Confidence: ${(confidenceScore * 100).toFixed(0)}%`
+    `Confidence: ${(confidenceScore * 100).toFixed(0)}%`,
   );
 
   // Calculate overall score
   const overallScore = totalFields > 0 ? totalScore / totalFields : 0;
 
   // Group scores by category for better visualization
-  const criticalFields = fieldScores.filter(f => 
-    f.field.includes("orderId") || 
-    f.field.includes("amount") || 
-    f.field === "parseSuccess"
+  const criticalFields = fieldScores.filter(
+    (f) =>
+      f.field.includes("orderId") ||
+      f.field.includes("amount") ||
+      f.field === "parseSuccess",
   );
-  const merchantFields = fieldScores.filter(f => 
-    f.field.includes("restaurant") || 
-    f.field.includes("swiggyMetadata")
+  const merchantFields = fieldScores.filter(
+    (f) => f.field.includes("restaurant") || f.field.includes("swiggyMetadata"),
   );
-  const itemFields = fieldScores.filter(f => f.field.includes("orderItems"));
+  const itemFields = fieldScores.filter((f) => f.field.includes("orderItems"));
 
   return {
     name: "swiggy_field_accuracy",
@@ -257,16 +265,22 @@ export const swiggyFieldScorer: Scorer<
     metadata: {
       totalScore,
       totalFields,
-      criticalFieldsScore: criticalFields.reduce((sum, f) => sum + f.score, 0) / Math.max(criticalFields.length, 1),
-      merchantFieldsScore: merchantFields.reduce((sum, f) => sum + f.score, 0) / Math.max(merchantFields.length, 1),
-      itemFieldsScore: itemFields.reduce((sum, f) => sum + f.score, 0) / Math.max(itemFields.length, 1),
+      criticalFieldsScore:
+        criticalFields.reduce((sum, f) => sum + f.score, 0) /
+        Math.max(criticalFields.length, 1),
+      merchantFieldsScore:
+        merchantFields.reduce((sum, f) => sum + f.score, 0) /
+        Math.max(merchantFields.length, 1),
+      itemFieldsScore:
+        itemFields.reduce((sum, f) => sum + f.score, 0) /
+        Math.max(itemFields.length, 1),
       fieldScores,
-      criticalFields: criticalFields.map(f => ({
+      criticalFields: criticalFields.map((f) => ({
         field: f.field,
         score: f.score,
         message: f.message,
       })),
-      failedFields: fieldScores.filter(f => f.score < 0.5),
+      failedFields: fieldScores.filter((f) => f.score < 0.5),
     },
   };
 };

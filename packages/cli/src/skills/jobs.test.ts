@@ -44,6 +44,8 @@ describe("skill jobs", () => {
     "OLLAMA_BASE_URL",
     "OLLAMA_CHAT_MODEL",
     "OLLAMA_VISION_MODEL",
+    "SLASHCASH_PDF_EXTRACTOR_PYTHON",
+    "SLASHCASH_PDF_EXTRACTOR_TIMEOUT_MS",
   ] as const;
 
   const paths = {
@@ -54,6 +56,8 @@ describe("skill jobs", () => {
     cache: "/tmp/slashcash-home/cache",
     logs: "/tmp/slashcash-home/logs",
     skills: "/tmp/slashcash-home/skills",
+    pyVenv: "/tmp/slashcash-home/py-venv",
+    pyInstallHash: "/tmp/slashcash-home/py-venv/.slashcash.install-hash",
     pidDir: "/tmp/slashcash-home/pid",
     pidFile: "/tmp/slashcash-home/pid/slashcash.pid.json",
   };
@@ -75,6 +79,11 @@ describe("skill jobs", () => {
       process.env.OLLAMA_BASE_URL = config.ai.ollamaBaseUrl;
       process.env.OLLAMA_CHAT_MODEL = config.ai.chatModel;
       process.env.OLLAMA_VISION_MODEL = config.ai.visionModel;
+      process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON =
+        config.pdfExtractor.pythonBin || `${paths.pyVenv}/bin/python`;
+      process.env.SLASHCASH_PDF_EXTRACTOR_TIMEOUT_MS = String(
+        config.pdfExtractor.timeoutMs,
+      );
     });
     mocks.loadEmailSync.mockResolvedValue({
       runEmailSync: mocks.runEmailSync,

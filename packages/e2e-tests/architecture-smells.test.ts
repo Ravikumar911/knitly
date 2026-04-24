@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,6 +34,10 @@ const forbiddenDirs = [
 ];
 
 const forbiddenFiles = ["packages/tasks/trigger.config.ts"];
+const legacyShimPath = "packages/tasks/src/agents/slashAIV2.ts";
+const pythonSpawnAllowList = new Set([
+  "packages/tasks/src/extract/pdf-extractor.ts",
+]);
 
 const forbiddenDbReferences = [
   "user_google_tokens",
@@ -111,6 +116,12 @@ export async function collectArchitectureSmells(): Promise<Smell[]> {
     if (rel.startsWith("packages/")) {
       collectPackageTextSmells(file, rel, smells);
     }
+    if (
+      rel === "packages/pdf-extractor/requirements.txt" ||
+      rel === "packages/pdf-extractor/requirements-dev.txt"
+    ) {
+      collectPinnedRequirementsSmells(file, rel, smells);
+    }
     if (rel.endsWith("package.json")) {
       collectPackageJsonSmells(file, rel, smells);
       continue;
@@ -118,10 +129,13 @@ export async function collectArchitectureSmells(): Promise<Smell[]> {
     if (!/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(rel)) continue;
     collectImportSmells(file, rel, smells);
     collectEnvSmells(file, rel, smells);
+    collectPythonSpawnSmells(file, rel, smells);
     if (rel.startsWith("packages/database/src/")) {
       collectDbSmells(file, rel, smells);
     }
   }
+
+  collectSchemaParitySmells(smells);
 
   return [...smells].sort(
     (left: Smell, right: Smell) =>
@@ -210,6 +224,17 @@ function collectImportSmells(file: string, rel: string, smells: Smell[]) {
     /\b(?:import|export)\b[\s\S]*?\bfrom\s*["']([^"']+)["']|import\s*\(\s*["']([^"']+)["']\s*\)|require\s*\(\s*["']([^"']+)["']\s*\)/g;
   for (const match of source.matchAll(importPattern)) {
     const specifier = match[1] ?? match[2] ?? match[3] ?? "";
+    if (specifier.includes("slashAIV2") && rel !== legacyShimPath) {
+      smells.push({
+        category: "forbidden-import",
+        file: rel,
+        line: lineOfOffset(source, match.index ?? 0),
+        kind: "import",
+        specifier,
+        reason:
+          "Import the new extract pipeline modules directly; slashAIV2 is a compat shim only.",
+      });
+    }
     if (
       forbiddenPackages.includes(specifier) ||
       forbiddenPackages.some((pkg) => specifier.startsWith(`${pkg}/`))
@@ -262,6 +287,95 @@ function collectEnvSmells(file: string, rel: string, smells: Smell[]) {
       index = source.indexOf(specifier, index + specifier.length);
     }
   }
+}
+
+function collectPythonSpawnSmells(file: string, rel: string, smells: Smell[]) {
+  if (pythonSpawnAllowList.has(rel)) return;
+
+  const source = readFileSync(file, "utf8");
+  const spawnPattern = /spawn(?:Sync)?\(\s*["']python(?:3)?["']/g;
+  for (const match of source.matchAll(spawnPattern)) {
+    smells.push({
+      category: "forbidden-python-spawn",
+      file: rel,
+      line: lineOfOffset(source, match.index ?? 0),
+      kind: "spawn",
+      specifier: match[0],
+      reason:
+        "Python subprocesses should be isolated to the extractor wrapper.",
+    });
+  }
+}
+
+function collectSchemaParitySmells(smells: Smell[]) {
+  const script = join(
+    repoRoot,
+    "packages",
+    "pdf-extractor",
+    "scripts",
+    "emit_ts_schema.py",
+  );
+  const schema = join(
+    repoRoot,
+    "packages",
+    "tasks",
+    "src",
+    "extract",
+    "pdf-extractor-schema.ts",
+  );
+  const generated = spawnSync("python3", [script], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  if (generated.status !== 0) {
+    smells.push({
+      category: "schema-parity",
+      file: "packages/pdf-extractor/scripts/emit_ts_schema.py",
+      line: 1,
+      kind: "generator",
+      specifier: "python3",
+      reason: generated.stderr || generated.stdout || "schema generator failed",
+    });
+    return;
+  }
+
+  if (readFileSync(schema, "utf8") !== generated.stdout) {
+    smells.push({
+      category: "schema-parity",
+      file: "packages/tasks/src/extract/pdf-extractor-schema.ts",
+      line: 1,
+      kind: "schema",
+      specifier: "pdf-extractor-schema.ts",
+      reason:
+        "The committed Zod schema does not match the Python schema generator output.",
+    });
+  }
+}
+
+function collectPinnedRequirementsSmells(
+  file: string,
+  rel: string,
+  smells: Smell[],
+) {
+  const source = readFileSync(file, "utf8");
+  const lines = source.split(/\r?\n/);
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("-e ")) {
+      return;
+    }
+    if (!trimmed.includes("==")) {
+      smells.push({
+        category: "unpinned-python-requirement",
+        file: rel,
+        line: index + 1,
+        kind: "requirement",
+        specifier: trimmed,
+        reason:
+          "The PDF extractor requirements must pin exact versions with `==`.",
+      });
+    }
+  });
 }
 
 function* walk(root: string): Generator<string> {

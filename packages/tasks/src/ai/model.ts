@@ -10,7 +10,3 @@ export function defaultModel(): LanguageModel {
     baseURL: process.env.OLLAMA_BASE_URL || DEFAULT_OLLAMA_BASE_URL,
   })(process.env.OLLAMA_CHAT_MODEL || DEFAULT_OLLAMA_CHAT_MODEL);
 }
-
-export function OCRModel(): LanguageModel {
-  return defaultModel();
-}

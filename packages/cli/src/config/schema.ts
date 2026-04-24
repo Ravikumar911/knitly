@@ -10,6 +10,17 @@ export const configSchema = z.object({
     chatModel: z.string().min(1).default("gemma3n:e4b"),
     visionModel: z.string().min(1).default("gemma3n:e4b"),
   }),
+  pdfExtractor: z
+    .object({
+      enabled: z.boolean().default(true),
+      timeoutMs: z.number().int().min(1_000).max(300_000).default(30_000),
+      pythonBin: z.string().default(""),
+    })
+    .default({
+      enabled: true,
+      timeoutMs: 30_000,
+      pythonBin: "",
+    }),
   sync: z.object({
     schedule: z.string().default("*/15 * * * *"),
     gmailQuery: z.string().min(1).default("from:(swiggy.in) newer_than:365d"),
@@ -49,6 +60,11 @@ export const defaultConfig: SlashcashConfig = {
     ollamaBaseUrl: "http://127.0.0.1:11434/v1",
     chatModel: "gemma3n:e4b",
     visionModel: "gemma3n:e4b",
+  },
+  pdfExtractor: {
+    enabled: true,
+    timeoutMs: 30_000,
+    pythonBin: "",
   },
   sync: {
     schedule: "*/15 * * * *",

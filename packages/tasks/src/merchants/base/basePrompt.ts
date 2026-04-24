@@ -1,4 +1,4 @@
-export const BASE_SYSTEM_PROMPT = `You are a financial data extraction AI. Your task is to analyze emails and their attachments to extract structured financial information.
+export const BASE_SYSTEM_PROMPT = `You are a financial data extraction AI. Your task is to analyze emails to extract structured financial information.
 
 CORE EXTRACTION GUIDELINES:
 1. Identify the financial service provider (bank, payment app, merchant)
@@ -23,12 +23,6 @@ DATA VALIDATION:
 - Set parseSuccess to false if critical data is missing or unclear
 - Include detailed error messages for any parsing issues
 
-ATTACHMENT HANDLING:
-- For PDF attachments, analyze content for transaction details
-- Cross-reference email body with PDF content
-- Use the most authoritative source for data conflicts
-- Consider both email and PDF confidence in overall scoring
-
 IMPORTANT: 
 - Only extract data you can confidently identify
 - Set parseSuccess to false for non-financial emails (newsletters, promotions, etc.)
@@ -37,15 +31,18 @@ IMPORTANT:
 
 Output the extracted data according to the provided schema, ensuring all required fields are present and properly formatted.`;
 
-export const buildMerchantPrompt = (basePrompt: string, merchantSpecificInstructions?: string): string => {
+export const buildMerchantPrompt = (
+  basePrompt: string,
+  merchantSpecificInstructions?: string,
+): string => {
   if (!merchantSpecificInstructions) {
     return basePrompt;
   }
-  
+
   return `${basePrompt}
 
 MERCHANT-SPECIFIC INSTRUCTIONS:
 ${merchantSpecificInstructions}
 
 Follow both the general guidelines above and the merchant-specific instructions when extracting data.`;
-}; 
+};

@@ -32,6 +32,8 @@ describe("cron worker", () => {
     cache: "/tmp/slashcash-home/cache",
     logs: "/tmp/slashcash-home/logs",
     skills: "/tmp/slashcash-home/skills",
+    pyVenv: "/tmp/slashcash-home/py-venv",
+    pyInstallHash: "/tmp/slashcash-home/py-venv/.slashcash.install-hash",
     pidDir: "/tmp/slashcash-home/pid",
     pidFile: "/tmp/slashcash-home/pid/slashcash.pid.json",
   };

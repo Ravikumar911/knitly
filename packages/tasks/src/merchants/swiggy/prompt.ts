@@ -44,4 +44,15 @@ For failed extractions:
 - Ensure amount extraction is successful
 `;
 
-export const SWIGGY_PROMPT = buildMerchantPrompt(BASE_SYSTEM_PROMPT, SWIGGY_SPECIFIC_INSTRUCTIONS); 
+export const SWIGGY_RECONCILIATION_RULES = `
+RECONCILIATION RULES:
+- Prefer the PDF amount when the email body and PDF disagree.
+- Prefer the PDF order ID when both sources provide one.
+- Prefer the email sender and email date as the canonical message metadata.
+- If the amounts disagree by more than 1%, cut confidence in half and surface an "amount mismatch" warning.
+`;
+
+export const SWIGGY_PROMPT = buildMerchantPrompt(
+  BASE_SYSTEM_PROMPT,
+  SWIGGY_SPECIFIC_INSTRUCTIONS,
+);
