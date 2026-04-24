@@ -249,11 +249,15 @@ const seedOrders: SeedOrder[] = [
 
 export function ensureLocalDatabase() {
   sqlite.exec(localMigrationSql);
-  sqlite.prepare(`
+  sqlite
+    .prepare(
+      `
     INSERT INTO profiles (id, first_name, last_name, updated_at)
     VALUES (?, ?, ?, ?)
     ON CONFLICT(id) DO NOTHING
-  `).run(LOCAL_USER_ID, "Local", "User", Date.now());
+  `,
+    )
+    .run(LOCAL_USER_ID, "Local", "User", Date.now());
 }
 
 export async function clearLocalSeedData() {
@@ -273,6 +277,7 @@ export async function seedLocalDatabase() {
   const now = new Date();
   await db.insert(profiles).values({
     id: LOCAL_USER_ID,
+    email: null,
     first_name: "Local",
     last_name: "User",
     updated_at: now,

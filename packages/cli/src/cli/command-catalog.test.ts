@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   stop: vi.fn(),
   status: vi.fn(),
   doctor: vi.fn(),
+  reset: vi.fn(),
   config: vi.fn(),
   db: vi.fn(),
   onboard: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock("./registry/start.js", () => ({ register: mocks.start }));
 vi.mock("./registry/stop.js", () => ({ register: mocks.stop }));
 vi.mock("./registry/status.js", () => ({ register: mocks.status }));
 vi.mock("./registry/doctor.js", () => ({ register: mocks.doctor }));
+vi.mock("./registry/reset.js", () => ({ register: mocks.reset }));
 vi.mock("./registry/config.js", () => ({ register: mocks.config }));
 vi.mock("./registry/db.js", () => ({ register: mocks.db }));
 vi.mock("./registry/onboard.js", () => ({ register: mocks.onboard }));
@@ -42,7 +44,9 @@ describe("command catalog", () => {
     await registerCommands(program, ["status"]);
 
     expect(mocks.status).toHaveBeenCalledOnce();
-    for (const register of allRegisters.filter((candidate) => candidate !== mocks.status)) {
+    for (const register of allRegisters.filter(
+      (candidate) => candidate !== mocks.status,
+    )) {
       expect(register).not.toHaveBeenCalled();
     }
   });

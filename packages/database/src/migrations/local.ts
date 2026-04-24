@@ -1,6 +1,7 @@
 export const localMigrationSql = `
 CREATE TABLE IF NOT EXISTS profiles (
   id text PRIMARY KEY NOT NULL,
+  email text,
   first_name text,
   last_name text,
   updated_at integer NOT NULL

@@ -6,8 +6,11 @@ Useful commands:
 
 ```bash
 slashcash doctor --fix
+slashcash reset --yes
 slashcash db seed
 slashcash start
 slashcash status
 slashcash stop
 ```
+
+`slashcash reset --yes` wipes local slash.cash state under `~/.slashcash` so you can onboard from scratch again.

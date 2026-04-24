@@ -6,8 +6,10 @@ import pc from "picocolors";
 import { loadConfig } from "../config/load.js";
 import { resolvePaths } from "../config/paths.js";
 import { applyRuntimeEnv } from "../config/runtime-env.js";
+import type { SlashcashConfig } from "../config/schema.js";
 import { clearPidFile, writePidFile } from "../runtime/pid.js";
 import { writeLog } from "../runtime/log.js";
+import { loadDatabase } from "../runtime/database.js";
 import { installBundledSkills } from "../skills/registry.js";
 import { startCronWorker } from "./cron.js";
 
@@ -17,6 +19,8 @@ export async function startDashboard(
   const config = loadConfig({ createIfMissing: true });
   const paths = resolvePaths();
   const port = options.port ?? config.server.port;
+
+  await syncProfileFromConfig(config, paths.db);
 
   await applyRuntimeEnv({
     config,
@@ -184,4 +188,17 @@ function openBrowser(url: string) {
     stdio: "ignore",
   });
   opener.unref();
+}
+
+async function syncProfileFromConfig(config: SlashcashConfig, dbPath: string) {
+  const email = config.gmail.address.trim().toLowerCase();
+  if (!email) {
+    return;
+  }
+
+  process.env.SQLITE_DB_PATH = dbPath;
+  const { ensureLocalDatabase, syncLocalProfileIdentity, LOCAL_USER_ID } =
+    await loadDatabase();
+  ensureLocalDatabase();
+  await syncLocalProfileIdentity(LOCAL_USER_ID, email);
 }

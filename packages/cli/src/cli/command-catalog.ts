@@ -10,6 +10,7 @@ const commandLoaders: Array<{
   { id: "stop", load: () => import("./registry/stop.js") },
   { id: "status", load: () => import("./registry/status.js") },
   { id: "doctor", load: () => import("./registry/doctor.js") },
+  { id: "reset", load: () => import("./registry/reset.js") },
   { id: "config", load: () => import("./registry/config.js") },
   { id: "db", load: () => import("./registry/db.js") },
   { id: "onboard", load: () => import("./registry/onboard.js") },

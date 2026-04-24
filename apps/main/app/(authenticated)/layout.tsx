@@ -1,18 +1,27 @@
-import { SidebarProvider } from '@workspace/ui/components/sidebar';
-import { AppSidebar } from '@/components/app-sidebar';
-import { SidebarInset } from '@workspace/ui/components/sidebar';
-import { SidebarTrigger } from '@workspace/ui/components/sidebar';
-import { Separator } from '@workspace/ui/components/separator';
-import { RouteBreadcrumb } from '@/components/route-breadcrumb';
-  
+import { SidebarProvider } from "@workspace/ui/components/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarInset } from "@workspace/ui/components/sidebar";
+import { SidebarTrigger } from "@workspace/ui/components/sidebar";
+import { Separator } from "@workspace/ui/components/separator";
+import { RouteBreadcrumb } from "@/components/route-breadcrumb";
+import { getLocalProfileIdentity, LOCAL_USER_ID } from "@workspace/database";
+
 export default async function AuthenticatedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const profile = await getLocalProfileIdentity(LOCAL_USER_ID);
+
   return (
     <SidebarProvider>
-      <AppSidebar user={{ avatar: '', email: 'local@slash.cash', name: 'Local user' }} />
+      <AppSidebar
+        user={{
+          avatar: "",
+          email: profile.email || "local@slash.cash",
+          name: profile.name,
+        }}
+      />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2">
           <div className="flex items-center gap-2 px-4">
@@ -24,10 +33,8 @@ export default async function AuthenticatedLayout({
             <RouteBreadcrumb />
           </div>
         </header>
-        <main className="flex flex-1 flex-col gap-4">
-          {children}
-        </main>
+        <main className="flex flex-1 flex-col gap-4">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );
-} 
+}

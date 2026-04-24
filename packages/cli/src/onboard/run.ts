@@ -128,6 +128,7 @@ function buildSteps(): Step[] {
     imapVerifyStep,
     stateDirStep,
     dbMigrateStep,
+    localProfileStep,
     pythonEnvStep,
     bundledSkillsStep,
   ];
@@ -570,6 +571,46 @@ const dbMigrateStep: Step = {
   },
 };
 
+const localProfileStep: Step = {
+  id: "local-profile",
+  label: "Local profile",
+  async detect(ctx) {
+    const email = normalizedGmailAddress(ctx);
+    if (!email) {
+      return { done: true, message: "local placeholder" };
+    }
+
+    process.env.SQLITE_DB_PATH = ctx.paths.db;
+    const { ensureLocalDatabase, getLocalProfileIdentity, LOCAL_USER_ID } =
+      await loadDatabase();
+    ensureLocalDatabase();
+
+    const profile = await getLocalProfileIdentity(LOCAL_USER_ID);
+    return profile.email === email
+      ? { done: true, message: email }
+      : { done: false };
+  },
+  async install(ctx) {
+    await syncLocalProfile(ctx);
+  },
+  async verify(ctx) {
+    const email = normalizedGmailAddress(ctx);
+    if (!email) {
+      return;
+    }
+
+    process.env.SQLITE_DB_PATH = ctx.paths.db;
+    const { ensureLocalDatabase, getLocalProfileIdentity, LOCAL_USER_ID } =
+      await loadDatabase();
+    ensureLocalDatabase();
+
+    const profile = await getLocalProfileIdentity(LOCAL_USER_ID);
+    if (profile.email !== email) {
+      throw new Error("local profile email did not update.");
+    }
+  },
+};
+
 const bundledSkillsStep: Step = {
   id: "bundled-skills",
   label: "Bundled skills",
@@ -674,4 +715,22 @@ function isEmailAddress(value: string | undefined) {
 
 function normalizeAppPassword(value: string | undefined) {
   return (value || "").replace(/\s+/g, "");
+}
+
+function normalizedGmailAddress(ctx: OnboardContext) {
+  const email = ctx.config.gmail.address.trim().toLowerCase();
+  return email || null;
+}
+
+async function syncLocalProfile(ctx: OnboardContext) {
+  const email = normalizedGmailAddress(ctx);
+  if (!email) {
+    return;
+  }
+
+  process.env.SQLITE_DB_PATH = ctx.paths.db;
+  const { ensureLocalDatabase, syncLocalProfileIdentity, LOCAL_USER_ID } =
+    await loadDatabase();
+  ensureLocalDatabase();
+  await syncLocalProfileIdentity(LOCAL_USER_ID, email);
 }

@@ -28,7 +28,7 @@ The current local app runs fully on the developer machine:
 - SQLite database in `~/.slashcash/db.sqlite` by default.
 - No hosted auth, remote job queue, cloud storage, or hosted database.
 - Ollama-compatible chat/extraction models through `OLLAMA_BASE_URL` and `OLLAMA_CHAT_MODEL`.
-- A `slashcash` CLI for onboarding, start, stop, status, doctor, config, db, sync, skills, and logs commands.
+- A `slashcash` CLI for onboarding, start, stop, status, doctor, reset, config, db, sync, skills, and logs commands.
 - Gmail ingestion over IMAP (`imap.gmail.com:993`) using a user-generated app password stored in the macOS Keychain or `~/.slashcash/credentials.json` when Keychain is unavailable.
 - Local PDF attachment storage under `~/.slashcash/attachments`.
 - Typed SQLite-backed Swiggy analytics tools for the assistant.
@@ -71,6 +71,7 @@ Useful direct commands:
 ```bash
 pnpm --filter slashcash dev -- doctor --fix
 pnpm --filter slashcash dev -- onboard --dry-run
+pnpm --filter slashcash dev -- reset --yes
 pnpm --filter slashcash dev -- sync --full
 pnpm --filter slashcash dev -- db seed
 pnpm --filter @knitly/main dev

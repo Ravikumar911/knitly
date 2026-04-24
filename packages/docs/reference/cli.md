@@ -69,6 +69,16 @@ Flags:
 - `--quick` skips network probes (`ollama`, `gmail-imap`) and the `python-env` import smoke test (venv presence is still checked cheaply).
 - `--reset-credentials` deletes saved Gmail IMAP credentials before rerunning checks.
 
+## `slashcash reset`
+
+Resets local slash.cash state while keeping the CLI installed. It stops the dashboard if it is running, clears the saved Gmail credential, removes `~/.slashcash/`, and deletes a custom SQLite path too if `SQLITE_DB_PATH` points outside the state directory.
+
+Flags:
+
+- `--yes` is required so the reset cannot happen accidentally.
+
+After reset, rerun `slashcash onboard`.
+
 ## `slashcash config get|set|path`
 
 Reads and writes `~/.slashcash/config.json`. `get <key>` prints one value or the whole config. `set <key> <value>` coerces booleans and numbers, validates against the schema, writes back, and prints the new value. `path` prints the config file path.
