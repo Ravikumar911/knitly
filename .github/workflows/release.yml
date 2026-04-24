@@ -24,7 +24,7 @@ env:
 jobs:
   preflight:
     name: Release preflight
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
       artifact_name: ${{ steps.bundle.outputs.artifact_name }}
