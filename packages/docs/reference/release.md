@@ -4,7 +4,7 @@ This document describes the end-user verification story for published `slashcash
 
 ## What the release workflow produces
 
-The tag-triggered release workflow runs a preflight job, publishes the exact packed tarball with provenance, verifies the published install from npm, and uploads:
+The tag-triggered release workflow runs a preflight job, publishes the exact packed tarball, verifies the published install from npm, and uploads:
 
 - a package manifest generated from the packed tarball (`slashcash-package-manifest.json`)
 - a SHA-256 checksum file (`slashcash.sha256`)
@@ -17,7 +17,7 @@ After a release:
 1. Install or inspect the published package version from npm.
 2. Compare the published tarball checksum against `slashcash.sha256`.
 3. Review the attached `slashcash-package-manifest.json` to see the published tarball metadata and file list.
-4. Inspect the npm provenance attestation for the published package version in the release run.
+4. Inspect the GitHub release artifacts to confirm the published package came from the checked release run.
 
 ## Local smoke path
 
@@ -39,6 +39,9 @@ The `Install Smoke` workflow runs on PRs, pushes to `main`, and manual dispatch.
 
 These checks only exist on a real tagged publish:
 
-- npm provenance verification
 - uploaded release artifact presence
 - `pnpm release:verify-published -- <version>` against the published package
+
+## Provenance note
+
+npm provenance currently requires a public source repository. While this repository remains private, the workflow uses token-based publishing without `--provenance`. After the repository is public and the package exists on npm, maintainers can configure Trusted Publishing from the package settings and re-enable provenance-backed publishing.
