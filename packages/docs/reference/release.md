@@ -4,11 +4,11 @@ This document describes the end-user verification story for published `slashcash
 
 ## What the release workflow produces
 
-The tag-triggered release workflow publishes the npm package with provenance and uploads:
+The tag-triggered release workflow runs a preflight job, publishes the exact packed tarball with provenance, verifies the published install from npm, and uploads:
 
 - an SBOM artifact (`slashcash-sbom.json`)
 - a SHA-256 checksum file (`slashcash.sha256`)
-- the packaged tarball smoke results
+- the packed `slashcash-*.tgz` artifact used for publish
 
 ## What users can verify
 
@@ -24,11 +24,16 @@ After a release:
 Maintainers can rehearse the release path locally with:
 
 ```bash
-pnpm pack:local
+SLASHCASH_HOME="$(mktemp -d)" pnpm pack:local
 pnpm bundle:check
+pnpm release:check
 ```
 
-`pnpm pack:local` builds the CLI tarball and runs the packed-install smoke, which verifies the packaged dashboard layout and required runtime dependencies.
+`pnpm pack:local` builds the CLI tarball and runs the packed-install smoke, which verifies the packaged dashboard layout and required runtime dependencies. The temp `SLASHCASH_HOME` keeps release rehearsal away from a developer's real local finance database. `pnpm release:check` validates the npm metadata and packed file list before any publish attempt.
+
+## CI smoke path
+
+The `Install Smoke` workflow runs on PRs, pushes to `main`, and manual dispatch. It builds the local tarball, installs it into a temporary prefix, and runs the same release metadata check. This keeps the install path exercised before a maintainer cuts a tag.
 
 ## What still requires a real release
 
@@ -36,4 +41,4 @@ These checks only exist on a real tagged publish:
 
 - npm provenance verification
 - uploaded release artifact presence
-- `npx -y slashcash@<version> --version` against the published package
+- `pnpm release:verify-published -- <version>` against the published package

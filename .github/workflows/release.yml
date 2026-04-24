@@ -11,20 +11,26 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
+
+env:
+  SLASHCASH_E2E: "1"
+  SLASHCASH_DOCTOR_SKIP_OLLAMA: "1"
+  SLASHCASH_DOCTOR_SKIP_GWS: "1"
+  SLASHCASH_NO_OPEN: "1"
+  PACKAGE_DIR: packages/cli
+  PACKAGE_NAME: slashcash
 
 jobs:
-  publish:
-    name: Publish slashcash
+  preflight:
+    name: Release preflight
     runs-on: macos-latest
     env:
-      SLASHCASH_E2E: "1"
-      SLASHCASH_DOCTOR_SKIP_OLLAMA: "1"
-      SLASHCASH_DOCTOR_SKIP_GWS: "1"
-      SLASHCASH_NO_OPEN: "1"
-      PACKAGE_DIR: packages/cli
-      PACKAGE_NAME: slashcash
+      SLASHCASH_HOME: ${{ runner.temp }}/slashcash-home
+      SQLITE_DB_PATH: ${{ runner.temp }}/slashcash-home/db.sqlite
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      artifact_name: ${{ steps.bundle.outputs.artifact_name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,15 +42,24 @@ jobs:
           cache: pnpm
           registry-url: "https://registry.npmjs.org"
       - run: pnpm install --frozen-lockfile
+      - name: Resolve package version
+        id: version
+        run: echo "version=$(node -p \"require('./${PACKAGE_DIR}/package.json').version\")" >> "$GITHUB_OUTPUT"
       - name: Validate tag version
         if: github.event_name == 'push'
+        run: test "v${{ steps.version.outputs.version }}" = "${GITHUB_REF_NAME}"
+      - name: Ensure version is not already published
+        if: github.event_name == 'push'
         run: |
-          VERSION=$(node -p "require('./${PACKAGE_DIR}/package.json').version")
-          test "v$VERSION" = "${GITHUB_REF_NAME}"
+          if npm view "${PACKAGE_NAME}@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "${PACKAGE_NAME}@${{ steps.version.outputs.version }} is already published on npm."
+            exit 1
+          fi
       - run: pnpm architecture-smells
       - run: pnpm typecheck
       - run: SLASHCASH_EVAL_SKIP_MODEL=1 pnpm eval:gate
       - run: pnpm pack:local
+      - run: pnpm release:check
       - name: Generate SBOM
         working-directory: ${{ env.PACKAGE_DIR }}
         run: npm sbom --json > ../../slashcash-sbom.json
@@ -53,36 +68,68 @@ jobs:
           TARBALL=$(ls "${PACKAGE_DIR}"/${PACKAGE_NAME}-*.tgz | head -n 1)
           shasum -a 256 "$TARBALL" > ${PACKAGE_NAME}.sha256
       - name: Upload release bundle
-        uses: actions/upload-artifact@v4
+        id: bundle
+        run: |
+          ARTIFACT_NAME="${PACKAGE_NAME}-release-bundle-${GITHUB_RUN_NUMBER}"
+          echo "artifact_name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
         with:
-          name: ${{ format('{0}-release-bundle-{1}', env.PACKAGE_NAME, github.run_number) }}
+          name: ${{ steps.bundle.outputs.artifact_name }}
           path: |
             ${{ env.PACKAGE_DIR }}/${{ env.PACKAGE_NAME }}-*.tgz
             ${{ env.PACKAGE_NAME }}.sha256
             slashcash-sbom.json
           if-no-files-found: error
-      - name: Publish with provenance
-        if: github.event_name == 'push'
-        working-directory: ${{ env.PACKAGE_DIR }}
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Smoke published package
-        if: github.event_name == 'push'
-        run: |
-          VERSION=$(node -p "require('./${PACKAGE_DIR}/package.json').version")
-          OUTPUT=$(npx -y "${PACKAGE_NAME}@$VERSION" --version)
-          test "$OUTPUT" = "$VERSION"
-      - name: Create GitHub release
-        if: github.event_name == 'push'
-        run: |
-          TARBALL=$(ls "${PACKAGE_DIR}"/${PACKAGE_NAME}-*.tgz | head -n 1)
-          gh release create "${GITHUB_REF_NAME}" "$TARBALL" "${PACKAGE_NAME}.sha256" slashcash-sbom.json --title "${GITHUB_REF_NAME}" --generate-notes
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Release rehearsal summary
         if: github.event_name == 'workflow_dispatch'
         run: |
-          echo "Dry run complete."
+          echo "Dry run complete for ${PACKAGE_NAME}@${{ steps.version.outputs.version }}."
           echo "The packaged tarball, checksum, and SBOM were uploaded as workflow artifacts."
-          echo "Push a vX.Y.Z tag to publish ${PACKAGE_NAME} to npm and create the GitHub release."
+          echo "Push v${{ steps.version.outputs.version }} to publish ${PACKAGE_NAME} to npm and create the GitHub release."
+
+  publish:
+    name: Publish to npm
+    needs: [preflight]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: npm-release
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.preflight.outputs.artifact_name }}
+          path: release-bundle
+      - name: Ensure version is not already published
+        run: |
+          if npm view "${PACKAGE_NAME}@${{ needs.preflight.outputs.version }}" version >/dev/null 2>&1; then
+            echo "${PACKAGE_NAME}@${{ needs.preflight.outputs.version }} is already published on npm."
+            exit 1
+          fi
+      - name: Publish with provenance
+        run: |
+          TARBALL=$(find release-bundle -type f -name "${PACKAGE_NAME}-*.tgz" | sort | head -n 1)
+          if [ -z "$TARBALL" ]; then
+            echo "Release tarball not found."
+            exit 1
+          fi
+          npm publish "$TARBALL" --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Verify published install
+        run: node packages/cli/scripts/verify-published-install.mjs "${{ needs.preflight.outputs.version }}"
+      - name: Create GitHub release
+        run: |
+          TARBALL=$(find release-bundle -type f -name "${PACKAGE_NAME}-*.tgz" | sort | head -n 1)
+          gh release create "${GITHUB_REF_NAME}" "$TARBALL" "release-bundle/${PACKAGE_NAME}.sha256" "release-bundle/slashcash-sbom.json" --title "${GITHUB_REF_NAME}" --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

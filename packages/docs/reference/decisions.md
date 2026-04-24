@@ -202,9 +202,9 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-021 — Release pipeline shape
 
-**Decision.** Releases publish from `vX.Y.Z` tags. The workflow validates the tag against `packages/cli/package.json`, runs the source gates, builds the standalone app, packs the CLI, publishes to npm with provenance, smoke-tests the published bin, and attaches a checksum plus SBOM to the GitHub release.
+**Decision.** Releases publish from `vX.Y.Z` tags. The workflow validates the tag against `packages/cli/package.json`, runs the source gates, builds the standalone app, packs the CLI, validates npm metadata and package contents, publishes that exact tarball to npm with provenance, verifies a fresh npm install, and attaches a checksum plus SBOM to the GitHub release. A separate install-smoke workflow runs the packed-install path on PRs and pushes to `main`.
 
-**Why.** Tag-based release is auditable and matches npm provenance expectations. The published package is the artifact users install, so the release workflow must exercise the bundled-app path.
+**Why.** Tag-based release is auditable and matches npm provenance expectations. The published package is the artifact users install, so the release workflow must exercise the bundled-app path before and after npm publish.
 
 **Rejected.** Publishing directly from every push to `main`.
 
@@ -376,4 +376,3 @@ A pinned venv under `~/.slashcash/` (rather than a project-local `pnpm-packed` P
 - `pip install` reliably takes longer than 90 seconds on a normal broadband link (switch to `uv`).
 - Python 3 becomes non-trivial to obtain on macOS (unlikely; Xcode CLT ships Python 3, brew ships current Python).
 - A meaningful fraction of users end up on PEP 668-locked Python installs that also refuse `python -m venv` (no signal of that today on macOS).
-

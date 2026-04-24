@@ -30,7 +30,13 @@ export const db = drizzle(sqlite, {
 
 function ensureLegacyColumns(database: BetterSqlite3.Database) {
   if (!hasColumn(database, "profiles", "email")) {
-    database.exec("ALTER TABLE profiles ADD COLUMN email text");
+    try {
+      database.exec("ALTER TABLE profiles ADD COLUMN email text");
+    } catch (error) {
+      if (!isDuplicateColumnError(error)) {
+        throw error;
+      }
+    }
   }
 }
 
@@ -44,4 +50,11 @@ function hasColumn(
     .all() as Array<{ name: string }>;
 
   return columns.some((column) => column.name === columnName);
+}
+
+function isDuplicateColumnError(error: unknown) {
+  return (
+    error instanceof Error &&
+    /duplicate column name:\s*email/i.test(error.message)
+  );
 }

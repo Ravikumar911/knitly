@@ -11,7 +11,9 @@ import { dirname } from "node:path";
 
 const cliRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const appRoot = join(cliRoot, "dist", "app");
-const budgetBytes = Number(process.env.SLASHCASH_BUNDLE_BUDGET_BYTES || 350 * 1024 * 1024);
+const budgetBytes = Number(
+  process.env.SLASHCASH_BUNDLE_BUDGET_BYTES || 350 * 1024 * 1024,
+);
 const runtimeDependencies = [
   "@ai-sdk/openai-compatible",
   "ai",
@@ -26,7 +28,9 @@ const installedRuntimePackagePattern = new RegExp(
   `(^|/)node_modules/(?:\\.pnpm/(?:${runtimeDependencies
     .map(toPnpmPackageDirPrefix)
     .map(escapeRegExp)
-    .join("|")})@[^/]+|(?:${runtimeDependencies.map(escapeRegExp).join("|")}))(/|$)`,
+    .join(
+      "|",
+    )})@[^/]+|(?:${runtimeDependencies.map(escapeRegExp).join("|")}))(/|$)`,
 );
 
 const serverCandidates = [
@@ -35,10 +39,14 @@ const serverCandidates = [
 ];
 
 if (!serverCandidates.some((candidate) => existsSync(candidate))) {
-  throw new Error("Bundled app server.js is missing. Run `pnpm pack:local` first.");
+  throw new Error(
+    "Bundled app server.js is missing. Run `pnpm pack:local` first.",
+  );
 }
 
-const cliPackage = JSON.parse(readFileSync(join(cliRoot, "package.json"), "utf8"));
+const cliPackage = JSON.parse(
+  readFileSync(join(cliRoot, "package.json"), "utf8"),
+);
 const missingRuntimeDependencies = runtimeDependencies.filter(
   (name) => !cliPackage.dependencies?.[name],
 );
@@ -49,9 +57,14 @@ if (missingRuntimeDependencies.length > 0) {
 }
 
 const shippedFiles = [...walk(appRoot)];
-const totalBytes = shippedFiles.reduce((sum, file) => sum + lstatSync(file).size, 0);
+const totalBytes = shippedFiles.reduce(
+  (sum, file) => sum + lstatSync(file).size,
+  0,
+);
 if (totalBytes > budgetBytes) {
-  throw new Error(`Bundle is ${totalBytes} bytes, above budget ${budgetBytes} bytes.`);
+  throw new Error(
+    `Bundle is ${totalBytes} bytes, above budget ${budgetBytes} bytes.`,
+  );
 }
 
 const forbidden = shippedFiles.filter((file) => {
@@ -60,10 +73,12 @@ const forbidden = shippedFiles.filter((file) => {
     /(^|\/)\.env/.test(name) ||
     /(^|\/)\.gitignore$/.test(name) ||
     /(^|\/)\.turbo(\/|$)/.test(name) ||
+    /(^|\/)coverage(\/|$)/.test(name) ||
+    /(^|\/)__pycache__(\/|$)/.test(name) ||
     /(^|\/)\.next\/cache(\/|$)/.test(name) ||
     installedRuntimePackagePattern.test(name) ||
     /(^|\/)(test|tests|fixtures|test-fixtures)(\/|$)/.test(name) ||
-    /\.(?:d\.ts|ts|tsx|map)$/.test(name)
+    /\.(?:d\.ts|ts|tsx|map|pyc|pyo)$/.test(name)
   );
 });
 
@@ -80,10 +95,14 @@ const escapingSymlinks = shippedFiles.filter((file) => {
   return rel.startsWith("..") || isAbsolute(rel);
 });
 if (escapingSymlinks.length > 0) {
-  throw new Error(`Bundle contains symlinks that escape dist/app:\n${escapingSymlinks.join("\n")}`);
+  throw new Error(
+    `Bundle contains symlinks that escape dist/app:\n${escapingSymlinks.join("\n")}`,
+  );
 }
 
-console.log(`Bundle verified: ${shippedFiles.length} files, ${totalBytes} bytes.`);
+console.log(
+  `Bundle verified: ${shippedFiles.length} files, ${totalBytes} bytes.`,
+);
 
 function* walk(root) {
   for (const entry of readdirSync(root, { withFileTypes: true })) {

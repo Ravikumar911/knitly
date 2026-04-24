@@ -110,8 +110,10 @@ function shouldCopyToBundle(source) {
     !installedRuntimePackagePattern.test(normalized) &&
     !/(^|\/)\.env/.test(normalized) &&
     !/(^|\/)\.gitignore$/.test(normalized) &&
+    !/(^|\/)coverage(\/|$)/.test(normalized) &&
+    !/(^|\/)__pycache__(\/|$)/.test(normalized) &&
     !/(^|\/)(test|tests|fixtures|test-fixtures)(\/|$)/.test(normalized) &&
-    !/\.(?:d\.ts|ts|tsx|map)$/.test(normalized)
+    !/\.(?:d\.ts|ts|tsx|map|pyc|pyo)$/.test(normalized)
   );
 }
 

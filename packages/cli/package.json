@@ -2,6 +2,24 @@
   "name": "slashcash",
   "version": "0.1.0",
   "private": false,
+  "description": "Local-first personal finance dashboard CLI for slash.cash.",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ravikumar911/knitly.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/Ravikumar911/knitly/issues"
+  },
+  "homepage": "https://github.com/Ravikumar911/knitly#readme",
+  "keywords": [
+    "finance",
+    "personal-finance",
+    "sqlite",
+    "local-first",
+    "cli"
+  ],
   "type": "module",
   "bin": {
     "slashcash": "bin/slashcash.mjs"
@@ -12,6 +30,12 @@
     "dist/app/apps/main/.next",
     "bundled-skills"
   ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "bundle:app": "node scripts/bundle-app.mjs",
@@ -20,6 +44,8 @@
     "dev": "tsx src/entry.ts",
     "lint": "echo 'Linting not configured for cli package'",
     "lint:fix": "echo 'Linting not configured for cli package'",
+    "release:check": "node scripts/release-check.mjs",
+    "release:verify-published": "node scripts/verify-published-install.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",

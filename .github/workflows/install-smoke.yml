@@ -1,0 +1,41 @@
+name: Install Smoke
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: install-smoke-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  SLASHCASH_E2E: "1"
+  SLASHCASH_DOCTOR_SKIP_OLLAMA: "1"
+  SLASHCASH_DOCTOR_SKIP_GWS: "1"
+  SLASHCASH_NO_OPEN: "1"
+
+jobs:
+  pack-install:
+    name: Packed install
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: macos-latest
+    env:
+      SLASHCASH_HOME: ${{ runner.temp }}/slashcash-home
+      SQLITE_DB_PATH: ${{ runner.temp }}/slashcash-home/db.sqlite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm pack:local
+      - run: pnpm release:check
