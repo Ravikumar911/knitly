@@ -20,6 +20,7 @@
       "env": [
         "OLLAMA_BASE_URL",
         "OLLAMA_CHAT_MODEL",
+        "SLASHCASH_SYNC_SKIP_AI",
         "SLASHCASH_EVAL_SKIP_MODEL",
         "SLASHCASH_EVAL_THRESHOLD",
         "SLASHCASH_BUNDLE_BUDGET_BYTES",
@@ -39,25 +40,26 @@
       "env": [
         "OLLAMA_BASE_URL",
         "OLLAMA_CHAT_MODEL",
+        "SLASHCASH_SYNC_SKIP_AI",
         "SLASHCASH_EVAL_SKIP_MODEL",
         "SLASHCASH_EVAL_THRESHOLD"
       ]
     },
     "eval:swiggy": {
       "cache": false,
-      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL"]
+      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL", "SLASHCASH_SYNC_SKIP_AI"]
     },
     "eval:swiggy:nano": {
       "cache": false,
-      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL"]
+      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL", "SLASHCASH_SYNC_SKIP_AI"]
     },
     "eval:swiggy:mini": {
       "cache": false,
-      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL"]
+      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL", "SLASHCASH_SYNC_SKIP_AI"]
     },
     "eval:swiggy:ui": {
       "cache": false,
-      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL"]
+      "env": ["OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL", "SLASHCASH_SYNC_SKIP_AI"]
     },
     "check-types": {
       "dependsOn": ["^check-types"]

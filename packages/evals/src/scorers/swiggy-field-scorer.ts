@@ -306,7 +306,7 @@ export const schemaValidationScorer: Scorer<
     hasParseSuccess: typeof output.parseSuccess === "boolean",
     hasSchemaUsed: !!output.schemaUsed,
     hasConfidenceScore: typeof output.extractionConfidence === "number",
-    correctSchema: output.schemaUsed === "swiggy",
+    correctSchema: output.schemaUsed.startsWith("swiggy."),
   };
 
   const passed = Object.values(validations).filter(Boolean).length;

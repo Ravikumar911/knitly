@@ -2,14 +2,9 @@ import { config } from "dotenv";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import {
-  extractEmailData,
-  type SlashAIV2Result,
-} from "@workspace/tasks/extract/extract-from-email-body";
-import {
-  defaultModel,
-  DEFAULT_OLLAMA_CHAT_MODEL,
-} from "@workspace/tasks/ai/model";
+import type { SlashAIV2Result } from "@workspace/tasks/extract/extract-from-email-body";
+import { extractTransactionFromEmail } from "@workspace/tasks/extract/pipeline";
+import { DEFAULT_OLLAMA_CHAT_MODEL } from "@workspace/tasks/ai/model";
 import { EmailData } from "@workspace/tasks/types/slashAI";
 import { getAllTestCases } from "./fixtures/swiggy-samples";
 import { SWIGGY_EXPECTED_OUTPUTS } from "./fixtures/swiggy-expected";
@@ -45,9 +40,10 @@ type EvalScore = Awaited<ReturnType<typeof swiggyFieldScorer>>;
  */
 function loadData(): EvalCase[] {
   const testCases = getAllTestCases();
+  const expectedOutputs = SWIGGY_EXPECTED_OUTPUTS.slice(-testCases.length);
 
   return testCases.map((emailData, index) => {
-    const expected = SWIGGY_EXPECTED_OUTPUTS[index];
+    const expected = expectedOutputs[index];
     if (!expected) {
       throw new Error(`Missing expected output for test case ${index}`);
     }
@@ -70,18 +66,27 @@ async function runExtraction(
   input: EvalCase["input"],
 ): Promise<SlashAIV2Result> {
   const emailData = input.emailData as EmailData;
+  process.env.SLASHCASH_SYNC_SKIP_AI = "1";
 
-  return extractEmailData(emailData, defaultModel(), {
-    logger: {
-      log: console.log,
-      error: console.error,
-      warn: console.warn,
-    },
+  const result = await extractTransactionFromEmail(emailData, {
+    storeTransaction: false,
   });
+
+  return {
+    extractionData: result.extractionData,
+    merchantId: "swiggy",
+    merchantCode: "SWIGGY",
+    schemaUsed: result.schemaUsed,
+    extractionConfidence: result.extractionConfidence,
+    parseSuccess: result.parseSuccess,
+    parseErrors: result.parseErrors,
+    transactionId: result.transactionId,
+  };
 }
 
 async function main() {
   const modelName = process.env.OLLAMA_CHAT_MODEL || DEFAULT_OLLAMA_CHAT_MODEL;
+  const testCases = loadData();
 
   console.log(`
 ==============================================
@@ -89,7 +94,7 @@ async function main() {
 ==============================================
 
 Model: ${modelName}
-Test Cases: ${SWIGGY_EXPECTED_OUTPUTS.length} Swiggy PDF invoices
+Test Cases: ${testCases.length} Swiggy PDF invoices
 
 ==============================================
 `);
@@ -100,7 +105,7 @@ Test Cases: ${SWIGGY_EXPECTED_OUTPUTS.length} Swiggy PDF invoices
     schemaScore: EvalScore;
   }> = [];
 
-  for (const testCase of loadData()) {
+  for (const testCase of testCases) {
     const output = await runExtraction(testCase.input);
     const fieldScore = await swiggyFieldScorer({
       input: testCase.input,

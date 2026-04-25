@@ -6,6 +6,7 @@ import type { EmailData } from "../types/slashAI";
 import { fallbackSwiggy } from "./body-fallback";
 import { extractFromEmailSources } from "./extract-from-email-body";
 import { extractTextFromPdf, type PdfTextSource } from "./extract-from-pdf";
+import { extractSwiggyDeterministically } from "./swiggy-deterministic";
 import { logPipelineStep, syncDebug } from "../utils/sync-debug";
 
 type SwiggyExtraction = z.infer<typeof SwiggyMerchant.schema>;
@@ -15,7 +16,11 @@ type PipelineCandidate = {
   extractionConfidence: number;
   parseErrors: string[];
   warnings: string[];
-  schemaUsed: "swiggy.body.v1" | "swiggy.sources.v1" | "swiggy.fallback.v1";
+  schemaUsed:
+    | "swiggy.deterministic.v1"
+    | "swiggy.body.v1"
+    | "swiggy.sources.v1"
+    | "swiggy.fallback.v1";
   dataSource: "EMAIL_BODY" | "PDF_ATTACHMENT" | "BOTH";
   contributedByPdf: boolean;
   attachmentPath?: string | null;
@@ -107,7 +112,53 @@ export async function extractTransactionFromEmail(
   }
 
   let finalCandidate: PipelineCandidate | null = null;
-  if (model) {
+  const deterministic = extractSwiggyDeterministically(
+    emailData,
+    pdfTextSources,
+  );
+  if (
+    deterministic.parseSuccess &&
+    deterministic.extractionData.transaction?.amount
+  ) {
+    finalCandidate = {
+      extractionData: deterministic.extractionData,
+      extractionConfidence: deterministic.extractionConfidence,
+      parseErrors: deterministic.parseErrors,
+      warnings: pdfTextSources.flatMap((source) => source.warnings),
+      schemaUsed: "swiggy.deterministic.v1",
+      dataSource: deterministic.dataSource,
+      contributedByPdf: deterministic.contributedByPdf,
+      attachmentPath: pdfTextSources[0]?.attachmentPath ?? null,
+    };
+    logPipelineStep("merge", {
+      step: 3,
+      emailId: emailData.emailId ?? null,
+      decision: "deterministic_sources",
+      schemaUsed: finalCandidate.schemaUsed,
+      dataSource: finalCandidate.dataSource,
+      amount: finalCandidate.extractionData.transaction?.amount ?? null,
+      orderId: finalCandidate.extractionData.transaction?.orderId ?? null,
+      confidence: finalCandidate.extractionConfidence,
+      pdfTextCount: pdfTextSources.length,
+    });
+    syncDebug("pipeline-using-deterministic", {
+      emailId: emailData.emailId || null,
+      confidence: finalCandidate.extractionConfidence,
+      amount: finalCandidate.extractionData.transaction?.amount ?? null,
+      orderId: finalCandidate.extractionData.transaction?.orderId ?? null,
+      warningCount: finalCandidate.warnings.length,
+      parseErrorCount: finalCandidate.parseErrors.length,
+      dataSource: finalCandidate.dataSource,
+    });
+  } else {
+    syncDebug("deterministic-extraction-empty", {
+      emailId: emailData.emailId || null,
+      parseErrorCount: deterministic.parseErrors.length,
+      pdfTextCount: pdfTextSources.length,
+    });
+  }
+
+  if (!finalCandidate && model) {
     syncDebug("source-extraction-start", {
       emailId: emailData.emailId || null,
       model: process.env.OLLAMA_CHAT_MODEL || null,
@@ -248,9 +299,15 @@ export async function extractTransactionFromEmail(
   }
 
   if (!finalCandidate || !finalCandidate.extractionData.transaction?.amount) {
+    const failureErrors =
+      parseErrors.length > 0
+        ? parseErrors
+        : deterministic.parseErrors.length > 0
+          ? deterministic.parseErrors
+          : ["Could not extract transaction data from the email."];
     syncDebug("pipeline-no-transaction", {
       emailId: emailData.emailId || null,
-      parseErrors,
+      parseErrors: failureErrors,
     });
     return {
       extractionData: SwiggyMerchant.schema.parse({
@@ -258,19 +315,13 @@ export async function extractTransactionFromEmail(
         emailType: "OTHER",
         emailSubject: emailData.subject,
         parseSuccess: false,
-        parseErrors:
-          parseErrors.length > 0
-            ? parseErrors
-            : ["Could not extract transaction data from the email."],
+        parseErrors: failureErrors,
         confidenceScore: 0,
         merchantId: SwiggyMerchant.id,
         merchantCode: SwiggyMerchant.code,
       }),
       extractionConfidence: 0,
-      parseErrors:
-        parseErrors.length > 0
-          ? parseErrors
-          : ["Could not extract transaction data from the email."],
+      parseErrors: failureErrors,
       warnings: [],
       schemaUsed: "swiggy.fallback.v1",
       dataSource: "EMAIL_BODY",
@@ -306,7 +357,7 @@ export async function extractTransactionFromEmail(
       paymentMethod:
         finalCandidate.extractionData.transaction.paymentMethod || undefined,
       referenceIds: finalCandidate.extractionData.transaction.orderId
-        ? { orderId: finalCandidate.extractionData.transaction.orderId }
+        ? finalCandidate.extractionData.transaction.referenceIds
         : {},
       merchantData: {
         ...finalCandidate.extractionData,
