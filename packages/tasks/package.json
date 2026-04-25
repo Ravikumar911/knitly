@@ -9,8 +9,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "dev": "tsx src/index.ts",
-    "manual:order-extract": "tsx scripts/manual-order-extract.ts"
+    "dev": "tsx src/index.ts"
   },
   "exports": {
     ".": {
