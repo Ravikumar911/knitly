@@ -9,7 +9,7 @@ There are four layers:
 1. **Unit tests** next to the code.
 2. **Targeted integration tests** for boundary modules where behavior really lives.
 3. **Customer-journey UI coverage** in Playwright, booted through the real `slashcash start` path.
-4. **Phase acceptance gates** that run the real CLI against fixture or release-like environments.
+4. **Named acceptance gates** that run the real CLI against fixture or release-like environments.
 
 ## Where tests live
 
@@ -31,21 +31,9 @@ There are four layers:
 
 The harness owns setup details such as temporary `SLASHCASH_HOME`, seeded SQLite state, IMAP fixture import, and the mock Ollama endpoint.
 
-## Phase 1 acceptance gate
+## Ingest acceptance gate
 
-Phase 1 proves the local stack boots and survives a normal lifecycle:
-
-- `slashcash doctor`
-- `slashcash db seed`
-- `slashcash start`
-- `/api/healthz`
-- assistant API smoke
-- `slashcash status`
-- `slashcash stop`
-
-## Phase 2 acceptance gate (ingest)
-
-Phase 2 now means fixture-backed IMAP ingest + deterministic Python extractor lane.
+The ingest gate means fixture-backed IMAP ingest + deterministic Python extractor lane.
 
 `packages/e2e-tests/scenarios/phase-2.ts` (aliased as `e2e:ingest` once the PDF-extractor pivot lands):
 
@@ -60,7 +48,7 @@ Phase 2 now means fixture-backed IMAP ingest + deterministic Python extractor la
 
 The real-account version of this gate (real Gmail account + real app password + real Docling install + manual diff of transactions against actual receipts) is the PDF-extractor pivot's dogfood step and is intentionally not part of normal fixture CI.
 
-## Phase 3 acceptance gate
+## CLI acceptance gate
 
 `packages/e2e-tests/scenarios/phase-3.ts` exercises the CLI contract:
 
@@ -74,7 +62,7 @@ The real-account version of this gate (real Gmail account + real app password + 
 
 The full clean-machine cancel-during-`ollama pull` exercise is still a manual dogfood step because it requires interrupting a real model pull.
 
-## Phase 4 acceptance gate
+## Quality acceptance gate
 
 `packages/e2e-tests/scenarios/phase-4.ts` is the meta gate for the test pyramid. It runs:
 
@@ -84,7 +72,7 @@ The full clean-machine cancel-during-`ollama pull` exercise is still a manual do
 
 The IMAP boundary replacement for the retired mailbox-wrapper spec is `packages/tasks/src/gmail/imap-client.integration.test.ts`, run with `VITEST_INTEGRATION=1 pnpm --filter @workspace/tasks test`.
 
-## Phase 5 acceptance gate
+## Release acceptance gate
 
 `packages/e2e-tests/scenarios/phase-5.ts` covers release-readiness checks that do not need external credentials:
 

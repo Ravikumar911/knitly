@@ -34,7 +34,6 @@ pnpm --filter @workspace/e2e-tests test:headed
 These friendly aliases point at the existing roadmap gate scripts:
 
 ```bash
-pnpm --filter @workspace/e2e-tests journey:boot-local-app
 pnpm --filter @workspace/e2e-tests journey:sync-inbox-and-receipts
 pnpm --filter @workspace/e2e-tests journey:onboard-recovery
 pnpm --filter @workspace/e2e-tests journey:quality-gates
