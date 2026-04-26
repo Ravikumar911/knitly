@@ -4,20 +4,20 @@ import {
   convertToModelMessages,
   JsonToSseTransformStream,
   stepCountIs,
+  type UIMessage,
 } from "ai";
 import {
   chatModel,
   getAssistantProvider,
   resolveAiRuntimeConfig,
 } from "@/lib/ai/provider";
-import {
-  getChatById,
-  createChat,
-  saveMessage,
-  LOCAL_USER_ID,
-  getSwiggySpendingOverview,
-} from "@workspace/database";
+import { getChatById, LOCAL_USER_ID, getSwiggySpendingOverview } from "@workspace/database";
 import { swiggyAnalyticsTools } from "@/lib/ai/tools/swiggy-analytics";
+import {
+  ensureChatForAssistant,
+  saveAssistantFromFinish,
+  saveNewUserTurn,
+} from "@/lib/assistant/persist-chat";
 
 export const maxDuration = 60;
 
@@ -52,23 +52,14 @@ export async function POST(req: Request) {
     }
 
     console.log("[assistant] Fetching chat:", chatId);
-    let chatWithMessages = await getChatById(chatId, LOCAL_USER_ID);
-
-    if (!chatWithMessages) {
-      console.log("[assistant] Chat not found, creating new chat");
-      const firstMessageText =
-        message.parts.find((p: any) => p.type === "text")?.text || "New Chat";
-      const title =
-        firstMessageText.slice(0, 50) +
-        (firstMessageText.length > 50 ? "..." : "");
-
-      console.log("[assistant] Creating chat with title:", title);
-      await createChat(LOCAL_USER_ID, title, chatId);
-      chatWithMessages = await getChatById(chatId, LOCAL_USER_ID);
-      console.log("[assistant] ✅ Chat created successfully");
-    } else {
+    const firstMessageText =
+      message.parts.find((p: { type?: string }) => p.type === "text")?.text ||
+      "New Chat";
+    await ensureChatForAssistant(LOCAL_USER_ID, chatId, firstMessageText);
+    const chatWithMessages = await getChatById(chatId, LOCAL_USER_ID);
+    if (chatWithMessages) {
       console.log(
-        "[assistant] ✅ Chat found with",
+        "[assistant] ✅ Chat ready with",
         chatWithMessages.messages?.length || 0,
         "existing messages",
       );
@@ -77,7 +68,7 @@ export async function POST(req: Request) {
     const existingMessages = chatWithMessages?.messages || [];
 
     console.log("[assistant] Saving user message to database");
-    await saveMessage(chatId, message.role, message.parts);
+    await saveNewUserTurn(chatId, message as UIMessage);
     console.log("[assistant] ✅ User message saved");
 
     const uiMessages = [
@@ -113,7 +104,7 @@ export async function POST(req: Request) {
           writer.write({ type: "finish" });
         },
         onFinish: async ({ messages: responseMessages }) => {
-          await saveAssistantMessages(chatId, responseMessages);
+          await saveAssistantFromFinish(chatId, responseMessages);
         },
       });
 
@@ -176,7 +167,7 @@ export async function POST(req: Request) {
         console.log("[assistant] Stream setup complete");
       },
       onFinish: async ({ messages: responseMessages }) => {
-        await saveAssistantMessages(chatId, responseMessages);
+        await saveAssistantFromFinish(chatId, responseMessages);
       },
     });
 
@@ -270,19 +261,3 @@ async function modelSupportsTools(input: {
   }
 }
 
-async function saveAssistantMessages(chatId: string, responseMessages: any[]) {
-  console.log("[assistant] 🏁 Stream finished, saving assistant messages");
-  console.log("[assistant] Response messages count:", responseMessages.length);
-
-  await Promise.all(
-    responseMessages.map((msg: any) => {
-      console.log("[assistant] Saving message:", {
-        role: msg.role,
-        partsCount: msg.parts?.length,
-      });
-      return saveMessage(chatId, msg.role, msg.parts);
-    }),
-  );
-
-  console.log("[assistant] ✅ All assistant messages saved to database");
-}

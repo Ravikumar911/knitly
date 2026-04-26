@@ -65,10 +65,12 @@ import { Suggestion, Suggestions } from "@workspace/ui/components/ai-elements/su
 import type { AttachmentData } from "@workspace/ui/components/ai-elements/attachments";
 import { Alert, AlertDescription } from "@workspace/ui/components/alert";
 import { useChat } from "@ai-sdk/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { AlertCircle, CheckIcon, GlobeIcon } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useTRPC } from "@/trpc/client";
 
 const DEFAULT_LOCAL_TAG = "gemma4:latest";
 
@@ -299,6 +301,8 @@ export type ChatBotProps = {
 };
 
 function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
+  const queryClient = useQueryClient();
+  const trpc = useTRPC();
   const { textInput, attachments } = usePromptInputController();
   const [model, setModel] = useState<string>(DEFAULT_LOCAL_TAG);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
@@ -334,6 +338,18 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
         return;
       }
       toast.error(err.message || "Request failed");
+    },
+    onFinish: ({
+      isAbort,
+      isError,
+    }: {
+      isAbort: boolean;
+      isError: boolean;
+    }) => {
+      if (isAbort || isError) {
+        return;
+      }
+      void queryClient.invalidateQueries(trpc.chat.list.queryFilter({ limit: 50 }));
     },
   } as any);
 
@@ -410,8 +426,8 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
   const isSubmitDisabled = isBusy || isEmpty;
 
   return (
-    <div className="relative flex size-full min-h-0 flex-col divide-y overflow-hidden">
-      <Conversation>
+    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+      <Conversation className="min-h-0 flex-1">
         <ConversationContent>
           {error && (
             <Alert className="mb-4" variant="destructive">
@@ -435,7 +451,7 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
-      <div className="grid shrink-0 gap-4 pt-4">
+      <div className="grid shrink-0 gap-4 border-t pt-4">
         <Suggestions className="px-4">
           {suggestions.map((s) => (
             <SuggestionItem
@@ -533,11 +549,6 @@ export function ChatBot(props: ChatBotProps) {
       <ChatBotInner {...props} />
     </PromptInputProvider>
   );
-}
-
-export function ChatBotNewSession() {
-  const [chatId] = useState(() => crypto.randomUUID());
-  return <ChatBot chatId={chatId} initialMessages={[]} />;
 }
 
 export default ChatBot;
