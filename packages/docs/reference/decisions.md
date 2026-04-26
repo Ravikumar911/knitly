@@ -44,13 +44,13 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 **Revisit if.** `gws` ever becomes unmaintained, or we decide to absorb the OAuth verification work to shave the two browser consents out of onboarding — at which point ADR-022 flips too.
 
-## ADR-005 — Ollama with `gemma3n:e4b` as the default model
+## ADR-005 — Ollama with `gemma4:latest` as the default model
 
 > **Scope updated on 2026-04-24 by ADR-026.** Gemma remains the sole model for chat and for structured Swiggy extraction. PDF conversion is no longer Gemma's job; it is delegated to Docling, then the resulting text is passed into the same `generateObject` call as the email body (see ADR-026). The rest of this ADR is unchanged.
 
-**Decision.** The CLI pulls and targets `gemma3n:e4b` during `onboard`. The AI SDK's OpenAI-compatible adapter is pointed at Ollama's local endpoint.
+**Decision.** The CLI pulls and targets `gemma4:latest` during `onboard`. The AI SDK's OpenAI-compatible adapter is pointed at Ollama's local endpoint.
 
-**Why.** `gemma3n:e4b` is a multimodal Gemma 3n variant tuned for efficiency and reasonable accuracy at about 3 GB on disk, which fits the ten-minute-onboard budget. Ollama is the de-facto standard for running local models on macOS and integrates cleanly with the AI SDK via OpenAI compatibility.
+**Why.** `gemma4:latest` (Gemma 4 E4B-class default in Ollama) is a multimodal model with stronger reasoning and tool-style workflows than Gemma 3n, at about 9–10 GB on disk. Ollama is the de-facto standard for running local models on macOS and integrates cleanly with the AI SDK via OpenAI compatibility. Users who need a smaller download can pick `gemma4:e2b` in onboarding.
 
 **Rejected.** Hard-coding a larger model (quality gain not worth the download time). A multi-provider abstraction (premature; one model is plenty for v1).
 
@@ -172,7 +172,7 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 > **Amended on 2026-04-22 by ADR-024.** The onboarding surface now has three user inputs instead of one: the chat-model `select`, the Gmail address `text`, and the app-password `password`. The justification below still stands for "don't ask for anything else" (port, schedule, skill choice, etc.); the Gmail pair is not a "question" in the ADR-018 sense but a credential input that has no defensible default. Do not add prompts beyond these three without a new ADR.
 
-**Decision.** `slashcash onboard` asks exactly one user-facing question: which chat model to pull and use. The default is `gemma3n:e4b`, with `gemma3:4b` and `qwen2.5:7b` offered as alternatives. `--yes` accepts the default and `--non-interactive` fails if a prompt would be needed.
+**Decision.** `slashcash onboard` asks exactly one user-facing question: which chat model to pull and use. The default is `gemma4:latest`, with `gemma4:e2b` and `qwen2.5:7b` offered as alternatives. `--yes` accepts the default and `--non-interactive` fails if a prompt would be needed.
 
 **Why.** Every additional prompt adds friction. The model choice is the only current setup question with a real user trade-off: download size, speed and answer quality.
 
@@ -327,7 +327,7 @@ The split pipeline, per ingested message, is:
 2. Email body + Docling PDF text → Gemma `generateObject` against the merchant Zod schema.
 3. If the PDF extractor is unavailable or fails on a given attachment, ingest degrades to email-body-only extraction and surfaces the Python lane state via `slashcash doctor`.
 
-**Why.** `gemma3n:e4b` is tuned for chat and light structured output at ~3 GB of weights. PDF receipts (Swiggy in v1, bank statements later) carry totals, per-line items and tax breakdowns inside layout-aware tables that Gemma reads poorly from raw PDF bytes. Docling is purpose-built for document understanding, reads tables correctly, runs offline, and is permissively licensed. Confining Docling to text conversion and letting Gemma map all source text into the merchant schema keeps the pipeline simple: one model call, one output object.
+**Why.** The local Gemma model (`gemma4:latest` by default) is tuned for chat and light structured output. PDF receipts (Swiggy in v1, bank statements later) carry totals, per-line items and tax breakdowns inside layout-aware tables that Gemma reads poorly from raw PDF bytes. Docling is purpose-built for document understanding, reads tables correctly, runs offline, and is permissively licensed. Confining Docling to text conversion and letting Gemma map all source text into the merchant schema keeps the pipeline simple: one model call, one output object.
 
 **Rejected.**
 

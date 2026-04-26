@@ -27,8 +27,8 @@ All user state lives under `~/.slashcash/`. The config schema lives in `packages
 ### `ai`
 
 - `ai.ollamaBaseUrl` — default `http://127.0.0.1:11434/v1`
-- `ai.chatModel` — default `gemma3n:e4b`
-- `ai.visionModel` — default `gemma3n:e4b` (legacy key; reads from the same model as `ai.chatModel` after the PDF-extractor pivot and will be removed once the migration lands)
+- `ai.chatModel` — default `gemma4:latest`
+- `ai.visionModel` — default `gemma4:latest` (legacy key; reads from the same model as `ai.chatModel` after the PDF-extractor pivot and will be removed once the migration lands)
 
 ### `pdfExtractor`
 

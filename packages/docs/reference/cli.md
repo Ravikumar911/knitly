@@ -12,7 +12,7 @@ Interactive first-run wizard backed by `@clack/prompts` and the `Step { detect /
 
 1. Prints the privacy banner.
 2. Verifies Homebrew.
-3. Lets the user pick a local chat model (default `gemma3n:e4b`).
+3. Lets the user pick a local chat model (default `gemma4:latest`).
 4. Detects or installs Ollama, starts the service, and pulls the chosen model.
 5. Prompts for a Gmail address.
 6. Shows the app-password note and prompts for a 16-character Gmail app password.

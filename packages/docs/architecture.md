@@ -1,10 +1,10 @@
 # Architecture — target state
 
-This is the shipped local-first shape after the IMAP pivot, with the PDF-extractor pivot ([`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md)) adding the Python lane layered on top.
+This is the shipped local-first shape after the IMAP pivot, with the Swiggy ingest pivot ([`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md)) making Python extraction deterministic and keeping AI out of the blocking ingest path.
 
 ## One-paragraph picture
 
-The user installs `slashcash` from npm. `slashcash onboard` checks Homebrew, detects or installs Ollama, pulls the chosen model, provisions a Python 3.11+ venv at `~/.slashcash/py-venv` with Docling pinned, asks for a Gmail address and app password, verifies IMAP login against `imap.gmail.com:993`, and prepares `~/.slashcash/`. `slashcash start` then boots the Next.js dashboard on `127.0.0.1`, starts the in-process cron worker, reads Gmail through IMAP, converts PDF attachments to text through a per-PDF Docling subprocess, sends the email body plus Docling text through one Gemma `generateObject` call, writes results to SQLite at `~/.slashcash/db.sqlite`, and stores attachments under `~/.slashcash/attachments/`. The dashboard reads the same SQLite file through tRPC and Drizzle. There is no hosted auth; loopback bind is the boundary.
+The user installs `slashcash` from npm. `slashcash onboard` prepares `~/.slashcash/`, asks for a Gmail address and app password, verifies IMAP login against `imap.gmail.com:993`, and gets the dashboard ready without requiring a model pull. `slashcash start` boots the Next.js dashboard on `127.0.0.1`, starts the in-process cron worker, reads Gmail through IMAP, converts PDF attachments through a per-PDF Python subprocess, deterministically maps Swiggy invoice/body fields, writes results to SQLite at `~/.slashcash/db.sqlite`, and stores attachments under `~/.slashcash/attachments/`. Assistant model setup is separate: users can configure Ollama/Gemma or a supported API provider when they want chat. The dashboard reads the same SQLite file through tRPC and Drizzle. There is no hosted auth; loopback bind is the boundary.
 
 ## Process model
 
@@ -13,7 +13,7 @@ One Node process runs two cooperating subsystems:
 - the Next.js server on `127.0.0.1`
 - the cron worker, protected by a single-flight mutex
 
-The only steady-state external process is the Ollama daemon on loopback. Gmail access is not a subprocess anymore; it is an in-process IMAP client using `imapflow`. The PDF extractor is spawned on demand as a per-PDF `python3 -m slashcash_pdf_extractor` child process against the venv; there is no long-lived Python daemon.
+Gmail access is not a subprocess anymore; it is an in-process IMAP client using `imapflow`. The PDF extractor is spawned on demand as a per-PDF `python3 -m slashcash_pdf_extractor` child process against the venv; there is no long-lived Python daemon. Ollama is only needed when the assistant uses a local model, not for Swiggy ingest.
 
 ## CLI
 
@@ -39,7 +39,7 @@ Subcommands are lazy-loaded. Runtime boundaries such as argv, config, and IMAP c
 `apps/main` remains the dashboard. It is local-only:
 
 - tRPC uses the static local user id from `@workspace/database`
-- the assistant routes through the local Ollama-compatible provider
+- the assistant routes through the configured chat provider when enabled
 - attachment downloads go through the local Next.js route
 - the app binds to loopback only
 
@@ -63,11 +63,11 @@ Fixture mode is controlled by `SLASHCASH_IMAP_FIXTURE_DIR`, which points the cli
 
 `packages/tasks/src/extract/pipeline.ts` owns the per-message extraction contract:
 
-- **PDF text collection.** For each `application/pdf` attachment, `extract-from-pdf.ts` spawns `~/.slashcash/py-venv/bin/python -m slashcash_pdf_extractor <attachment-path>`. The Python package uses Docling to convert the PDF to raw text; it does not map invoice fields.
-- **Single source extraction.** `extract-from-email-body.ts` calls Gemma (`generateObject`) once with the merchant Zod schema, passing the email headers/body plus all Docling PDF text blocks. The model returns the one authoritative Swiggy object that is stored in SQLite.
-- **Fallbacks.** If the model is disabled or no transaction is extracted, `body-fallback.ts` runs the regex fallback for amount and orderId from the email body only. `dataSource` on `transactions_v2` is `BOTH`, `PDF_ATTACHMENT`, or `EMAIL_BODY` based on the structured model output.
+- **PDF conversion.** For each `application/pdf` attachment, `extract-from-pdf.ts` spawns `~/.slashcash/py-venv/bin/python -m slashcash_pdf_extractor <attachment-path>`. The Python package uses local parsers such as Docling and pdfplumber to extract raw sources and deterministic Swiggy fields.
+- **Deterministic mapping.** Known Swiggy invoice/body patterns are mapped into the merchant schema without a model call. Exact invoice values come from the PDF/body sources, not from generated text.
+- **Fallbacks.** `body-fallback.ts` remains for body-only transaction emails where PDF extraction is unavailable. Non-transactional Swiggy messages are skipped cleanly instead of counted as sync failures.
 
-The Python lane is disabled end-to-end by `SLASHCASH_PDF_EXTRACTOR_DISABLED=1`, which is what E2E fixtures and Python-less CI nodes use.
+The Python lane is disabled end-to-end by `SLASHCASH_PDF_EXTRACTOR_DISABLED=1`, which Python-less CI nodes can use for body-only fallback coverage.
 
 ## Credentials and local state
 
@@ -100,7 +100,7 @@ Skills live under `~/.slashcash/skills/`. The bundled `gmail-swiggy` skill contr
 - Gmail credential presence
 - SQLite database
 - bundled skills
-- Ollama reachability and model pull status
+- assistant provider readiness, including Ollama reachability/model pull status when local chat is configured
 - Gmail IMAP login verification
 - Python environment for the PDF extractor (interpreter version, venv presence, pinned `pip install` state, extractor importability)
 
@@ -111,7 +111,7 @@ IMAP failures are classified into a closed union such as bad password, 2FA not e
 - The dashboard binds to `127.0.0.1`.
 - There is no hosted backend.
 - There is no telemetry.
-- Normal outbound calls are limited to Gmail IMAP and the local Ollama daemon.
+- Normal ingest outbound calls are limited to Gmail IMAP. Assistant chat may also call the configured local or user-supplied provider.
 - The Python extractor is pure `(pdf path) -> JSON on stdout`; it makes no network calls, holds no state between invocations, and reads only the PDF file it was handed.
 - Attachment routes never accept raw filesystem paths from the client.
 

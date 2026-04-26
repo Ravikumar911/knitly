@@ -1,6 +1,6 @@
 # Testing — customer journeys and release gates
 
-This document defines how slashcash is verified now that Gmail ingest runs through IMAP and app-password-backed local state, and that PDF attachments are converted to text by the local Python lane (Docling) before the single Gemma source extraction pass.
+This document defines how slashcash is verified now that Gmail ingest runs through IMAP and app-password-backed local state, and that Swiggy PDF/body extraction is deterministic Python-backed ingest rather than a Gemma source extraction pass.
 
 ## Testing layers
 
@@ -45,7 +45,7 @@ Phase 1 proves the local stack boots and survives a normal lifecycle:
 
 ## Phase 2 acceptance gate (ingest)
 
-Phase 2 now means fixture-backed IMAP ingest + the new Python extractor lane.
+Phase 2 now means fixture-backed IMAP ingest + deterministic Python extractor lane.
 
 `packages/e2e-tests/scenarios/phase-2.ts` (aliased as `e2e:ingest` once the PDF-extractor pivot lands):
 
@@ -54,8 +54,8 @@ Phase 2 now means fixture-backed IMAP ingest + the new Python extractor lane.
 - runs `slashcash doctor --quick`
 - runs `slashcash sync --full` against `.eml` IMAP fixtures
 - asserts at least one attachment file is written locally
-- with `SLASHCASH_PDF_EXTRACTOR_DISABLED` unset on nodes that have Python 3.11+: asserts at least one `transactions_v2` row has `schemaUsed = swiggy.sources.v1` and `dataSource = BOTH` or `PDF_ATTACHMENT`
-- with `SLASHCASH_PDF_EXTRACTOR_DISABLED=1`: asserts ingest still succeeds via body-only extraction (`schemaUsed = swiggy.body.v1` or `swiggy.fallback.v1`)
+- with `SLASHCASH_PDF_EXTRACTOR_DISABLED` unset on nodes that have Python 3.11+: asserts at least one `transactions_v2` row has `schemaUsed = swiggy.deterministic.v1` and `dataSource = BOTH` or `PDF_ATTACHMENT`
+- with `SLASHCASH_PDF_EXTRACTOR_DISABLED=1`: asserts ingest still succeeds via body-only extraction (`schemaUsed = swiggy.fallback.v1` or another explicit body-only deterministic schema)
 - verifies that disabling `gmail-swiggy` blocks sync
 
 The real-account version of this gate (real Gmail account + real app password + real Docling install + manual diff of transactions against actual receipts) is the PDF-extractor pivot's dogfood step and is intentionally not part of normal fixture CI.
@@ -107,7 +107,7 @@ Published-package smoke still lives in release automation and manual dogfood.
 
 `packages/pdf-extractor/tests/` ships Python tests that exercise:
 
-- happy path: a fixture Swiggy-shaped PDF produces a JSON object whose `raw.text` contains the invoice text
+- happy path: a fixture Swiggy-shaped PDF produces a JSON object whose deterministic fields match the invoice values and whose `raw.text` contains the invoice text
 - non-transaction fixture: a non-invoice PDF still returns raw text without crashing
 - CLI exit codes: missing file → `2`, unreadable PDF → `1`, unexpected exception → `3`, success → `0`
 
@@ -122,7 +122,7 @@ The Python pydantic models in `packages/pdf-extractor/src/slashcash_pdf_extracto
 These still require a real machine, a real Gmail account, or release credentials:
 
 - clean-machine `npm i -g slashcash` verification (including `slashcash doctor --fix` provisioning the Python venv from scratch)
-- real Gmail app-password dogfood, with at least five `transactions_v2` rows hand-diffed against real Swiggy receipts to validate the source extraction pass
+- real Gmail app-password dogfood, with at least twenty `transactions_v2` rows hand-diffed against real Swiggy receipts to validate deterministic extraction
 - cancel-during-`ollama pull` interrupt, then `slashcash doctor --fix` completing the pull and landing green (survived from the retired phase-2 doc)
 - npm publish / provenance / SBOM verification
 - DNS and hosted-surface shutdown tasks

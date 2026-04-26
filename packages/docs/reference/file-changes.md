@@ -204,7 +204,7 @@ No changes in Phase 1. Marketing site stays as-is; its landing page is updated a
 
 - **delete** every workflow that deploys, tests, or references the hosted app's Supabase / Trigger / Vercel surface.
 - **modify** the remaining build / lint / typecheck workflows so they run against the new dependency set. Add a smoke workflow that builds the CLI tarball and starts `slashcash start` in headless mode to confirm the dashboard responds on healthz.
-- **create** `.github/workflows/e2e-phase-1.yml` — macOS runner, installs Ollama and pulls `gemma3n:e4b`, runs `pnpm e2e:phase-1`. Required for Phase 1 exit.
+- **create** `.github/workflows/e2e-phase-1.yml` — macOS runner, installs Ollama and pulls `gemma4:latest`, runs `pnpm e2e:phase-1`. Required for Phase 1 exit.
 - **create** `.github/workflows/e2e-phase-2.yml` — macOS runner, clean state, mounts the `gws` credentials secret for the test Google account, runs `pnpm e2e:phase-2`. Required for Phase 2 exit.
 
 ## Final grep checklist (Phase 1 exit gate)

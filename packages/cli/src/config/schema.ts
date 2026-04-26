@@ -7,8 +7,8 @@ export const configSchema = z.object({
   }),
   ai: z.object({
     ollamaBaseUrl: z.string().url().default("http://127.0.0.1:11434/v1"),
-    chatModel: z.string().min(1).default("gemma3n:e4b"),
-    visionModel: z.string().min(1).default("gemma3n:e4b"),
+    chatModel: z.string().min(1).default("gemma4:latest"),
+    visionModel: z.string().min(1).default("gemma4:latest"),
   }),
   pdfExtractor: z
     .object({
@@ -58,8 +58,8 @@ export const defaultConfig: SlashcashConfig = {
   },
   ai: {
     ollamaBaseUrl: "http://127.0.0.1:11434/v1",
-    chatModel: "gemma3n:e4b",
-    visionModel: "gemma3n:e4b",
+    chatModel: "gemma4:latest",
+    visionModel: "gemma4:latest",
   },
   pdfExtractor: {
     enabled: true,

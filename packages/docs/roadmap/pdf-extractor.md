@@ -1,248 +1,60 @@
-# PDF Extractor Pivot — Docling text + single AI extraction (active plan)
+# Swiggy Ingest Pivot — index
 
-> _Revision date: 2026-04-23. This is the **active** execution plan. The next agent works from this file. The previous phase docs (`phase-1.md` … `phase-4.md`, `pivot-imap.md`) shipped and were retired on 2026-04-23; their surviving residue is summarised in [`../current-state.md`](../current-state.md) under "Retired phase docs"._
+> _Revision date: 2026-04-26. This is the **active** execution plan, split into five phase files. Older phase docs from earlier pivots have already shipped and were deleted; their summaries live in [`../current-state.md`](../current-state.md). Each agent picks up the next pending phase file and works it top-to-bottom._
 
-## Why we're pivoting
+## One-paragraph picture
 
-Today `packages/tasks/src/agents/slashAIV2.ts` claims to parse PDFs with the local model. In practice it does not: `buildPrompt` passes `attachments[*].filename` and `mimeType` into the Gemma prompt as **text**, the PDF bytes never reach the model, and `gemma3n:e4b` is not a strong document-extraction model even when they do. That means every Swiggy row we store today is either:
+Swiggy ingestion should not depend on Gemma, Ollama, OpenAI, or any other generative model. Exact transaction values already live in the email body and the attached PDF — a deterministic Python extractor reads both, the TypeScript pipeline validates and stores them, and the assistant tab is the only place a chat model is invoked. Ingest runs in parallel so a 365-day Swiggy sync finishes in seconds, and onboarding only asks for Gmail email + app password — model setup happens later, on the assistant tab itself.
 
-- body-derived, with the regex fallback in `processEmails.ts:245-268` (orderId, amount, area) papering over the gap, or
-- body-derived through `generateObject`, with attachment content ignored.
+## Phase files (read in order)
 
-Receipts that only carry the totals-and-tax breakdown in the PDF are parsed from the email body copy, which is frequently incomplete (no per-item breakdown, no rounded tax, no exact order subtotals). We promised a "local model reads PDFs" story in vision.md; we shipped "local model reads headers".
+| #   | File                       | Goal                                                                   |
+| --- | -------------------------- | ---------------------------------------------------------------------- |
+| 1   | [`phase-1.md`](./phase-1.md) | Lock the deterministic Python extractor (Docling + PyMuPDF + pdfplumber, no LLM) |
+| 2   | [`phase-2.md`](./phase-2.md) | Remove AI from ingestion; assistant code is the only consumer of chat models |
+| 3   | [`phase-3.md`](./phase-3.md) | Parallelize IMAP fetch, PDF subprocess extraction, and SQLite writes; target `< 20s` for 1-year Swiggy sync |
+| 4   | [`phase-4.md`](./phase-4.md) | Fast onboarding (Gmail + app password only); assistant provider setup happens after the dashboard opens (Local Ollama / OpenAI-compatible / Anthropic) |
+| 5   | [`phase-5.md`](./phase-5.md) | Fixtures, golden tests, real-account dogfood, and cleanup of legacy names |
 
-The correct shape is a source-text pipeline:
+Each phase file is self-contained: goals, work items, files touched, verification commands, acceptance criteria, and explicit out-of-scope items.
 
-- **Email body** → kept as text source context.
-- **PDF attachments** → a locally-installed Python extractor (Docling), emits raw PDF text.
-- **Source model pass** → Gemma over Ollama receives the email body plus Docling text and returns the single authoritative Swiggy object we write to `transactions_v2`.
+## Completed baseline (do not re-plan)
 
-Docling owns document conversion. Gemma owns merchant field mapping once, with all available source text in the same `generateObject` call.
+These pieces already exist in the repo and should be treated as inputs, not as fresh work:
 
-## Decision summary
+- `packages/pdf-extractor/` — Python CLI, pydantic schema, Docling adapter, fixture PDFs, and `unittest` suite.
+- `packages/tasks/src/extract/pdf-extractor.ts` — spawns the Python extractor and validates stdout via Zod.
+- `packages/tasks/src/extract/swiggy-deterministic.ts` — deterministic Swiggy mapping (slimmed in Phase 1).
+- `packages/tasks/src/extract/pipeline.ts` — tries deterministic extraction before any model call (the model branch is removed in Phase 2).
+- `packages/tasks/src/trigger/processEmails.ts` — IMAP-driven sync with single-flight mutex (rewired into a staged pipeline in Phase 3).
+- The `e2e:ingest`, `e2e:cli`, `e2e:pyramid`, `e2e:release` aliases for the old phase scripts.
 
-The full ADRs live in [`../reference/decisions.md`](../reference/decisions.md) — **ADR-026** (Docling as the PDF extractor) and **ADR-027** (Python invoked per-PDF as a subprocess, with deps pinned in `~/.slashcash/py-venv`). In one paragraph:
+## Research summary (library decision)
 
-Docling ([github.com/DS4SD/docling](https://github.com/DS4SD/docling), MIT, IBM-maintained) is the PDF-to-text parser. It runs fully offline and reads layout-aware tables — the thing Swiggy PDFs actually ship. Node spawns `python3` per PDF via `child_process.spawn` against a venv that `slashcash doctor --fix` provisions at `~/.slashcash/py-venv` from a pinned `packages/pdf-extractor/requirements.txt`. There is **no long-lived sidecar** in v1. If the venv is missing or the extractor fails, ingest degrades to email-body-only Gemma extraction and `slashcash doctor` surfaces the Python environment state as a first-class check.
+| Layer                          | Library                          | Notes                                                                 |
+| ------------------------------ | -------------------------------- | --------------------------------------------------------------------- |
+| Primary PDF conversion         | Docling                          | Layout-aware markdown + tables; already pinned                       |
+| Fast PDF probe                 | PyMuPDF                          | Detects text-vs-image, encryption, page count, empty pages           |
+| Deterministic table fallback   | pdfplumber                       | No Java dep; char/table coordinates; great for invoice text          |
+| OCR fallback (gated, off by default) | pytesseract / OCRmyPDF      | Only for scanned PDFs; off until fixtures justify it                 |
+| Email body parsing             | Python regex inside the extractor | Removes the TypeScript-side regex duplication                        |
 
-## What gets kept
+LLM/VLM extractors (Qwen, Gemma, OpenAI, Claude, …) are explicitly **not** part of the ingest path. They remain available to the assistant.
 
-- The whole IMAP ingest path (`packages/tasks/src/trigger/processEmails.ts`, `gmail/imap-client.ts`, `utils/imap-errors.ts`). The PDFs it produces just go into a new lane before hitting the extractor.
-- `packages/tasks/src/utils/attachments-fs.ts`. Docling reads from the same on-disk attachments.
-- The `transactions_v2` / `parsed_emails` schema. The extractor writes through `storeTransactionV2Input`, same contract.
-- `packages/tasks/src/merchants/swiggy/schema.ts`. Same Zod surface; the single source model pass validates against it.
-- `slashcash doctor`, the `Step { detect / install / verify }` pipeline, the single-flight mutex, the skills registry. None of these are auth- or extractor-aware.
-- The `@clack/prompts` wizard. `onboard` gains one new step (`python-env`) that delegates to doctor-style install; it does not regrow into a Python setup wizard.
+## Guardrails for every phase
 
-## What gets deleted or rewritten
+- Do not add hosted queues, hosted auth, Supabase, Trigger.dev, or cloud OCR.
+- Do not persist model-extracted Swiggy fields by default. Deterministic Python output is the source of truth.
+- Do not bypass `@workspace/database` query helpers from app or task code.
+- Do not parallelize SQLite writes without an explicit single-writer queue.
+- Do not hide failed PDFs as successful transactions; store provenance and classify the email outcome.
+- Keep assistant/provider work in `apps/main/` and out of `packages/tasks/`. Architecture-smell rules in Phase 5 enforce this.
+- After each phase, the next agent runs that phase's full **Verification commands** block before opening a PR.
 
-- Rewrite `packages/tasks/src/agents/slashAIV2.ts` around one source extraction call: collect Docling text with `extractTextFromPdf()`, then call `extractFromEmailSources()` once with the email body plus PDF text. The "attachments passed as filename text in the prompt" branch of `buildPrompt` is deleted.
-- `packages/tasks/src/merchants/base/basePrompt.ts` — delete the `ATTACHMENT HANDLING` section; it describes behaviour we no longer do in-prompt.
-- `packages/tasks/src/merchants/swiggy/prompt.ts` — keep the merchant schema guidance; source conflict handling lives in the source extraction prompt.
-- `OCRModel()` in `packages/tasks/src/ai/model.ts` — delete. It aliased Gemma and pretended a vision path existed; the real vision model call was never wired.
-- The regex `fallbackSwiggy` in `processEmails.ts` — kept for v1 because ADR-027's fallback mode still uses it for amounts; moved into `packages/tasks/src/extract/body-fallback.ts` so the new agents don't import from `trigger/`.
+## How to use this plan
 
-## What gets built
-
-Every stage below ends on a commit that passes `pnpm typecheck`, `pnpm lint`, `pnpm architecture-smells`, and the stage's specific fixture gate.
-
-### D0 — ADRs + scaffolding (S)
-
-One doc-only PR. Lands ADR-026 and ADR-027 in `reference/decisions.md`. Adds the dated in-place note on ADR-005 (the "Gemma is the one model" claim is now "Gemma handles chat and source-text extraction; Docling handles PDF conversion"). Adds the dated in-place note on ADR-009 (the standalone Next.js bundle is unchanged, but the published npm package now documents a runtime dependency on Python 3.11+ via `doctor --fix`). Updates `architecture.md` to show the source-text flow. Updates `README.md` reading order. Updates `current-state.md` to collapse the retired phase docs into a single "Retired phase docs" section with one-line shipped summaries. Deletes `roadmap/phase-1.md`, `phase-2.md`, `phase-3.md`, `phase-4.md`, `pivot-imap.md`.
-
-Exit: `ls packages/docs/roadmap/` shows only this file. `pnpm --filter @workspace/docs build` (if it exists; otherwise a plain link check) passes. No broken cross-links in the surviving docs.
-
-### D1 — `packages/pdf-extractor/` Python package (M)
-
-First Python package in the monorepo. Sits alongside the TypeScript workspaces in `packages/` so Turbo can `--filter` it; Turbo does not orchestrate the Python build, but proximity keeps the package layout uniform.
-
-Shape:
-
-```
-packages/pdf-extractor/
-├── pyproject.toml            # package metadata; build-system = setuptools
-├── requirements.txt          # pinned runtime deps (docling==<pin>, pydantic>=2)
-├── requirements-dev.txt      # pytest, ruff, mypy
-├── README.md                 # how Node calls us; schema contract
-├── src/slashcash_pdf_extractor/
-│   ├── __init__.py
-│   ├── __main__.py           # `python -m slashcash_pdf_extractor <pdf>` entrypoint
-│   ├── cli.py                # argv parsing, IO, exit codes
-│   ├── extractor.py          # Docling adapter → canonical schema
-│   └── schema.py             # pydantic models mirroring the TS Zod schema
-├── tests/
-│   ├── fixtures/             # small committed PDFs
-│   │   └── swiggy-sample.pdf # copied from .artifacts/playwright
-│   ├── test_extractor.py
-│   └── test_cli.py
-└── .python-version           # pinned Python minor, read by pyenv / mise
-```
-
-Key properties the contract guarantees:
-
-- **Executable.** `python -m slashcash_pdf_extractor <path-to-pdf>` reads a local PDF, writes a single JSON object to stdout, writes human-readable diagnostics to stderr, and exits `0` on success / `1` on deterministic extractor failure / `2` on bad argv / `3` on unexpected exception.
-- **JSON schema is the API.** The Python `schema.py` and the Node Zod schema at `packages/tasks/src/extract/pdf-extractor-schema.ts` must stay in lockstep. A generator lives in `packages/pdf-extractor/scripts/emit_ts_schema.py` that prints the Zod definition from the pydantic models; architecture-smells asserts the two files match (see D5).
-- **Fully offline.** No network calls. The test harness runs in a Python venv with `PIP_INDEX_URL=` unset and `HTTP_PROXY` off after install.
-- **No state.** The extractor is pure: `(pdf_bytes | pdf_path) -> json`. No caching, no writes. The Node caller handles attachment filesystem layout.
-- **Pinned deps.** Each `requirements.txt` entry has a `==` exact version plus a SHA256 hash. `pip install --require-hashes` in CI catches supply-chain drift.
-
-Canonical JSON payload (the contract; final shape locked during implementation but this is the floor):
-
-```json
-{
-  "schemaVersion": "1",
-  "extractor": "docling",
-  "extractorVersion": "<docling x.y.z>",
-  "merchant": "swiggy",
-  "confidence": 1,
-  "fields": {},
-  "warnings": [],
-  "raw": {
-    "pageCount": 2,
-    "tables": [...],
-    "text": "…"
-  }
-}
-```
-
-Tests:
-
-- `pytest`/`unittest` runs against committed fixture PDFs (`tests/fixtures/swiggy-sample.pdf`, plus a non-transaction fixture). The tests assert raw Docling text is present, not mapped Swiggy fields.
-- CLI tests cover: missing file → exit 2, unreadable PDF → exit 1, successful extract → exit 0 with valid JSON.
-
-Exit: `pip install -r requirements.txt && python -m slashcash_pdf_extractor packages/pdf-extractor/tests/fixtures/swiggy-sample.pdf` prints a JSON object whose `raw.text` contains the fixture invoice text. `python -m pytest packages/pdf-extractor` is green.
-
-### D2 — `slashcash doctor` Python environment check (M)
-
-New check: `python-env`. Runs as part of `slashcash doctor` and `slashcash doctor --fix`. Its job:
-
-- Detect `python3 --version` on `PATH`. Require 3.11+. If missing, the symptom/cause/fix block points at `brew install python@3.12`.
-- Ensure `~/.slashcash/py-venv/` exists. If not and `--fix` is set, run `python3 -m venv ~/.slashcash/py-venv`.
-- Ensure `~/.slashcash/py-venv/bin/python -m pip install --require-hashes -r packages/pdf-extractor/requirements.txt` has been run. Track state via a hash file at `~/.slashcash/py-venv/.slashcash.install-hash` whose contents are `sha256(requirements.txt)`. If the hash drifts, `--fix` re-runs the install.
-- Sanity-check: `~/.slashcash/py-venv/bin/python -m slashcash_pdf_extractor --version` returns `0`.
-
-Files:
-
-- **create** `packages/cli/src/doctor/python-env.ts` — the new `Check`.
-- **create** `packages/cli/src/python/env.ts` — shared helper that returns `{ pythonBin: string, venvDir: string, extractorEntry: string[] }` for doctor and for the ingest path, or throws a classified `PythonEnvError`.
-- **create** `packages/cli/src/python/errors.ts` — closed error union: `{python-missing, python-too-old, venv-create-failed, pip-install-failed, extractor-import-failed, unknown}`.
-- **modify** `packages/cli/src/doctor/checks.ts` — registers the new check.
-- **modify** `packages/cli/src/doctor/repairs.ts` — the `python-env` repair.
-- **modify** `packages/cli/src/onboard/run.ts` — new `python-env` step between `db-migrate` and `bundled-skills`; it calls the same repair code doctor uses, so the wizard does not duplicate logic. The step shows a single spinner line: `Installing PDF extractor (~60s first time, cached after)`.
-
-How the extractor path is surfaced at runtime:
-
-- `~/.slashcash/py-venv/bin/python` is the canonical binary.
-- The entrypoint arg vector is `[pythonBin, "-m", "slashcash_pdf_extractor"]` plus `[pdfAbsolutePath]`.
-- The environment variable `SLASHCASH_PDF_EXTRACTOR_DISABLED=1` short-circuits the whole lane for E2E and for users who want to opt out. When set, the ingest path skips Docling and reports dataSource `EMAIL_BODY`.
-
-Exit: `slashcash doctor --quick` reports `python-env` as `ok` or gives a clean symptom/cause/fix block. `slashcash doctor --fix` from a clean machine lands green within ~60s of pip install time on a normal broadband link.
-
-### D3 — Node-side extractor wrapper (M)
-
-New module under `packages/tasks/src/extract/`:
-
-```
-packages/tasks/src/extract/
-├── pdf-extractor-schema.ts   # Zod mirror of schema.py
-├── pdf-extractor.ts          # spawn helper; Result<PdfExtraction, PdfExtractError>
-├── body-fallback.ts          # moved from processEmails.ts:245-268
-└── pdf-extractor.test.ts
-```
-
-`pdf-extractor.ts`:
-
-- `extractPdf(absolutePath: string, opts?: { timeoutMs?: number, signal?: AbortSignal }): Promise<Result<PdfExtraction, PdfExtractError>>`
-- Uses `child_process.spawn` with a 30s default timeout, captures stdout/stderr separately, kills with SIGTERM on timeout and SIGKILL 2s later.
-- Parses stdout with `JSON.parse`, then `PdfExtractionSchema.safeParse`. On any failure — non-zero exit, malformed JSON, schema mismatch — returns a classified error.
-- Never throws. Callers deal in `Result`.
-
-Closed error union `PdfExtractError`: `{ pdf-extractor-not-ready, pdf-extractor-timeout, pdf-extractor-crashed, pdf-extractor-bad-output, pdf-extractor-unsupported-format, pdf-extractor-empty, unknown }`.
-
-Unit + integration tests:
-
-- Unit: mock `child_process.spawn` to exercise each `PdfExtractError` branch and the happy path.
-- Integration (`VITEST_INTEGRATION=1`): actually invoke the Python extractor via the doctor-installed venv against `packages/pdf-extractor/tests/fixtures/swiggy-sample.pdf`. Skipped by default; required on CI nodes that have the venv provisioned (the existing Python-less CI nodes skip cleanly).
-
-Exit: `pnpm --filter @workspace/tasks test` is green. `pnpm --filter @workspace/tasks test --run extract` asserts each error branch is reachable. With a real venv, the integration spec returns raw text for the fixture PDF.
-
-### D4 — Source-text extraction pipeline (M)
-
-Rewire `slashAIV2.ts` into a single structured extraction flow. Files:
-
-```
-packages/tasks/src/extract/
-├── extract-from-email-body.ts
-├── extract-from-pdf.ts            # thin wrapper over pdf-extractor.ts that returns Docling text
-└── pipeline.ts                    # orchestrator used by processEmails.ts
-```
-
-Flow in `pipeline.ts` for a single Gmail message:
-
-1. **PDF text pass.** For each attachment where `mimeType === "application/pdf"`, call `extractPdf(attachmentAbsPath)`. If it returns `err`, record the error on the `EmailData.parseErrors` array and continue with the other sources.
-2. **Source model pass.** Call `extractFromEmailSources(emailData, { pdfTextSources })` → Gemma `generateObject` with the existing Swiggy schema, passing only the email body/headers and raw Docling text. Returns the one authoritative object.
-3. **Fallback.** If the model is skipped or no transaction is extracted, drop to `body-fallback.ts` for the email-body regex path.
-4. **Write.** Call `storeTransactionV2Input` with the model's `dataSource` (`BOTH`, `PDF_ATTACHMENT`, or `EMAIL_BODY`) and `schemaUsed = "swiggy.sources.v1"` when PDF text contributed, `"swiggy.body.v1"` for body-only model extraction, or `"swiggy.fallback.v1"` for regex fallback.
-
-Delete `OCRModel()` in `packages/tasks/src/ai/model.ts`. Delete the `ATTACHMENT HANDLING` block in `base/basePrompt.ts`. Delete the attachments-into-prompt branch in the now-legacy `buildPrompt`. Source conflict rules live in `buildEmailSourcesPrompt`: prefer PDF text for invoice fields when it conflicts with the email body.
-
-Unit tests cover:
-
-- body-only messages (no attachment) → uses one model pass over the email body.
-- PDF attachments → Docling text is passed into the same model call as the email body.
-- multiple PDF attachments → every PDF text block is included.
-- PDF extractor fails → the classified error surfaces on the `parsed_emails` row and the model still receives any remaining sources.
-- model skipped/no transaction → falls back via `body-fallback.ts` for amount/orderId.
-
-Exit: `pnpm e2e:phase-2` (soon to be renamed; see D6) ingests a fixture message whose PDF amount differs from the body amount and asserts the single model extraction stores the PDF amount.
-
-### D5 — Architecture smells + schema parity (S)
-
-- New forbidden-import rule in `packages/e2e-tests/architecture-smells.test.ts`: no direct imports of `@workspace/tasks/src/agents/slashAIV2` from outside the deprecation compat shim (the file becomes a one-liner re-export for one release, then deleted in D6).
-- New rule: `packages/pdf-extractor/src/slashcash_pdf_extractor/schema.py` and `packages/tasks/src/extract/pdf-extractor-schema.ts` must have the same logical shape. Implemented by running `python packages/pdf-extractor/scripts/emit_ts_schema.py` and diffing stdout against the committed Zod file; CI fails on drift.
-- New rule: no `spawn('python'` calls outside `packages/cli/src/python/**` and `packages/tasks/src/extract/pdf-extractor.ts`. Prevents ad-hoc Python shelling from creeping in.
-- Extend `pnpm architecture-smells` to also scan `packages/pdf-extractor/requirements.txt` for unpinned versions (no `>=`, no `~=` without a trailing `==` inline) — keeps D1's pinning promise honest.
-
-Exit: `pnpm architecture-smells` passes. Edits to either schema file without updating the other fail CI.
-
-### D6 — E2E, fixtures, dogfood (M)
-
-- Add a PDF-bearing `.eml` fixture to `packages/e2e-tests/fixtures/imap/` (the existing `.artifacts/playwright/slashcash-home/attachments/fixture-msg-1.pdf` is already a valid Swiggy-shaped receipt; wrap it in a fixture `.eml`).
-- Update `packages/e2e-tests/scenarios/phase-2.ts` to assert the ingest ran the source-text pipeline: the `parsed_emails.parseSuccess` column is true, the `transactions_v2.schemaUsed` column is `swiggy.sources.v1`, and at least one row has `dataSource = BOTH` or `PDF_ATTACHMENT`.
-- Rename the E2E phase scripts to what they actually gate: `e2e:ingest` (old `e2e:phase-2`), `e2e:cli` (old `e2e:phase-3`), `e2e:pyramid` (old `e2e:phase-4`), `e2e:release` (old `e2e:phase-5`). Keep the old names as deprecated aliases for one release cycle.
-- Real-account dogfood: on a maintainer machine with a real Gmail + app password and Docling installed, run `slashcash sync --full` against a one-week window. Manually diff five `transactions_v2` rows against the actual receipts in Gmail — amounts, item counts, order IDs. File any delta as a Docling prompt/schema tweak in a follow-up PR.
-
-Exit: all renamed `pnpm e2e:*` scripts are green. The real-account dogfood has a written pass record linked from [`../current-state.md`](../current-state.md).
-
-## Re-ordered execution plan
-
-Each row ends on a green repo.
-
-| #   | Workstream                                                                                          | Size | Depends on |
-| --- | --------------------------------------------------------------------------------------------------- | ---- | ---------- |
-| D0  | ADRs + architecture + README + retired phase-docs collapse (this doc lands, old phase docs deleted) | S    | —          |
-| D1  | `packages/pdf-extractor/` Python package + pinned venv + pytest fixtures                            | M    | D0         |
-| D2  | `slashcash doctor --fix` provisions the venv; onboard step; `python-env` failure classifier         | M    | D1         |
-| D3  | Node-side `extractPdf()` wrapper + Zod mirror + classified error union                              | M    | D2         |
-| D4  | Source-text pipeline: `extract-from-email-body`, `extract-from-pdf`; delete OCR                     | M    | D3         |
-| D5  | Architecture-smell rules + schema-parity gate + pinning check                                       | S    | D4         |
-| D6  | Real-fixture E2E + renamed `e2e:*` scripts + real-account dogfood                                   | M    | D5         |
-
-## Exit gate for the pivot
-
-Done when **all** of these hold:
-
-1. A clean macOS machine with Homebrew + Python 3.11+, after `npm i -g slashcash` and `slashcash onboard`, reaches a populated Swiggy dashboard where at least one transaction has `dataSource = BOTH` or `PDF_ATTACHMENT` and `schemaUsed = swiggy.sources.v1`.
-2. `slashcash doctor` is green; the `python-env` check goes through the install flow on a fresh machine without manual intervention.
-3. `rg "OCRModel|ATTACHMENT HANDLING" packages/` returns zero hits in shipping source.
-4. Divergent-amount fixture message: stored row reflects the PDF amount from the single source extraction call.
-5. Python extractor offline: with `SLASHCASH_PDF_EXTRACTOR_DISABLED=1`, ingest still succeeds via body-only extraction and `doctor` reports the Python lane as intentionally disabled.
-6. ADR-026, ADR-027, and the dated in-place note on ADR-005 are committed; every cross-link in `packages/docs/` resolves; no link to a deleted phase doc survives.
-
-## What this pivot explicitly is not
-
-- **Not a rewrite of the assistant.** The chat assistant stays on Gemma. Only the ingest-time extraction changes.
-- **Not a new bundler story.** Node continues to ship a pure Node bundle. Python is a runtime dep of the local machine, installed by doctor, not packed into the npm tarball.
-- **Not a return to remote PDF parsing.** No OpenAI, Mistral, or cloud-OCR service. Docling is local.
-- **Not a sidecar service.** No long-lived Python process in v1. `spawn` per PDF is fine because ingest is low-QPS and batch-bounded.
-- **Not multi-merchant.** The source extraction prompt is Swiggy-only in v1. Bank / Phonepe / etc. reuse the lane once this contract is proven.
+1. Open the lowest-numbered phase file whose status is "Pending".
+2. Read its full work-items list, files-touched list, and verification block.
+3. Implement, run the verification commands, and paste the output into the PR description.
+4. When the phase ships, mark it "Shipped" at the top of its file (do not delete the file — Phase 5 cleans up history at the end of the pivot).
+5. Move on to the next phase only after the current phase's acceptance criteria are met.

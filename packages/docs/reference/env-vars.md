@@ -42,12 +42,12 @@ Most users never need to set any of these. `config.json` is the normal control s
 `OLLAMA_CHAT_MODEL`
 
 - Runtime override for the chat model id.
-- Default: `gemma3n:e4b`.
+- Default: `gemma4:latest`.
 
 `OLLAMA_VISION_MODEL`
 
 - Runtime override for the vision model id.
-- Default: `gemma3n:e4b`.
+- Default: `gemma4:latest`.
 - Legacy after the PDF-extractor pivot; PDF extraction is handled by the Python lane (see `SLASHCASH_PDF_EXTRACTOR_*`).
 
 ## PDF extractor runtime

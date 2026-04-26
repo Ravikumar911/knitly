@@ -36,7 +36,7 @@ import type { WizardPrompter } from "../wizard/prompts.js";
 const HOMEBREW_INSTALL_URL = "https://brew.sh/";
 const APP_PASSWORD_URL = "https://myaccount.google.com/apppasswords";
 const OLLAMA_FORMULA = "ollama";
-const DEFAULT_CHAT_MODEL = "gemma3n:e4b";
+const DEFAULT_CHAT_MODEL = "gemma4:latest";
 
 type DetectResult =
   | { done: true; message?: string }
@@ -216,12 +216,12 @@ const modelQuestionStep: Step = {
         {
           value: DEFAULT_CHAT_MODEL,
           label: DEFAULT_CHAT_MODEL,
-          hint: "Default balance of quality and download size.",
+          hint: "Default multimodal Gemma 4 (larger download).",
         },
         {
-          value: "gemma3:4b",
-          label: "gemma3:4b",
-          hint: "Smaller and faster.",
+          value: "gemma4:e2b",
+          label: "gemma4:e2b",
+          hint: "Smaller Gemma 4 build.",
         },
         {
           value: "qwen2.5:7b",

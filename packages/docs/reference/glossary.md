@@ -44,8 +44,8 @@ A folder under `~/.slashcash/skills/` that can add jobs and guidance. The bundle
 **Ollama**
 The local model server slashcash uses for chat and source-text extraction.
 
-**gemma3n:e4b**
-The default Ollama model. Handles chat and the structured Swiggy extraction pass over email body plus Docling PDF text. PDF conversion itself is handled by Docling, not Gemma.
+**gemma4:latest**
+The default Ollama model tag. Handles chat and the structured Swiggy extraction pass over email body plus Docling PDF text. PDF conversion itself is handled by Docling, not Gemma.
 
 **Docling**
 The Python library ([github.com/DS4SD/docling](https://github.com/DS4SD/docling), IBM, MIT-licensed) slashcash uses for deterministic PDF invoice extraction. See ADR-026.

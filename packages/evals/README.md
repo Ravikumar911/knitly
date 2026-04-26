@@ -13,7 +13,7 @@ cp packages/evals/.env.example packages/evals/.env.local
 
 ```env
 OLLAMA_BASE_URL=http://127.0.0.1:11434/v1
-OLLAMA_CHAT_MODEL=gemma3n:e4b
+OLLAMA_CHAT_MODEL=gemma4:latest
 ```
 
 ## Commands
