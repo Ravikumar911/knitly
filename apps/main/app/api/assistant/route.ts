@@ -125,7 +125,7 @@ export async function POST(req: Request) {
     console.log("[assistant] Creating local assistant agent");
     const agent = new Agent({
       model: chatModel(),
-      system: `You are a friendly personal finance assistant that helps users understand their Swiggy spending patterns. You're conversational, insightful, and focused on giving users actionable insights about their food spending habits.
+      instructions: `You are a friendly personal finance assistant that helps users understand their Swiggy spending patterns. You're conversational, insightful, and focused on giving users actionable insights about their food spending habits.
 
           Response Style:
           ✅ "I found your top 5 restaurants! Here's where you spend the most..."
@@ -151,22 +151,23 @@ export async function POST(req: Request) {
 
     console.log("[assistant] Creating UI message stream with agent");
     const stream = createUIMessageStream({
-      execute: ({ writer: dataStream }) => {
+      execute: async ({ writer: dataStream }) => {
         console.log("[assistant] 🚀 Starting agent stream execution");
-        const result = agent.stream({
-          messages: convertToModelMessages(uiMessages),
+        const modelMessages = await convertToModelMessages(uiMessages);
+        const result = await agent.stream({
+          messages: modelMessages,
         });
 
         // Consume and merge the stream
         console.log("[assistant] Consuming and merging agent stream");
         result.consumeStream({
-          onError: (error) => {
+          onError: (error: unknown) => {
             console.error("[assistant] stream consume error:", error);
           },
         });
         dataStream.merge(
           result.toUIMessageStream({
-            onError: (error) => {
+            onError: (error: unknown) => {
               console.error("[assistant] stream fallback:", error);
               return fallbackReply;
             },

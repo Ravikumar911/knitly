@@ -1,12 +1,11 @@
 import { redirect } from 'next/navigation';
 import { prefetch, HydrateClient, trpc } from '@/trpc/server';
 import { getChatById, LOCAL_USER_ID } from '@workspace/database';
-import { ChatInterface } from '@/components/assistant/chat-interface';
+import { ChatBot } from '@/components/assistant/chat-bot';
 import { ChatSidebar } from '@/components/assistant/chat-sidebar';
-import { AssistantHeader } from '@/components/assistant/assistant-header';
 import { Suspense } from 'react';
 import { Skeleton } from '@workspace/ui/components/skeleton';
-import type { UIMessage } from '@ai-sdk/react';
+import type { UIMessage } from "ai";
 
 export const dynamic = 'force-dynamic';
 
@@ -35,16 +34,13 @@ export default async function ChatPage({ params }: ChatPageProps) {
 
   return (
     <HydrateClient>
-      <div className="flex flex-col min-h-screen -mt-16">
-        <AssistantHeader />
-        <div className="flex flex-1 min-h-0 flex-col md:flex-row">
-          <Suspense fallback={<SidebarSkeleton />}>
-            <ChatSidebar />
-          </Suspense>
-          <main className="flex-1 flex flex-col min-w-0 w-full">
-            <ChatInterface chatId={chatId} initialMessages={initialMessages} />
-          </main>
-        </div>
+      <div className="flex flex-1 min-h-0 -mt-16 h-[calc(100dvh-3.5rem)] flex-col md:flex-row">
+        <Suspense fallback={<SidebarSkeleton />}>
+          <ChatSidebar />
+        </Suspense>
+        <main className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+          <ChatBot chatId={chatId} initialMessages={initialMessages} />
+        </main>
       </div>
     </HydrateClient>
   );

@@ -53,8 +53,8 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.2.0",
-    "@ai-sdk/openai-compatible": "1.0.17",
-    "ai": "5.0.26",
+    "@ai-sdk/openai-compatible": "2.0.41",
+    "ai": "6.0.168",
     "better-sqlite3": "latest",
     "commander": "^12.1.0",
     "dotenv": "^16.4.7",
