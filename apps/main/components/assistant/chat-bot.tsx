@@ -60,7 +60,6 @@ import {
   SourcesContent,
   SourcesTrigger,
 } from "@workspace/ui/components/ai-elements/sources";
-import { SpeechInput } from "@workspace/ui/components/ai-elements/speech-input";
 import {
   Suggestion,
   Suggestions,
@@ -69,11 +68,27 @@ import type { AttachmentData } from "@workspace/ui/components/ai-elements/attach
 import { Alert, AlertDescription } from "@workspace/ui/components/alert";
 import { useChat } from "@ai-sdk/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { DefaultChatTransport, type UIMessage } from "ai";
-import { AlertCircle, CheckIcon, GlobeIcon } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import {
+  type ChatOnFinishCallback,
+  DefaultChatTransport,
+  type UIMessage,
+} from "ai";
+import {
+  AlertCircle,
+  CheckIcon,
+  GlobeIcon,
+  MessageSquarePlus,
+} from "lucide-react";
+import Link from "next/link";
+import { Button } from "@workspace/ui/components/button";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useTRPC } from "@/trpc/client";
+import { isAssistantConfigureError } from "@/lib/assistant/assistant-errors";
+import {
+  isAssistantLandingPath,
+  syncAssistantUrlToChatId,
+} from "@/lib/assistant/assistant-url";
 
 const DEFAULT_LOCAL_TAG = "gemma4:latest";
 
@@ -302,6 +317,7 @@ export type ChatBotProps = {
 function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
   const queryClient = useQueryClient();
   const trpc = useTRPC();
+  const hasSyncedUrlToThisChat = useRef(false);
   const { textInput, attachments } = usePromptInputController();
   const [model, setModel] = useState<string>(DEFAULT_LOCAL_TAG);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
@@ -325,36 +341,62 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
     [chatId, model, useWebSearch],
   );
 
-  const { messages, sendMessage, status, error, clearError } = useChat({
-    id: chatId,
-    messages: initialMessages,
-    experimental_throttle: 100,
-    transport,
-    onError: (err: Error) => {
-      console.error("[chat-bot]", err);
-      if (err.message?.includes("409") || err.message.includes("Configure")) {
-        toast.error(
-          "Configure the assistant in slashcash (e.g. Ollama) before chatting.",
-        );
-        return;
-      }
-      toast.error(err.message || "Request failed");
-    },
-    onFinish: ({
-      isAbort,
-      isError,
-    }: {
-      isAbort: boolean;
-      isError: boolean;
-    }) => {
-      if (isAbort || isError) {
+  const onChatFinish = useCallback(
+    (options: Parameters<ChatOnFinishCallback<UIMessage>>[0]) => {
+      const { isAbort, isError, isDisconnect } = options as Parameters<
+        ChatOnFinishCallback<UIMessage>
+      >[0] & {
+        isAbort: boolean;
+        isError: boolean;
+        isDisconnect: boolean;
+      };
+      if (isAbort || isError || isDisconnect) {
         return;
       }
       void queryClient.invalidateQueries(
         trpc.chat.list.queryFilter({ limit: 50 }),
       );
     },
-  } as any);
+    [queryClient, trpc.chat.list],
+  );
+
+  const { messages, sendMessage, status, error, clearError } = useChat({
+    id: chatId,
+    messages: initialMessages,
+    experimental_throttle: 100,
+    transport,
+    onError: (err) => {
+      console.error("[chat-bot]", err);
+      if (isAssistantConfigureError(err)) {
+        toast.error(
+          "Configure the assistant in slashcash (e.g. Ollama) before chatting.",
+        );
+        return;
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(msg || "Request failed");
+    },
+    onFinish: onChatFinish as ChatOnFinishCallback<UIMessage>,
+  });
+
+  useEffect(() => {
+    if (hasSyncedUrlToThisChat.current) {
+      return;
+    }
+    if (
+      typeof window === "undefined" ||
+      !isAssistantLandingPath(window.location.pathname)
+    ) {
+      return;
+    }
+    const hasUser = messages.some((m) => m.role === "user");
+    if (!hasUser) {
+      return;
+    }
+    if (syncAssistantUrlToChatId(chatId)) {
+      hasSyncedUrlToThisChat.current = true;
+    }
+  }, [chatId, messages]);
 
   const selectedModelData = useMemo(
     () => models.find((m) => m.id === model),
@@ -384,7 +426,7 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
         await sendMessage({
           role: "user",
           parts: [{ type: "text", text: message.text.trim() }],
-        } as any);
+        });
       } catch {
         // onError on useChat also runs
       }
@@ -399,20 +441,12 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
         await sendMessage({
           role: "user",
           parts: [{ type: "text", text: suggestion }],
-        } as any);
+        });
       } catch {
         /* useChat onError */
       }
     },
     [sendMessage, clearError],
-  );
-
-  const handleTranscriptionChange = useCallback(
-    (transcript: string) => {
-      const v = textInput.value;
-      textInput.setInput(v ? `${v} ${transcript}` : transcript);
-    },
-    [textInput],
   );
 
   const toggleWebSearch = useCallback(() => {
@@ -428,9 +462,18 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
   const isEmpty = !textInput.value.trim() && attachments.files.length === 0;
   const isSubmitDisabled = isBusy || isEmpty;
 
+  // Layout matches ai-elements "Example" pattern: size-full + divide-y + flex-1 Conversation + shrink-0 composer.
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-      <Conversation className="min-h-0 flex-1">
+    <div className="relative flex size-full min-h-0 min-w-0 flex-1 flex-col divide-y overflow-hidden">
+      <div className="flex shrink-0 items-center justify-end px-3 py-2 md:hidden">
+        <Button asChild className="h-8" size="sm" variant="default">
+          <Link href="/assistant">
+            <MessageSquarePlus className="h-4 w-4" />
+            <span className="ml-1.5">New chat</span>
+          </Link>
+        </Button>
+      </div>
+      <Conversation className="h-0 min-h-0 min-w-0 flex-1">
         <ConversationContent>
           {error && (
             <Alert className="mb-4" variant="destructive">
@@ -454,7 +497,7 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
-      <div className="grid shrink-0 gap-4 border-t pt-4">
+      <div className="grid shrink-0 gap-4 pt-4">
         <Suggestions className="px-4">
           {suggestions.map((s) => (
             <SuggestionItem
@@ -480,12 +523,6 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
                     <PromptInputActionAddAttachments />
                   </PromptInputActionMenuContent>
                 </PromptInputActionMenu>
-                <SpeechInput
-                  className="shrink-0"
-                  onTranscriptionChange={handleTranscriptionChange}
-                  size="icon-sm"
-                  variant="ghost"
-                />
                 <PromptInputButton
                   onClick={toggleWebSearch}
                   type="button"
@@ -549,7 +586,9 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
 export function ChatBot(props: ChatBotProps) {
   return (
     <PromptInputProvider>
-      <ChatBotInner {...props} />
+      <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col">
+        <ChatBotInner {...props} />
+      </div>
     </PromptInputProvider>
   );
 }

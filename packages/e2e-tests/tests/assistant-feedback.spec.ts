@@ -27,7 +27,9 @@ test.describe("Customer assistant and feedback journeys", () => {
     await page.goto("/assistant");
     await expect(page).toHaveURL(assistantChatUrl, { timeout: 15_000 });
 
-    await expect(page.getByText("Chat History")).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /New chat/i }).first(),
+    ).toBeVisible();
 
     await page
       .getByPlaceholder(/Ask about your spending/)

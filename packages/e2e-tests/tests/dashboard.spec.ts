@@ -34,7 +34,9 @@ test.describe("Customer dashboard journeys", () => {
       /\/assistant\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
       { timeout: 15_000 },
     );
-    await expect(page.getByText("Chat History")).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /New chat/i }).first(),
+    ).toBeVisible();
 
     await page.getByRole("link", { name: "Settings" }).click();
     await expect(page).toHaveURL(/\/settings/);

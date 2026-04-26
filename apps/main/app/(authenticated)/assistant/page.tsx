@@ -1,22 +1,24 @@
-import { prefetch, HydrateClient, trpc } from '@/trpc/server';
-import { ChatSidebar } from '@/components/assistant/chat-sidebar';
-import { AssistantNewChatRedirect } from '@/components/assistant/assistant-new-chat-redirect';
-import { Suspense } from 'react';
-import { Skeleton } from '@workspace/ui/components/skeleton';
+import { prefetch, HydrateClient, trpc } from "@/trpc/server";
+import { ChatSidebar } from "@/components/assistant/chat-sidebar";
+import { AssistantLandingChat } from "@/components/assistant/assistant-landing-chat";
+import { randomUUID } from "node:crypto";
+import { Suspense } from "react";
+import { Skeleton } from "@workspace/ui/components/skeleton";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default async function AssistantPage() {
+  const landingChatId = randomUUID();
   await prefetch(trpc.chat.list.queryOptions({ limit: 50 }));
 
   return (
     <HydrateClient>
-      <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-1 -mt-16 flex-col md:flex-row">
+      <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden md:flex-row">
         <Suspense fallback={<SidebarSkeleton />}>
-          <ChatSidebar />
+          <ChatSidebar hideTitleRow />
         </Suspense>
-        <main className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
-          <AssistantNewChatRedirect />
+        <main className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+          <AssistantLandingChat chatId={landingChatId} />
         </main>
       </div>
     </HydrateClient>

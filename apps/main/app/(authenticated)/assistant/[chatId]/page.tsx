@@ -27,6 +27,8 @@ export default async function ChatPage({ params }: ChatPageProps) {
 
   await prefetch(trpc.chat.list.queryOptions({ limit: 50 }));
 
+  // `null` means the thread is new or the row is not created until the first
+  // turn is persisted; we still allow composing at `/assistant/:id`.
   const initialMessages: UIMessage[] = chat
     ? chat.messages.map((msg) => ({
         id: msg.id,
@@ -38,11 +40,11 @@ export default async function ChatPage({ params }: ChatPageProps) {
 
   return (
     <HydrateClient>
-      <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-1 -mt-16 flex-col md:flex-row">
+      <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden md:flex-row">
         <Suspense fallback={<SidebarSkeleton />}>
-          <ChatSidebar />
+          <ChatSidebar hideTitleRow />
         </Suspense>
-        <main className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+        <main className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
           <ChatBot chatId={chatId} initialMessages={initialMessages} />
         </main>
       </div>
