@@ -97,6 +97,12 @@ describe("runEmailSync", () => {
     });
     expect(mocks.markSyncComplete).toHaveBeenCalledWith("local-user-id");
     expect(mocks.storeTransactionV2Input).not.toHaveBeenCalled();
+    expect(mocks.storeEmailData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "msg-1",
+        threadId: "thread-1",
+      }),
+    );
     expect(mocks.updateEmailData).toHaveBeenCalledWith("msg-1", {
       parseSuccess: true,
       parseErrors: null,

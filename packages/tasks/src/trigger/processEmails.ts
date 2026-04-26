@@ -313,7 +313,7 @@ async function writeExtractedMessage(
     userId,
     snippet: fetched.snippet,
     senderEmailId: emailData.from,
-    threadId: ref.id,
+    threadId: ref.threadId || fetched.gmailThreadId || ref.id,
     subject: emailData.subject,
     receivedDate: new Date(emailData.date),
     parseSuccess: false,
@@ -372,7 +372,6 @@ async function writeExtractedMessage(
     extractionConfidence: extracted.extractionConfidence,
     schemaUsed: extracted.schemaUsed,
     dataSource: extracted.dataSource,
-    isVerified: false,
   });
   const transactionId = stored?.id;
 
@@ -450,7 +449,7 @@ function toEmailData(userId: string, message: FetchedImapMessage): EmailData {
   return {
     userId,
     emailId: message.id,
-    threadId: message.id,
+    threadId: message.gmailThreadId || message.threadId || message.id,
     subject: message.subject,
     body: compactEmailBody(message),
     date: message.date,

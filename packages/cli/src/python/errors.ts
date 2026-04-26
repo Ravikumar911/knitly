@@ -4,6 +4,7 @@ export type PythonEnvErrorCode =
   | "python-too-new"
   | "venv-create-failed"
   | "pip-install-failed"
+  | "extractor-stale"
   | "extractor-import-failed"
   | "unknown";
 

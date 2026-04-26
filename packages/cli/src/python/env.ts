@@ -2,12 +2,13 @@ import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, sep } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { SlashcashPaths } from "../config/paths.js";
 import type { SlashcashConfig } from "../config/schema.js";
@@ -77,11 +78,24 @@ export async function ensurePythonEnvReady(input: {
     if (!created.ok) return created;
   }
 
-  if (
-    runtime.usesManagedVenv &&
-    input.fix &&
-    shouldInstallRequirements(runtime)
-  ) {
+  const extractorInstallStale =
+    runtime.usesManagedVenv && shouldInstallExtractor(runtime);
+  if (extractorInstallStale && !input.fix) {
+    return {
+      ok: false,
+      error: pythonEnvError("extractor-stale", {
+        message:
+          "The managed Python extractor is not installed from the current slash.cash package.",
+        symptom:
+          "The PDF/email extractor may run older code even though Python imports still succeed.",
+        cause:
+          "The managed virtualenv fingerprint no longer matches the extractor package bundled with this checkout.",
+        fix: "Run `slashcash doctor --fix` to reinstall the extractor into the managed Python environment.",
+      }),
+    };
+  }
+
+  if (extractorInstallStale) {
     const installed = runCommand(
       runtime.pythonBin,
       ["-m", "pip", "install", "-r", runtime.requirementsPath],
@@ -105,7 +119,7 @@ export async function ensurePythonEnvReady(input: {
     }
     writeFileSync(
       runtime.installHashPath,
-      requirementsHash(runtime.requirementsPath),
+      extractorInstallFingerprint(runtime),
     );
   }
 
@@ -496,19 +510,44 @@ function unsupportedManagedPythonError(version: PythonVersion) {
   });
 }
 
-function shouldInstallRequirements(runtime: PythonExtractorRuntime) {
+function shouldInstallExtractor(runtime: PythonExtractorRuntime) {
   if (!existsSync(runtime.pythonBin)) return true;
   if (!existsSync(runtime.installHashPath)) return true;
   return (
     readFileSync(runtime.installHashPath, "utf8") !==
-    requirementsHash(runtime.requirementsPath)
+    extractorInstallFingerprint(runtime)
   );
 }
 
-function requirementsHash(requirementsPath: string) {
-  return createHash("sha256")
-    .update(readFileSync(requirementsPath))
-    .digest("hex");
+function extractorInstallFingerprint(runtime: PythonExtractorRuntime) {
+  const files = [
+    runtime.requirementsPath,
+    join(runtime.packageDir, "pyproject.toml"),
+    ...collectPythonFiles(join(runtime.packageDir, "src")),
+  ].filter((path) => existsSync(path));
+
+  const hash = createHash("sha256");
+  for (const path of files.sort()) {
+    hash.update(relative(runtime.packageDir, path));
+    hash.update("\0");
+    hash.update(readFileSync(path));
+    hash.update("\0");
+  }
+  return hash.digest("hex");
+}
+
+function collectPythonFiles(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  const files: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...collectPythonFiles(path));
+    } else if (entry.isFile() && entry.name.endsWith(".py")) {
+      files.push(path);
+    }
+  }
+  return files;
 }
 
 function resolvePdfExtractorPackageDir() {

@@ -34,19 +34,19 @@ def extract_swiggy_invoice(text: str, subject: str = "") -> ParsedSwiggy:
     customer_address = value_after_label(lines, "Customer Address")
     restaurant_address = value_after_label(lines, "Address")
     invoice_date = to_iso_date(value_after_label(lines, "Date of Invoice"))
-    invoice_total = (
-        table_amount_by_label(lines, "Invoice Total")
-        or table_amount_by_any_cell(lines, "Invoice Value")
-        or amount_after_label(invoice_text, "Total")
-        or amount_after_label(invoice_text, "Invoice Total")
-    )
+    invoice_total = invoice_total_from_lines(lines, invoice_text)
     item_subtotal = table_subtotal(lines)
-    tax_total = table_amount_by_label(lines, "Total taxes")
-    packaging_fee = sum(
-        item.net_amount or item.amount or 0
-        for item in items
-        if re.search(r"pack(ing|aging)", item.name, re.I)
-    ) or None
+    tax_total = table_amount_by_label(lines, "Total taxes") or amount_after_label(
+        invoice_text, "Total taxes"
+    )
+    packaging_fee = (
+        sum(
+            item.net_amount or item.amount or 0
+            for item in items
+            if re.search(r"pack(ing|aging)", item.name, re.I)
+        )
+        or None
+    )
     discount_total = sum(item.discount or 0 for item in items) or None
     pincode = (
         value_after_label(lines, "Pincode")
@@ -97,10 +97,9 @@ def extract_swiggy_body(email_body: str, subject: str = "") -> ParsedSwiggy:
     )
     paid_amount = float(paid.group(2)) if paid else amount_after_label(text, "Paid")
     payment_method = paid.group(1).strip() if paid else None
-    restaurant_name = (
-        regex_group(text, r"\bRestaurant\b\s*:?\s*([^\n]+)")
-        or regex_group(text, r"\bfrom\s+([A-Za-z0-9 &.'-]+)")
-    )
+    restaurant_name = regex_group(
+        text, r"\bRestaurant\b\s*:?\s*([^\n]+)"
+    ) or regex_group(text, r"\bfrom\s+([A-Za-z0-9 &.'-]+)")
     customer_address = regex_group(text, r"\b(?:Area|Address)\b\s*:?\s*([^\n]+)")
     parse_success = bool(order_id and paid_amount)
     fields = SwiggyInvoiceFields(
@@ -180,7 +179,9 @@ def merge_swiggy_sources(
         else body_fields.service_type,
         items=pdf_fields.items,
     )
-    parse_success = bool(fields.order_id and (fields.paid_amount or fields.invoice_total))
+    parse_success = bool(
+        fields.order_id and (fields.paid_amount or fields.invoice_total)
+    )
     confidence = max(pdf.confidence if pdf else 0, body.confidence if body else 0)
     if not parse_success and not warnings:
         warnings.append("No completed Swiggy transaction was found.")
@@ -203,20 +204,39 @@ def empty_result(warning: str) -> ParsedSwiggy:
 
 
 def first_invoice_text(text: str) -> str:
-    match = re.search(r"(^|\n)(#+\s*)?TAX INVOICE\b", text, re.I)
-    start = match.start() if match else 0
-    sliced = text[start:]
-    end_markers = [
-        m.start()
-        for pattern in [r"\n#+\s*Details of ECO\b", r"\nDetails of ECO\b"]
-        for m in [re.search(pattern, sliced, re.I)]
-        if m
-    ]
-    second_invoice = sliced.find("\nTAX INVOICE", 20)
-    if second_invoice > 0:
-        end_markers.append(second_invoice)
-    end = min(end_markers) if end_markers else len(sliced)
-    return sliced[:end]
+    sections = tax_invoice_sections(text)
+    for section in sections:
+        lines = non_empty_lines(section)
+        if value_after_label(lines, "Order ID") and invoice_total_from_lines(
+            lines, section
+        ):
+            return section
+
+    for section in sections:
+        if value_after_label(non_empty_lines(section), "Order ID"):
+            return section
+
+    return sections[0] if sections else text
+
+
+def tax_invoice_sections(text: str) -> list[str]:
+    invoice_pattern = r"(^|\n)(#+\s*)?TAX INVOICE\b"
+    matches = list(re.finditer(invoice_pattern, text, re.I))
+    if not matches:
+        return [text]
+
+    sections: list[str] = []
+    for index, match in enumerate(matches):
+        start = match.start()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        section = text[start:end]
+        eco_match = re.search(
+            r"\n#+\s*Details of ECO\b|\nDetails of ECO\b", section, re.I
+        )
+        if eco_match:
+            section = section[: eco_match.start()]
+        sections.append(section)
+    return sections
 
 
 def non_empty_lines(text: str) -> list[str]:
@@ -230,14 +250,16 @@ def non_empty_lines(text: str) -> list[str]:
 def value_after_label(lines: list[str], label: str) -> str | None:
     target = normalize_label(label)
     for index, line in enumerate(lines):
-        same_line = re.match(rf"^{re.escape(label)}\s*:?\s*(.+)$", line, re.I)
-        if same_line and same_line.group(1).strip():
-            return same_line.group(1).strip()
+        same_line = inline_value_for_label(line, label)
+        if same_line is not None:
+            value = clean_label_value(same_line)
+            if value:
+                return value
+            next_value = lines[index + 1] if index + 1 < len(lines) else None
+            return clean_label_value(next_value)
         if normalize_label(line) == target:
             value = lines[index + 1] if index + 1 < len(lines) else None
-            if not value or looks_like_label(value) or value.startswith("|"):
-                return None
-            return value.strip()
+            return clean_label_value(value)
     return None
 
 
@@ -307,6 +329,38 @@ def table_amount_by_any_cell(lines: list[str], label: str) -> float | None:
     return None
 
 
+def invoice_total_from_lines(lines: list[str], text: str) -> float | None:
+    return (
+        table_amount_by_label(lines, "Invoice Total")
+        or table_trailing_total(lines)
+        or table_amount_by_any_cell(lines, "Invoice Value")
+        or amount_after_label(text, "Invoice Value")
+        or amount_after_label(text, "Invoice Total")
+        or amount_after_label(text, "Total")
+    )
+
+
+def table_trailing_total(lines: list[str]) -> float | None:
+    total: float | None = None
+    for line in lines:
+        if not line.startswith("|"):
+            continue
+        cells = markdown_cells(line)
+        if not cells:
+            continue
+        amount = money_from_text(cells[-1])
+        if amount is None:
+            continue
+        preceding_cells = [cell for cell in cells[:-1] if cell.strip()]
+        if not preceding_cells or normalize_label(cells[0]) in {
+            "total",
+            "grand total",
+            "invoice total",
+        }:
+            total = amount
+    return total
+
+
 def table_subtotal(lines: list[str]) -> float | None:
     for line in lines:
         if not line.startswith("|"):
@@ -326,13 +380,23 @@ def amount_from_cells(cells: list[str]) -> float | None:
 
 
 def amount_after_label(text: str, label: str) -> float | None:
-    escaped = re.escape(label)
-    match = re.search(
-        rf"{escaped}[^₹\d-]*-?\s*(?:₹|INR)?\s*([0-9]+(?:\.[0-9]{{1,2}})?)",
-        text,
-        re.I,
-    )
-    return float(match.group(1)) if match else None
+    lines = non_empty_lines(text)
+    for index, line in enumerate(lines):
+        same_line = inline_value_for_label(line, label)
+        if same_line is None:
+            continue
+
+        amount = money_from_text(same_line)
+        if amount is not None:
+            return amount
+
+        for next_line in lines[index + 1 : index + 4]:
+            if next_line.startswith("|") or looks_like_label(next_line):
+                break
+            amount = money_from_text(next_line)
+            if amount is not None:
+                return amount
+    return None
 
 
 def free_fee_after_phrase(text: str, phrase: str) -> float | None:
@@ -367,6 +431,22 @@ def normalize_label(value: str) -> str:
 
 def looks_like_label(value: str) -> bool:
     return value.strip().endswith(":")
+
+
+def inline_value_for_label(line: str, label: str) -> str | None:
+    match = re.match(rf"^{re.escape(label)}\s*(?::\s*(.*)|$)", line, re.I)
+    if not match:
+        return None
+    return (match.group(1) or "").strip()
+
+
+def clean_label_value(value: str | None) -> str | None:
+    if not value:
+        return None
+    cleaned = re.sub(r"^[:#-]\s*", "", value.strip()).strip()
+    if not cleaned or looks_like_label(cleaned) or cleaned.startswith("|"):
+        return None
+    return cleaned
 
 
 def strip_trailing_gstin(value: str | None) -> str | None:
@@ -408,7 +488,9 @@ def regex_group(text: str, pattern: str) -> str | None:
 
 def service_type_from_text(subject: str, text: str) -> str:
     combined = f"{subject}\n{text}"
-    if re.search(r"instamart|instamaxx|description of goods|seller name", combined, re.I):
+    if re.search(
+        r"instamart|instamaxx|description of goods|seller name", combined, re.I
+    ):
         return "INSTAMART"
     if re.search(r"dineout", combined, re.I):
         return "DINEOUT"
