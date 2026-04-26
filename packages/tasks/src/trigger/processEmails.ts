@@ -139,139 +139,42 @@ async function runEmailSyncUnsafe(
     }
   }
 
-  const fetchPool = createWorkPool<
-    (typeof listed.data)[number],
-    {
-      ref: (typeof listed.data)[number];
-      fetched: FetchedImapMessage;
-      emailData: EmailData;
-    }
-  >({
-    concurrency: resolveConcurrency("SLASHCASH_SYNC_FETCH_CONCURRENCY", 4),
+  const messagePool = createWorkPool<ImapMessageRef, SyncOutcome>({
+    concurrency: resolveMessageConcurrency(),
     async work(ref) {
-      const fetched = await fetchMessage(ref.id);
-      if (!fetched.ok) {
-        throw fetched.error;
-      }
-      const emailData = toEmailData(payload.userId, fetched.data);
-      syncDebug("message-fetched", {
-        messageId: ref.id,
-        gmailThreadId: fetched.data.gmailThreadId,
-        from: fetched.data.from,
-        date: fetched.data.date,
-        textChars: fetched.data.text.length,
-        htmlChars: fetched.data.html.length,
-        bodyChars: emailData.body.length,
-        bodyTruncated:
-          emailData.body.length >= resolveMaxEmailBodyChars() &&
-          fetched.data.text.length + fetched.data.html.length >
-            emailData.body.length,
-        attachmentCount: emailData.attachments?.length || 0,
-        pdfAttachmentCount:
-          emailData.attachments?.filter(
-            (attachment) => attachment.mimeType === "application/pdf",
-          ).length || 0,
-      });
-      return { ref, fetched: fetched.data, emailData };
+      return processMessage(payload.userId, ref);
     },
   });
 
-  const fetchedItems = await Promise.all(
+  const processedOutcomes = await Promise.all(
     pendingRefs.map((ref, index) =>
-      fetchPool.submit(ref).catch(async (error) => {
-        const classified = classifyImapError(error);
-        outcomes.push({ kind: "failed", messageId: ref.id, error: classified });
-        console.error(
-          "Failed to fetch IMAP message",
-          ref.id,
-          classified.message,
-        );
-        syncDebug("message-failed", {
-          index: index + 1,
-          total: listed.data.length,
-          messageId: ref.id,
-          classified: classified.code,
-          error: errorSummary(error),
-        });
-        await updateSyncProgress(payload.userId, 1);
-        return null;
-      }),
-    ),
-  );
-  await fetchPool.drain();
-
-  const extractPool = createWorkPool<
-    NonNullable<(typeof fetchedItems)[number]>,
-    {
-      ref: (typeof listed.data)[number];
-      fetched: FetchedImapMessage;
-      emailData: EmailData;
-      extracted: Awaited<ReturnType<typeof extractTransactionFromEmail>>;
-    }
-  >({
-    concurrency: resolveConcurrency(
-      "SLASHCASH_SYNC_EXTRACT_CONCURRENCY",
-      defaultExtractConcurrency(),
-    ),
-    async work(item) {
-      const extracted = await extractTransactionFromEmail(item.emailData, {
-        storeTransaction: false,
-      });
-      return { ...item, extracted };
-    },
-  });
-
-  const extractedItems = await Promise.all(
-    fetchedItems
-      .filter((item): item is NonNullable<typeof item> => item !== null)
-      .map((item) =>
-        extractPool.submit(item).catch((error) => {
-          outcomes.push({
-            kind: "failed",
-            messageId: item.ref.id,
-            error: error instanceof Error ? error : new Error(String(error)),
-          });
+      messagePool
+        .submit(ref)
+        .catch((error) => {
+          const classified = classifyImapError(error);
+          console.error(
+            "Failed to process IMAP message",
+            ref.id,
+            classified.message,
+          );
           syncDebug("message-failed", {
-            messageId: item.ref.id,
-            classified: "extraction-error",
+            index: index + 1,
+            total: listed.data.length,
+            messageId: ref.id,
+            classified: classified.code,
             error: errorSummary(error),
           });
-          return null;
-        }),
-      ),
+          return {
+            kind: "failed",
+            messageId: ref.id,
+            error: classified,
+          } satisfies SyncOutcome;
+        })
+        .finally(() => recordMessageProgress(payload.userId, ref.id)),
+    ),
   );
-  await extractPool.drain();
-
-  for (const item of extractedItems) {
-    if (!item) {
-      await updateSyncProgress(payload.userId, 1);
-      continue;
-    }
-
-    try {
-      const outcome = await writeExtractedMessage(payload.userId, item);
-      outcomes.push(outcome);
-    } catch (error) {
-      const classified = classifyImapError(error);
-      console.error(
-        "Failed to store IMAP message",
-        item.ref.id,
-        classified.message,
-      );
-      outcomes.push({
-        kind: "failed",
-        messageId: item.ref.id,
-        error: classified,
-      });
-      syncDebug("message-failed", {
-        messageId: item.ref.id,
-        classified: classified.code,
-        error: errorSummary(error),
-      });
-    } finally {
-      await updateSyncProgress(payload.userId, 1);
-    }
-  }
+  await messagePool.drain();
+  outcomes.push(...processedOutcomes);
 
   const counts = countOutcomes(outcomes);
   const processedCount = counts.processed;
@@ -404,6 +307,58 @@ async function writeExtractedMessage(
   };
 }
 
+async function processMessage(
+  userId: string,
+  ref: ImapMessageRef,
+): Promise<SyncOutcome> {
+  const fetched = await fetchMessage(ref.id);
+  if (!fetched.ok) {
+    throw fetched.error;
+  }
+
+  const emailData = toEmailData(userId, fetched.data);
+  syncDebug("message-fetched", {
+    messageId: ref.id,
+    gmailThreadId: fetched.data.gmailThreadId,
+    from: fetched.data.from,
+    date: fetched.data.date,
+    textChars: fetched.data.text.length,
+    htmlChars: fetched.data.html.length,
+    bodyChars: emailData.body.length,
+    bodyTruncated:
+      emailData.body.length >= resolveMaxEmailBodyChars() &&
+      fetched.data.text.length + fetched.data.html.length >
+        emailData.body.length,
+    attachmentCount: emailData.attachments?.length || 0,
+    pdfAttachmentCount:
+      emailData.attachments?.filter(
+        (attachment) => attachment.mimeType === "application/pdf",
+      ).length || 0,
+  });
+
+  const extracted = await extractTransactionFromEmail(emailData, {
+    storeTransaction: false,
+  });
+
+  return writeExtractedMessage(userId, {
+    ref,
+    fetched: fetched.data,
+    emailData,
+    extracted,
+  });
+}
+
+async function recordMessageProgress(userId: string, messageId: string) {
+  try {
+    await updateSyncProgress(userId, 1);
+  } catch (error) {
+    syncDebug("progress-update-failed", {
+      messageId,
+      error: errorSummary(error),
+    });
+  }
+}
+
 function countOutcomes(outcomes: SyncOutcome[]): EmailSyncResult["counts"] {
   return {
     processed: outcomes.filter((outcome) => outcome.kind === "processed")
@@ -428,6 +383,16 @@ function resolveConcurrency(envName: string, fallback: number) {
 
 function defaultExtractConcurrency() {
   return Math.max(1, Math.min(4, cpus().length - 1 || 1));
+}
+
+function resolveMessageConcurrency() {
+  return Math.max(
+    resolveConcurrency("SLASHCASH_SYNC_FETCH_CONCURRENCY", 4),
+    resolveConcurrency(
+      "SLASHCASH_SYNC_EXTRACT_CONCURRENCY",
+      defaultExtractConcurrency(),
+    ),
+  );
 }
 
 function toEmailData(userId: string, message: FetchedImapMessage): EmailData {

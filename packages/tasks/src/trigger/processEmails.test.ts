@@ -108,6 +108,58 @@ describe("runEmailSync", () => {
       parseErrors: null,
     });
   });
+
+  it("stores each processed message without waiting for every fetch to finish", async () => {
+    const slowFetch = deferred<ReturnType<typeof okFetchedMessage>>();
+    mocks.listMessages.mockResolvedValue({
+      ok: true,
+      data: [
+        { id: "msg-1", threadId: "thread-1" },
+        { id: "msg-2", threadId: "thread-2" },
+      ],
+    });
+    mocks.fetchMessage.mockImplementation((id: string) => {
+      if (id === "msg-1") {
+        return Promise.resolve(okFetchedMessage("msg-1", "First order"));
+      }
+      return slowFetch.promise;
+    });
+    mocks.extractTransactionFromEmail.mockResolvedValue({
+      parseSuccess: false,
+      parseErrors: ["No completed Swiggy transaction was found."],
+      warnings: [],
+      schemaUsed: "swiggy.fallback.v1",
+      dataSource: "EMAIL_BODY",
+      contributedByPdf: false,
+      extractionConfidence: 0,
+      provenance: null,
+      extractionData: { parseSuccess: false },
+    });
+
+    const run = runEmailSync({ userId: "local-user-id", full: true });
+
+    await waitFor(() => {
+      expect(mocks.storeEmailData).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "msg-1",
+          threadId: "thread-1",
+        }),
+      );
+      expect(mocks.updateSyncProgress).toHaveBeenCalledTimes(1);
+    });
+
+    slowFetch.resolve(okFetchedMessage("msg-2", "Second order"));
+
+    await expect(run).resolves.toMatchObject({
+      counts: {
+        processed: 0,
+        skipped_existing: 0,
+        skipped_non_transaction: 2,
+        failed: 0,
+      },
+    });
+    expect(mocks.updateSyncProgress).toHaveBeenCalledTimes(2);
+  });
 });
 
 function fetchedMessage(id: string, subject: string) {
@@ -125,4 +177,39 @@ function fetchedMessage(id: string, subject: string) {
     snippet: subject,
     raw: subject,
   };
+}
+
+function okFetchedMessage(id: string, subject: string) {
+  return {
+    ok: true as const,
+    data: fetchedMessage(id, subject),
+  };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return { promise, resolve, reject };
+}
+
+async function waitFor(assertion: () => void) {
+  const deadline = Date.now() + 1_000;
+  let lastError: unknown;
+
+  while (Date.now() < deadline) {
+    try {
+      assertion();
+      return;
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+
+  throw lastError;
 }
