@@ -69,7 +69,6 @@ const env = {
   SQLITE_DB_PATH: join(home, "db.sqlite"),
   SLASHCASH_ATTACHMENTS_DIR: join(home, "attachments"),
   SLASHCASH_IMAP_FIXTURE_DIR: fixtureDir,
-  SLASHCASH_SYNC_SKIP_AI: "1",
   SLASHCASH_DOCTOR_SKIP_OLLAMA: "1",
   SLASHCASH_NO_OPEN: "1",
   SLASHCASH_PDF_EXTRACTOR_PYTHON: pythonBin,
@@ -95,7 +94,11 @@ try {
   run("doctor", ["--quick"]);
 
   const sync = run("sync", ["--full"]);
-  assertIncludes(sync.stdout, "1 processed", "sync ingests the IMAP fixture");
+  assertIncludes(
+    sync.stdout,
+    "2 processed, 2 skipped, 0 failed",
+    "sync ingests transactional fixtures and skips non-transactions",
+  );
   if (readdirSync(join(home, "attachments")).length === 0) {
     throw new Error("sync did not write any attachment fixtures");
   }
@@ -169,6 +172,8 @@ function preparePythonExtractorRuntime() {
     "--target",
     pythonSiteDir,
     "pydantic==2.13.3",
+    "pymupdf==1.27.2.3",
+    "pdfplumber==0.11.9",
   ]);
   runCommand(pythonBin, ["-m", "slashcash_pdf_extractor", "--self-check"], {
     env,
@@ -180,11 +185,11 @@ function assertPdfLanePersisted() {
     "import json, sqlite3, sys",
     "db = sqlite3.connect(sys.argv[1])",
     "db.row_factory = sqlite3.Row",
-    'tx = db.execute("select amount, schema_used, data_source, extraction_confidence from transactions_v2 order by created_at desc limit 1").fetchone()',
-    'email = db.execute("select parse_success, parse_errors from parsed_emails order by created_at desc limit 1").fetchone()',
+    'txs = db.execute("select amount, schema_used, data_source, extraction_confidence from transactions_v2 order by amount").fetchall()',
+    'emails = db.execute("select parse_success, parse_errors from parsed_emails order by created_at").fetchall()',
     "print(json.dumps({",
-    "  'tx': dict(tx) if tx else None,",
-    "  'email': dict(email) if email else None,",
+    "  'txs': [dict(tx) for tx in txs],",
+    "  'emails': [dict(email) for email in emails],",
     "}))",
   ].join("\n");
   const output = runCommand(
@@ -193,42 +198,45 @@ function assertPdfLanePersisted() {
     { env },
   );
   const payload = JSON.parse(output.stdout) as {
-    tx: {
+    txs: {
       amount: number;
       schema_used: string;
       data_source: string;
       extraction_confidence: number;
-    } | null;
-    email: {
+    }[];
+    emails: {
       parse_success: number;
       parse_errors: string | null;
-    } | null;
+    }[];
   };
 
-  if (!payload.tx || !payload.email) {
+  if (payload.txs.length !== 2 || payload.emails.length !== 4) {
     throw new Error(`phase-2 db assertions missing rows: ${output.stdout}`);
   }
 
-  if (Math.abs(payload.tx.amount - 512.4) > 0.001) {
-    throw new Error(`expected PDF amount 512.4, got ${payload.tx.amount}`);
+  const pdfTx = payload.txs.find((tx) => Math.abs(tx.amount - 512.4) < 0.001);
+  const bodyTx = payload.txs.find((tx) => Math.abs(tx.amount - 482.5) < 0.001);
+  if (!pdfTx) {
+    throw new Error(`expected PDF amount 512.4 in ${output.stdout}`);
   }
-  if (payload.tx.schema_used !== "swiggy.sources.v1") {
+  if (!bodyTx) {
+    throw new Error(`expected body amount 482.5 in ${output.stdout}`);
+  }
+  if (pdfTx.schema_used !== "swiggy.deterministic.v1") {
     throw new Error(
-      `expected swiggy.sources.v1, got ${payload.tx.schema_used}`,
+      `expected swiggy.deterministic.v1, got ${pdfTx.schema_used}`,
     );
   }
-  if (
-    payload.tx.data_source !== "BOTH" &&
-    payload.tx.data_source !== "PDF_ATTACHMENT"
-  ) {
+  if (pdfTx.data_source !== "BOTH" && pdfTx.data_source !== "PDF_ATTACHMENT") {
     throw new Error(
-      `expected BOTH or PDF_ATTACHMENT, got ${payload.tx.data_source}`,
+      `expected BOTH or PDF_ATTACHMENT, got ${pdfTx.data_source}`,
     );
   }
-  if (payload.email.parse_success !== 1) {
-    throw new Error(
-      `expected parsed_emails.parse_success = 1, got ${payload.email.parse_success}`,
-    );
+  if (bodyTx.data_source !== "EMAIL_BODY") {
+    throw new Error(`expected EMAIL_BODY, got ${bodyTx.data_source}`);
+  }
+  if (payload.emails.some((email) => email.parse_success !== 1)) {
+    throw new Error(`expected all parsed_emails.parse_success = 1`);
   }
 }
 

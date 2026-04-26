@@ -1,7 +1,7 @@
 import { db } from "../../index";
 import { parsedEmails } from "../../schema/parsedEmails";
 import { transactionsV2 } from "../../schema/transactionsV2";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, inArray } from "drizzle-orm";
 import { ParsedEmail } from "../../types";
 /**
  * Stores processed email data in the database
@@ -89,4 +89,40 @@ export async function isEmailProcessed(userId: string, messageId: string) {
     .limit(1);
 
   return result.length > 0;
+}
+
+/**
+ * Bulk variant used by the staged sync runner to avoid one query per message.
+ */
+export async function getProcessedEmailIds(
+  userId: string,
+  messageIds: string[],
+) {
+  const uniqueIds = [...new Set(messageIds.filter(Boolean))];
+  if (uniqueIds.length === 0) return new Set<string>();
+
+  const result = await db
+    .select({
+      id: parsedEmails.id,
+      threadId: parsedEmails.threadId,
+    })
+    .from(parsedEmails)
+    .innerJoin(
+      transactionsV2,
+      eq(transactionsV2.parsedEmailId, parsedEmails.id),
+    )
+    .where(
+      and(
+        eq(parsedEmails.userId, userId),
+        eq(parsedEmails.parseSuccess, true),
+        or(
+          inArray(parsedEmails.id, uniqueIds),
+          inArray(parsedEmails.threadId, uniqueIds),
+        ),
+      ),
+    );
+
+  return new Set(
+    result.flatMap((row) => [row.id, row.threadId].filter(Boolean) as string[]),
+  );
 }

@@ -153,6 +153,9 @@ importers:
 
   apps/main:
     dependencies:
+      '@ai-sdk/openai-compatible':
+        specifier: 1.0.17
+        version: 1.0.17(zod@3.25.76)
       '@radix-ui/react-use-controllable-state':
         specifier: ^1.2.2
         version: 1.2.2(@types/react@18.3.18)(react@18.3.1)
@@ -465,15 +468,6 @@ importers:
 
   packages/evals:
     dependencies:
-      '@ai-sdk/openai-compatible':
-        specifier: 1.0.17
-        version: 1.0.17(zod@3.25.76)
-      '@workspace/tasks':
-        specifier: workspace:*
-        version: link:../tasks
-      ai:
-        specifier: 5.0.26
-        version: 5.0.26(zod@3.25.76)
       autoevals:
         specifier: ^0.0.94
         version: 0.0.94
@@ -502,15 +496,9 @@ importers:
 
   packages/tasks:
     dependencies:
-      '@ai-sdk/openai-compatible':
-        specifier: 1.0.17
-        version: 1.0.17(zod@3.25.76)
       '@workspace/database':
         specifier: workspace:*
         version: link:../database
-      ai:
-        specifier: 5.0.26
-        version: 5.0.26(zod@3.25.76)
       imapflow:
         specifier: ^1.0.181
         version: 1.3.2

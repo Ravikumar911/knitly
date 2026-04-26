@@ -28,7 +28,13 @@ All user state lives under `~/.slashcash/`. The config schema lives in `packages
 
 - `ai.ollamaBaseUrl` — default `http://127.0.0.1:11434/v1`
 - `ai.chatModel` — default `gemma4:latest`
-- `ai.visionModel` — default `gemma4:latest` (legacy key; reads from the same model as `ai.chatModel` after the PDF-extractor pivot and will be removed once the migration lands)
+- `ai.visionModel` — legacy key retained for config migration.
+
+### `assistant`
+
+- `assistant.provider` — `none`, `ollama-local`, `openai-compatible`, or `anthropic`. Default `none`.
+- `assistant.baseUrl` — provider base URL. Defaults to local Ollama's OpenAI-compatible endpoint.
+- `assistant.chatModel` — chat model. Default `gemma4:latest`; OpenAI-compatible setup defaults to `gpt-4o-mini`.
 
 ### `pdfExtractor`
 
@@ -41,6 +47,9 @@ All user state lives under `~/.slashcash/`. The config schema lives in `packages
 - `sync.schedule` — cron string. Default `*/15 * * * *`
 - `sync.gmailQuery` — default `from:(swiggy.in) newer_than:365d`
 - `sync.maxMessages` — default `50`
+- `sync.concurrency.fetch` — default `4`
+- `sync.concurrency.extract` — default `4`
+- `sync.concurrency.write` — fixed at `1`
 
 ### `gmail`
 
@@ -66,8 +75,7 @@ Config migration currently happens on load: defaults are applied, and the normal
 
 `slashcash doctor` or normal command execution covers these cases:
 
-- Ollama daemon unreachable
-- chosen model not pulled
+- assistant provider unconfigured or unreachable
 - Gmail credentials missing
 - Gmail app password rejected
 - Gmail account missing 2-Step Verification for app passwords

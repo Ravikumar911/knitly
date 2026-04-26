@@ -1,7 +1,6 @@
 # Phase 1 — Lock the deterministic Python extractor
 
-> _Phase 1 of 5 in the Swiggy ingest pivot. Read [`pdf-extractor.md`](./pdf-extractor.md) first for the overall plan and "Completed baseline"._
-> _Status: Pending. Owner: next agent._
+> _Phase 1 of 5 in the Swiggy ingest pivot. Read [`pdf-extractor.md`](./pdf-extractor.md) first for the overall plan and "Completed baseline"._ > _Status: Shipped. Owner: codex._
 
 ## Goal
 
@@ -11,12 +10,12 @@ No part of this phase calls Gemma, Ollama, OpenAI, or Claude. The ingest must pr
 
 ## Library decision (no LLMs in this lane)
 
-| Layer | Library | Why | Notes |
-| --- | --- | --- | --- |
-| Primary PDF conversion | [Docling](https://github.com/DS4SD/docling) | Layout-aware markdown/text + table export; handles Swiggy invoice layout best | Already a dependency |
-| Fast PDF probe | [PyMuPDF](https://pymupdf.readthedocs.io/) (`pymupdf`) | Detects text-backed vs image-only, page count, encryption, empty pages quickly | New dep |
-| Deterministic table fallback | [pdfplumber](https://github.com/jsvine/pdfplumber) | No Java; gives char/table coordinates; works when Docling export is sparse | New dep |
-| OCR fallback (optional, gated) | [pytesseract](https://github.com/madmaze/pytesseract) + [OCRmyPDF](https://ocrmypdf.readthedocs.io/) | Only used for image-only PDFs; off by default | Disabled until fixtures justify it |
+| Layer                          | Library                                                                                              | Why                                                                            | Notes                              |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------- |
+| Primary PDF conversion         | [Docling](https://github.com/DS4SD/docling)                                                          | Layout-aware markdown/text + table export; handles Swiggy invoice layout best  | Already a dependency               |
+| Fast PDF probe                 | [PyMuPDF](https://pymupdf.readthedocs.io/) (`pymupdf`)                                               | Detects text-backed vs image-only, page count, encryption, empty pages quickly | New dep                            |
+| Deterministic table fallback   | [pdfplumber](https://github.com/jsvine/pdfplumber)                                                   | No Java; gives char/table coordinates; works when Docling export is sparse     | New dep                            |
+| OCR fallback (optional, gated) | [pytesseract](https://github.com/madmaze/pytesseract) + [OCRmyPDF](https://ocrmypdf.readthedocs.io/) | Only used for image-only PDFs; off by default                                  | Disabled until fixtures justify it |
 
 Avoid Camelot (lattice-only), Tabula (Java runtime), EasyOCR (known `$/8` confusion on amounts), and any LLM/VLM extractor. These are explicitly out of scope.
 
@@ -121,7 +120,7 @@ Create `packages/pdf-extractor/src/slashcash_pdf_extractor/swiggy.py`:
 This phase deletes legacy ingest names that confuse new agents:
 
 - Delete `packages/tasks/src/agents/slashAIV2.ts` and remove every import. The compat re-export from prior planning is removed in this phase, not deferred.
-- Rename `packages/tasks/src/types/slashAI.ts` → `packages/tasks/src/types/email-extraction.ts`. Update all imports.
+- Rename `packages/tasks/src/types/email-extraction.ts` → `packages/tasks/src/types/email-extraction.ts`. Update all imports.
 - Rename `packages/database/src/queries/transactionsEnhanced.test.ts` → `transactions.test.ts` (or merge into the existing transaction tests if there's no naming clash). The "enhanced" name no longer means anything.
 - Delete `OCRModel()` from `packages/tasks/src/ai/model.ts` if it still exists.
 - Delete the `ATTACHMENT HANDLING` block in `packages/tasks/src/merchants/base/basePrompt.ts` if it still exists.
@@ -145,7 +144,7 @@ After this phase, `rg "slashAIV2|slash AI V2|transaction enhanced|transactionsEn
 - `packages/tasks/src/extract/extract-from-pdf.ts`
 - `packages/tasks/src/extract/pipeline.ts`
 - `packages/tasks/src/agents/slashAIV2.ts` (delete)
-- `packages/tasks/src/types/slashAI.ts` (rename)
+- `packages/tasks/src/types/email-extraction.ts` (rename)
 - `packages/tasks/src/ai/model.ts` (delete `OCRModel`)
 - `packages/tasks/src/merchants/base/basePrompt.ts` (delete `ATTACHMENT HANDLING`)
 - `packages/database/src/queries/transactionsEnhanced.test.ts` (rename/merge)

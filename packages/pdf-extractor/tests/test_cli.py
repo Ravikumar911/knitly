@@ -45,4 +45,27 @@ class CliTests(unittest.TestCase):
         payload = json.loads(result.stdout)
         self.assertEqual(payload["merchant"], "swiggy")
         self.assertIn("Total: INR 512.40", payload["raw"]["text"])
-        self.assertIsNone(payload["fields"]["totalAmount"])
+        self.assertEqual(payload["schema_version"], "2")
+        self.assertEqual(payload["fields"]["order_id"], "SWG-PDF-1001")
+        self.assertEqual(payload["fields"]["invoice_total"], 512.4)
+
+    def test_email_body_argument_merges_sources(self) -> None:
+        body = FIXTURES / "body.txt"
+        body.write_text(
+            "Order ID: SWG-PDF-1001\nPaid Via UPI ₹512.40\n",
+            encoding="utf8",
+        )
+        try:
+            result = self.run_cli(
+                str(FIXTURES / "swiggy-sample.pdf"),
+                "--email-body",
+                str(body),
+                "--subject",
+                "Your Swiggy order",
+            )
+        finally:
+            body.unlink(missing_ok=True)
+        self.assertEqual(result.returncode, 0)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["fields"]["paid_amount"], 512.4)
+        self.assertEqual(payload["fields"]["payment_method"], "UPI")

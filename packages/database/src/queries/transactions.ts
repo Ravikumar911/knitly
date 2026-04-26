@@ -49,8 +49,8 @@ export interface TransactionFilters {
   searchQuery?: string;
   minAmount?: number;
   maxAmount?: number;
-  sortBy?: 'date' | 'amount' | 'merchant';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "date" | "amount" | "merchant";
+  sortOrder?: "asc" | "desc";
 }
 
 /**
@@ -60,7 +60,7 @@ export async function getTransactionsWithEmails(
   userId: string,
   filters?: TransactionFilters,
   limit: number = 50,
-  offset: number = 0
+  offset: number = 0,
 ) {
   // Build conditions array
   const conditions: any[] = [eq(transactionsV2.userId, userId)];
@@ -70,7 +70,12 @@ export async function getTransactionsWithEmails(
   }
 
   if (filters?.merchantName) {
-    conditions.push(like(sql`lower(${transactionsV2.merchantName})`, `%${filters.merchantName.toLowerCase()}%`));
+    conditions.push(
+      like(
+        sql`lower(${transactionsV2.merchantName})`,
+        `%${filters.merchantName.toLowerCase()}%`,
+      ),
+    );
   }
 
   if (filters?.status) {
@@ -86,11 +91,15 @@ export async function getTransactionsWithEmails(
   }
 
   if (filters?.startDate) {
-    conditions.push(sql`${transactionsV2.transactionDate} >= ${filters.startDate}`);
+    conditions.push(
+      sql`${transactionsV2.transactionDate} >= ${filters.startDate}`,
+    );
   }
 
   if (filters?.endDate) {
-    conditions.push(sql`${transactionsV2.transactionDate} <= ${filters.endDate}`);
+    conditions.push(
+      sql`${transactionsV2.transactionDate} <= ${filters.endDate}`,
+    );
   }
 
   if (filters?.searchQuery) {
@@ -100,22 +109,31 @@ export async function getTransactionsWithEmails(
         lower(${transactionsV2.description}) LIKE ${pattern} OR
         lower(${transactionsV2.merchantName}) LIKE ${pattern} OR
         lower(${parsedEmails.subject}) LIKE ${pattern}
-      )`
+      )`,
     );
   }
 
   // Determine the sort column and order
-  const sortOrder = filters?.sortOrder === 'asc' ? 'asc' : 'desc'; // Default to desc
+  const sortOrder = filters?.sortOrder === "asc" ? "asc" : "desc"; // Default to desc
 
   // Build the orderBy clause based on sortBy and sortOrder
   let orderByClause;
-  if (filters?.sortBy === 'amount') {
-    orderByClause = sortOrder === 'asc' ? asc(transactionsV2.amount) : desc(transactionsV2.amount);
-  } else if (filters?.sortBy === 'merchant') {
-    orderByClause = sortOrder === 'asc' ? transactionsV2.merchantName : desc(transactionsV2.merchantName);
+  if (filters?.sortBy === "amount") {
+    orderByClause =
+      sortOrder === "asc"
+        ? asc(transactionsV2.amount)
+        : desc(transactionsV2.amount);
+  } else if (filters?.sortBy === "merchant") {
+    orderByClause =
+      sortOrder === "asc"
+        ? transactionsV2.merchantName
+        : desc(transactionsV2.merchantName);
   } else {
     // Default to date sorting
-    orderByClause = sortOrder === 'asc' ? transactionsV2.transactionDate : desc(transactionsV2.transactionDate);
+    orderByClause =
+      sortOrder === "asc"
+        ? transactionsV2.transactionDate
+        : desc(transactionsV2.transactionDate);
   }
 
   const result = await db
@@ -167,7 +185,10 @@ export async function getTransactionsWithEmails(
 /**
  * Get transaction count with filters for pagination
  */
-export async function getTransactionsCount(userId: string, filters?: TransactionFilters) {
+export async function getTransactionsCount(
+  userId: string,
+  filters?: TransactionFilters,
+) {
   const conditions: any[] = [eq(transactionsV2.userId, userId)];
 
   if (filters?.merchantId) {
@@ -175,7 +196,12 @@ export async function getTransactionsCount(userId: string, filters?: Transaction
   }
 
   if (filters?.merchantName) {
-    conditions.push(like(sql`lower(${transactionsV2.merchantName})`, `%${filters.merchantName.toLowerCase()}%`));
+    conditions.push(
+      like(
+        sql`lower(${transactionsV2.merchantName})`,
+        `%${filters.merchantName.toLowerCase()}%`,
+      ),
+    );
   }
 
   if (filters?.status) {
@@ -191,11 +217,15 @@ export async function getTransactionsCount(userId: string, filters?: Transaction
   }
 
   if (filters?.startDate) {
-    conditions.push(sql`${transactionsV2.transactionDate} >= ${filters.startDate}`);
+    conditions.push(
+      sql`${transactionsV2.transactionDate} >= ${filters.startDate}`,
+    );
   }
 
   if (filters?.endDate) {
-    conditions.push(sql`${transactionsV2.transactionDate} <= ${filters.endDate}`);
+    conditions.push(
+      sql`${transactionsV2.transactionDate} <= ${filters.endDate}`,
+    );
   }
 
   if (filters?.searchQuery) {
@@ -204,7 +234,7 @@ export async function getTransactionsCount(userId: string, filters?: Transaction
       sql`(
         lower(${transactionsV2.description}) LIKE ${pattern} OR
         lower(${transactionsV2.merchantName}) LIKE ${pattern}
-      )`
+      )`,
     );
   }
 
@@ -228,11 +258,17 @@ export async function getUserMerchants(userId: string) {
       transactionCount: sql<number>`count(*)`,
     })
     .from(transactionsV2)
-    .where(and(
-      eq(transactionsV2.userId, userId),
-      isNotNull(transactionsV2.merchantId)
-    ))
-    .groupBy(transactionsV2.merchantId, transactionsV2.merchantName, transactionsV2.merchantCode)
+    .where(
+      and(
+        eq(transactionsV2.userId, userId),
+        isNotNull(transactionsV2.merchantId),
+      ),
+    )
+    .groupBy(
+      transactionsV2.merchantId,
+      transactionsV2.merchantName,
+      transactionsV2.merchantCode,
+    )
     .orderBy(desc(sql`count(*)`));
 
   return result;
@@ -241,7 +277,10 @@ export async function getUserMerchants(userId: string) {
 /**
  * Get a specific transaction with email data
  */
-export async function getTransactionWithEmail(transactionId: string, userId: string) {
+export async function getTransactionWithEmail(
+  transactionId: string,
+  userId: string,
+) {
   const result = await db
     .select({
       // Transaction fields
@@ -280,13 +319,50 @@ export async function getTransactionWithEmail(transactionId: string, userId: str
     })
     .from(transactionsV2)
     .leftJoin(parsedEmails, eq(transactionsV2.parsedEmailId, parsedEmails.id))
-    .where(and(
-      eq(transactionsV2.id, transactionId),
-      eq(transactionsV2.userId, userId)
-    ))
+    .where(
+      and(
+        eq(transactionsV2.id, transactionId),
+        eq(transactionsV2.userId, userId),
+      ),
+    )
     .limit(1);
 
   return result[0] as TransactionWithEmail | undefined;
+}
+
+export async function getTransactionProvenance(
+  transactionId: string,
+  userId?: string,
+) {
+  const conditions = [eq(transactionsV2.id, transactionId)];
+  if (userId) {
+    conditions.push(eq(transactionsV2.userId, userId));
+  }
+
+  const result = await db
+    .select({
+      id: transactionsV2.id,
+      merchantData: transactionsV2.merchantData,
+      schemaUsed: transactionsV2.schemaUsed,
+      dataSource: transactionsV2.dataSource,
+      extractionConfidence: transactionsV2.extractionConfidence,
+    })
+    .from(transactionsV2)
+    .where(and(...conditions))
+    .limit(1);
+
+  const row = result[0];
+  if (!row) return null;
+  const merchantData = (row.merchantData || {}) as {
+    provenance?: unknown;
+  };
+  return {
+    transactionId: row.id,
+    schemaUsed: row.schemaUsed,
+    dataSource: row.dataSource,
+    extractionConfidence: row.extractionConfidence,
+    provenance: merchantData.provenance ?? null,
+  };
 }
 
 /**
@@ -296,7 +372,7 @@ export async function getTransactionsWithAttachments(
   userId: string,
   filters?: TransactionFilters,
   limit: number = 50,
-  offset: number = 0
+  offset: number = 0,
 ) {
   // Build conditions array
   const conditions: any[] = [eq(transactionsV2.userId, userId)];
@@ -312,16 +388,24 @@ export async function getTransactionsWithAttachments(
       conditions.push(eq(transactionsV2.category, filters.category));
     }
     if (filters.startDate) {
-      conditions.push(sql`${transactionsV2.transactionDate} >= ${filters.startDate}`);
+      conditions.push(
+        sql`${transactionsV2.transactionDate} >= ${filters.startDate}`,
+      );
     }
     if (filters.endDate) {
-      conditions.push(sql`${transactionsV2.transactionDate} <= ${filters.endDate}`);
+      conditions.push(
+        sql`${transactionsV2.transactionDate} <= ${filters.endDate}`,
+      );
     }
     if (filters.minAmount !== undefined) {
-      conditions.push(sql`CAST(${transactionsV2.amount} AS DECIMAL) >= ${filters.minAmount}`);
+      conditions.push(
+        sql`CAST(${transactionsV2.amount} AS DECIMAL) >= ${filters.minAmount}`,
+      );
     }
     if (filters.maxAmount !== undefined) {
-      conditions.push(sql`CAST(${transactionsV2.amount} AS DECIMAL) <= ${filters.maxAmount}`);
+      conditions.push(
+        sql`CAST(${transactionsV2.amount} AS DECIMAL) <= ${filters.maxAmount}`,
+      );
     }
   }
 
@@ -377,11 +461,13 @@ export async function getTransactionsWithAttachments(
 /**
  * Helper function to parse attachment storage paths from the JSON field
  */
-export function parseAttachmentStoragePaths(attachmentStoragePath: any): string[] {
+export function parseAttachmentStoragePaths(
+  attachmentStoragePath: any,
+): string[] {
   if (!attachmentStoragePath) return [];
-  
+
   try {
-    if (typeof attachmentStoragePath === 'string') {
+    if (typeof attachmentStoragePath === "string") {
       return JSON.parse(attachmentStoragePath);
     }
     if (Array.isArray(attachmentStoragePath)) {
@@ -389,7 +475,7 @@ export function parseAttachmentStoragePaths(attachmentStoragePath: any): string[
     }
     return [];
   } catch (error) {
-    console.error('Error parsing attachment storage paths:', error);
+    console.error("Error parsing attachment storage paths:", error);
     return [];
   }
-} 
+}

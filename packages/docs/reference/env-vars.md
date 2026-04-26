@@ -32,23 +32,25 @@ Most users never need to set any of these. `config.json` is the normal control s
 
 - Developer override that forces `slashcash start` to prefer a locally built standalone Next.js server when present.
 
-## Ollama
+## Assistant providers
 
-`OLLAMA_BASE_URL`
+`SLASHCASH_ASSISTANT_PROVIDER`
 
-- Overrides the Ollama OpenAI-compatible base URL.
-- Default: `http://127.0.0.1:11434/v1`.
+- Overrides the configured assistant provider.
+- Values: `none`, `ollama-local`, `openai-compatible`, `anthropic`.
 
-`OLLAMA_CHAT_MODEL`
+`SLASHCASH_ASSISTANT_BASE_URL`
 
-- Runtime override for the chat model id.
-- Default: `gemma4:latest`.
+- Overrides the configured assistant provider base URL.
 
-`OLLAMA_VISION_MODEL`
+`SLASHCASH_ASSISTANT_CHAT_MODEL`
 
-- Runtime override for the vision model id.
-- Default: `gemma4:latest`.
-- Legacy after the PDF-extractor pivot; PDF extraction is handled by the Python lane (see `SLASHCASH_PDF_EXTRACTOR_*`).
+- Overrides the configured assistant chat model.
+
+`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`
+
+- Used only by `slashcash assistant install/test` and the assistant route when that provider is selected.
+- Ingest never reads these variables.
 
 ## PDF extractor runtime
 
@@ -67,6 +69,10 @@ Most users never need to set any of these. `config.json` is the normal control s
 - Override the per-PDF subprocess timeout.
 - Default: `30000`.
 
+`SLASHCASH_SYNC_PDF_TIMEOUT_MS`
+
+- Deprecated alias retained for roadmap wording; use `SLASHCASH_PDF_EXTRACTOR_TIMEOUT_MS`.
+
 `SLASHCASH_DOCTOR_SKIP_PYTHON`
 
 - Set to `1` to treat the `python-env` check as skipped in `doctor`. Mirrors `SLASHCASH_DOCTOR_SKIP_OLLAMA`.
@@ -82,6 +88,20 @@ The CLI usually sets these before starting the app, cron worker, or sync command
 `SLASHCASH_SYNC_LIMIT`
 
 - Runtime override for the number of messages to inspect.
+
+`SLASHCASH_SYNC_FETCH_CONCURRENCY`
+
+- Max in-flight IMAP fetches.
+- Default: `4`.
+
+`SLASHCASH_SYNC_EXTRACT_CONCURRENCY`
+
+- Max in-flight deterministic extraction subprocesses.
+- Default: `min(4, os.cpus().length - 1)`.
+
+`SLASHCASH_SYNC_WRITE_CONCURRENCY`
+
+- SQLite writer concurrency. Always `1` in v1.
 
 `SLASHCASH_IMAP_SERVER`
 
@@ -99,10 +119,6 @@ The CLI usually sets these before starting the app, cron worker, or sync command
 `SLASHCASH_GMAIL_PASSWORD_STORE`
 
 - Runtime hint set by the CLI to `keychain` or `file`.
-
-`SLASHCASH_SYNC_SKIP_AI`
-
-- Developer/test override that skips local model extraction and forces deterministic fallback extraction.
 
 `SLASHCASH_IMAP_FIXTURE_DIR`
 
@@ -162,10 +178,10 @@ The shipping code should not read these:
 - Supabase: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 - Trigger.dev: `TRIGGER_SECRET_KEY`
 - Hosted Google OAuth owned by us: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- Remote AI providers: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `MISTRAL_API_KEY`
+- Retired ingest AI providers: `MISTRAL_API_KEY`
 - Vercel surface: `VERCEL_URL`, `NEXT_PUBLIC_VERCEL_URL`, `NEXT_PUBLIC_SITE_URL`
 - Postgres: `DATABASE_URL`
 
 ## Where variables are read
 
-The paths module reads `SLASHCASH_HOME` and `SQLITE_DB_PATH`. Attachment helpers read `SLASHCASH_ATTACHMENTS_DIR`. The start/sync/job bootstraps set and read the IMAP and Ollama runtime variables. The Python extractor wrapper at `packages/tasks/src/extract/pdf-extractor.ts` reads `SLASHCASH_PDF_EXTRACTOR_*`. The E2E and fixture harnesses use `SLASHCASH_IMAP_FIXTURE_DIR`, `SLASHCASH_SYNC_SKIP_AI`, `SLASHCASH_PDF_EXTRACTOR_DISABLED`, `SLASHCASH_DOCTOR_SKIP_OLLAMA`, and `SLASHCASH_DOCTOR_SKIP_PYTHON`.
+The paths module reads `SLASHCASH_HOME` and `SQLITE_DB_PATH`. Attachment helpers read `SLASHCASH_ATTACHMENTS_DIR`. The start/sync/job bootstraps set and read the IMAP and sync concurrency variables. The Python extractor wrapper at `packages/tasks/src/extract/pdf-extractor.ts` reads `SLASHCASH_PDF_EXTRACTOR_*`. Assistant code reads only the `SLASHCASH_ASSISTANT_*` provider overrides and the selected provider API key. The E2E and fixture harnesses use `SLASHCASH_IMAP_FIXTURE_DIR`, `SLASHCASH_PDF_EXTRACTOR_DISABLED`, `SLASHCASH_DOCTOR_SKIP_OLLAMA`, and `SLASHCASH_DOCTOR_SKIP_PYTHON`.

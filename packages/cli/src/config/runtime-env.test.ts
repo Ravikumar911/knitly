@@ -13,20 +13,20 @@ describe("applyRuntimeEnv", () => {
     delete process.env.SLASHCASH_GMAIL_QUERY;
     delete process.env.SLASHCASH_SYNC_LIMIT;
     delete process.env.SLASHCASH_IMAP_SERVER;
-    delete process.env.OLLAMA_BASE_URL;
-    delete process.env.OLLAMA_CHAT_MODEL;
-    delete process.env.OLLAMA_VISION_MODEL;
+    delete process.env.SLASHCASH_ASSISTANT_PROVIDER;
+    delete process.env.SLASHCASH_ASSISTANT_BASE_URL;
+    delete process.env.SLASHCASH_ASSISTANT_CHAT_MODEL;
     delete process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON;
     delete process.env.SLASHCASH_PDF_EXTRACTOR_TIMEOUT_MS;
     delete process.env.SLASHCASH_PDF_EXTRACTOR_DISABLED;
     delete process.env.SLASHCASH_IMAP_FIXTURE_DIR;
   });
 
-  it("preserves explicit OLLAMA env overrides", async () => {
+  it("preserves explicit assistant env overrides", async () => {
     process.env.SLASHCASH_IMAP_FIXTURE_DIR = "/tmp/imap-fixtures";
-    process.env.OLLAMA_BASE_URL = "http://127.0.0.1:3302/v1";
-    process.env.OLLAMA_CHAT_MODEL = "mock-swiggy";
-    process.env.OLLAMA_VISION_MODEL = "mock-swiggy";
+    process.env.SLASHCASH_ASSISTANT_PROVIDER = "ollama-local";
+    process.env.SLASHCASH_ASSISTANT_BASE_URL = "http://127.0.0.1:3302/v1";
+    process.env.SLASHCASH_ASSISTANT_CHAT_MODEL = "mock-swiggy";
 
     const { applyRuntimeEnv } = await import("./runtime-env.js");
 
@@ -48,9 +48,11 @@ describe("applyRuntimeEnv", () => {
       },
     });
 
-    expect(process.env.OLLAMA_BASE_URL).toBe("http://127.0.0.1:3302/v1");
-    expect(process.env.OLLAMA_CHAT_MODEL).toBe("mock-swiggy");
-    expect(process.env.OLLAMA_VISION_MODEL).toBe("mock-swiggy");
+    expect(process.env.SLASHCASH_ASSISTANT_PROVIDER).toBe("ollama-local");
+    expect(process.env.SLASHCASH_ASSISTANT_BASE_URL).toBe(
+      "http://127.0.0.1:3302/v1",
+    );
+    expect(process.env.SLASHCASH_ASSISTANT_CHAT_MODEL).toBe("mock-swiggy");
     expect(process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON).toBe(
       "/tmp/slashcash-home/py-venv/bin/python",
     );

@@ -1,7 +1,6 @@
 # Phase 4 — Fast onboarding and assistant provider setup
 
-> _Phase 4 of 5 in the Swiggy ingest pivot. Depends on [`phase-1.md`](./phase-1.md), [`phase-2.md`](./phase-2.md), and [`phase-3.md`](./phase-3.md). Read [`pdf-extractor.md`](./pdf-extractor.md) first._
-> _Status: Pending. Owner: next agent._
+> _Phase 4 of 5 in the Swiggy ingest pivot. Depends on [`phase-1.md`](./phase-1.md), [`phase-2.md`](./phase-2.md), and [`phase-3.md`](./phase-3.md). Read [`pdf-extractor.md`](./pdf-extractor.md) first._ > _Status: Shipped. Owner: codex._
 
 ## Goal
 
@@ -65,12 +64,12 @@ The assistant tab in `apps/main/app/(authenticated)/assistant/` becomes the plac
 
 #### Provider options
 
-| Option | Storage | Notes |
-| --- | --- | --- |
-| Local Ollama (Gemma) | `~/.slashcash/config.json:assistant.provider = "ollama-local"`, `assistant.chatModel`, `assistant.baseUrl` | CTA opens a CLI flow (`slashcash assistant install ollama`) that runs the existing `ollamaInstallStep / ollamaServiceStep / ollamaPullStep` chain. The dashboard polls `/api/assistant/health` until ready. |
-| OpenAI-compatible API key | `~/.slashcash/config.json:assistant.provider = "openai-compatible"`, `assistant.baseUrl`, `assistant.chatModel`; key in keychain (or `~/.slashcash/credentials.json`) | Single form: API key, optional base URL (defaults to `https://api.openai.com/v1`), model name. Validates by streaming one token before saving. |
-| Anthropic / Claude API key | `~/.slashcash/config.json:assistant.provider = "anthropic"`, `assistant.chatModel = "claude-..."`; key in keychain | Adds `@ai-sdk/anthropic` to `apps/main` only. Behind a feature flag `SLASHCASH_ASSISTANT_ANTHROPIC=1` until a maintainer signs off on the new dependency. The UI option is hidden when the flag is off. |
-| Skip for now | `assistant.provider = "none"` | Assistant tab shows "Configure a chat provider to ask questions about your data." Dashboard analytics are unaffected. |
+| Option                     | Storage                                                                                                                                                               | Notes                                                                                                                                                                                                       |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local Ollama (Gemma)       | `~/.slashcash/config.json:assistant.provider = "ollama-local"`, `assistant.chatModel`, `assistant.baseUrl`                                                            | CTA opens a CLI flow (`slashcash assistant install ollama`) that runs the existing `ollamaInstallStep / ollamaServiceStep / ollamaPullStep` chain. The dashboard polls `/api/assistant/health` until ready. |
+| OpenAI-compatible API key  | `~/.slashcash/config.json:assistant.provider = "openai-compatible"`, `assistant.baseUrl`, `assistant.chatModel`; key in keychain (or `~/.slashcash/credentials.json`) | Single form: API key, optional base URL (defaults to `https://api.openai.com/v1`), model name. Validates by streaming one token before saving.                                                              |
+| Anthropic / Claude API key | `~/.slashcash/config.json:assistant.provider = "anthropic"`, `assistant.chatModel = "claude-..."`; key in keychain                                                    | Adds `@ai-sdk/anthropic` to `apps/main` only. Behind a feature flag `SLASHCASH_ASSISTANT_ANTHROPIC=1` until a maintainer signs off on the new dependency. The UI option is hidden when the flag is off.     |
+| Skip for now               | `assistant.provider = "none"`                                                                                                                                         | Assistant tab shows "Configure a chat provider to ask questions about your data." Dashboard analytics are unaffected.                                                                                       |
 
 #### Default model menu (Local Ollama option)
 
@@ -90,8 +89,8 @@ Refactor `apps/main/lib/ai/provider.ts`:
 export function getAssistantProvider(config: AssistantConfig): {
   model: LanguageModel;
   ready: boolean;
-  reason?: string;  // e.g. "ollama-not-running", "missing-api-key"
-}
+  reason?: string; // e.g. "ollama-not-running", "missing-api-key"
+};
 ```
 
 The assistant route (`apps/main/app/api/assistant/route.ts`) checks `ready` first. If false, it returns a structured 4xx response that the assistant UI renders as a setup banner — never a 500.

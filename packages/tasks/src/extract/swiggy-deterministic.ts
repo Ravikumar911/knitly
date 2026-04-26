@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { SwiggyMerchant } from "../merchants/swiggy";
-import type { EmailData } from "../types/slashAI";
-import type { EmailPdfTextSource } from "./extract-from-email-body";
+import type { EmailData } from "../types/email-extraction";
+import type { PdfExtractionSource } from "./extract-from-pdf";
+import type { PdfExtraction } from "./pdf-extractor-schema";
 
 const SwiggyLineItemSchema = z.object({
   name: z.string(),
@@ -10,6 +11,7 @@ const SwiggyLineItemSchema = z.object({
   amount: z.number().nullable(),
   discount: z.number().nullable(),
   netAmount: z.number().nullable(),
+  taxTotal: z.number().nullable(),
 });
 
 export const DeterministicSwiggyExtractionSchema = z.object({
@@ -50,6 +52,16 @@ export type DeterministicSwiggyExtraction = z.infer<
 
 type SwiggyExtraction = z.infer<typeof SwiggyMerchant.schema>;
 
+export type ExtractionProvenance = {
+  parser: string;
+  parserVersion: string;
+  parsersUsed: string[];
+  sourceQuality: "text" | "scanned" | "empty" | "encrypted" | "corrupted";
+  warnings: string[];
+  pdfAttachmentPath: string | null;
+  extractedAt: string;
+};
+
 export type DeterministicSwiggyResult = {
   simple: DeterministicSwiggyExtraction;
   extractionData: SwiggyExtraction;
@@ -58,25 +70,21 @@ export type DeterministicSwiggyResult = {
   parseErrors: string[];
   dataSource: "EMAIL_BODY" | "PDF_ATTACHMENT" | "BOTH";
   contributedByPdf: boolean;
+  provenance: ExtractionProvenance | null;
 };
 
 export function extractSwiggyDeterministically(
   emailData: Pick<EmailData, "subject" | "body" | "date">,
-  pdfTextSources: EmailPdfTextSource[] = [],
+  sources: PdfExtractionSource[] = [],
 ): DeterministicSwiggyResult {
-  const pdfText = pdfTextSources.map((source) => source.text).join("\n\n");
-  const pdfExtraction = extractSimpleFromPdf(emailData.subject, pdfText);
-  const bodyExtraction = extractSimpleFromEmailBody(
-    emailData.subject,
-    emailData.body,
-  );
-  const simple = mergeSimpleExtraction(
-    emailData.subject,
-    pdfExtraction,
-    bodyExtraction,
-  );
+  const primary = chooseBestExtraction(sources);
+  const simple = primary
+    ? toSimpleExtraction(emailData.subject, primary.extraction)
+    : emptySimpleExtraction(emailData.subject, [
+        "No deterministic Python extraction was available.",
+      ]);
   const extractionData = buildSwiggyExtraction(emailData, simple);
-  const dataSource = resolveDataSource(simple, pdfTextSources.length > 0);
+  const dataSource = resolveDataSource(primary?.extraction, sources);
 
   return {
     simple,
@@ -86,169 +94,73 @@ export function extractSwiggyDeterministically(
     parseErrors: extractionData.parseErrors,
     dataSource,
     contributedByPdf: dataSource !== "EMAIL_BODY",
+    provenance: primary ? toProvenance(primary) : null,
   };
 }
 
-function extractSimpleFromPdf(
-  emailSubject: string,
-  pdfText: string,
-): DeterministicSwiggyExtraction {
-  if (!pdfText.trim()) {
-    return emptySimpleExtraction(emailSubject, [
-      "No PDF invoice text was available.",
-    ]);
-  }
-
-  const invoiceText = firstInvoiceText(pdfText);
-  const lines = nonEmptyLines(invoiceText);
-  const itemRows = parseInvoiceItemRows(lines);
-  const orderId = valueAfterLabel(lines, "Order ID");
-  const invoiceNo = valueAfterLabel(lines, "Invoice No");
-  const restaurantName = stripTrailingGstin(
-    valueAfterLabel(lines, "Restaurant Name") ??
-      valueAfterLabel(lines, "Seller Name"),
+function chooseBestExtraction(
+  sources: PdfExtractionSource[],
+): PdfExtractionSource | null {
+  if (sources.length === 0) return null;
+  return (
+    [...sources].sort((left, right) => {
+      const leftAmount =
+        left.extraction.fields.paid_amount ??
+        left.extraction.fields.invoice_total;
+      const rightAmount =
+        right.extraction.fields.paid_amount ??
+        right.extraction.fields.invoice_total;
+      if (leftAmount && !rightAmount) return -1;
+      if (!leftAmount && rightAmount) return 1;
+      return right.extraction.confidence - left.extraction.confidence;
+    })[0] ?? null
   );
-  const customerAddress = valueAfterLabel(lines, "Customer Address");
-  const restaurantAddress = valueAfterLabel(lines, "Address");
-  const invoiceDate = toIsoDate(valueAfterLabel(lines, "Date of Invoice"));
-  const invoiceTotal =
-    tableAmountByLabel(lines, "Invoice Total") ??
-    tableAmountByAnyCell(lines, "Invoice Value");
-  const itemSubtotal = tableSubtotal(lines);
-  const taxTotal = tableAmountByLabel(lines, "Total taxes");
-  const packagingFee =
-    itemRows
-      .filter((item) => /packing/i.test(item.name))
-      .reduce((sum, item) => sum + (item.netAmount ?? item.amount ?? 0), 0) ||
-    null;
-  const discountTotal =
-    itemRows.reduce((sum, item) => sum + (item.discount ?? 0), 0) || null;
-  const parseSuccess = Boolean(orderId && invoiceTotal);
-
-  return DeterministicSwiggyExtractionSchema.parse({
-    detectedProvider: "Swiggy",
-    emailType: parseSuccess ? "ORDER_CONFIRMATION" : "OTHER",
-    emailSubject,
-    parseSuccess,
-    confidenceScore: parseSuccess ? 0.99 : 0.2,
-    orderId,
-    invoiceNo,
-    restaurantName,
-    customerAddress,
-    restaurantAddress,
-    invoiceDate,
-    invoiceTotal,
-    paidAmount: null,
-    itemSubtotal,
-    taxTotal,
-    platformFee: null,
-    deliveryFee: null,
-    packagingFee,
-    discountTotal,
-    paymentMethod: null,
-    serviceType: /seller name|description of goods|instamaxx|instamart/i.test(
-      invoiceText,
-    )
-      ? "INSTAMART"
-      : /restaurant service/i.test(invoiceText)
-        ? "FOOD_DELIVERY"
-        : "UNKNOWN",
-    items: itemRows,
-    parseErrors: parseSuccess
-      ? []
-      : ["PDF text did not include both Order ID and Invoice Total."],
-  });
 }
 
-function extractSimpleFromEmailBody(
+function toSimpleExtraction(
   emailSubject: string,
-  emailBody: string,
+  extraction: PdfExtraction,
 ): DeterministicSwiggyExtraction {
-  const orderId = emailBody.match(/\bOrder ID:\s*([A-Z0-9-]+)/i)?.[1] ?? null;
-  const paid = emailBody.match(
-    /\bPaid Via\s+(.+?)\s+₹\s*([0-9]+(?:\.[0-9]{1,2})?)/i,
-  );
-  const paidAmount = paid?.[2] ? Number(paid[2]) : null;
-  const paymentMethod = paid?.[1]?.trim() || null;
-  const platformFee = amountAfterPhrase(emailBody, "Platform fee with GST");
-  const deliveryFee = freeFeeAfterPhrase(emailBody, "Delivery Fee");
-  const taxTotal = amountAfterPhrase(emailBody, "Taxes");
-  const discountTotal = amountAfterPhrase(emailBody, "Discount Applied");
-  const parseSuccess = Boolean(orderId && paidAmount);
-
-  return DeterministicSwiggyExtractionSchema.parse({
-    detectedProvider: "Swiggy",
-    emailType: parseSuccess ? "ORDER_CONFIRMATION" : "OTHER",
-    emailSubject,
-    parseSuccess,
-    confidenceScore: parseSuccess ? 0.95 : 0,
-    orderId,
-    invoiceNo: null,
-    restaurantName: null,
-    customerAddress: null,
-    restaurantAddress: null,
-    invoiceDate: null,
-    invoiceTotal: null,
-    paidAmount,
-    itemSubtotal: null,
-    taxTotal,
-    platformFee,
-    deliveryFee,
-    packagingFee: null,
-    discountTotal,
-    paymentMethod,
-    serviceType: parseSuccess ? "FOOD_DELIVERY" : "UNKNOWN",
-    items: [],
-    parseErrors: parseSuccess
-      ? []
-      : ["Email body did not include both Order ID and paid amount."],
-  });
-}
-
-function mergeSimpleExtraction(
-  emailSubject: string,
-  pdfExtraction: DeterministicSwiggyExtraction,
-  bodyExtraction: DeterministicSwiggyExtraction,
-): DeterministicSwiggyExtraction {
-  const orderId = pdfExtraction.orderId ?? bodyExtraction.orderId ?? null;
-  const invoiceTotal = pdfExtraction.invoiceTotal;
-  const paidAmount = bodyExtraction.paidAmount ?? invoiceTotal;
-  const parseSuccess = Boolean(orderId && paidAmount);
+  const fields = extraction.fields;
+  const transactionAmount = fields.paid_amount ?? fields.invoice_total ?? null;
+  const parseSuccess = Boolean(fields.order_id && transactionAmount);
   const parseErrors = parseSuccess
     ? []
-    : uniqueStrings([
-        ...pdfExtraction.parseErrors,
-        ...bodyExtraction.parseErrors,
-      ]);
+    : extraction.source_quality.warnings.length > 0
+      ? extraction.source_quality.warnings
+      : ["No completed Swiggy transaction was found."];
 
   return DeterministicSwiggyExtractionSchema.parse({
     detectedProvider: "Swiggy",
     emailType: parseSuccess ? "ORDER_CONFIRMATION" : "OTHER",
     emailSubject,
     parseSuccess,
-    confidenceScore: parseSuccess
-      ? Math.max(pdfExtraction.confidenceScore, bodyExtraction.confidenceScore)
-      : Math.max(pdfExtraction.confidenceScore, bodyExtraction.confidenceScore),
-    orderId,
-    invoiceNo: pdfExtraction.invoiceNo,
-    restaurantName: pdfExtraction.restaurantName,
-    customerAddress: pdfExtraction.customerAddress,
-    restaurantAddress: pdfExtraction.restaurantAddress,
-    invoiceDate: pdfExtraction.invoiceDate,
-    invoiceTotal,
-    paidAmount,
-    itemSubtotal: pdfExtraction.itemSubtotal,
-    taxTotal: pdfExtraction.taxTotal ?? bodyExtraction.taxTotal,
-    platformFee: bodyExtraction.platformFee,
-    deliveryFee: bodyExtraction.deliveryFee,
-    packagingFee: pdfExtraction.packagingFee,
-    discountTotal: bodyExtraction.discountTotal ?? pdfExtraction.discountTotal,
-    paymentMethod: bodyExtraction.paymentMethod,
-    serviceType:
-      pdfExtraction.serviceType !== "UNKNOWN"
-        ? pdfExtraction.serviceType
-        : bodyExtraction.serviceType,
-    items: pdfExtraction.items,
+    confidenceScore: parseSuccess ? extraction.confidence : 0,
+    orderId: fields.order_id ?? null,
+    invoiceNo: fields.invoice_no ?? null,
+    restaurantName: fields.restaurant_name ?? null,
+    customerAddress: fields.customer_address ?? null,
+    restaurantAddress: fields.restaurant_address ?? null,
+    invoiceDate: fields.invoice_date ?? null,
+    invoiceTotal: fields.invoice_total ?? null,
+    paidAmount: fields.paid_amount ?? null,
+    itemSubtotal: fields.item_subtotal ?? null,
+    taxTotal: fields.tax_total ?? null,
+    platformFee: fields.platform_fee ?? null,
+    deliveryFee: fields.delivery_fee ?? null,
+    packagingFee: fields.packaging_fee ?? null,
+    discountTotal: fields.discount_total ?? null,
+    paymentMethod: fields.payment_method ?? null,
+    serviceType: fields.service_type ?? "UNKNOWN",
+    items: fields.items.map((item) => ({
+      name: item.name,
+      quantity: item.quantity ?? null,
+      unitPrice: item.unit_price ?? null,
+      amount: item.amount ?? null,
+      discount: item.discount ?? null,
+      netAmount: item.net_amount ?? null,
+      taxTotal: item.tax_total ?? null,
+    })),
     parseErrors,
   });
 }
@@ -272,7 +184,7 @@ function buildSwiggyExtraction(
         ? simple.parseErrors
         : ["No completed Swiggy transaction was found."],
     confidenceScore: parseSuccess ? simple.confidenceScore : 0,
-    dataSource: resolveDataSource(simple, Boolean(simple.invoiceTotal)),
+    dataSource: resolveSimpleDataSource(simple),
     merchantId: SwiggyMerchant.id,
     merchantCode: SwiggyMerchant.code,
     transaction: parseSuccess
@@ -293,7 +205,7 @@ function buildSwiggyExtraction(
             ...(simple.invoiceNo ? { invoiceNo: simple.invoiceNo } : {}),
             ...(simple.orderId ? { orderId: simple.orderId } : {}),
             ...(simple.invoiceDate ? { invoiceDate: simple.invoiceDate } : {}),
-            ...(simple.invoiceTotal && hasBodyContribution(simple)
+            ...(simple.invoiceTotal && simple.paidAmount
               ? { restaurantInvoiceTotal: String(simple.invoiceTotal) }
               : {}),
           },
@@ -305,7 +217,7 @@ function buildSwiggyExtraction(
           deliveryAddress: simple.customerAddress
             ? {
                 fullAddress: simple.customerAddress,
-                pincode: extractPincode(simple.customerAddress),
+                pincode: extractPincode(simple.customerAddress) || undefined,
               }
             : undefined,
           restaurantName: simple.restaurantName || undefined,
@@ -329,28 +241,38 @@ function buildSwiggyExtraction(
 }
 
 function resolveDataSource(
-  simple: DeterministicSwiggyExtraction,
-  hasPdfText: boolean,
+  extraction: PdfExtraction | undefined,
+  sources: PdfExtractionSource[],
 ): "EMAIL_BODY" | "PDF_ATTACHMENT" | "BOTH" {
+  const hasPdf = sources.some((source) => source.attachmentPath);
+  if (!hasPdf) return "EMAIL_BODY";
   if (
-    simple.paidAmount &&
-    simple.invoiceTotal &&
-    (simple.paymentMethod ||
-      simple.platformFee !== null ||
-      simple.deliveryFee !== null)
+    extraction?.fields.paid_amount !== undefined &&
+    extraction?.fields.paid_amount !== null
   ) {
     return "BOTH";
   }
-  if (hasPdfText || simple.invoiceTotal) return "PDF_ATTACHMENT";
+  return "PDF_ATTACHMENT";
+}
+
+function resolveSimpleDataSource(
+  simple: DeterministicSwiggyExtraction,
+): "EMAIL_BODY" | "PDF_ATTACHMENT" | "BOTH" {
+  if (simple.paidAmount && simple.invoiceTotal) return "BOTH";
+  if (simple.invoiceTotal) return "PDF_ATTACHMENT";
   return "EMAIL_BODY";
 }
 
-function hasBodyContribution(simple: DeterministicSwiggyExtraction): boolean {
-  return Boolean(
-    simple.paymentMethod ||
-      simple.platformFee !== null ||
-      simple.deliveryFee !== null,
-  );
+function toProvenance(source: PdfExtractionSource): ExtractionProvenance {
+  return {
+    parser: source.extraction.extractor,
+    parserVersion: source.extraction.extractor_version,
+    parsersUsed: source.extraction.source_quality.parsers_used,
+    sourceQuality: source.extraction.source_quality.kind,
+    warnings: source.extraction.source_quality.warnings,
+    pdfAttachmentPath: source.attachmentPath,
+    extractedAt: new Date().toISOString(),
+  };
 }
 
 function emptySimpleExtraction(
@@ -384,186 +306,6 @@ function emptySimpleExtraction(
   };
 }
 
-function firstInvoiceText(pdfText: string): string {
-  const start = pdfText.search(/(^|\n)(#+\s*)?TAX INVOICE\b/i);
-  const text = start >= 0 ? pdfText.slice(start) : pdfText;
-  const endMarkers = [
-    text.search(/\n#+\s*Details of ECO\b/i),
-    text.search(/\nDetails of ECO\b/i),
-    text.indexOf("\nTAX INVOICE", 20),
-  ].filter((index) => index > 0);
-  const end = endMarkers.length > 0 ? Math.min(...endMarkers) : text.length;
-  return text.slice(0, end);
-}
-
-function nonEmptyLines(text: string): string[] {
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && line !== "<!-- image -->");
-}
-
-function valueAfterLabel(lines: string[], label: string): string | null {
-  const target = normalizeLabel(label);
-  const index = lines.findIndex((line) => normalizeLabel(line) === target);
-  if (index < 0) return null;
-
-  const value = lines[index + 1];
-  if (!value || looksLikeLabel(value) || value.startsWith("|")) return null;
-  return value.trim();
-}
-
-function parseInvoiceItemRows(
-  lines: string[],
-): DeterministicSwiggyExtraction["items"] {
-  const rows: DeterministicSwiggyExtraction["items"] = [];
-  for (const line of lines) {
-    if (!line.startsWith("|")) continue;
-    const cells = markdownCells(line);
-    const rowNumber = cells[0];
-    if (!rowNumber || !/^\d+\.?$/.test(rowNumber)) continue;
-    const name = cells[1];
-    if (!name || /description/i.test(name)) continue;
-
-    if (cells.length >= 16) {
-      rows.push({
-        name,
-        quantity: numberFromText(cells[2]) ?? null,
-        unitPrice: null,
-        amount: moneyFromText(cells[5]) ?? null,
-        discount: moneyFromText(cells[6]) ?? null,
-        netAmount: moneyFromText(cells[15]) ?? null,
-      });
-      continue;
-    }
-
-    rows.push({
-      name,
-      quantity: numberFromText(cells[3]) ?? null,
-      unitPrice: moneyFromText(cells[4]) ?? null,
-      amount: moneyFromText(cells[5]) ?? null,
-      discount: moneyFromText(cells[6]) ?? null,
-      netAmount: moneyFromText(cells[7]) ?? null,
-    });
-  }
-  return rows;
-}
-
-function markdownCells(line: string): string[] {
-  return line
-    .split("|")
-    .slice(1, -1)
-    .map((cell) => cell.trim().replace(/\s+/g, " "));
-}
-
-function tableAmountByLabel(lines: string[], label: string): number | null {
-  const target = normalizeLabel(label);
-  for (const line of lines) {
-    if (!line.startsWith("|")) continue;
-    const cells = markdownCells(line);
-    if (normalizeLabel(cells[0] || "") !== target) continue;
-    return amountFromCells(cells);
-  }
-  return null;
-}
-
-function tableAmountByAnyCell(lines: string[], label: string): number | null {
-  const target = normalizeLabel(label);
-  for (const line of lines) {
-    if (!line.startsWith("|")) continue;
-    const cells = markdownCells(line);
-    const labelIndex = cells.findIndex(
-      (cell) => normalizeLabel(cell) === target,
-    );
-    if (labelIndex < 0) continue;
-    return amountFromCells(cells.slice(labelIndex + 1));
-  }
-  return null;
-}
-
-function tableSubtotal(lines: string[]): number | null {
-  for (const line of lines) {
-    if (!line.startsWith("|")) continue;
-    const cells = markdownCells(line);
-    if (!cells.some((cell) => normalizeLabel(cell) === "subtotal")) continue;
-    return amountFromCells(cells);
-  }
-  return null;
-}
-
-function amountFromCells(cells: string[]): number | null {
-  for (const cell of [...cells].reverse()) {
-    const amount = moneyFromText(cell);
-    if (amount !== null) return amount;
-  }
-  return null;
-}
-
-function amountAfterPhrase(text: string, phrase: string): number | null {
-  const escaped = escapeRegExp(phrase);
-  const match = text.match(
-    new RegExp(
-      `${escaped}[^₹\\d-]*-?\\s*₹?\\s*([0-9]+(?:\\.[0-9]{1,2})?)`,
-      "i",
-    ),
-  );
-  return match?.[1] ? Number(match[1]) : null;
-}
-
-function freeFeeAfterPhrase(text: string, phrase: string): number | null {
-  const escaped = escapeRegExp(phrase);
-  const match = text.match(
-    new RegExp(
-      `${escaped}[^₹]*₹\\s*([0-9]+(?:\\.[0-9]{1,2})?)(?:\\s*FREE)?`,
-      "i",
-    ),
-  );
-  if (!match?.[1]) return null;
-  return /\bFREE\b/i.test(match[0]) ? 0 : Number(match[1]);
-}
-
-function moneyFromText(value: string | undefined): number | null {
-  if (!value) return null;
-  const match = value.replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
-  if (!match) return null;
-  const amount = Number(match[0]);
-  return Number.isFinite(amount) ? amount : null;
-}
-
-function numberFromText(value: string | undefined): number | null {
-  const amount = moneyFromText(value);
-  return amount === null ? null : amount;
-}
-
-function normalizeLabel(value: string): string {
-  return value.replace(/:$/, "").trim().toLowerCase();
-}
-
-function looksLikeLabel(value: string): boolean {
-  return /:$/.test(value.trim());
-}
-
-function stripTrailingGstin(value: string | null): string | null {
-  if (!value) return null;
-  return value
-    .replace(/\s+\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/i, "")
-    .trim();
-}
-
-function toIsoDate(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const trimmed = value.trim();
-  const indianDate = trimmed.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-  if (indianDate) {
-    const [, day, month, year] = indianDate;
-    return `${year}-${month}-${day}`;
-  }
-
-  const date = new Date(trimmed);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString().slice(0, 10);
-}
-
 function locationFromAddress(address: string): Record<string, unknown> {
   return {
     address,
@@ -573,8 +315,8 @@ function locationFromAddress(address: string): Record<string, unknown> {
   };
 }
 
-function extractPincode(address: string): string | undefined {
-  return address.match(/\b\d{6}\b/)?.[0];
+function extractPincode(address: string): string | null {
+  return address.match(/\b\d{6}\b/)?.[0] ?? null;
 }
 
 function toSwiggyOrderItem(
@@ -592,12 +334,4 @@ function positiveOrUndefined(
   value: number | null | undefined,
 ): number | undefined {
   return typeof value === "number" && value > 0 ? value : undefined;
-}
-
-function uniqueStrings(values: string[]): string[] {
-  return [...new Set(values.filter(Boolean))];
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

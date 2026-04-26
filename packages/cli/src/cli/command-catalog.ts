@@ -16,6 +16,7 @@ const commandLoaders: Array<{
   { id: "onboard", load: () => import("./registry/onboard.js") },
   { id: "privacy", load: () => import("./registry/privacy.js") },
   { id: "sync", load: () => import("./registry/sync.js") },
+  { id: "assistant", load: () => import("./registry/assistant.js") },
   { id: "skills", load: () => import("./registry/skills.js") },
   { id: "logs", load: () => import("./registry/logs.js") },
 ];

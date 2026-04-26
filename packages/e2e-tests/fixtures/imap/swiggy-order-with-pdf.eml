@@ -3,8 +3,8 @@ To: user@gmail.com
 Subject: Swiggy order SWG-TEST-12345 delivered
 Date: Wed, 15 May 2024 19:45:00 +0530
 Message-ID: <fixture-msg-1@slashcash.local>
-X-Slashcash-Fixture-Id: fixture-msg-1
-X-GM-THRID: fixture-thread-1
+X-Slashcash-Fixture-Id: swiggy-order-with-pdf
+X-GM-THRID: fixture-thread-order-pdf
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="fixture-boundary"
 

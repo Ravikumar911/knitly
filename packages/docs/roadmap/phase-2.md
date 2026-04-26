@@ -1,13 +1,13 @@
 # Phase 2 — Remove AI from ingestion
 
-> _Phase 2 of 5 in the Swiggy ingest pivot. Depends on [`phase-1.md`](./phase-1.md). Read [`pdf-extractor.md`](./pdf-extractor.md) first._
-> _Status: Pending. Owner: next agent._
+> _Phase 2 of 5 in the Swiggy ingest pivot. Depends on [`phase-1.md`](./phase-1.md). Read [`pdf-extractor.md`](./pdf-extractor.md) first._ > _Status: Shipped. Owner: codex._
 
 ## Goal
 
 Swiggy ingest writes correct rows **without invoking any chat model**. The current `extractFromEmailSources()` path that calls Gemma over Ollama is removed from the persisted pipeline. Gemma is reserved for the dashboard assistant only.
 
 After this phase:
+
 - `SLASHCASH_SYNC_SKIP_AI=1` is no longer a special "skip AI" mode — it is the default behavior.
 - Ingest never blocks on `OLLAMA_BASE_URL` being reachable.
 - The assistant route (`apps/main/app/api/assistant/route.ts`) is the only place that consumes a chat provider.

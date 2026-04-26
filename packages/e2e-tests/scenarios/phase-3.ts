@@ -14,6 +14,7 @@ const env = {
   SQLITE_DB_PATH: join(home, "db.sqlite"),
   SLASHCASH_IMAP_FIXTURE_DIR: fixtureDir,
   SLASHCASH_DOCTOR_SKIP_OLLAMA: "1",
+  SLASHCASH_DOCTOR_SKIP_PYTHON: "1",
 };
 
 try {
@@ -70,7 +71,11 @@ try {
   if (elapsedMs > 2_000) {
     throw new Error(`idempotent onboard took ${elapsedMs}ms`);
   }
-  assertIncludes(second.stdout, "done Chat model", "rerun skips model prompt");
+  assertIncludes(
+    second.stdout,
+    "done PDF extractor",
+    "rerun keeps the local extractor path idempotent",
+  );
 
   const doctor = run(["doctor", "--quick", "--json"]);
   JSON.parse(extractJsonArray(doctor.stdout));

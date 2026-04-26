@@ -10,55 +10,47 @@ afterEach(() => {
   vi.resetModules();
 });
 
-describe("resolveAiRuntimeConfig", () => {
-  it("falls back to the local slashcash config when env vars are unset", async () => {
+describe("resolveAssistantRuntimeConfig", () => {
+  it("falls back to the local slashcash assistant config", async () => {
     const home = mkdtempSync(join(tmpdir(), "slashcash-provider-"));
     process.env.SLASHCASH_HOME = home;
-    delete process.env.OLLAMA_BASE_URL;
-    delete process.env.OLLAMA_CHAT_MODEL;
+    delete process.env.SLASHCASH_ASSISTANT_BASE_URL;
+    delete process.env.SLASHCASH_ASSISTANT_CHAT_MODEL;
 
     writeFileSync(
       join(home, "config.json"),
       `${JSON.stringify({
-        ai: {
-          ollamaBaseUrl: "http://127.0.0.1:3302/v1",
+        assistant: {
+          provider: "ollama-local",
+          baseUrl: "http://127.0.0.1:3302/v1",
           chatModel: "mock-swiggy",
         },
       })}\n`,
     );
 
-    const { resolveAiRuntimeConfig } = await import("./provider");
+    const { resolveAssistantRuntimeConfig } = await import("./provider");
 
-    expect(resolveAiRuntimeConfig()).toEqual({
-      baseURL: "http://127.0.0.1:3302/v1",
+    expect(resolveAssistantRuntimeConfig()).toEqual({
+      provider: "ollama-local",
+      baseUrl: "http://127.0.0.1:3302/v1",
       chatModel: "mock-swiggy",
     });
 
     rmSync(home, { recursive: true, force: true });
   });
 
-  it("prefers explicit env vars over the local config file", async () => {
+  it("defaults to no provider until configured", async () => {
     const home = mkdtempSync(join(tmpdir(), "slashcash-provider-"));
     process.env.SLASHCASH_HOME = home;
-    process.env.OLLAMA_BASE_URL = "http://127.0.0.1:4400/v1";
-    process.env.OLLAMA_CHAT_MODEL = "env-model";
+    writeFileSync(join(home, "config.json"), "{}\n");
 
-    writeFileSync(
-      join(home, "config.json"),
-      `${JSON.stringify({
-        ai: {
-          ollamaBaseUrl: "http://127.0.0.1:3302/v1",
-          chatModel: "mock-swiggy",
-        },
-      })}\n`,
-    );
+    const { getAssistantProvider } = await import("./provider");
+    const provider = getAssistantProvider();
 
-    const { resolveAiRuntimeConfig } = await import("./provider");
-
-    expect(resolveAiRuntimeConfig()).toEqual({
-      baseURL: "http://127.0.0.1:4400/v1",
-      chatModel: "env-model",
-    });
+    expect(provider.ready).toBe(false);
+    if (!provider.ready) {
+      expect(provider.reason).toBe("no-assistant-provider");
+    }
 
     rmSync(home, { recursive: true, force: true });
   });

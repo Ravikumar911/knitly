@@ -25,13 +25,22 @@ export async function applyRuntimeEnv(input: {
   process.env.SLASHCASH_SYNC_LIMIT = String(
     input.maxMessages || config.sync.maxMessages,
   );
+  process.env.SLASHCASH_SYNC_FETCH_CONCURRENCY =
+    process.env.SLASHCASH_SYNC_FETCH_CONCURRENCY ||
+    String(config.sync.concurrency.fetch);
+  process.env.SLASHCASH_SYNC_EXTRACT_CONCURRENCY =
+    process.env.SLASHCASH_SYNC_EXTRACT_CONCURRENCY ||
+    String(config.sync.concurrency.extract);
+  process.env.SLASHCASH_SYNC_WRITE_CONCURRENCY =
+    process.env.SLASHCASH_SYNC_WRITE_CONCURRENCY ||
+    String(config.sync.concurrency.write);
   process.env.SLASHCASH_IMAP_SERVER = gmail.imapServer;
-  process.env.OLLAMA_BASE_URL =
-    process.env.OLLAMA_BASE_URL || config.ai.ollamaBaseUrl;
-  process.env.OLLAMA_CHAT_MODEL =
-    process.env.OLLAMA_CHAT_MODEL || config.ai.chatModel;
-  process.env.OLLAMA_VISION_MODEL =
-    process.env.OLLAMA_VISION_MODEL || config.ai.visionModel;
+  process.env.SLASHCASH_ASSISTANT_PROVIDER =
+    process.env.SLASHCASH_ASSISTANT_PROVIDER || config.assistant.provider;
+  process.env.SLASHCASH_ASSISTANT_BASE_URL =
+    process.env.SLASHCASH_ASSISTANT_BASE_URL || config.assistant.baseUrl;
+  process.env.SLASHCASH_ASSISTANT_CHAT_MODEL =
+    process.env.SLASHCASH_ASSISTANT_CHAT_MODEL || config.assistant.chatModel;
   process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON =
     process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON ||
     config.pdfExtractor.pythonBin ||

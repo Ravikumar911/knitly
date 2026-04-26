@@ -15,7 +15,7 @@ One human on one machine. No logins, teams, or sync.
 `127.0.0.1`. The only address the dashboard binds to.
 
 **onboard**
-The interactive `slashcash onboard` wizard. It checks Homebrew and Ollama, prompts for a Gmail address and app password, verifies IMAP login, and prepares local state.
+The interactive `slashcash onboard` wizard. It prompts for a Gmail address and app password, verifies IMAP login, prepares local state, and starts the initial sync without a model pull.
 
 **doctor**
 The diagnostic and repair flow behind `slashcash doctor` and `slashcash doctor --fix`.
@@ -42,22 +42,19 @@ A committed `.eml` file under `packages/e2e-tests/fixtures/imap/` used to test t
 A folder under `~/.slashcash/skills/` that can add jobs and guidance. The bundled v1 skill is `gmail-swiggy`.
 
 **Ollama**
-The local model server slashcash uses for chat and source-text extraction.
+The local model server slashcash can use for assistant chat after the user opts in.
 
 **gemma4:latest**
-The default Ollama model tag. Handles chat and the structured Swiggy extraction pass over email body plus Docling PDF text. PDF conversion itself is handled by Docling, not Gemma.
+The default local assistant model tag when the user chooses Ollama. It is not part of ingest.
 
 **Docling**
-The Python library ([github.com/DS4SD/docling](https://github.com/DS4SD/docling), IBM, MIT-licensed) slashcash uses for deterministic PDF invoice extraction. See ADR-026.
+The optional Python library ([github.com/DS4SD/docling](https://github.com/DS4SD/docling), IBM, MIT-licensed) slashcash tries before pdfplumber for deterministic PDF invoice extraction. See ADR-026.
 
 **PDF extractor**
 The Node-side wrapper at `packages/tasks/src/extract/pdf-extractor.ts` plus the Python package at `packages/pdf-extractor/`. Node spawns `python -m slashcash_pdf_extractor` per PDF and parses the JSON stdout against a Zod mirror of the Python schema.
 
 **py-venv**
 The Python 3 virtualenv at `~/.slashcash/py-venv/`. Provisioned by `slashcash doctor --fix` from the pinned `packages/pdf-extractor/requirements.txt`. Tracked by the `.slashcash.install-hash` file so `pip install` only re-runs on drift.
-
-**source extraction pass**
-The single Gemma `generateObject` call in the ingest pipeline that receives the email body plus Docling PDF text and returns the authoritative `transactions_v2` object.
 
 **single-flight**
 The guarantee that the ingest job never overlaps with itself. Enforced by a module-level mutex.

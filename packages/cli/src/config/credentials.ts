@@ -21,16 +21,23 @@ type KeytarModule = {
 };
 
 type FileCredentialShape = {
-  gmail: {
-    address: string;
-    appPassword: string;
+  gmail?: {
+    address?: string;
+    appPassword?: string;
   };
-  warn: boolean;
+  assistant?: Record<string, { apiKey?: string }>;
+  warn?: boolean;
 };
 
 export type StoredGmailCredentials = {
   address: string;
   appPassword: string;
+  store: "keychain" | "file";
+};
+
+export type StoredAssistantCredential = {
+  provider: "openai-compatible" | "anthropic";
+  apiKey: string;
   store: "keychain" | "file";
 };
 
@@ -152,6 +159,115 @@ export async function resetStoredCredentials(): Promise<void> {
   deleteCredentialsFile();
 }
 
+export async function readAssistantCredential(
+  provider: "openai-compatible" | "anthropic",
+): Promise<StoredAssistantCredential | null> {
+  const envKey =
+    provider === "anthropic"
+      ? process.env.ANTHROPIC_API_KEY
+      : process.env.OPENAI_API_KEY;
+  if (envKey?.trim()) {
+    return {
+      provider,
+      apiKey: envKey.trim(),
+      store: "file",
+    };
+  }
+
+  const keytar = await loadKeytar();
+  if (keytar) {
+    const keychainValue = await keytar.getPassword(
+      KEYCHAIN_SERVICE,
+      assistantKeychainAccount(provider),
+    );
+    if (keychainValue) {
+      return {
+        provider,
+        apiKey: keychainValue,
+        store: "keychain",
+      };
+    }
+  }
+
+  const fileCredentials = readCredentialsFile();
+  const apiKey = fileCredentials?.assistant?.[provider]?.apiKey?.trim();
+  return apiKey
+    ? {
+        provider,
+        apiKey,
+        store: "file",
+      }
+    : null;
+}
+
+export async function writeAssistantCredential(input: {
+  provider: "openai-compatible" | "anthropic";
+  apiKey: string;
+}): Promise<StoredAssistantCredential> {
+  const apiKey = input.apiKey.trim();
+  const keytar = await loadKeytar();
+  if (keytar) {
+    try {
+      await keytar.setPassword(
+        KEYCHAIN_SERVICE,
+        assistantKeychainAccount(input.provider),
+        apiKey,
+      );
+      return {
+        provider: input.provider,
+        apiKey,
+        store: "keychain",
+      };
+    } catch {
+      // Fall through to the file store.
+    }
+  }
+
+  const current = readCredentialsFile() ?? { warn: true };
+  writeCredentialsFile({
+    ...current,
+    assistant: {
+      ...(current.assistant ?? {}),
+      [input.provider]: { apiKey },
+    },
+    warn: true,
+  });
+  return {
+    provider: input.provider,
+    apiKey,
+    store: "file",
+  };
+}
+
+export async function clearAssistantCredential(
+  provider?: "openai-compatible" | "anthropic",
+) {
+  const providers = provider
+    ? [provider]
+    : (["openai-compatible", "anthropic"] as const);
+  const keytar = await loadKeytar();
+  if (keytar) {
+    for (const candidate of providers) {
+      await keytar.deletePassword(
+        KEYCHAIN_SERVICE,
+        assistantKeychainAccount(candidate),
+      );
+    }
+  }
+
+  const current = readCredentialsFile();
+  if (!current?.assistant) return;
+  const assistant = { ...current.assistant };
+  for (const candidate of providers) {
+    delete assistant[candidate];
+  }
+  writeCredentialsFile({
+    ...current,
+    assistant,
+    warn: current.warn ?? true,
+  });
+}
+
 export async function getCredentialState(): Promise<CredentialState> {
   const config = loadConfig({ createIfMissing: true });
   const fileCredentials = readCredentialsFile();
@@ -197,6 +313,10 @@ export async function getCredentialState(): Promise<CredentialState> {
 
 export function keychainAccount(address: string) {
   return `gmail-app-password@${address.trim().toLowerCase()}`;
+}
+
+export function assistantKeychainAccount(provider: string) {
+  return `assistant-api-key@${provider}`;
 }
 
 export function describeCredentialStore(store: "keychain" | "file" | null) {
@@ -247,6 +367,7 @@ function readCredentialsFile(): {
     address?: string;
     appPassword?: string;
   };
+  assistant?: Record<string, { apiKey?: string }>;
   warn?: boolean;
 } | null {
   const paths = resolvePaths();
@@ -258,6 +379,7 @@ function readCredentialsFile(): {
         address?: string;
         appPassword?: string;
       };
+      assistant?: Record<string, { apiKey?: string }>;
       warn?: boolean;
     };
   } catch {

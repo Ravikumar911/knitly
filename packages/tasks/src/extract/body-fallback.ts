@@ -1,4 +1,4 @@
-import type { EmailData } from "../types/slashAI";
+import type { EmailData } from "../types/email-extraction";
 
 export type FallbackSwiggyExtraction = {
   amount: number;

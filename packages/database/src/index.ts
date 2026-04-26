@@ -16,7 +16,7 @@ export * from "./schema/relations";
 
 export * from "./schema/transactionsV2";
 
-export * from "./queries/transactionsEnhanced";
+export * from "./queries/transactionWrites";
 
 export * from "./queries/transactions";
 

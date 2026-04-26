@@ -1,4 +1,7 @@
 import { existsSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import pc from "picocolors";
 import {
   describeCredentialStore,
@@ -104,7 +107,9 @@ export async function runOnboard(
 
     await runPipeline(ctx, buildSteps(), activeState);
     printFinalSummary(ctx);
-    ctx.prompter.outro("Onboarding complete. Run `slashcash start`.");
+    ctx.prompter.outro(
+      `Onboarding complete. Open http://${ctx.config.server.host}:${ctx.config.server.port}.`,
+    );
   } catch (error) {
     if (error instanceof WizardCancelledError) {
       process.exitCode = 130;
@@ -118,19 +123,16 @@ export async function runOnboard(
 
 function buildSteps(): Step[] {
   return [
-    homebrewStep,
-    modelQuestionStep,
-    ollamaInstallStep,
-    ollamaServiceStep,
-    ollamaPullStep,
+    welcomeStep,
+    stateDirStep,
+    dbMigrateStep,
     gmailAccountStep,
     gmailAppPasswordStep,
     imapVerifyStep,
-    stateDirStep,
-    dbMigrateStep,
     localProfileStep,
     pythonEnvStep,
     bundledSkillsStep,
+    kickoffSyncStep,
   ];
 }
 
@@ -184,6 +186,16 @@ const homebrewStep: Step = {
       throw new Error("brew is still missing from PATH.");
     }
   },
+};
+
+const welcomeStep: Step = {
+  id: "welcome",
+  label: "Welcome",
+  detect() {
+    return { done: true, message: "local Gmail + SQLite setup" };
+  },
+  install() {},
+  verify() {},
 };
 
 const modelQuestionStep: Step = {
@@ -649,29 +661,37 @@ const pythonEnvStep: Step = {
     return { done: true, message: result.runtime.pythonBin };
   },
   async install(ctx) {
-    const stepSpinner = ctx.prompter.spinner();
-    stepSpinner.start(
-      "Installing PDF extractor (~60s first time, cached after)",
+    const pid = startDetachedCommand(ctx, ["doctor", "--fix", "--quick"]);
+    console.log(
+      pc.yellow(
+        `Installing PDF extractor in the background (pid ${pid}); sync will use body-only extraction until it is ready.`,
+      ),
     );
-    const result = await ensurePythonEnvReady({
-      config: ctx.config,
-      paths: ctx.paths,
-      fix: true,
-    });
-    if (!result.ok) {
-      stepSpinner.error("Python extractor setup failed");
-      throw new Error(result.error.message);
-    }
-    stepSpinner.stop(`PDF extractor ready at ${result.runtime.pythonBin}`);
   },
-  async verify(ctx) {
-    const result = await ensurePythonEnvReady({
-      config: ctx.config,
-      paths: ctx.paths,
-      fix: false,
-    });
-    if (!result.ok) {
-      throw new Error(result.error.message);
+  verify() {
+    return;
+  },
+};
+
+const kickoffSyncStep: Step = {
+  id: "kickoff-sync",
+  label: "Initial sync",
+  detect(ctx) {
+    if (ctx.dryRun || process.env.SLASHCASH_E2E === "1") {
+      return { done: true, message: "skipped by local/E2E mode" };
+    }
+    return { done: false };
+  },
+  install(ctx) {
+    const pid = startDetachedCommand(ctx, ["sync", "--full"]);
+    const pidPath = join(ctx.paths.home, "pid", "sync.pid");
+    mkdirSync(dirname(pidPath), { recursive: true });
+    writeFileSync(pidPath, `${pid}\n`, { mode: 0o600 });
+  },
+  verify(ctx) {
+    const pidPath = join(ctx.paths.home, "pid", "sync.pid");
+    if (!existsSync(pidPath)) {
+      throw new Error("initial sync pid file was not written.");
     }
   },
 };
@@ -681,12 +701,31 @@ function printFinalSummary(ctx: OnboardContext) {
   console.log(`home        ${ctx.paths.home}`);
   console.log(`database    ${ctx.paths.db}`);
   console.log(`skills      ${ctx.paths.skills}`);
-  console.log(`model       ${ctx.config.ai.chatModel}`);
+  console.log(
+    `dashboard   http://${ctx.config.server.host}:${ctx.config.server.port}`,
+  );
+  console.log(`assistant   ${ctx.config.assistant.provider}`);
   console.log(
     FINAL_SUMMARY({
       credentialStore: describeCredentialStore(ctx.credentialStore),
     }),
   );
+}
+
+function startDetachedCommand(ctx: OnboardContext, args: string[]) {
+  const child = spawn("pnpm", ["--filter", "slashcash", "dev", "--", ...args], {
+    cwd: process.cwd(),
+    detached: true,
+    stdio: "ignore",
+    env: {
+      ...process.env,
+      SLASHCASH_HOME: ctx.paths.home,
+      SQLITE_DB_PATH: ctx.paths.db,
+      SLASHCASH_ATTACHMENTS_DIR: ctx.paths.attachments,
+    },
+  });
+  child.unref();
+  return child.pid ?? 0;
 }
 
 async function isOllamaReachable(baseUrl: string, timeoutMs: number) {

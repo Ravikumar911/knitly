@@ -11,15 +11,12 @@ Every command accepts the global flags `--help` and `--version`. Success exits `
 Interactive first-run wizard backed by `@clack/prompts` and the `Step { detect / install / verify }` pipeline. It:
 
 1. Prints the privacy banner.
-2. Verifies Homebrew.
-3. Lets the user pick a local chat model (default `gemma4:latest`).
-4. Detects or installs Ollama, starts the service, and pulls the chosen model.
-5. Prompts for a Gmail address.
-6. Shows the app-password note and prompts for a 16-character Gmail app password.
-7. Verifies IMAP login against `imap.gmail.com:993` before saving credentials.
-8. Creates `~/.slashcash/`, migrates SQLite, and installs bundled skills.
-9. Provisions `~/.slashcash/py-venv/` from the pinned `packages/pdf-extractor/requirements.txt` (reuses the `python-env` repair code that `slashcash doctor --fix` calls).
-10. Prints the final summary.
+2. Creates `~/.slashcash/` and migrates SQLite.
+3. Prompts for a Gmail address.
+4. Shows the app-password note and prompts for a 16-character Gmail app password.
+5. Verifies IMAP login against `imap.gmail.com:993` before saving credentials.
+6. Syncs the local profile, checks the Python extractor, installs bundled skills, and kicks off the first Swiggy sync in the background.
+7. Prints the dashboard URL.
 
 The wizard is idempotent: rerunning on an already-configured machine is a fast no-op summary. Cancellation is safe; the user can rerun `slashcash onboard` or `slashcash doctor --fix`.
 
@@ -58,7 +55,7 @@ Runs host and local-state checks:
 - Gmail credential presence
 - SQLite database
 - bundled skills
-- Ollama reachability and model pull status
+- assistant provider readiness
 - Gmail IMAP login verification
 - Python environment for the PDF extractor (interpreter ≥ 3.11, venv at `~/.slashcash/py-venv`, pinned `pip install` hash matches, `python -m slashcash_pdf_extractor --version` succeeds)
 
@@ -66,7 +63,7 @@ Flags:
 
 - `--fix` recreates missing local state, installs bundled skills, and provisions / re-provisions `~/.slashcash/py-venv` from the pinned `requirements.txt` when the install-hash file at `~/.slashcash/py-venv/.slashcash.install-hash` is missing or stale.
 - `--json` emits the machine-readable check array.
-- `--quick` skips network probes (`ollama`, `gmail-imap`) and the `python-env` import smoke test (venv presence is still checked cheaply).
+- `--quick` skips network probes (`gmail-imap`) and the `python-env` import smoke test (venv presence is still checked cheaply).
 - `--reset-credentials` deletes saved Gmail IMAP credentials before rerunning checks.
 
 ## `slashcash reset`
@@ -92,8 +89,19 @@ Flags:
 - `--full` scans the configured Gmail query from the beginning.
 - `--query <query>` overrides `sync.gmailQuery`.
 - `--limit <n>` overrides `sync.maxMessages`.
+- `--background` starts a detached full sync and writes `~/.slashcash/pid/sync.pid`.
 
 Exits non-zero if the bundled `gmail-swiggy` skill is disabled, credentials are missing, or Gmail IMAP rejects the saved credential.
+
+## `slashcash assistant`
+
+Configures chat after onboarding. Ingest does not require this command.
+
+- `assistant install --provider ollama` selects local Ollama/Gemma.
+- `assistant install --provider openai-compatible --base-url <url> --model <model>` saves an OpenAI-compatible provider and API key.
+- `assistant status [--json]` reports readiness.
+- `assistant test` checks that the configured provider is usable.
+- `assistant clear` removes provider config and saved assistant API keys.
 
 ## `slashcash skills list|enable|disable`
 

@@ -1,5 +1,8 @@
 import { accessSync } from "node:fs";
-import { getCredentialState } from "../config/credentials.js";
+import {
+  getCredentialState,
+  readAssistantCredential,
+} from "../config/credentials.js";
 import { loadConfig } from "../config/load.js";
 import { ensureStateDirs, resolvePaths } from "../config/paths.js";
 import { runPythonEnvCheck } from "./python-env.js";
@@ -238,14 +241,72 @@ export async function runChecks(
   }
 
   const config = loadConfig({ createIfMissing: true });
+  checks.push(await checkAssistantProvider(config.assistant));
   if (!options.quick) {
-    checks.push(
-      await checkOllama(config.ai.ollamaBaseUrl, config.ai.chatModel),
-    );
     checks.push(await checkGmailImap());
   }
 
   return checks;
+}
+
+async function checkAssistantProvider(config: {
+  provider: "none" | "ollama-local" | "openai-compatible" | "anthropic";
+  baseUrl: string;
+  chatModel: string;
+}): Promise<DoctorCheck> {
+  const started = Date.now();
+  const base = {
+    id: "assistant-provider",
+    name: "Assistant provider",
+    label: "Assistant provider",
+    category: "network" as const,
+    durationMs: 0,
+    fix: "Run `slashcash assistant install --provider ollama` or `slashcash assistant install --provider openai-compatible`.",
+  };
+
+  if (config.provider === "none") {
+    return {
+      ...base,
+      status: "ok",
+      message: "not configured (optional)",
+      durationMs: Date.now() - started,
+    };
+  }
+
+  if (
+    config.provider === "openai-compatible" ||
+    config.provider === "anthropic"
+  ) {
+    const credential = await readAssistantCredential(config.provider);
+    return {
+      ...base,
+      status: credential ? "ok" : "fail",
+      message: credential
+        ? `${config.provider} (${config.chatModel})`
+        : "missing API key",
+      durationMs: Date.now() - started,
+    };
+  }
+
+  if (config.provider === "ollama-local") {
+    const ollama = await checkOllama(config.baseUrl, config.chatModel);
+    return {
+      ...base,
+      status: ollama.status,
+      message:
+        ollama.status === "ok"
+          ? `${config.provider} (${config.chatModel})`
+          : ollama.message,
+      durationMs: Date.now() - started,
+    };
+  }
+
+  return {
+    ...base,
+    status: "ok",
+    message: `${config.provider} (${config.chatModel})`,
+    durationMs: Date.now() - started,
+  };
 }
 
 async function checkOllama(

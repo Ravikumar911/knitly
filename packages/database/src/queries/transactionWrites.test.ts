@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { db, ensureLocalDatabase } from "../index";
 import { transactionsV2 } from "../schema/transactionsV2";
 import { profiles } from "../schema/users";
-import { getTransactionsEnhancedByUserId } from "./transactionsEnhanced";
+import { getTransactionsEnhancedByUserId } from "./transactionWrites";
 
-describe("enhanced transaction queries", () => {
+describe("transaction write queries", () => {
   it("applies the optional row limit", async () => {
     const userId = `limit-test-${randomUUID()}`;
     ensureLocalDatabase();

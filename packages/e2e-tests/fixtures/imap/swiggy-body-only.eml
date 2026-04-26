@@ -1,0 +1,17 @@
+From: orders@swiggy.in
+To: user@gmail.com
+Subject: Swiggy order SWG-BODY-1002 delivered
+Date: Thu, 16 May 2024 20:15:00 +0530
+Message-ID: <swiggy-body-only@slashcash.local>
+X-Slashcash-Fixture-Id: swiggy-body-only
+X-GM-THRID: fixture-thread-body-only
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Your Swiggy order has been delivered.
+Order ID: SWG-BODY-1002
+Restaurant: Meghana Foods
+Paid Via UPI ₹482.50
+Area: Indiranagar
+Pincode: 560038

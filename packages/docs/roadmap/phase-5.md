@@ -1,7 +1,6 @@
 # Phase 5 — End-to-end proof, fixtures, dogfood, cleanup
 
-> _Phase 5 of 5 in the Swiggy ingest pivot. Depends on phases 1–4. Read [`pdf-extractor.md`](./pdf-extractor.md) first._
-> _Status: Pending. Owner: next agent._
+> _Phase 5 of 5 in the Swiggy ingest pivot. Depends on phases 1–4. Read [`pdf-extractor.md`](./pdf-extractor.md) first._ > _Status: Shipped. Owner: codex._
 
 ## Goal
 
@@ -13,17 +12,17 @@ Prove the deterministic, parallel, AI-free Swiggy ingest works end-to-end on bot
 
 Expand `packages/e2e-tests/fixtures/imap/` to cover the messy reality of a real Swiggy mailbox. Each fixture lives as a single `.eml` file with a stable `Message-ID` header and a sibling JSON file that describes the **expected outcome**.
 
-| Fixture | Description | Expected outcome |
-| --- | --- | --- |
-| `swiggy-order-with-pdf.eml` | Standard food delivery order with a tax-invoice PDF attached | `processed`, `schemaUsed = swiggy.deterministic.v1`, exact amount, item count, order id |
-| `swiggy-instamart-with-pdf.eml` | Instamart receipt PDF | `processed`, `serviceType = INSTAMART` |
-| `swiggy-body-only.eml` | Order confirmation in body, no PDF | `processed`, `schemaUsed = swiggy.body.v1` |
-| `swiggy-promotion.eml` | "20% off this weekend" promotional email | `skipped_non_transaction` |
-| `swiggy-status-update.eml` | "Your order is on the way" status, no totals | `skipped_non_transaction` |
-| `swiggy-malformed-pdf.eml` | PDF attachment that PyMuPDF cannot open | `processed` via body if possible, else `failed` with classified error |
-| `swiggy-duplicate-order.eml` | Same `Message-ID` as `swiggy-order-with-pdf.eml` | `skipped_existing` on second run |
-| `swiggy-scanned-pdf.eml` | Image-only PDF (rendered, not text-backed) | `skipped_non_transaction` with `sourceQuality.kind = "scanned"` (unless `SLASHCASH_PDF_EXTRACTOR_OCR=1`) |
-| `swiggy-encrypted-pdf.eml` | Password-protected PDF | `failed` with `sourceQuality.kind = "encrypted"` |
+| Fixture                         | Description                                                  | Expected outcome                                                                                         |
+| ------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `swiggy-order-with-pdf.eml`     | Standard food delivery order with a tax-invoice PDF attached | `processed`, `schemaUsed = swiggy.deterministic.v1`, exact amount, item count, order id                  |
+| `swiggy-instamart-with-pdf.eml` | Instamart receipt PDF                                        | `processed`, `serviceType = INSTAMART`                                                                   |
+| `swiggy-body-only.eml`          | Order confirmation in body, no PDF                           | `processed`, `schemaUsed = swiggy.body.v1`                                                               |
+| `swiggy-promotion.eml`          | "20% off this weekend" promotional email                     | `skipped_non_transaction`                                                                                |
+| `swiggy-status-update.eml`      | "Your order is on the way" status, no totals                 | `skipped_non_transaction`                                                                                |
+| `swiggy-malformed-pdf.eml`      | PDF attachment that PyMuPDF cannot open                      | `processed` via body if possible, else `failed` with classified error                                    |
+| `swiggy-duplicate-order.eml`    | Same `Message-ID` as `swiggy-order-with-pdf.eml`             | `skipped_existing` on second run                                                                         |
+| `swiggy-scanned-pdf.eml`        | Image-only PDF (rendered, not text-backed)                   | `skipped_non_transaction` with `sourceQuality.kind = "scanned"` (unless `SLASHCASH_PDF_EXTRACTOR_OCR=1`) |
+| `swiggy-encrypted-pdf.eml`      | Password-protected PDF                                       | `failed` with `sourceQuality.kind = "encrypted"`                                                         |
 
 Each `.eml` references PDFs that live under `packages/e2e-tests/fixtures/pdfs/`. The fixtures must round-trip through `pnpm fixtures:check`.
 

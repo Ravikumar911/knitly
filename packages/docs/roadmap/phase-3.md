@@ -1,7 +1,6 @@
 # Phase 3 — Parallelize IMAP, extraction, and writes
 
-> _Phase 3 of 5 in the Swiggy ingest pivot. Depends on [`phase-1.md`](./phase-1.md) and [`phase-2.md`](./phase-2.md). Read [`pdf-extractor.md`](./pdf-extractor.md) first._
-> _Status: Pending. Owner: next agent._
+> _Phase 3 of 5 in the Swiggy ingest pivot. Depends on [`phase-1.md`](./phase-1.md) and [`phase-2.md`](./phase-2.md). Read [`pdf-extractor.md`](./pdf-extractor.md) first._ > _Status: Shipped. Owner: codex._
 
 ## Goal
 
@@ -36,13 +35,13 @@ One sync run, three bounded stages connected by async queues. The stages run con
 
 Add these env knobs (and config fields under `sync.concurrency` in `~/.slashcash/config.json`):
 
-| Knob | Default | Notes |
-| --- | --- | --- |
-| `SLASHCASH_SYNC_FETCH_CONCURRENCY` | `4` | Max in-flight IMAP `fetchOne` calls. `imapflow` serializes per-mailbox, so this is bounded by Gmail anyway. |
-| `SLASHCASH_SYNC_EXTRACT_CONCURRENCY` | `min(4, os.cpus().length - 1)` | Max parallel `python -m slashcash_pdf_extractor` subprocesses. |
-| `SLASHCASH_SYNC_WRITE_CONCURRENCY` | `1` | Always 1 in v1; SQLite is a single writer with `better-sqlite3`. |
-| `SLASHCASH_SYNC_MAX_MESSAGES` | unset (= unlimited for `--full`) | Existing limit; behavior unchanged. |
-| `SLASHCASH_SYNC_PDF_TIMEOUT_MS` | `30000` | Per-PDF subprocess timeout (existing, surfaced explicitly). |
+| Knob                                 | Default                          | Notes                                                                                                       |
+| ------------------------------------ | -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `SLASHCASH_SYNC_FETCH_CONCURRENCY`   | `4`                              | Max in-flight IMAP `fetchOne` calls. `imapflow` serializes per-mailbox, so this is bounded by Gmail anyway. |
+| `SLASHCASH_SYNC_EXTRACT_CONCURRENCY` | `min(4, os.cpus().length - 1)`   | Max parallel `python -m slashcash_pdf_extractor` subprocesses.                                              |
+| `SLASHCASH_SYNC_WRITE_CONCURRENCY`   | `1`                              | Always 1 in v1; SQLite is a single writer with `better-sqlite3`.                                            |
+| `SLASHCASH_SYNC_MAX_MESSAGES`        | unset (= unlimited for `--full`) | Existing limit; behavior unchanged.                                                                         |
+| `SLASHCASH_SYNC_PDF_TIMEOUT_MS`      | `30000`                          | Per-PDF subprocess timeout (existing, surfaced explicitly).                                                 |
 
 All knobs are documented in `packages/docs/reference/env-vars.md` after this phase.
 
@@ -57,6 +56,7 @@ Create `packages/tasks/src/runtime/pool.ts`:
 - Each pool tracks in-flight count, queues submitted items, and starts the next item on settlement.
 
 Tests:
+
 - 100 work items, concurrency 5, all complete; max in-flight never exceeds 5.
 - Worker rejection does not drop other queued items.
 - `drain()` rejects with the first error if any worker threw and `failFast` is true; otherwise resolves with all settlement results.
@@ -69,7 +69,7 @@ Add to `@workspace/database`:
 export async function getProcessedEmailIds(
   userId: string,
   emailIds: string[],
-): Promise<Set<string>>
+): Promise<Set<string>>;
 ```
 
 Replaces the per-message `isEmailProcessed(...)` call inside the loop. One DB roundtrip instead of N.
@@ -93,15 +93,15 @@ Replace the current `processedCount / skippedCount / errorCount` counters with a
 
 ```ts
 type SyncOutcome =
-  | { kind: "processed", messageId: string, transactionId: string }
-  | { kind: "skipped_existing", messageId: string }
-  | { kind: "skipped_non_transaction", messageId: string, reason: string }
-  | { kind: "failed", messageId: string, error: ImapError | ExtractionError };
+  | { kind: "processed"; messageId: string; transactionId: string }
+  | { kind: "skipped_existing"; messageId: string }
+  | { kind: "skipped_non_transaction"; messageId: string; reason: string }
+  | { kind: "failed"; messageId: string; error: ImapError | ExtractionError };
 
 type EmailSyncResult = {
   success: true;
   totalFound: number;
-  outcomes: SyncOutcome[];          // for tests/audit
+  outcomes: SyncOutcome[]; // for tests/audit
   counts: {
     processed: number;
     skipped_existing: number;

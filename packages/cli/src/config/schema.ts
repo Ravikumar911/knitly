@@ -10,6 +10,19 @@ export const configSchema = z.object({
     chatModel: z.string().min(1).default("gemma4:latest"),
     visionModel: z.string().min(1).default("gemma4:latest"),
   }),
+  assistant: z
+    .object({
+      provider: z
+        .enum(["none", "ollama-local", "openai-compatible", "anthropic"])
+        .default("none"),
+      baseUrl: z.string().url().default("http://127.0.0.1:11434/v1"),
+      chatModel: z.string().min(1).default("gemma4:latest"),
+    })
+    .default({
+      provider: "none",
+      baseUrl: "http://127.0.0.1:11434/v1",
+      chatModel: "gemma4:latest",
+    }),
   pdfExtractor: z
     .object({
       enabled: z.boolean().default(true),
@@ -25,6 +38,17 @@ export const configSchema = z.object({
     schedule: z.string().default("*/15 * * * *"),
     gmailQuery: z.string().min(1).default("from:(swiggy.in) newer_than:365d"),
     maxMessages: z.number().int().min(1).max(500).default(50),
+    concurrency: z
+      .object({
+        fetch: z.number().int().min(1).max(16).default(4),
+        extract: z.number().int().min(1).max(16).default(4),
+        write: z.literal(1).default(1),
+      })
+      .default({
+        fetch: 4,
+        extract: 4,
+        write: 1,
+      }),
   }),
   gmail: z
     .object({
@@ -61,6 +85,11 @@ export const defaultConfig: SlashcashConfig = {
     chatModel: "gemma4:latest",
     visionModel: "gemma4:latest",
   },
+  assistant: {
+    provider: "none",
+    baseUrl: "http://127.0.0.1:11434/v1",
+    chatModel: "gemma4:latest",
+  },
   pdfExtractor: {
     enabled: true,
     timeoutMs: 30_000,
@@ -70,6 +99,11 @@ export const defaultConfig: SlashcashConfig = {
     schedule: "*/15 * * * *",
     gmailQuery: "from:(swiggy.in) newer_than:365d",
     maxMessages: 50,
+    concurrency: {
+      fetch: 4,
+      extract: 4,
+      write: 1,
+    },
   },
   gmail: {
     address: "",
