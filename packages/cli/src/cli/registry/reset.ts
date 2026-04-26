@@ -9,6 +9,13 @@ import {
 import { resetStoredCredentials } from "../../config/credentials.js";
 import { resolvePaths } from "../../config/paths.js";
 
+const RESET_RM_OPTIONS = {
+  recursive: true,
+  force: true,
+  maxRetries: 10,
+  retryDelay: 100,
+} as const;
+
 export function register(program: Command) {
   program
     .command("reset")
@@ -31,8 +38,8 @@ export function register(program: Command) {
         rmSync(paths.db, { force: true });
       }
 
-      rmSync(paths.home, { recursive: true, force: true });
       clearPidFile();
+      rmSync(paths.home, RESET_RM_OPTIONS);
 
       console.log("Reset local slash.cash state. Run `slashcash onboard`.");
     });
