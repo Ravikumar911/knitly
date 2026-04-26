@@ -1,6 +1,11 @@
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { z } from "zod";
 import { chatModel, getAssistantProvider } from "@/lib/ai/provider";
+import {
+  buildAssistantFinanceContext,
+  buildDeterministicQueryPlan,
+  shouldLoadFinanceContext,
+} from "@/lib/assistant/finance-context";
 import { LOCAL_USER_ID } from "@workspace/database";
 import {
   ensureChatForAssistant,
@@ -19,15 +24,33 @@ const streamBodySchema = z.object({
 });
 
 function firstTextFromUserMessage(message: UIMessage): string {
+  return textFromMessage(message) || "New Chat";
+}
+
+function textFromMessage(message: UIMessage): string {
   const textPart = message.parts.find(
     (p): p is { type: "text"; text: string } => p.type === "text",
   );
-  return textPart?.text?.trim() || "New Chat";
+  return textPart?.text?.trim() || "";
+}
+
+function conversationTextFromMessages(messages: UIMessage[]) {
+  return messages
+    .slice(-8)
+    .map((message) => {
+      const text = textFromMessage(message);
+      return text ? `${message.role}: ${text}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 /**
- * Simple assistant: `streamText` + UI message stream, persisted like POST /api/assistant.
- * Swiggy tools + agent path remain on `POST /api/assistant`.
+ * Streaming assistant for the current UI.
+ *
+ * Local finance questions get a deterministic SQLite fact pack before the model
+ * runs. This keeps the path friendly to laptop-sized OpenAI-compatible models
+ * that may not reliably support tool calls.
  */
 export async function POST(req: Request) {
   const provider = getAssistantProvider();
@@ -98,10 +121,35 @@ export async function POST(req: Request) {
     );
   }
 
-  const system =
-    webSearch === true
-      ? "You are a helpful assistant. The user asked for web-style or up-to-date information. You do not have live web access; answer from your training knowledge and state clearly when a fact may be incomplete or out of date."
-      : "You are a helpful assistant that can answer questions and help with tasks.";
+  let financeContext: Awaited<ReturnType<typeof buildAssistantFinanceContext>> =
+    null;
+  let financeContextError: string | null = null;
+  const conversationText = conversationTextFromMessages(messages.slice(0, -1));
+
+  if (shouldLoadFinanceContext(titleSource, conversationText)) {
+    try {
+      const queryPlan = buildDeterministicQueryPlan({
+        userText: titleSource,
+        conversationText,
+      });
+      financeContext = await buildAssistantFinanceContext({
+        userId: LOCAL_USER_ID,
+        userText: titleSource,
+        conversationText,
+        queryPlan,
+      });
+    } catch (err) {
+      financeContextError =
+        err instanceof Error ? err.message : "Unknown local data error";
+      console.error("[assistant/stream] finance context failed:", err);
+    }
+  }
+
+  const system = buildSystemPrompt({
+    webSearch: webSearch === true,
+    financeContext: financeContext?.system,
+    financeContextError,
+  });
 
   const result = streamText({
     model: chatModel(),
@@ -114,7 +162,11 @@ export async function POST(req: Request) {
     sendReasoning: true,
     sendSources: true,
     onFinish: async ({ responseMessage, isAborted }) => {
-      if (isAborted || !responseMessage || responseMessage.role !== "assistant") {
+      if (
+        isAborted ||
+        !responseMessage ||
+        responseMessage.role !== "assistant"
+      ) {
         return;
       }
       try {
@@ -124,4 +176,30 @@ export async function POST(req: Request) {
       }
     },
   });
+}
+
+function buildSystemPrompt(input: {
+  webSearch: boolean;
+  financeContext?: string;
+  financeContextError: string | null;
+}) {
+  const parts = [
+    "You are slash.cash's local-first assistant. Be concise, practical, and honest about what data you have.",
+  ];
+
+  if (input.webSearch) {
+    parts.push(
+      "The user requested web-style or up-to-date information, but this assistant has no live web access in this stream. Answer from model knowledge and clearly say when current facts may be incomplete or out of date.",
+    );
+  }
+
+  if (input.financeContext) {
+    parts.push(input.financeContext);
+  } else if (input.financeContextError) {
+    parts.push(
+      `The user appears to be asking about local spending, but local finance data could not be loaded (${input.financeContextError}). Do not invent numbers; say the local data is unavailable right now.`,
+    );
+  }
+
+  return parts.join("\n\n");
 }

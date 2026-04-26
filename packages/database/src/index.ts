@@ -21,6 +21,7 @@ export * from "./queries/transactionWrites";
 export * from "./queries/transactions";
 
 export * from "./queries/insights/swiggyAnalytics";
+export * from "./queries/insights/swiggyAssistant";
 
 export * from "./queries/feedback";
 

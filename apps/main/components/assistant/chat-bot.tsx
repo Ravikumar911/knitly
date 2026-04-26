@@ -61,7 +61,10 @@ import {
   SourcesTrigger,
 } from "@workspace/ui/components/ai-elements/sources";
 import { SpeechInput } from "@workspace/ui/components/ai-elements/speech-input";
-import { Suggestion, Suggestions } from "@workspace/ui/components/ai-elements/suggestion";
+import {
+  Suggestion,
+  Suggestions,
+} from "@workspace/ui/components/ai-elements/suggestion";
 import type { AttachmentData } from "@workspace/ui/components/ai-elements/attachments";
 import { Alert, AlertDescription } from "@workspace/ui/components/alert";
 import { useChat } from "@ai-sdk/react";
@@ -126,8 +129,8 @@ const suggestions = [
   "What's my top restaurant by orders?",
   "Instamart vs food delivery this quarter?",
   "Show spending trends for my last 10 orders",
-  "What are the latest trends in AI?",
-  "Best practices for React development",
+  "Which month had my highest Swiggy spend?",
+  "What are my recent Swiggy orders?",
 ];
 
 const AttachmentItem = ({
@@ -156,7 +159,7 @@ const PromptInputAttachmentsDisplay = () => {
     (id: string) => {
       attachments.remove(id);
     },
-    [attachments]
+    [attachments],
   );
 
   if (attachments.files.length === 0) {
@@ -224,7 +227,7 @@ const ModelItem = ({
 function renderAssistantMessage(m: UIMessage) {
   const sourceParts = m.parts.filter(
     (p): p is Extract<(typeof m.parts)[number], { type: "source-url" }> =>
-      p.type === "source-url"
+      p.type === "source-url",
   );
 
   return (
@@ -234,11 +237,7 @@ function renderAssistantMessage(m: UIMessage) {
           <SourcesTrigger count={sourceParts.length} />
           <SourcesContent>
             {sourceParts.map((s) => (
-              <Source
-                href={s.url}
-                key={s.sourceId}
-                title={s.title ?? s.url}
-              />
+              <Source href={s.url} key={s.sourceId} title={s.title ?? s.url} />
             ))}
           </SourcesContent>
         </Sources>
@@ -323,7 +322,7 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
           },
         }),
       }),
-    [chatId, model, useWebSearch]
+    [chatId, model, useWebSearch],
   );
 
   const { messages, sendMessage, status, error, clearError } = useChat({
@@ -334,7 +333,9 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
     onError: (err: Error) => {
       console.error("[chat-bot]", err);
       if (err.message?.includes("409") || err.message.includes("Configure")) {
-        toast.error("Configure the assistant in slashcash (e.g. Ollama) before chatting.");
+        toast.error(
+          "Configure the assistant in slashcash (e.g. Ollama) before chatting.",
+        );
         return;
       }
       toast.error(err.message || "Request failed");
@@ -349,18 +350,20 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
       if (isAbort || isError) {
         return;
       }
-      void queryClient.invalidateQueries(trpc.chat.list.queryFilter({ limit: 50 }));
+      void queryClient.invalidateQueries(
+        trpc.chat.list.queryFilter({ limit: 50 }),
+      );
     },
   } as any);
 
   const selectedModelData = useMemo(
     () => models.find((m) => m.id === model),
-    [model]
+    [model],
   );
 
   const visibleMessages = useMemo(
     () => messages.filter((m) => m.role !== "system"),
-    [messages]
+    [messages],
   );
 
   const handleSubmit = useCallback(
@@ -386,7 +389,7 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
         // onError on useChat also runs
       }
     },
-    [sendMessage, clearError]
+    [sendMessage, clearError],
   );
 
   const handleSuggestionClick = useCallback(
@@ -401,7 +404,7 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
         /* useChat onError */
       }
     },
-    [sendMessage, clearError]
+    [sendMessage, clearError],
   );
 
   const handleTranscriptionChange = useCallback(
@@ -409,7 +412,7 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
       const v = textInput.value;
       textInput.setInput(v ? `${v} ${transcript}` : transcript);
     },
-    [textInput]
+    [textInput],
   );
 
   const toggleWebSearch = useCallback(() => {
