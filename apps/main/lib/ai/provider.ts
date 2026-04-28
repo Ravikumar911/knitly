@@ -19,15 +19,62 @@ export type AssistantConfig = {
   chatModel: string;
 };
 
+/**
+ * Single supported chat model id per assistant provider (product surface).
+ * Config/env may still store other strings for migration; runtime uses these.
+ */
+export const ASSISTANT_CANONICAL_CHAT_MODEL = {
+  "ollama-local": "gemma4:latest",
+  "openai-compatible": "gpt-5.4-mini",
+  anthropic: "claude-haiku-4-5",
+} as const satisfies Record<Exclude<AssistantProviderName, "none">, string>;
+
+/** Ids allowed on `model` in POST /api/assistant/stream (Zod). */
+export const ASSISTANT_STREAM_CHAT_MODEL_IDS = [
+  ASSISTANT_CANONICAL_CHAT_MODEL["ollama-local"],
+  ASSISTANT_CANONICAL_CHAT_MODEL["openai-compatible"],
+  ASSISTANT_CANONICAL_CHAT_MODEL.anthropic,
+] as const;
+
+export const ASSISTANT_NOT_CONFIGURED_ERROR = "assistant not configured";
+
+function withCanonicalChatModel(config: AssistantConfig): AssistantConfig {
+  if (config.provider === "none") {
+    return config;
+  }
+  return {
+    ...config,
+    chatModel: ASSISTANT_CANONICAL_CHAT_MODEL[config.provider],
+  };
+}
+
+/**
+ * Validate optional client `model` and return the canonical id for this provider.
+ */
+export function resolveChatModelForRequest(
+  requested: string | undefined,
+  runtime: AssistantConfig,
+): { ok: true; chatModel: string } | { ok: false; error: string } {
+  if (runtime.provider === "none") {
+    return { ok: false, error: ASSISTANT_NOT_CONFIGURED_ERROR };
+  }
+  const canonical = ASSISTANT_CANONICAL_CHAT_MODEL[runtime.provider];
+  const raw = requested?.trim();
+  if (raw && raw.length > 0 && raw !== canonical) {
+    return {
+      ok: false,
+      error: `unsupported model (use ${canonical} for this provider)`,
+    };
+  }
+  return { ok: true, chatModel: canonical };
+}
+
 export type AssistantProviderStatus =
   | { model: LanguageModel; ready: true; config: AssistantConfig }
   | {
       model: null;
       ready: false;
-      reason:
-        | "no-assistant-provider"
-        | "missing-api-key"
-        | "unknown-provider";
+      reason: "no-assistant-provider" | "missing-api-key" | "unknown-provider";
       config: AssistantConfig;
     };
 
@@ -43,72 +90,80 @@ type CredentialsFile = {
   assistant?: Record<string, { apiKey?: string }>;
 };
 
-export function chatModel(): LanguageModel {
-  const provider = getAssistantProvider(resolveAssistantRuntimeConfig());
+type KeytarModule = {
+  getPassword(service: string, account: string): Promise<string | null>;
+};
+
+const KEYCHAIN_SERVICE = "slashcash";
+
+export async function chatModel(): Promise<LanguageModel> {
+  const provider = await getAssistantProvider(resolveAssistantRuntimeConfig());
   if (!provider.ready) {
     throw new Error(provider.reason);
   }
   return provider.model;
 }
 
-export function getAssistantProvider(
+export async function getAssistantProvider(
   config: AssistantConfig = resolveAssistantRuntimeConfig(),
-): AssistantProviderStatus {
-  if (config.provider === "none") {
+): Promise<AssistantProviderStatus> {
+  const effective = withCanonicalChatModel(config);
+
+  if (effective.provider === "none") {
     return {
       model: null,
       ready: false,
       reason: "no-assistant-provider",
-      config,
+      config: effective,
     };
   }
 
-  if (config.provider === "anthropic") {
-    const apiKey = resolveAssistantApiKey("anthropic");
+  if (effective.provider === "anthropic") {
+    const apiKey = await resolveAssistantApiKey("anthropic");
     if (!apiKey) {
       return {
         model: null,
         ready: false,
         reason: "missing-api-key",
-        config,
+        config: effective,
       };
     }
     return {
       model: createOpenAICompatible({
         name: "anthropic-compatible",
-        baseURL: config.baseUrl,
+        baseURL: effective.baseUrl,
         apiKey,
-      })(config.chatModel),
+      })(effective.chatModel),
       ready: true,
-      config,
+      config: effective,
     };
   }
 
   const apiKey =
-    config.provider === "openai-compatible"
-      ? resolveAssistantApiKey("openai-compatible")
+    effective.provider === "openai-compatible"
+      ? await resolveAssistantApiKey("openai-compatible")
       : undefined;
-  if (config.provider === "openai-compatible" && !apiKey) {
+  if (effective.provider === "openai-compatible" && !apiKey) {
     return {
       model: null,
       ready: false,
       reason: "missing-api-key",
-      config,
+      config: effective,
     };
   }
 
   if (
-    config.provider === "ollama-local" ||
-    config.provider === "openai-compatible"
+    effective.provider === "ollama-local" ||
+    effective.provider === "openai-compatible"
   ) {
     return {
       model: createOpenAICompatible({
-        name: config.provider,
-        baseURL: config.baseUrl,
+        name: effective.provider,
+        baseURL: effective.baseUrl,
         apiKey,
-      })(config.chatModel),
+      })(effective.chatModel),
       ready: true,
-      config,
+      config: effective,
     };
   }
 
@@ -116,7 +171,7 @@ export function getAssistantProvider(
     model: null,
     ready: false,
     reason: "unknown-provider",
-    config,
+    config: effective,
   };
 }
 
@@ -152,7 +207,9 @@ export function resolveAiRuntimeConfig() {
   };
 }
 
-function resolveAssistantApiKey(provider: "openai-compatible" | "anthropic") {
+async function resolveAssistantApiKey(
+  provider: "openai-compatible" | "anthropic",
+) {
   if (provider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
     return process.env.ANTHROPIC_API_KEY;
   }
@@ -164,7 +221,35 @@ function resolveAssistantApiKey(provider: "openai-compatible" | "anthropic") {
     const credentials = JSON.parse(
       readFileSync(join(resolveSlashcashHome(), "credentials.json"), "utf8"),
     ) as CredentialsFile;
-    return credentials.assistant?.[provider]?.apiKey || undefined;
+    const fileApiKey = credentials.assistant?.[provider]?.apiKey?.trim();
+    if (fileApiKey) {
+      return fileApiKey;
+    }
+  } catch {
+    // Missing/invalid plaintext credentials are fine; Keychain is preferred.
+  }
+  return readKeychainAssistantApiKey(provider);
+}
+
+async function readKeychainAssistantApiKey(
+  provider: "openai-compatible" | "anthropic",
+) {
+  try {
+    const imported = await import("keytar");
+    const candidate = (
+      imported as { default?: Partial<KeytarModule> } & Partial<KeytarModule>
+    ).getPassword
+      ? (imported as Partial<KeytarModule>)
+      : imported.default;
+    if (!candidate || typeof candidate.getPassword !== "function") {
+      return undefined;
+    }
+    return (
+      (await candidate.getPassword(
+        KEYCHAIN_SERVICE,
+        `assistant-api-key@${provider}`,
+      )) || undefined
+    );
   } catch {
     return undefined;
   }

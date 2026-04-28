@@ -1,5 +1,6 @@
 "use client";
 
+import type { AssistantConfig } from "@/lib/ai/provider";
 import { ChatBot } from "./chat-bot";
 
 /**
@@ -8,6 +9,14 @@ import { ChatBot } from "./chat-bot";
  * a mid-stream navigation that would remount the chat).
  * The id must be created in a Server Component and passed in so it matches on SSR + hydration.
  */
-export function AssistantLandingChat({ chatId }: { chatId: string }) {
-  return <ChatBot chatId={chatId} initialMessages={[]} />;
+export function AssistantLandingChat({
+  chatId,
+  assistantConfig,
+}: {
+  chatId: string;
+  assistantConfig: AssistantConfig;
+}) {
+  return (
+    <ChatBot assistantConfig={assistantConfig} chatId={chatId} initialMessages={[]} />
+  );
 }

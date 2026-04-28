@@ -1,6 +1,12 @@
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { z } from "zod";
-import { chatModel, getAssistantProvider } from "@/lib/ai/provider";
+import {
+  ASSISTANT_NOT_CONFIGURED_ERROR,
+  ASSISTANT_STREAM_CHAT_MODEL_IDS,
+  getAssistantProvider,
+  resolveAssistantRuntimeConfig,
+  resolveChatModelForRequest,
+} from "@/lib/ai/provider";
 import {
   buildAssistantFinanceContext,
   buildDeterministicQueryPlan,
@@ -18,7 +24,9 @@ export const maxDuration = 30;
 const streamBodySchema = z.object({
   chatId: z.string().uuid(),
   messages: z.array(z.unknown()),
-  model: z.string().optional(),
+  model: z
+    .enum(ASSISTANT_STREAM_CHAT_MODEL_IDS as unknown as [string, ...string[]])
+    .optional(),
   webSearch: z.boolean().optional(),
   id: z.string().optional(),
 });
@@ -53,17 +61,6 @@ function conversationTextFromMessages(messages: UIMessage[]) {
  * that may not reliably support tool calls.
  */
 export async function POST(req: Request) {
-  const provider = getAssistantProvider();
-  if (!provider.ready) {
-    return new Response(
-      JSON.stringify({
-        error: provider.reason,
-        message: "Configure an assistant provider before starting chat.",
-      }),
-      { status: 409, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
   let json: unknown;
   try {
     json = await req.json();
@@ -82,6 +79,31 @@ export async function POST(req: Request) {
         details: parsed.error.flatten(),
       }),
       { status: 400, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  const runtime = resolveAssistantRuntimeConfig();
+  const resolvedModel = resolveChatModelForRequest(parsed.data.model, runtime);
+  if (!resolvedModel.ok) {
+    const status =
+      resolvedModel.error === ASSISTANT_NOT_CONFIGURED_ERROR ? 409 : 400;
+    return new Response(JSON.stringify({ error: resolvedModel.error }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const provider = await getAssistantProvider({
+    ...runtime,
+    chatModel: resolvedModel.chatModel,
+  });
+  if (!provider.ready) {
+    return new Response(
+      JSON.stringify({
+        error: provider.reason,
+        message: "Configure an assistant provider before starting chat.",
+      }),
+      { status: 409, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -152,7 +174,7 @@ export async function POST(req: Request) {
   });
 
   const result = streamText({
-    model: chatModel(),
+    model: provider.model,
     system,
     messages: await convertToModelMessages(messages),
   });

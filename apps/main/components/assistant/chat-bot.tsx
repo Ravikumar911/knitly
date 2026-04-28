@@ -89,55 +89,100 @@ import {
   isAssistantLandingPath,
   syncAssistantUrlToChatId,
 } from "@/lib/assistant/assistant-url";
+import type { AssistantConfig } from "@/lib/ai/provider";
 
 const DEFAULT_LOCAL_TAG = "gemma4:latest";
 
-const models = [
+const MODEL_CATALOG: UiModelRow[] = [
   {
     chef: "Ollama",
     chefSlug: "llama",
     id: DEFAULT_LOCAL_TAG,
     name: "Gemma 4 (local)",
-    providers: ["lmstudio"] as const,
+    providers: [],
   },
   {
     chef: "OpenAI",
     chefSlug: "openai",
-    id: "gpt-4o",
-    name: "GPT-4o",
-    providers: ["openai", "azure"] as const,
-  },
-  {
-    chef: "OpenAI",
-    chefSlug: "openai",
-    id: "gpt-4o-mini",
-    name: "GPT-4o Mini",
-    providers: ["openai", "azure"] as const,
-  },
-  {
-    chef: "Anthropic",
-    chefSlug: "anthropic",
-    id: "claude-opus-4-20250514",
-    name: "Claude 4 Opus",
-    providers: ["anthropic", "azure", "google", "amazon-bedrock"] as const,
+    id: "gpt-5.4-mini",
+    name: "GPT-5.4 Mini",
+    providers: ["openai"] as const,
   },
   {
     chef: "Anthropic",
     chefSlug: "anthropic",
     id: "claude-haiku-4-5",
     name: "Claude Haiku 4.5",
-    providers: ["anthropic", "azure", "google", "amazon-bedrock"] as const,
-  },
-  {
-    chef: "Google",
-    chefSlug: "google",
-    id: "gemini-2.0-flash-exp",
-    name: "Gemini 2.0 Flash",
-    providers: ["google"] as const,
+    providers: ["anthropic"] as const,
   },
 ];
 
-const chefs = ["Ollama", "OpenAI", "Anthropic", "Google"];
+type ModelSelectorProvider = "openai" | "anthropic";
+
+type UiModelRow = {
+  chef: "Ollama" | "OpenAI" | "Anthropic";
+  chefSlug: "llama" | "openai" | "anthropic";
+  id: string;
+  name: string;
+  providers: readonly ModelSelectorProvider[];
+};
+
+const CHEF_ORDER = ["Ollama", "OpenAI", "Anthropic"] as const;
+
+function chefMatchesProvider(
+  chef: UiModelRow["chef"],
+  provider: AssistantConfig["provider"],
+): boolean {
+  if (provider === "ollama-local") return chef === "Ollama";
+  if (provider === "openai-compatible") return chef === "OpenAI";
+  if (provider === "anthropic") return chef === "Anthropic";
+  return false;
+}
+
+function syntheticModelRow(config: AssistantConfig): UiModelRow {
+  if (config.provider === "ollama-local") {
+    return {
+      chef: "Ollama",
+      chefSlug: "llama",
+      id: config.chatModel,
+      name: config.chatModel,
+      providers: [],
+    };
+  }
+  if (config.provider === "openai-compatible") {
+    return {
+      chef: "OpenAI",
+      chefSlug: "openai",
+      id: config.chatModel,
+      name: config.chatModel,
+      providers: ["openai"] as const,
+    };
+  }
+  return {
+    chef: "Anthropic",
+    chefSlug: "anthropic",
+    id: config.chatModel,
+    name: config.chatModel,
+    providers: ["anthropic"] as const,
+  };
+}
+
+/** Single UI row for the assistant configured in ~/.slashcash (provider + chatModel). */
+function resolveAssistantUiModels(
+  config: AssistantConfig,
+): UiModelRow[] {
+  if (config.provider === "none") {
+    return [];
+  }
+  const fromCatalog = MODEL_CATALOG.find(
+    (m) =>
+      m.id === config.chatModel && chefMatchesProvider(m.chef, config.provider),
+  );
+  if (fromCatalog) {
+    return [fromCatalog];
+  }
+  return [syntheticModelRow(config)];
+}
 
 const suggestions = [
   "How much did I spend on Swiggy last month?",
@@ -213,7 +258,7 @@ const ModelItem = ({
   isSelected,
   onSelect,
 }: {
-  m: (typeof models)[0];
+  m: UiModelRow;
   isSelected: boolean;
   onSelect: (id: string) => void;
 }) => {
@@ -312,14 +357,23 @@ function renderUserMessage(m: UIMessage) {
 export type ChatBotProps = {
   chatId: string;
   initialMessages?: UIMessage[];
+  assistantConfig: AssistantConfig;
 };
 
-function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
+function ChatBotInner({
+  chatId,
+  initialMessages = [],
+  assistantConfig,
+}: ChatBotProps) {
   const queryClient = useQueryClient();
   const trpc = useTRPC();
   const hasSyncedUrlToThisChat = useRef(false);
   const { textInput, attachments } = usePromptInputController();
-  const [model, setModel] = useState<string>(DEFAULT_LOCAL_TAG);
+  const availableModels = useMemo(
+    () => resolveAssistantUiModels(assistantConfig),
+    [assistantConfig],
+  );
+  const [model, setModel] = useState<string>(() => assistantConfig.chatModel);
   const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
   const [useWebSearch, setUseWebSearch] = useState(false);
 
@@ -399,8 +453,20 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
   }, [chatId, messages]);
 
   const selectedModelData = useMemo(
-    () => models.find((m) => m.id === model),
-    [model],
+    () => availableModels.find((m) => m.id === model),
+    [availableModels, model],
+  );
+
+  useEffect(() => {
+    setModel(assistantConfig.chatModel);
+  }, [assistantConfig.chatModel]);
+
+  const visibleChefHeadings = useMemo(
+    () =>
+      CHEF_ORDER.filter((chef) =>
+        availableModels.some((m) => m.chef === chef),
+      ),
+    [availableModels],
   );
 
   const visibleMessages = useMemo(
@@ -537,25 +603,23 @@ function ChatBotInner({ chatId, initialMessages = [] }: ChatBotProps) {
                 >
                   <ModelSelectorTrigger asChild>
                     <PromptInputButton type="button">
-                      {selectedModelData?.chefSlug && (
+                      {selectedModelData?.chefSlug ? (
                         <ModelSelectorLogo
                           provider={selectedModelData.chefSlug}
                         />
-                      )}
-                      {selectedModelData?.name && (
-                        <ModelSelectorName>
-                          {selectedModelData.name}
-                        </ModelSelectorName>
-                      )}
+                      ) : null}
+                      <ModelSelectorName>
+                        {selectedModelData?.name ?? "Configure assistant"}
+                      </ModelSelectorName>
                     </PromptInputButton>
                   </ModelSelectorTrigger>
                   <ModelSelectorContent>
                     <ModelSelectorInput placeholder="Search models..." />
                     <ModelSelectorList>
                       <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
-                      {chefs.map((chef) => (
+                      {visibleChefHeadings.map((chef) => (
                         <ModelSelectorGroup heading={chef} key={chef}>
-                          {models
+                          {availableModels
                             .filter((x) => x.chef === chef)
                             .map((row) => (
                               <ModelItem

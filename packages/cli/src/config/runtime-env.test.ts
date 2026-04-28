@@ -1,8 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultConfig } from "./schema.js";
 
-vi.mock("./credentials.js", () => ({
+const mocks = vi.hoisted(() => ({
+  readAssistantCredential: vi.fn(),
   readStoredCredentials: vi.fn(),
+}));
+
+vi.mock("./credentials.js", () => ({
+  readAssistantCredential: mocks.readAssistantCredential,
+  readStoredCredentials: mocks.readStoredCredentials,
 }));
 
 describe("applyRuntimeEnv", () => {
@@ -20,13 +26,17 @@ describe("applyRuntimeEnv", () => {
     delete process.env.SLASHCASH_PDF_EXTRACTOR_TIMEOUT_MS;
     delete process.env.SLASHCASH_PDF_EXTRACTOR_DISABLED;
     delete process.env.SLASHCASH_IMAP_FIXTURE_DIR;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it("preserves explicit assistant env overrides", async () => {
     process.env.SLASHCASH_IMAP_FIXTURE_DIR = "/tmp/imap-fixtures";
     process.env.SLASHCASH_ASSISTANT_PROVIDER = "ollama-local";
     process.env.SLASHCASH_ASSISTANT_BASE_URL = "http://127.0.0.1:3302/v1";
-    process.env.SLASHCASH_ASSISTANT_CHAT_MODEL = "mock-swiggy";
+    process.env.SLASHCASH_ASSISTANT_CHAT_MODEL = "gemma4:latest";
 
     const { applyRuntimeEnv } = await import("./runtime-env.js");
 
@@ -52,11 +62,49 @@ describe("applyRuntimeEnv", () => {
     expect(process.env.SLASHCASH_ASSISTANT_BASE_URL).toBe(
       "http://127.0.0.1:3302/v1",
     );
-    expect(process.env.SLASHCASH_ASSISTANT_CHAT_MODEL).toBe("mock-swiggy");
+    expect(process.env.SLASHCASH_ASSISTANT_CHAT_MODEL).toBe("gemma4:latest");
     expect(process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON).toBe(
       "/tmp/slashcash-home/py-venv/bin/python",
     );
     expect(process.env.SLASHCASH_PDF_EXTRACTOR_TIMEOUT_MS).toBe("30000");
     expect(process.env.SQLITE_DB_PATH).toBe("/tmp/slashcash-home/db.sqlite");
+  });
+
+  it("hydrates hosted assistant API keys for the dashboard runtime", async () => {
+    process.env.SLASHCASH_IMAP_FIXTURE_DIR = "/tmp/imap-fixtures";
+    mocks.readAssistantCredential.mockResolvedValue({
+      provider: "anthropic",
+      apiKey: "sk-ant-api03-test-key",
+      store: "keychain",
+    });
+
+    const { applyRuntimeEnv } = await import("./runtime-env.js");
+
+    await applyRuntimeEnv({
+      config: {
+        ...defaultConfig,
+        assistant: {
+          provider: "anthropic",
+          baseUrl: "https://api.anthropic.com/v1",
+          chatModel: "claude-haiku-4-5",
+        },
+      },
+      paths: {
+        home: "/tmp/slashcash-home",
+        config: "/tmp/slashcash-home/config.json",
+        credentials: "/tmp/slashcash-home/credentials.json",
+        db: "/tmp/slashcash-home/db.sqlite",
+        attachments: "/tmp/slashcash-home/attachments",
+        cache: "/tmp/slashcash-home/cache",
+        logs: "/tmp/slashcash-home/logs",
+        skills: "/tmp/slashcash-home/skills",
+        pyVenv: "/tmp/slashcash-home/py-venv",
+        pyInstallHash: "/tmp/slashcash-home/py-venv/.slashcash.install-hash",
+        pidDir: "/tmp/slashcash-home/pid",
+        pidFile: "/tmp/slashcash-home/pid/slashcash.pid.json",
+      },
+    });
+
+    expect(process.env.ANTHROPIC_API_KEY).toBe("sk-ant-api03-test-key");
   });
 });

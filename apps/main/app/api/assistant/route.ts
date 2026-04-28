@@ -11,7 +11,11 @@ import {
   getAssistantProvider,
   resolveAiRuntimeConfig,
 } from "@/lib/ai/provider";
-import { getChatById, LOCAL_USER_ID, getSwiggySpendingOverview } from "@workspace/database";
+import {
+  getChatById,
+  LOCAL_USER_ID,
+  getSwiggySpendingOverview,
+} from "@workspace/database";
 import { swiggyAnalyticsTools } from "@/lib/ai/tools/swiggy-analytics";
 import {
   ensureChatForAssistant,
@@ -24,7 +28,7 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   try {
     console.log("[assistant] === REQUEST RECEIVED ===");
-    const provider = getAssistantProvider();
+    const provider = await getAssistantProvider();
     if (!provider.ready) {
       return new Response(
         JSON.stringify({
@@ -115,7 +119,7 @@ export async function POST(req: Request) {
 
     console.log("[assistant] Creating local assistant agent");
     const agent = new Agent({
-      model: chatModel(),
+      model: await chatModel(),
       instructions: `You are a friendly personal finance assistant that helps users understand their Swiggy spending patterns. You're conversational, insightful, and focused on giving users actionable insights about their food spending habits.
 
           Response Style:
@@ -260,4 +264,3 @@ async function modelSupportsTools(input: {
     return false;
   }
 }
-

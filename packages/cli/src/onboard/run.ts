@@ -46,10 +46,14 @@ const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1";
 const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
 const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1";
 const DEFAULT_OLLAMA_CHAT_MODEL = "gemma4:latest";
-const DEFAULT_OPENAI_CHAT_MODEL = "gpt-4o-mini";
+const DEFAULT_OPENAI_CHAT_MODEL = "gpt-5.4-mini";
 const DEFAULT_ANTHROPIC_CHAT_MODEL = "claude-haiku-4-5";
 
 type AssistantProvider = SlashcashConfig["assistant"]["provider"];
+type HostedAssistantProvider = Extract<
+  AssistantProvider,
+  "openai-compatible" | "anthropic"
+>;
 
 type DetectResult =
   | { done: true; message?: string }
@@ -222,10 +226,13 @@ async function promptToOpenAppPasswordPage(ctx: OnboardContext) {
 }
 
 function isHostedAssistant(ctx: OnboardContext) {
-  return (
-    ctx.config.assistant.provider === "openai-compatible" ||
-    ctx.config.assistant.provider === "anthropic"
-  );
+  return isHostedAssistantProvider(ctx.config.assistant.provider);
+}
+
+function isHostedAssistantProvider(
+  provider: AssistantProvider,
+): provider is HostedAssistantProvider {
+  return provider === "openai-compatible" || provider === "anthropic";
 }
 
 function isOllamaAssistant(ctx: OnboardContext) {
@@ -334,7 +341,14 @@ const assistantProviderStep: Step = {
     }
 
     if (ctx.config.assistant.provider !== "none" && !ctx.freshConfig) {
-      return { done: true, message: ctx.config.assistant.provider };
+      const provider = ctx.config.assistant.provider;
+      if (isHostedAssistantProvider(provider)) {
+        const existing = await readAssistantCredential(provider);
+        if (!existing) {
+          return { done: false, message: "missing assistant API key" };
+        }
+      }
+      return { done: true, message: provider };
     }
 
     if (ctx.yes) {
@@ -344,9 +358,17 @@ const assistantProviderStep: Step = {
       return { done: true, message: ctx.config.assistant.provider };
     }
 
-    return ctx.config.assistant.provider === "none"
-      ? { done: false }
-      : { done: true, message: ctx.config.assistant.provider };
+    if (ctx.config.assistant.provider === "none") {
+      return { done: false };
+    }
+    const provider = ctx.config.assistant.provider;
+    if (isHostedAssistantProvider(provider)) {
+      const existing = await readAssistantCredential(provider);
+      if (!existing) {
+        return { done: false, message: "missing assistant API key" };
+      }
+    }
+    return { done: true, message: provider };
   },
   async install(ctx) {
     if (ctx.nonInteractive) {
@@ -443,17 +465,7 @@ const modelQuestionStep: Step = {
         {
           value: DEFAULT_OLLAMA_CHAT_MODEL,
           label: DEFAULT_OLLAMA_CHAT_MODEL,
-          hint: "Default multimodal Gemma 4 (larger download).",
-        },
-        {
-          value: "gemma4:e2b",
-          label: "gemma4:e2b",
-          hint: "Smaller Gemma 4 build.",
-        },
-        {
-          value: "qwen2.5:7b",
-          label: "qwen2.5:7b",
-          hint: "Larger and slower, usually stronger.",
+          hint: "Local Gemma 4 (multimodal).",
         },
       ],
     });

@@ -1,6 +1,9 @@
 import { join } from "node:path";
 import { CliError } from "../errors/format.js";
-import { readStoredCredentials } from "./credentials.js";
+import {
+  readAssistantCredential,
+  readStoredCredentials,
+} from "./credentials.js";
 import type { SlashcashPaths } from "./paths.js";
 import type { SlashcashConfig } from "./schema.js";
 
@@ -46,6 +49,25 @@ export async function applyRuntimeEnv(input: {
     process.env.SLASHCASH_ASSISTANT_BASE_URL || config.assistant.baseUrl;
   process.env.SLASHCASH_ASSISTANT_CHAT_MODEL =
     process.env.SLASHCASH_ASSISTANT_CHAT_MODEL || config.assistant.chatModel;
+  if (
+    config.assistant.provider === "anthropic" &&
+    !process.env.ANTHROPIC_API_KEY
+  ) {
+    const assistantCredential = await readAssistantCredential("anthropic");
+    if (assistantCredential) {
+      process.env.ANTHROPIC_API_KEY = assistantCredential.apiKey;
+    }
+  }
+  if (
+    config.assistant.provider === "openai-compatible" &&
+    !process.env.OPENAI_API_KEY
+  ) {
+    const assistantCredential =
+      await readAssistantCredential("openai-compatible");
+    if (assistantCredential) {
+      process.env.OPENAI_API_KEY = assistantCredential.apiKey;
+    }
+  }
   process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON =
     process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON ||
     config.pdfExtractor.pythonBin ||

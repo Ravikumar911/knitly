@@ -1,3 +1,4 @@
+import { resolveAssistantRuntimeConfig } from "@/lib/ai/provider";
 import { prefetch, HydrateClient, trpc } from "@/trpc/server";
 import { ChatSidebar } from "@/components/assistant/chat-sidebar";
 import { AssistantLandingChat } from "@/components/assistant/assistant-landing-chat";
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AssistantPage() {
   const landingChatId = randomUUID();
+  const assistantConfig = resolveAssistantRuntimeConfig();
   await prefetch(trpc.chat.list.queryOptions({ limit: 50 }));
 
   return (
@@ -18,7 +20,10 @@ export default async function AssistantPage() {
           <ChatSidebar hideTitleRow />
         </Suspense>
         <main className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
-          <AssistantLandingChat chatId={landingChatId} />
+          <AssistantLandingChat
+            assistantConfig={assistantConfig}
+            chatId={landingChatId}
+          />
         </main>
       </div>
     </HydrateClient>

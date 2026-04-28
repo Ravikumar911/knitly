@@ -32,7 +32,7 @@ export function createPlaywrightEnv(): NodeJS.ProcessEnv {
     SLASHCASH_PORT: String(appPort),
     SLASHCASH_ASSISTANT_PROVIDER: "ollama-local",
     SLASHCASH_ASSISTANT_BASE_URL: mockOllamaBaseUrl,
-    SLASHCASH_ASSISTANT_CHAT_MODEL: "mock-swiggy",
+    SLASHCASH_ASSISTANT_CHAT_MODEL: "gemma4:latest",
   };
 }
 

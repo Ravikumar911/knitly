@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { resolveAssistantRuntimeConfig } from "@/lib/ai/provider";
 import { prefetch, HydrateClient, trpc } from "@/trpc/server";
 import { getChatById, LOCAL_USER_ID } from "@workspace/database";
 import { ChatBot } from "@/components/assistant/chat-bot";
@@ -24,6 +25,7 @@ export default async function ChatPage({ params }: ChatPageProps) {
   }
 
   const chat = await getChatById(chatId, LOCAL_USER_ID);
+  const assistantConfig = resolveAssistantRuntimeConfig();
 
   await prefetch(trpc.chat.list.queryOptions({ limit: 50 }));
 
@@ -45,7 +47,11 @@ export default async function ChatPage({ params }: ChatPageProps) {
           <ChatSidebar hideTitleRow />
         </Suspense>
         <main className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
-          <ChatBot chatId={chatId} initialMessages={initialMessages} />
+          <ChatBot
+            assistantConfig={assistantConfig}
+            chatId={chatId}
+            initialMessages={initialMessages}
+          />
         </main>
       </div>
     </HydrateClient>
