@@ -54,7 +54,9 @@
     }
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "2.0.41",
     "@workspace/database": "workspace:*",
+    "ai": "6.0.168",
     "imapflow": "^1.0.181",
     "mailparser": "^3.7.2",
     "zod": "^3.25.76"

@@ -8,10 +8,8 @@ import {
   extractTextFromPdf,
   type PdfExtractionSource,
 } from "./extract-from-pdf";
-import {
-  extractSwiggyDeterministically,
-  type ExtractionProvenance,
-} from "./swiggy-deterministic";
+import { extractSwiggyWithLlm } from "./swiggy-llm";
+import type { ExtractionProvenance } from "./swiggy-deterministic";
 
 type SwiggyExtraction = z.infer<typeof SwiggyMerchant.schema>;
 
@@ -20,10 +18,7 @@ type PipelineCandidate = {
   extractionConfidence: number;
   parseErrors: string[];
   warnings: string[];
-  schemaUsed:
-    | "swiggy.deterministic.v1"
-    | "swiggy.body.v1"
-    | "swiggy.fallback.v1";
+  schemaUsed: "swiggy.llm.v1" | "swiggy.fallback.v1";
   dataSource: "EMAIL_BODY" | "PDF_ATTACHMENT" | "BOTH";
   contributedByPdf: boolean;
   attachmentPath?: string | null;
@@ -57,18 +52,6 @@ export async function extractTransactionFromEmail(
   const pdfAttachments = (emailData.attachments || []).filter(
     (attachment) => attachment.mimeType === "application/pdf",
   );
-
-  if (pdfAttachments.length === 0) {
-    const bodyOnly = await extractTextFromPdf({
-      emailBody: emailData.body,
-      subject: emailData.subject,
-    });
-    if (bodyOnly.ok) {
-      sources.push(bodyOnly.value);
-    } else {
-      parseErrors.push(bodyOnly.message);
-    }
-  }
 
   for (const attachment of pdfAttachments) {
     if (!attachment.storageUrl) {
@@ -115,29 +98,24 @@ export async function extractTransactionFromEmail(
   });
 
   let finalCandidate: PipelineCandidate | null = null;
-  const deterministic = extractSwiggyDeterministically(emailData, sources);
-  if (
-    deterministic.parseSuccess &&
-    deterministic.extractionData.transaction?.amount
-  ) {
+  const llm = await extractSwiggyWithLlm(emailData, sources);
+  if (llm.parseSuccess && llm.extractionData.transaction?.amount) {
     finalCandidate = {
-      extractionData: deterministic.extractionData,
-      extractionConfidence: deterministic.extractionConfidence,
-      parseErrors: deterministic.parseErrors,
+      extractionData: llm.extractionData,
+      extractionConfidence: llm.extractionConfidence,
+      parseErrors: llm.parseErrors,
       warnings: sources.flatMap((source) => source.warnings),
-      schemaUsed: deterministic.contributedByPdf
-        ? "swiggy.deterministic.v1"
-        : "swiggy.body.v1",
-      dataSource: deterministic.dataSource,
-      contributedByPdf: deterministic.contributedByPdf,
+      schemaUsed: "swiggy.llm.v1",
+      dataSource: llm.dataSource,
+      contributedByPdf: llm.contributedByPdf,
       attachmentPath:
         sources.find((source) => source.attachmentPath)?.attachmentPath ?? null,
-      provenance: deterministic.provenance,
+      provenance: llm.provenance,
     };
     logPipelineStep("merge", {
       step: 3,
       emailId: emailData.emailId ?? null,
-      decision: "deterministic_python",
+      decision: "llm",
       schemaUsed: finalCandidate.schemaUsed,
       dataSource: finalCandidate.dataSource,
       amount: finalCandidate.extractionData.transaction?.amount ?? null,
@@ -146,9 +124,9 @@ export async function extractTransactionFromEmail(
       sourceCount: sources.length,
     });
   } else {
-    syncDebug("deterministic-extraction-empty", {
+    syncDebug("llm-extraction-empty", {
       emailId: emailData.emailId || null,
-      parseErrorCount: deterministic.parseErrors.length,
+      parseErrorCount: llm.parseErrors.length,
       sourceCount: sources.length,
     });
   }
@@ -175,7 +153,7 @@ export async function extractTransactionFromEmail(
             transactionDate: emailData.date,
             description: fallback.description,
             category: "Food",
-            paymentMethod: "UPI",
+            paymentMethod: fallback.paymentMethod ?? undefined,
             referenceIds: { orderId: fallback.orderId },
             orderId: fallback.orderId,
             restaurantName: fallback.restaurant,
@@ -194,7 +172,7 @@ export async function extractTransactionFromEmail(
         schemaUsed: "swiggy.fallback.v1",
         dataSource: "EMAIL_BODY",
         contributedByPdf: false,
-        provenance: null,
+        provenance: llm.provenance,
       };
       logPipelineStep("merge", {
         step: 3,
@@ -215,8 +193,8 @@ export async function extractTransactionFromEmail(
 
   if (!finalCandidate || !finalCandidate.extractionData.transaction?.amount) {
     const failureErrors =
-      deterministic.parseErrors.length > 0
-        ? deterministic.parseErrors
+      llm.parseErrors.length > 0
+        ? llm.parseErrors
         : parseErrors.length > 0
           ? parseErrors
           : ["No completed Swiggy transaction was found."];
@@ -242,7 +220,7 @@ export async function extractTransactionFromEmail(
       dataSource: "EMAIL_BODY",
       contributedByPdf: false,
       parseSuccess: false,
-      provenance: deterministic.provenance,
+      provenance: llm.provenance,
     };
   }
 

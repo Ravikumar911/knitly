@@ -2,11 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   extractTextFromPdf: vi.fn(),
+  extractSwiggyWithLlm: vi.fn(),
   storeTransactionV2Input: vi.fn(),
 }));
 
 vi.mock("./extract-from-pdf", () => ({
   extractTextFromPdf: mocks.extractTextFromPdf,
+}));
+
+vi.mock("./swiggy-llm", () => ({
+  extractSwiggyWithLlm: mocks.extractSwiggyWithLlm,
 }));
 
 vi.mock("@workspace/database", () => ({
@@ -19,13 +24,20 @@ describe("extractTransactionFromEmail", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.storeTransactionV2Input.mockResolvedValue({ id: "txn-1" });
+    mocks.extractSwiggyWithLlm.mockResolvedValue(
+      llmResult({
+        amount: 512.4,
+        orderId: "SWG-PDF-1001",
+        restaurantName: "Millet Bowl Co",
+      }),
+    );
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it("stores deterministic Python output without invoking a model", async () => {
+  it("stores LLM output from PDF text and email body", async () => {
     mocks.extractTextFromPdf.mockResolvedValue({
       ok: true,
       value: deterministicSource("/tmp/fixture.pdf"),
@@ -57,17 +69,26 @@ describe("extractTransactionFromEmail", () => {
       emailBody: "Paid Via UPI ₹512.40",
       subject: "Your Swiggy order",
     });
-    expect(result.schemaUsed).toBe("swiggy.deterministic.v1");
+    expect(mocks.extractSwiggyWithLlm).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: "Your Swiggy order",
+        body: "Paid Via UPI ₹512.40",
+      }),
+      expect.arrayContaining([
+        expect.objectContaining({ attachmentPath: "/tmp/fixture.pdf" }),
+      ]),
+    );
+    expect(result.schemaUsed).toBe("swiggy.llm.v1");
     expect(result.dataSource).toBe("BOTH");
     expect(result.transactionId).toBe("txn-1");
     expect(mocks.storeTransactionV2Input).toHaveBeenCalledWith(
       expect.objectContaining({
         amount: 512.4,
-        schemaUsed: "swiggy.deterministic.v1",
+        schemaUsed: "swiggy.llm.v1",
         dataSource: "BOTH",
         merchantData: expect.objectContaining({
           provenance: expect.objectContaining({
-            parser: "slashcash_pdf_extractor",
+            parser: "swiggy-llm",
             sourceQuality: "text",
           }),
         }),
@@ -75,11 +96,13 @@ describe("extractTransactionFromEmail", () => {
     );
   });
 
-  it("falls back to the body regex when Python extraction is unavailable", async () => {
-    mocks.extractTextFromPdf.mockResolvedValue({
-      ok: false,
-      message: "The PDF extractor is disabled by environment.",
-    });
+  it("falls back to the body regex when LLM extraction is unavailable", async () => {
+    mocks.extractSwiggyWithLlm.mockResolvedValue(
+      llmResult({
+        parseSuccess: false,
+        parseErrors: ["Extraction model unavailable: no-assistant-provider."],
+      }),
+    );
 
     const result = await extractTransactionFromEmail(
       {
@@ -102,8 +125,69 @@ describe("extractTransactionFromEmail", () => {
     expect(result.parseSuccess).toBe(true);
     expect(result.schemaUsed).toBe("swiggy.fallback.v1");
     expect(result.extractionData.transaction?.amount).toBe(348.5);
+    expect(mocks.extractTextFromPdf).not.toHaveBeenCalled();
   });
 });
+
+function llmResult(
+  input: {
+    amount?: number;
+    orderId?: string;
+    restaurantName?: string;
+    parseSuccess?: boolean;
+    parseErrors?: string[];
+  } = {},
+) {
+  const parseSuccess = input.parseSuccess ?? true;
+  return {
+    parseSuccess,
+    parseErrors: input.parseErrors ?? [],
+    extractionConfidence: parseSuccess ? 0.92 : 0,
+    dataSource: "BOTH",
+    contributedByPdf: true,
+    provenance: {
+      parser: "swiggy-llm",
+      parserVersion: "1",
+      parsersUsed: ["slashcash_pdf_extractor", "pdfplumber"],
+      sourceQuality: "text",
+      warnings: [],
+      pdfAttachmentPath: "/tmp/fixture.pdf",
+      extractedAt: "2026-04-22T00:00:00.000Z",
+    },
+    extractionData: {
+      detectedProvider: "Swiggy",
+      emailType: parseSuccess ? "ORDER_CONFIRMATION" : "OTHER",
+      emailSubject: "Your Swiggy order",
+      parseSuccess,
+      parseErrors: input.parseErrors ?? [],
+      confidenceScore: parseSuccess ? 0.92 : 0,
+      dataSource: "BOTH",
+      merchantId: "swiggy",
+      merchantCode: "SWIGGY",
+      transaction: parseSuccess
+        ? {
+            amount: input.amount ?? 512.4,
+            currency: "INR",
+            type: "DEBIT",
+            status: "COMPLETED",
+            transactionDate: "2026-04-22T19:42:00+05:30",
+            description: `Swiggy order - ${input.restaurantName ?? "Swiggy"}`,
+            category: "Food",
+            paymentMethod: "UPI",
+            referenceIds: { orderId: input.orderId ?? "SWG-PDF-1001" },
+            orderId: input.orderId ?? "SWG-PDF-1001",
+            restaurantName: input.restaurantName ?? "Millet Bowl Co",
+          }
+        : undefined,
+      swiggyMetadata: parseSuccess
+        ? {
+            service: "FOOD_DELIVERY",
+            orderType: "DELIVERY",
+          }
+        : undefined,
+    },
+  };
+}
 
 function deterministicSource(attachmentPath: string) {
   return {
@@ -125,27 +209,8 @@ function deterministicSource(attachmentPath: string) {
       extractor: "slashcash_pdf_extractor",
       extractor_version: "0.1.0",
       merchant: "swiggy",
-      confidence: 0.99,
-      fields: {
-        order_id: "SWG-PDF-1001",
-        invoice_no: "INV-1",
-        invoice_date: "2026-04-22",
-        restaurant_name: "Millet Bowl Co",
-        restaurant_address: null,
-        customer_address: "Indiranagar 560038",
-        pincode: "560038",
-        invoice_total: 512.4,
-        paid_amount: 512.4,
-        item_subtotal: null,
-        tax_total: null,
-        platform_fee: null,
-        delivery_fee: null,
-        packaging_fee: null,
-        discount_total: null,
-        payment_method: "UPI",
-        service_type: "FOOD_DELIVERY",
-        items: [],
-      },
+      confidence: 0,
+      fields: {},
       raw: {
         page_count: 1,
         tables: [],

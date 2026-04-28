@@ -29,8 +29,13 @@ export async function applyRuntimeEnv(input: {
     process.env.SLASHCASH_SYNC_FETCH_CONCURRENCY ||
     String(config.sync.concurrency.fetch);
   process.env.SLASHCASH_SYNC_EXTRACT_CONCURRENCY =
+    process.env.SLASHCASH_EXTRACT_LLM_CONCURRENCY ||
     process.env.SLASHCASH_SYNC_EXTRACT_CONCURRENCY ||
-    String(config.sync.concurrency.extract);
+    String(
+      config.assistant.provider === "ollama-local"
+        ? 1
+        : config.sync.concurrency.extract,
+    );
   process.env.SLASHCASH_SYNC_WRITE_CONCURRENCY =
     process.env.SLASHCASH_SYNC_WRITE_CONCURRENCY ||
     String(config.sync.concurrency.write);

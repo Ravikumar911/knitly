@@ -10,13 +10,6 @@ from .schema import (
     PdfExtractionRaw,
     SourceQuality,
 )
-from .swiggy import (
-    ParsedSwiggy,
-    empty_result,
-    extract_swiggy_body,
-    extract_swiggy_invoice,
-    merge_swiggy_sources,
-)
 
 try:
     import fitz
@@ -82,7 +75,6 @@ def extract_pdf(
         parsers_used=[],
         warnings=[],
     )
-    pdf_parse: ParsedSwiggy | None = None
 
     if path is not None:
         probe = probe_pdf(path)
@@ -106,38 +98,19 @@ def extract_pdf(
             text_result = extract_text_backed_pdf(path)
             source_quality.kind = "text" if text_result.text.strip() else "empty"
 
-        if text_result.text.strip():
-            pdf_parse = extract_swiggy_invoice(text_result.text, subject)
-        else:
-            pdf_parse = empty_result(
-                f"PDF source quality is {source_quality.kind}; no invoice text was available."
-            )
-
-    body_parse = (
-        extract_swiggy_body(email_body, subject)
-        if email_body and email_body.strip()
-        else None
-    )
-    merged = merge_swiggy_sources(pdf_parse, body_parse)
-
-    if path is None and body_parse is not None:
-        source_quality.kind = "text"
-        source_quality.parsers_used = ["email-body"]
-        source_quality.page_count = 0
-    else:
-        source_quality.parsers_used = text_result.parsers_used
-    source_quality.warnings = [*text_result.warnings, *merged.warnings]
+    source_quality.parsers_used = text_result.parsers_used
+    source_quality.warnings = text_result.warnings
 
     return PdfExtraction(
         extractor="slashcash_pdf_extractor",
         extractor_version=__version__,
-        confidence=max(0, min(1, merged.confidence)),
-        fields=merged.fields,
+        confidence=0,
+        fields={},
         raw=PdfExtractionRaw(
             page_count=source_quality.page_count,
             tables=text_result.tables,
             text=text_result.text,
-            sources=merged.sources,
+            sources={},
         ),
         source_quality=source_quality,
     )

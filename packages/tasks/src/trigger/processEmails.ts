@@ -382,17 +382,32 @@ function resolveConcurrency(envName: string, fallback: number) {
 }
 
 function defaultExtractConcurrency() {
+  if (process.env.SLASHCASH_ASSISTANT_PROVIDER === "ollama-local") {
+    return 1;
+  }
   return Math.max(1, Math.min(4, cpus().length - 1 || 1));
 }
 
-function resolveMessageConcurrency() {
-  return Math.max(
-    resolveConcurrency("SLASHCASH_SYNC_FETCH_CONCURRENCY", 4),
-    resolveConcurrency(
-      "SLASHCASH_SYNC_EXTRACT_CONCURRENCY",
-      defaultExtractConcurrency(),
-    ),
+function resolveExtractConcurrency() {
+  const explicitLlmConcurrency = Number(
+    process.env.SLASHCASH_EXTRACT_LLM_CONCURRENCY,
   );
+  if (Number.isFinite(explicitLlmConcurrency) && explicitLlmConcurrency > 0) {
+    return Math.floor(explicitLlmConcurrency);
+  }
+  return resolveConcurrency(
+    "SLASHCASH_SYNC_EXTRACT_CONCURRENCY",
+    defaultExtractConcurrency(),
+  );
+}
+
+function resolveMessageConcurrency() {
+  const fetchConcurrency = resolveConcurrency(
+    "SLASHCASH_SYNC_FETCH_CONCURRENCY",
+    4,
+  );
+  const extractConcurrency = resolveExtractConcurrency();
+  return Math.max(1, Math.min(fetchConcurrency, extractConcurrency));
 }
 
 function toEmailData(userId: string, message: FetchedImapMessage): EmailData {

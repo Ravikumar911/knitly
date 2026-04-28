@@ -5,41 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-class SwiggyLineItem(BaseModel):
-    name: str
-    quantity: float | None = None
-    unit_price: float | None = None
-    amount: float | None = None
-    discount: float | None = None
-    net_amount: float | None = None
-    tax_total: float | None = None
-
-
-class SwiggyInvoiceFields(BaseModel):
-    order_id: str | None = None
-    invoice_no: str | None = None
-    invoice_date: str | None = None
-    restaurant_name: str | None = None
-    restaurant_address: str | None = None
-    customer_address: str | None = None
-    pincode: str | None = None
-    invoice_total: float | None = None
-    paid_amount: float | None = None
-    item_subtotal: float | None = None
-    tax_total: float | None = None
-    platform_fee: float | None = None
-    delivery_fee: float | None = None
-    packaging_fee: float | None = None
-    discount_total: float | None = None
-    payment_method: str | None = None
-    service_type: Literal[
-        "FOOD_DELIVERY",
-        "INSTAMART",
-        "GENIE",
-        "DINEOUT",
-        "UNKNOWN",
-    ] = "UNKNOWN"
-    items: list[SwiggyLineItem] = Field(default_factory=list)
+PdfExtractionFields = dict[str, Any]
 
 
 class PdfExtractionRaw(BaseModel):
@@ -62,6 +28,6 @@ class PdfExtraction(BaseModel):
     extractor_version: str
     merchant: Literal["swiggy"] = "swiggy"
     confidence: float
-    fields: SwiggyInvoiceFields
+    fields: PdfExtractionFields = Field(default_factory=dict)
     raw: PdfExtractionRaw
     source_quality: SourceQuality

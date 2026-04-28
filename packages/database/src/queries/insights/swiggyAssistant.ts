@@ -1,5 +1,6 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gte, like, or } from "drizzle-orm";
 import { db } from "../../client";
+import { parsedEmails } from "../../schema/parsedEmails";
 import { transactionsV2 } from "../../schema/transactionsV2";
 
 export type SwiggyAssistantService =
@@ -107,6 +108,24 @@ export interface SwiggyAssistantSnapshot {
   recentOrders: SwiggyAssistantOrder[];
   dataQualityNotes: string[];
 }
+
+export type SwiggyExtractionValidationRow = {
+  transactionId: string | null;
+  parsedEmailId: string;
+  emailSubject: string | null;
+  emailSnippet: string | null;
+  emailSender: string | null;
+  emailReceivedDate: Date | null;
+  rawContent: string | null;
+  attachmentStoragePath: string[] | null;
+  amount: number | null;
+  paymentMethod: string | null;
+  referenceIds: Record<string, unknown> | null;
+  merchantData: Record<string, unknown>;
+  extractionConfidence: number | null;
+  schemaUsed: string | null;
+  dataSource: string | null;
+};
 
 type MerchantData = {
   swiggyMetadata?: {
@@ -390,6 +409,62 @@ export async function getSwiggyAssistantSnapshot(
       .map((row) => orderDetailForRow(row)),
     dataQualityNotes: [...dataQualityNotes],
   };
+}
+
+export async function getSwiggyExtractionValidationRows(
+  userId: string,
+  input: { startDate?: Date; limit?: number } = {},
+): Promise<SwiggyExtractionValidationRow[]> {
+  const conditions = [
+    eq(parsedEmails.userId, userId),
+    or(
+      like(parsedEmails.senderEmailId, "%swiggy%"),
+      like(parsedEmails.subject, "%swiggy%"),
+      eq(transactionsV2.merchantId, "swiggy"),
+    ),
+  ];
+  if (input.startDate) {
+    conditions.push(gte(parsedEmails.receivedDate, input.startDate));
+  }
+
+  const rows = await db
+    .select({
+      transactionId: transactionsV2.id,
+      parsedEmailId: parsedEmails.id,
+      amount: transactionsV2.amount,
+      paymentMethod: transactionsV2.paymentMethod,
+      referenceIds: transactionsV2.referenceIds,
+      merchantData: transactionsV2.merchantData,
+      extractionConfidence: transactionsV2.extractionConfidence,
+      schemaUsed: transactionsV2.schemaUsed,
+      dataSource: transactionsV2.dataSource,
+      emailSubject: parsedEmails.subject,
+      emailSnippet: parsedEmails.snippet,
+      emailSender: parsedEmails.senderEmailId,
+      emailReceivedDate: parsedEmails.receivedDate,
+      rawContent: parsedEmails.rawContent,
+      attachmentStoragePath: parsedEmails.attachmentStoragePath,
+    })
+    .from(parsedEmails)
+    .leftJoin(
+      transactionsV2,
+      and(
+        eq(transactionsV2.parsedEmailId, parsedEmails.id),
+        eq(transactionsV2.merchantId, "swiggy"),
+        eq(transactionsV2.type, "DEBIT"),
+        eq(transactionsV2.status, "COMPLETED"),
+      ),
+    )
+    .where(and(...conditions))
+    .orderBy(desc(parsedEmails.receivedDate))
+    .limit(input.limit ?? 500);
+
+  return rows.map((row) => ({
+    ...row,
+    amount: row.amount === null ? null : numeric(row.amount),
+    referenceIds: asRecord(row.referenceIds),
+    merchantData: asRecord(row.merchantData) ?? {},
+  }));
 }
 
 async function getSwiggyRows(userId: string): Promise<SwiggyAssistantRow[]> {
@@ -703,6 +778,12 @@ function rangeForRows(rows: SwiggyAssistantRow[]) {
 
 function asMerchantData(value: unknown): MerchantData {
   return (value && typeof value === "object" ? value : {}) as MerchantData;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 function cleanName(value: unknown) {

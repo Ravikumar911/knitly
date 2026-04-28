@@ -33,7 +33,7 @@ The harness owns setup details such as temporary `SLASHCASH_HOME`, seeded SQLite
 
 ## Ingest acceptance gate
 
-The ingest gate means fixture-backed IMAP ingest + deterministic Python extractor lane.
+The ingest gate means fixture-backed IMAP ingest + PDF text extraction + Swiggy transaction storage.
 
 `packages/e2e-tests/scenarios/phase-2.ts` (aliased as `e2e:ingest` once the PDF-extractor pivot lands):
 
@@ -42,8 +42,8 @@ The ingest gate means fixture-backed IMAP ingest + deterministic Python extracto
 - runs `slashcash doctor --quick`
 - runs `slashcash sync --full` against `.eml` IMAP fixtures
 - asserts at least one attachment file is written locally
-- with `SLASHCASH_PDF_EXTRACTOR_DISABLED` unset on nodes that have Python 3.11+: asserts at least one `transactions_v2` row has `schemaUsed = swiggy.deterministic.v1` and `dataSource = BOTH` or `PDF_ATTACHMENT`
-- with `SLASHCASH_PDF_EXTRACTOR_DISABLED=1`: asserts ingest still succeeds via body-only extraction (`schemaUsed = swiggy.fallback.v1` or another explicit body-only deterministic schema)
+- with `SLASHCASH_PDF_EXTRACTOR_DISABLED` unset on nodes that have Python 3.11+: asserts PDF text extraction runs and transactions are written via `swiggy.llm.v1` when an assistant provider is available, or `swiggy.fallback.v1` when fixture CI is running without a model
+- with `SLASHCASH_PDF_EXTRACTOR_DISABLED=1`: asserts ingest still succeeds via body-only extraction (`schemaUsed = swiggy.fallback.v1`)
 - verifies that disabling `gmail-swiggy` blocks sync
 
 The real-account version of this gate (real Gmail account + real app password + real Docling install + manual diff of transactions against actual receipts) is the PDF-extractor pivot's dogfood step and is intentionally not part of normal fixture CI.

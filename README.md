@@ -98,7 +98,7 @@ pnpm lint
 pnpm architecture-smells
 pnpm fixtures:check
 pnpm e2e:all
-pnpm e2e:release
+pnpm eval:gate
 pnpm bench
 ```
 

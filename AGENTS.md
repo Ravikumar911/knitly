@@ -69,7 +69,7 @@ Do not assume Supabase, Trigger.dev, or other hosted services unless the user ex
 - **Dev CLI**: `pnpm slashcash -- start` (or `pnpm --filter slashcash dev -- …`)
 - **Typecheck / lint / test (monorepo)**: `pnpm typecheck`, `pnpm lint`, `pnpm test`
 - **Quality gates**: `pnpm architecture-smells`, `pnpm fixtures:check`
-- **E2E gates**: `pnpm e2e:ingest`, `pnpm e2e:cli`, `pnpm e2e:pyramid`, `pnpm e2e:release`, `pnpm e2e:onboarding`, or `pnpm e2e:all`
+- **E2E**: Playwright journeys (`pnpm e2e:journeys` / `pnpm e2e:all`), plus `pnpm e2e:onboarding` for the fast-path script; `pnpm e2e:all` runs the browser suite then onboarding
 - **Evals**: `pnpm eval:gate`
 - **Bench**: `pnpm bench`
 - **DB** (from README): `pnpm --filter @workspace/database build`, `pnpm --filter slashcash dev -- db seed`

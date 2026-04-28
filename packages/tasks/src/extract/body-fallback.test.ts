@@ -21,6 +21,7 @@ describe("fallbackSwiggy", () => {
       restaurant: "Meghana Foods",
       description: "Swiggy order - Meghana Foods",
       deliveryAddress: "Indiranagar 560038",
+      paymentMethod: null,
     });
   });
 
