@@ -54,4 +54,36 @@ describe("resolveAssistantRuntimeConfig", () => {
 
     rmSync(home, { recursive: true, force: true });
   });
+
+  it("treats anthropic as ready when config and credentials exist (no ANTHROPIC_API_KEY)", async () => {
+    const home = mkdtempSync(join(tmpdir(), "slashcash-provider-"));
+    process.env.SLASHCASH_HOME = home;
+    delete process.env.ANTHROPIC_API_KEY;
+
+    writeFileSync(
+      join(home, "config.json"),
+      `${JSON.stringify({
+        assistant: {
+          provider: "anthropic",
+          baseUrl: "https://api.anthropic.com/v1",
+          chatModel: "claude-haiku-4-5",
+        },
+      })}\n`,
+    );
+    writeFileSync(
+      join(home, "credentials.json"),
+      `${JSON.stringify({
+        assistant: {
+          anthropic: { apiKey: "sk-ant-api03-test-key" },
+        },
+      })}\n`,
+    );
+
+    const { getAssistantProvider } = await import("./provider");
+    const provider = getAssistantProvider();
+
+    expect(provider.ready).toBe(true);
+
+    rmSync(home, { recursive: true, force: true });
+  });
 });

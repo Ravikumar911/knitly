@@ -27,7 +27,6 @@ export type AssistantProviderStatus =
       reason:
         | "no-assistant-provider"
         | "missing-api-key"
-        | "anthropic-disabled"
         | "unknown-provider";
       config: AssistantConfig;
     };
@@ -65,14 +64,6 @@ export function getAssistantProvider(
   }
 
   if (config.provider === "anthropic") {
-    if (process.env.SLASHCASH_ASSISTANT_ANTHROPIC !== "1") {
-      return {
-        model: null,
-        ready: false,
-        reason: "anthropic-disabled",
-        config,
-      };
-    }
     const apiKey = resolveAssistantApiKey("anthropic");
     if (!apiKey) {
       return {

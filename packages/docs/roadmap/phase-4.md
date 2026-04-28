@@ -68,7 +68,7 @@ The assistant tab in `apps/main/app/(authenticated)/assistant/` becomes the plac
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Local Ollama (Gemma)       | `~/.slashcash/config.json:assistant.provider = "ollama-local"`, `assistant.chatModel`, `assistant.baseUrl`                                                            | CTA opens a CLI flow (`slashcash assistant install ollama`) that runs the existing `ollamaInstallStep / ollamaServiceStep / ollamaPullStep` chain. The dashboard polls `/api/assistant/health` until ready. |
 | OpenAI-compatible API key  | `~/.slashcash/config.json:assistant.provider = "openai-compatible"`, `assistant.baseUrl`, `assistant.chatModel`; key in keychain (or `~/.slashcash/credentials.json`) | Single form: API key, optional base URL (defaults to `https://api.openai.com/v1`), model name. Validates by streaming one token before saving.                                                              |
-| Anthropic / Claude API key | `~/.slashcash/config.json:assistant.provider = "anthropic"`, `assistant.chatModel = "claude-..."`; key in keychain                                                    | Adds `@ai-sdk/anthropic` to `apps/main` only. Behind a feature flag `SLASHCASH_ASSISTANT_ANTHROPIC=1` until a maintainer signs off on the new dependency. The UI option is hidden when the flag is off.     |
+| Anthropic / Claude API key | `~/.slashcash/config.json:assistant.provider = "anthropic"`, `assistant.baseUrl`, `assistant.chatModel`; key in `~/.slashcash/credentials.json` or `ANTHROPIC_API_KEY`                              | OpenAI-compatible client against the configured `baseUrl` (Anthropic’s HTTP API).                                                                                                                           |
 | Skip for now               | `assistant.provider = "none"`                                                                                                                                         | Assistant tab shows "Configure a chat provider to ask questions about your data." Dashboard analytics are unaffected.                                                                                       |
 
 #### Default model menu (Local Ollama option)
@@ -181,7 +181,7 @@ pnpm slashcash -- assistant test
 - Onboarding from a clean `~/.slashcash` reaches "Open http://127.0.0.1:3000" with **no** Ollama install or model pull.
 - The dashboard loads before the initial sync finishes.
 - The assistant tab shows the setup banner when `assistant.provider = "none"`.
-- Picking each of the three provider options completes successfully end-to-end (the Anthropic option is gated behind `SLASHCASH_ASSISTANT_ANTHROPIC=1` and is OK to skip in CI).
+- Picking each of the three provider options completes successfully end-to-end (Anthropic is OK to skip in CI when no API key is configured).
 - `slashcash doctor --quick` reports `assistant-provider` as a separate, non-blocking check.
 - `slashcash sync --full` and `slashcash start` work concurrently (the Phase 3 mutex serializes them within one process).
 

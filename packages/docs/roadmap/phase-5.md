@@ -146,7 +146,7 @@ When this phase signs off, the following must all be true. Do not declare the pi
 2. `pnpm test`, `pnpm e2e:ingest`, `pnpm e2e:onboarding`, `pnpm architecture-smells`, `pnpm fixtures:check`, `pnpm bench`, and the Python golden suite all pass on CI.
 3. Real-account dogfood note is published in `current-state.md`.
 4. No remaining references to `slashAIV2`, `transactionsEnhanced`, `OCRModel`, `swiggy.sources.v1`, or "single Gemma source extraction" outside historical doc sections.
-5. The assistant tab can be configured by Local Ollama (Gemma) or OpenAI-compatible API key from a fresh dashboard, independently of ingest. Anthropic remains feature-flagged behind `SLASHCASH_ASSISTANT_ANTHROPIC=1`.
+5. The assistant tab can be configured by Local Ollama (Gemma), OpenAI-compatible API key, or Anthropic from a fresh dashboard, independently of ingest.
 
 ## Out of scope
 
