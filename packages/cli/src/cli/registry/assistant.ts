@@ -77,7 +77,7 @@ export function register(program: Command) {
               : "https://api.openai.com/v1"),
           chatModel:
             options.model ||
-            (provider === "anthropic" ? "claude-sonnet-4-5" : "gpt-4o-mini"),
+            (provider === "anthropic" ? "claude-haiku-4-5" : "gpt-4o-mini"),
         };
         writeConfig(config);
         console.log(

@@ -124,8 +124,8 @@ const models = [
   {
     chef: "Anthropic",
     chefSlug: "anthropic",
-    id: "claude-sonnet-4-20250514",
-    name: "Claude 4 Sonnet",
+    id: "claude-haiku-4-5",
+    name: "Claude Haiku 4.5",
     providers: ["anthropic", "azure", "google", "amazon-bedrock"] as const,
   },
   {

@@ -47,7 +47,7 @@ const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
 const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1";
 const DEFAULT_OLLAMA_CHAT_MODEL = "gemma4:latest";
 const DEFAULT_OPENAI_CHAT_MODEL = "gpt-4o-mini";
-const DEFAULT_ANTHROPIC_CHAT_MODEL = "claude-sonnet-4-5";
+const DEFAULT_ANTHROPIC_CHAT_MODEL = "claude-haiku-4-5";
 
 type AssistantProvider = SlashcashConfig["assistant"]["provider"];
 
