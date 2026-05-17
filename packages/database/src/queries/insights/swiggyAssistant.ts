@@ -125,6 +125,9 @@ export type SwiggyExtractionValidationRow = {
   extractionConfidence: number | null;
   schemaUsed: string | null;
   dataSource: string | null;
+  /** Present when a linked Swiggy transaction exists */
+  transactionDate: Date | null;
+  description: string | null;
 };
 
 type MerchantData = {
@@ -438,6 +441,8 @@ export async function getSwiggyExtractionValidationRows(
       extractionConfidence: transactionsV2.extractionConfidence,
       schemaUsed: transactionsV2.schemaUsed,
       dataSource: transactionsV2.dataSource,
+      transactionDate: transactionsV2.transactionDate,
+      description: transactionsV2.description,
       emailSubject: parsedEmails.subject,
       emailSnippet: parsedEmails.snippet,
       emailSender: parsedEmails.senderEmailId,

@@ -41,7 +41,7 @@
     "bundle:app": "node scripts/bundle-app.mjs",
     "bundle:check": "node scripts/verify-bundle.mjs",
     "bundle:pack-smoke": "node scripts/verify-packed-install.mjs",
-    "dev": "tsx src/entry.ts",
+    "dev": "node scripts/run-dev.mjs",
     "lint": "echo 'Linting not configured for cli package'",
     "lint:fix": "echo 'Linting not configured for cli package'",
     "release:check": "node scripts/release-check.mjs",

@@ -37,7 +37,7 @@ export async function extractTransactionFromEmail(
     storeTransaction?: boolean;
   } = {},
 ): Promise<PipelineExtractionResult> {
-  const parseErrors: string[] = [];
+  const sourceWarnings: string[] = [];
 
   syncDebug("pipeline-start", {
     emailId: emailData.emailId || null,
@@ -55,7 +55,9 @@ export async function extractTransactionFromEmail(
 
   for (const attachment of pdfAttachments) {
     if (!attachment.storageUrl) {
-      parseErrors.push(`PDF attachment ${attachment.filename} was not stored.`);
+      sourceWarnings.push(
+        `PDF attachment ${attachment.filename} was not stored.`,
+      );
       continue;
     }
 
@@ -80,7 +82,7 @@ export async function extractTransactionFromEmail(
       });
       continue;
     }
-    parseErrors.push(pdf.message);
+    sourceWarnings.push(pdf.message);
     syncDebug("pdf-extraction-failed", {
       emailId: emailData.emailId || null,
       filename: attachment.filename,
@@ -104,7 +106,10 @@ export async function extractTransactionFromEmail(
       extractionData: llm.extractionData,
       extractionConfidence: llm.extractionConfidence,
       parseErrors: llm.parseErrors,
-      warnings: sources.flatMap((source) => source.warnings),
+      warnings: [
+        ...sourceWarnings,
+        ...sources.flatMap((source) => source.warnings),
+      ],
       schemaUsed: "swiggy.llm.v1",
       dataSource: llm.dataSource,
       contributedByPdf: llm.contributedByPdf,
@@ -168,7 +173,11 @@ export async function extractTransactionFromEmail(
         }),
         extractionConfidence: 0.7,
         parseErrors: [],
-        warnings: sources.flatMap((source) => source.warnings),
+        warnings: [
+          ...sourceWarnings,
+          ...sources.flatMap((source) => source.warnings),
+          ...llm.parseErrors,
+        ],
         schemaUsed: "swiggy.fallback.v1",
         dataSource: "EMAIL_BODY",
         contributedByPdf: false,
@@ -195,8 +204,8 @@ export async function extractTransactionFromEmail(
     const failureErrors =
       llm.parseErrors.length > 0
         ? llm.parseErrors
-        : parseErrors.length > 0
-          ? parseErrors
+        : sourceWarnings.length > 0
+          ? sourceWarnings
           : ["No completed Swiggy transaction was found."];
     syncDebug("pipeline-no-transaction", {
       emailId: emailData.emailId || null,
@@ -215,7 +224,10 @@ export async function extractTransactionFromEmail(
       }),
       extractionConfidence: 0,
       parseErrors: failureErrors,
-      warnings: sources.flatMap((source) => source.warnings),
+      warnings: [
+        ...sourceWarnings,
+        ...sources.flatMap((source) => source.warnings),
+      ],
       schemaUsed: "swiggy.fallback.v1",
       dataSource: "EMAIL_BODY",
       contributedByPdf: false,
@@ -224,9 +236,11 @@ export async function extractTransactionFromEmail(
     };
   }
 
-  const mergedErrors = [...parseErrors, ...finalCandidate.parseErrors];
-  finalCandidate.extractionData.parseSuccess = true;
-  finalCandidate.extractionData.parseErrors = mergedErrors;
+  const fatalErrors = finalCandidate.parseErrors;
+  finalCandidate.extractionData.parseErrors = fatalErrors;
+  finalCandidate.extractionData.parseSuccess =
+    fatalErrors.length === 0 &&
+    Boolean(finalCandidate.extractionData.parseSuccess);
 
   let transactionId: string | undefined;
   if (options.storeTransaction) {
@@ -276,8 +290,8 @@ export async function extractTransactionFromEmail(
 
   return {
     ...finalCandidate,
-    parseErrors: mergedErrors,
-    parseSuccess: true,
+    parseErrors: fatalErrors,
+    parseSuccess: finalCandidate.extractionData.parseSuccess,
     transactionId,
   };
 }

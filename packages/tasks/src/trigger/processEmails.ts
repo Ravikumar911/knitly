@@ -240,6 +240,25 @@ async function writeExtractedMessage(
   });
 
   if (!extracted.parseSuccess || !extracted.extractionData.transaction) {
+    const reason =
+      extracted.parseErrors[0] || "No completed Swiggy transaction.";
+    const parseErrors =
+      extracted.parseErrors.length > 0
+        ? JSON.stringify(extracted.parseErrors)
+        : null;
+
+    if (isTechnicalExtractionFailure(extracted.parseErrors)) {
+      await updateEmailData(parsedEmailId, {
+        parseSuccess: false,
+        parseErrors,
+      });
+      return {
+        kind: "failed",
+        messageId: ref.id,
+        error: new Error(reason),
+      };
+    }
+
     await updateEmailData(parsedEmailId, {
       parseSuccess: true,
       parseErrors: null,
@@ -247,7 +266,7 @@ async function writeExtractedMessage(
     return {
       kind: "skipped_non_transaction",
       messageId: ref.id,
-      reason: extracted.parseErrors[0] || "No completed Swiggy transaction.",
+      reason,
     };
   }
 
@@ -371,6 +390,14 @@ function countOutcomes(outcomes: SyncOutcome[]): EmailSyncResult["counts"] {
     ).length,
     failed: outcomes.filter((outcome) => outcome.kind === "failed").length,
   };
+}
+
+function isTechnicalExtractionFailure(parseErrors: string[]) {
+  return parseErrors.some((error) =>
+    /extraction model unavailable|missing-api-key|unknown-provider|response_format|json_schema|schema|llm extraction failed|could not be resolved|timed out|timeout|aborted|pdf extractor/i.test(
+      error,
+    ),
+  );
 }
 
 function resolveConcurrency(envName: string, fallback: number) {

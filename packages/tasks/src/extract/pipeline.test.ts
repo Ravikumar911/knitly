@@ -127,6 +127,51 @@ describe("extractTransactionFromEmail", () => {
     expect(result.extractionData.transaction?.amount).toBe(348.5);
     expect(mocks.extractTextFromPdf).not.toHaveBeenCalled();
   });
+
+  it("keeps recoverable PDF extraction failures as warnings when fallback succeeds", async () => {
+    mocks.extractTextFromPdf.mockResolvedValue({
+      ok: false,
+      message: "The PDF extractor timed out after 30000ms.",
+    });
+    mocks.extractSwiggyWithLlm.mockResolvedValue(
+      llmResult({
+        parseSuccess: false,
+        parseErrors: ["Extraction model unavailable: missing-api-key."],
+      }),
+    );
+
+    const result = await extractTransactionFromEmail({
+      userId: "local-user-id",
+      emailId: "email-1",
+      threadId: "thread-1",
+      subject: "Your Swiggy order",
+      body: [
+        "Order ID: SW123456789",
+        "Restaurant: Meghana Foods",
+        "Paid Via UPI ₹348.50",
+      ].join("\n"),
+      date: "2026-04-22T19:42:00+05:30",
+      from: "orders@swiggy.in",
+      attachments: [
+        {
+          filename: "invoice.pdf",
+          mimeType: "application/pdf",
+          content: "base64",
+          storageUrl: "/tmp/fixture.pdf",
+        },
+      ],
+    });
+
+    expect(result.parseSuccess).toBe(true);
+    expect(result.parseErrors).toEqual([]);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        "The PDF extractor timed out after 30000ms.",
+        "Extraction model unavailable: missing-api-key.",
+      ]),
+    );
+    expect(result.extractionData.parseErrors).toEqual([]);
+  });
 });
 
 function llmResult(

@@ -1,7 +1,10 @@
-import { generateObject } from "ai";
+import { generateText } from "ai";
 import { z } from "zod";
 import { SwiggyMerchant } from "../merchants/swiggy";
-import { SWIGGY_PROMPT } from "../merchants/swiggy/prompt";
+import {
+  SWIGGY_PROMPT,
+  SWIGGY_RECONCILIATION_RULES,
+} from "../merchants/swiggy/prompt";
 import type { EmailData } from "../types/email-extraction";
 import type { PdfExtractionSource } from "./extract-from-pdf";
 import {
@@ -12,36 +15,51 @@ import type { ExtractionProvenance } from "./swiggy-deterministic";
 
 type SwiggyExtraction = z.infer<typeof SwiggyMerchant.schema>;
 
+const optionalString = z.preprocess(nullToUndefined, z.string().optional());
+const optionalNumber = z.preprocess(nullToUndefined, z.number().optional());
+const optionalService = z
+  .preprocess(
+    nullToUndefined,
+    z.enum(["FOOD_DELIVERY", "INSTAMART", "GENIE", "DINEOUT"]).optional(),
+  )
+  .default("FOOD_DELIVERY");
+const optionalOrderType = z
+  .preprocess(
+    nullToUndefined,
+    z.enum(["DELIVERY", "PICKUP", "DINE_IN"]).optional(),
+  )
+  .default("DELIVERY");
+
 const LlmSwiggyItemSchema = z.object({
-  name: z.string().nullable(),
-  quantity: z.number().nullable(),
-  price: z.number().nullable(),
+  name: optionalString,
+  quantity: optionalNumber,
+  price: optionalNumber,
 });
 
 const LlmSwiggyExtractionSchema = z.object({
   parseSuccess: z.boolean(),
-  confidenceScore: z.number().min(0).max(1),
+  // Anthropic's OpenAI-compatible structured-output endpoint rejects JSON
+  // Schema number bounds, so clamp this after generation instead.
+  confidenceScore: z.number(),
   parseErrors: z.array(z.string()).default([]),
-  orderId: z.string().nullable(),
-  amount: z.number().nullable(),
-  currency: z.string().nullable().default("INR"),
-  transactionDate: z.string().nullable(),
-  description: z.string().nullable(),
-  restaurantName: z.string().nullable(),
-  paymentMethod: z.string().nullable(),
-  invoiceNo: z.string().nullable(),
-  invoiceDate: z.string().nullable(),
-  customerAddress: z.string().nullable(),
-  pincode: z.string().nullable(),
-  deliveryFee: z.number().nullable(),
-  taxes: z.number().nullable(),
-  discount: z.number().nullable(),
-  packagingFee: z.number().nullable(),
+  orderId: optionalString,
+  amount: optionalNumber,
+  currency: optionalString.default("INR"),
+  transactionDate: optionalString,
+  description: optionalString,
+  restaurantName: optionalString,
+  paymentMethod: optionalString,
+  invoiceNo: optionalString,
+  invoiceDate: optionalString,
+  customerAddress: optionalString,
+  pincode: optionalString,
+  deliveryFee: optionalNumber,
+  taxes: optionalNumber,
+  discount: optionalNumber,
+  packagingFee: optionalNumber,
   orderItems: z.array(LlmSwiggyItemSchema).default([]),
-  service: z
-    .enum(["FOOD_DELIVERY", "INSTAMART", "GENIE", "DINEOUT"])
-    .default("FOOD_DELIVERY"),
-  orderType: z.enum(["DELIVERY", "PICKUP", "DINE_IN"]).default("DELIVERY"),
+  service: optionalService,
+  orderType: optionalOrderType,
 });
 
 type LlmSwiggyExtraction = z.infer<typeof LlmSwiggyExtractionSchema>;
@@ -56,18 +74,24 @@ export type LlmSwiggyResult = {
   provenance: ExtractionProvenance | null;
 };
 
-export async function extractSwiggyWithLlm(
+export type SwiggyLlmDiagnosticOk = {
+  ok: true;
+  rawObject: LlmSwiggyExtraction;
+  usage: unknown;
+  result: LlmSwiggyResult;
+};
+
+export type SwiggyLlmDiagnosticErr = {
+  ok: false;
+  reason: string;
+  result: LlmSwiggyResult;
+};
+
+export async function extractSwiggyWithLlmDiagnostic(
   emailData: Pick<EmailData, "subject" | "body" | "date">,
   sources: PdfExtractionSource[] = [],
-): Promise<LlmSwiggyResult> {
-  const pdfText = sources
-    .map((source, index) =>
-      source.text.trim()
-        ? `PDF SOURCE ${index + 1} (${source.attachmentPath || "body-only"}):\n${source.text.trim()}`
-        : "",
-    )
-    .filter(Boolean)
-    .join("\n\n---\n\n");
+): Promise<SwiggyLlmDiagnosticOk | SwiggyLlmDiagnosticErr> {
+  const pdfText = buildPdfTextBlock(sources);
   const dataSource = resolveDataSource(pdfText, emailData.body);
   const provenance = sources.length > 0 ? toProvenance(sources) : null;
 
@@ -76,49 +100,57 @@ export async function extractSwiggyWithLlm(
     resolved = resolveExtractionModel();
   } catch (error) {
     if (error instanceof ExtractionModelUnavailable) {
-      return emptyLlmResult(emailData, dataSource, provenance, [
-        `Extraction model unavailable: ${error.reason}.`,
-      ]);
+      return {
+        ok: false,
+        reason: `Extraction model unavailable: ${error.reason}.`,
+        result: emptyLlmResult(emailData, dataSource, provenance, [
+          `Extraction model unavailable: ${error.reason}.`,
+        ]),
+      };
     }
-    return emptyLlmResult(emailData, dataSource, provenance, [
-      error instanceof Error
-        ? error.message
-        : "Extraction model could not be resolved.",
-    ]);
+    return {
+      ok: false,
+      reason:
+        error instanceof Error
+          ? error.message
+          : "Extraction model could not be resolved.",
+      result: emptyLlmResult(emailData, dataSource, provenance, [
+        error instanceof Error
+          ? error.message
+          : "Extraction model could not be resolved.",
+      ]),
+    };
   }
 
   try {
-    const result = await generateObject({
-      model: resolved.model,
-      schema: LlmSwiggyExtractionSchema,
-      schemaName: "SwiggyExtraction",
-      schemaDescription:
-        "Structured Swiggy order extraction from PDF text and email body.",
-      system: TIGHTENED_SWIGGY_SYSTEM_PROMPT,
-      prompt: buildPrompt({
-        subject: emailData.subject,
-        emailDate: emailData.date,
-        emailBody: emailData.body,
-        pdfText,
-      }),
-      temperature: 0,
-      maxRetries: 1,
-      maxOutputTokens: 2_000,
-      abortSignal: AbortSignal.timeout(
-        resolveLlmTimeoutMs(resolved.config.provider),
-      ),
-    });
-    return normalizeExtraction(
+    const { object, usage } = await runSwiggyGenerateObject(
       emailData,
-      result.object,
-      dataSource,
-      provenance,
+      pdfText,
+      resolved,
     );
+    return {
+      ok: true,
+      rawObject: object,
+      usage,
+      result: normalizeExtraction(emailData, object, dataSource, provenance),
+    };
   } catch (error) {
-    return emptyLlmResult(emailData, dataSource, provenance, [
-      error instanceof Error ? error.message : "LLM extraction failed.",
-    ]);
+    const message =
+      error instanceof Error ? error.message : "LLM extraction failed.";
+    return {
+      ok: false,
+      reason: message,
+      result: emptyLlmResult(emailData, dataSource, provenance, [message]),
+    };
   }
+}
+
+export async function extractSwiggyWithLlm(
+  emailData: Pick<EmailData, "subject" | "body" | "date">,
+  sources: PdfExtractionSource[] = [],
+): Promise<LlmSwiggyResult> {
+  const diagnostic = await extractSwiggyWithLlmDiagnostic(emailData, sources);
+  return diagnostic.result;
 }
 
 const TIGHTENED_SWIGGY_SYSTEM_PROMPT = `${SWIGGY_PROMPT}
@@ -136,7 +168,49 @@ STRICTNESS RULES:
 - Prefer email body for final paid amount and payment method when stated.
 - The invoice phrase "Restaurant Service" means food delivery, not DINEOUT.
 - Use DINEOUT only when the email explicitly says Dineout, dining out, table booking, or restaurant booking.
-- Return parseSuccess=false for marketing, coupon, refund-only, or delivery update emails without a completed paid order.`;
+- Return parseSuccess=false for marketing, coupon, refund-only, or delivery update emails without a completed paid order.
+${SWIGGY_RECONCILIATION_RULES}`;
+
+function buildPdfTextBlock(sources: PdfExtractionSource[]): string {
+  return sources
+    .map((source, index) =>
+      source.text.trim()
+        ? `PDF SOURCE ${index + 1} (${source.attachmentPath || "body-only"}):\n${source.text.trim()}`
+        : "",
+    )
+    .filter(Boolean)
+    .join("\n\n---\n\n");
+}
+
+async function runSwiggyGenerateObject(
+  emailData: Pick<EmailData, "subject" | "body" | "date">,
+  pdfText: string,
+  resolved: ReturnType<typeof resolveExtractionModel>,
+) {
+  const result = await generateText({
+    model: resolved.model,
+    system: TIGHTENED_SWIGGY_SYSTEM_PROMPT,
+    prompt: buildPrompt({
+      subject: emailData.subject,
+      emailDate: emailData.date,
+      emailBody: emailData.body,
+      pdfText,
+    }),
+    temperature: 0,
+    maxRetries: 1,
+    maxOutputTokens: 2_000,
+    abortSignal: AbortSignal.timeout(
+      resolveLlmTimeoutMs(resolved.config.provider),
+    ),
+  });
+  const parsed = LlmSwiggyExtractionSchema.safeParse(
+    parseJsonObject(result.text),
+  );
+  if (!parsed.success) {
+    throw new Error(parsed.error.message);
+  }
+  return { object: parsed.data, usage: result.usage };
+}
 
 function buildPrompt(input: {
   subject: string;
@@ -148,6 +222,9 @@ function buildPrompt(input: {
     `Email subject: ${input.subject || "(empty)"}`,
     `Email received date: ${input.emailDate || "(unknown)"}`,
     "",
+    "Return one JSON object only. Use this shape:",
+    clip(JSON.stringify(LLM_JSON_CONTRACT, null, 2), 2_000),
+    "",
     "PDF text:",
     clip(input.pdfText || "(no PDF text)", resolveMaxPdfTextChars()),
     "",
@@ -155,6 +232,30 @@ function buildPrompt(input: {
     clip(input.emailBody || "(empty)", resolveMaxEmailBodyChars()),
   ].join("\n");
 }
+
+const LLM_JSON_CONTRACT = {
+  parseSuccess: "boolean",
+  confidenceScore: "number from 0 to 1",
+  parseErrors: ["string"],
+  orderId: "string if found",
+  amount: "number final paid amount if found",
+  currency: "INR",
+  transactionDate: "ISO date string if found",
+  description: "short transaction description",
+  restaurantName: "restaurant or store name if found",
+  paymentMethod: "payment method if found",
+  invoiceNo: "invoice number if found",
+  invoiceDate: "invoice date if found",
+  customerAddress: "customer delivery address if found",
+  pincode: "delivery pincode if found",
+  deliveryFee: "number if charged",
+  taxes: "number if found",
+  discount: "number if found",
+  packagingFee: "number if found",
+  orderItems: [{ name: "string", quantity: "number", price: "number" }],
+  service: "FOOD_DELIVERY | INSTAMART | GENIE | DINEOUT",
+  orderType: "DELIVERY | PICKUP | DINE_IN",
+};
 
 function normalizeExtraction(
   emailData: Pick<EmailData, "subject" | "date">,
@@ -345,6 +446,26 @@ function validDateString(value: string | null | undefined) {
 
 function unique(values: string[]) {
   return [...new Set(values.filter(Boolean))];
+}
+
+function nullToUndefined(value: unknown) {
+  return value === null ? undefined : value;
+}
+
+function parseJsonObject(text: string): unknown {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
+  const candidate = fenced || trimmed;
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    const start = candidate.indexOf("{");
+    const end = candidate.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      return JSON.parse(candidate.slice(start, end + 1));
+    }
+    throw new Error("LLM response did not contain a JSON object.");
+  }
 }
 
 function resolveLlmTimeoutMs(provider: string) {

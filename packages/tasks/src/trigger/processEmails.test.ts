@@ -109,6 +109,49 @@ describe("runEmailSync", () => {
     });
   });
 
+  it("keeps technical extraction failures retryable instead of marking them as skips", async () => {
+    mocks.listMessages.mockResolvedValue({
+      ok: true,
+      data: [{ id: "msg-1", threadId: "thread-1" }],
+    });
+    mocks.fetchMessage.mockResolvedValue({
+      ok: true,
+      data: fetchedMessage("msg-1", "Your Swiggy order was delivered"),
+    });
+    mocks.extractTransactionFromEmail.mockResolvedValue({
+      parseSuccess: false,
+      parseErrors: [
+        "response_format.json_schema.schema: For 'number' type, properties maximum, minimum are not supported",
+      ],
+      warnings: [],
+      schemaUsed: "swiggy.fallback.v1",
+      dataSource: "EMAIL_BODY",
+      contributedByPdf: false,
+      extractionConfidence: 0,
+      provenance: null,
+      extractionData: { parseSuccess: false },
+    });
+
+    const result = await runEmailSync({ userId: "local-user-id", full: true });
+
+    expect(result.counts).toMatchObject({
+      processed: 0,
+      skipped_non_transaction: 0,
+      failed: 1,
+    });
+    expect(mocks.markSyncFailed).toHaveBeenCalledWith(
+      "local-user-id",
+      "1 messages failed to process.",
+    );
+    expect(mocks.storeTransactionV2Input).not.toHaveBeenCalled();
+    expect(mocks.updateEmailData).toHaveBeenCalledWith("msg-1", {
+      parseSuccess: false,
+      parseErrors: JSON.stringify([
+        "response_format.json_schema.schema: For 'number' type, properties maximum, minimum are not supported",
+      ]),
+    });
+  });
+
   it("stores each processed message without waiting for every fetch to finish", async () => {
     const slowFetch = deferred<ReturnType<typeof okFetchedMessage>>();
     mocks.listMessages.mockResolvedValue({
