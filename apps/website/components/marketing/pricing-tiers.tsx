@@ -12,7 +12,7 @@ interface PricingTier {
   description: string;
   features: string[];
   cta: string;
-  href: string;
+  href?: string;
   highlighted?: boolean;
   badge?: string;
 }
@@ -47,8 +47,7 @@ const tiers: PricingTier[] = [
       "Mobile companion",
       "Priority email support",
     ],
-    cta: "Start 14-day trial",
-    href: "https://app.slash.cash",
+    cta: "Coming soon",
   },
   {
     name: "Family",
@@ -62,8 +61,7 @@ const tiers: PricingTier[] = [
       "Household goals",
       "Combined money health score",
     ],
-    cta: "Start a household",
-    href: "https://app.slash.cash",
+    cta: "Coming soon",
   },
   {
     name: "Advisor",
@@ -97,13 +95,13 @@ function PricingCard({ tier }: { tier: PricingTier }) {
       className={cn(
         "relative flex flex-col gap-5 overflow-hidden rounded-2xl border bg-white p-6",
         tier.highlighted
-          ? "border-transparent shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-16px_rgba(168,85,247,0.3)]"
+          ? "border-transparent shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-16px_rgba(47,108,235,0.22)]"
           : "border-black/5 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-8px_rgba(0,0,0,0.05)]",
       )}
     >
       {tier.highlighted && (
         <ShineBorder
-          shineColor={["#6366f1", "#a855f7", "#ec4899"]}
+          shineColor={["#635bff", "#2f6ceb", "#14b8a6"]}
           duration={10}
           borderWidth={2}
         />
@@ -114,7 +112,7 @@ function PricingCard({ tier }: { tier: PricingTier }) {
           className="absolute right-5 top-5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white"
           style={{
             background:
-              "linear-gradient(135deg, #6366f1, #a855f7 50%, #ec4899)",
+              "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-3))",
           }}
         >
           <Sparkles className="h-3 w-3" /> {tier.badge}
@@ -140,7 +138,7 @@ function PricingCard({ tier }: { tier: PricingTier }) {
             tier.highlighted
               ? {
                   backgroundImage:
-                    "linear-gradient(135deg, #6366f1, #a855f7, #ec4899)",
+                    "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-3))",
                   WebkitBackgroundClip: "text",
                   backgroundClip: "text",
                   WebkitTextFillColor: "transparent",
@@ -163,7 +161,7 @@ function PricingCard({ tier }: { tier: PricingTier }) {
             <Check
               className={cn(
                 "mt-0.5 h-4 w-4 flex-none",
-                tier.highlighted ? "text-fuchsia-500" : "text-emerald-500",
+                tier.highlighted ? "text-[#14b8a6]" : "text-emerald-500",
               )}
               strokeWidth={2.5}
             />
@@ -172,28 +170,44 @@ function PricingCard({ tier }: { tier: PricingTier }) {
         ))}
       </ul>
 
-      <a
-        href={tier.href}
-        target={tier.href.startsWith("http") ? "_blank" : undefined}
-        rel={tier.href.startsWith("http") ? "noopener noreferrer" : undefined}
-        className={cn(
-          "mt-auto inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-[0.85rem] font-semibold transition",
-          tier.highlighted
-            ? "text-white shadow-[0_8px_24px_-8px_rgba(168,85,247,0.5)]"
-            : "border border-black/5 bg-white text-neutral-700 hover:bg-neutral-50",
-        )}
-        style={
-          tier.highlighted
-            ? {
-                background:
-                  "linear-gradient(135deg, #6366f1, #a855f7 50%, #ec4899)",
-              }
-            : undefined
-        }
-      >
-        {tier.cta}
-        <ArrowRight className="h-3.5 w-3.5" />
-      </a>
+      {tier.href ? (
+        <a
+          href={tier.href}
+          target={
+            tier.href.startsWith("http") ? "_blank" : undefined
+          }
+          rel={
+            tier.href.startsWith("http") ? "noopener noreferrer" : undefined
+          }
+          className={cn(
+            "mt-auto inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-[0.85rem] font-semibold transition",
+            tier.highlighted
+              ? "text-white shadow-[0_8px_24px_-8px_rgba(47,108,235,0.35)]"
+              : "border border-black/5 bg-white text-neutral-700 hover:bg-neutral-50",
+          )}
+          style={
+            tier.highlighted
+              ? {
+                  background:
+                    "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-3))",
+                }
+              : undefined
+          }
+        >
+          {tier.cta}
+          <ArrowRight className="h-3.5 w-3.5" />
+        </a>
+      ) : (
+        <span
+          className={cn(
+            "mt-auto inline-flex cursor-default items-center justify-center rounded-full border border-black/10 bg-neutral-100 px-4 py-2.5 text-[0.85rem] font-semibold text-neutral-500",
+            tier.highlighted &&
+              "border-transparent bg-neutral-950/5 text-neutral-600",
+          )}
+        >
+          {tier.cta}
+        </span>
+      )}
     </div>
   );
 }

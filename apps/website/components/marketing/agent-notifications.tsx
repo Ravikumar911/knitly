@@ -63,9 +63,9 @@ const toneStyles: Record<Notification["tone"], { bg: string; fg: string; ring: s
     ring: "ring-emerald-100",
   },
   info: {
-    bg: "bg-violet-50",
-    fg: "text-violet-700",
-    ring: "ring-violet-100",
+    bg: "bg-sky-50",
+    fg: "text-sky-800",
+    ring: "ring-sky-100",
   },
   save: {
     bg: "bg-cyan-50",

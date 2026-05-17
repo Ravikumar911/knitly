@@ -6,7 +6,6 @@ import { AnimatedShinyText } from "@workspace/ui/components/magicui/animated-shi
 import { AuroraText } from "@workspace/ui/components/aurora-text";
 import { BlurFade } from "@workspace/ui/components/magicui/blur-fade";
 import { DotPattern } from "@workspace/ui/components/magicui/dot-pattern";
-import { ShimmerButton } from "@workspace/ui/components/magicui/shimmer-button";
 import { cn } from "@workspace/ui/lib/utils";
 
 import {
@@ -19,7 +18,6 @@ import { HeroPreviewCard } from "@/components/marketing/hero-preview-card";
 import { PricingTiers } from "@/components/marketing/pricing-tiers";
 import { Section } from "@/components/marketing/section";
 import { StatsBand } from "@/components/marketing/stats-band";
-import { TestimonialMarquee } from "@/components/marketing/testimonial-marquee";
 
 export default function HomePage() {
   return (
@@ -30,7 +28,7 @@ export default function HomePage() {
         <DotPattern
           className={cn(
             "[mask-image:radial-gradient(1100px_circle_at_top_right,white,transparent)]",
-            "fill-violet-300/45",
+            "fill-sky-300/35",
           )}
           width={28}
           height={28}
@@ -51,14 +49,14 @@ export default function HomePage() {
                   className="grid h-4 w-4 place-items-center rounded-full text-[0.55rem] font-bold text-white"
                   style={{
                     background:
-                      "linear-gradient(135deg, #6366f1, #ec4899)",
+                      "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-3))",
                   }}
                   aria-hidden="true"
                 >
                   ✨
                 </span>
                 <AnimatedShinyText className="!text-neutral-700">
-                  Introducing Slash Cash 0.1 — open-source preview
+                  Slash Cash · coming soon — open-source, local-first
                 </AnimatedShinyText>
                 <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
               </a>
@@ -68,7 +66,12 @@ export default function HomePage() {
               <h1 className="mt-6 text-balance text-[3.1rem] font-bold leading-[1.02] tracking-tight md:text-[3.8rem]">
                 Your{" "}
                 <AuroraText
-                  colors={["#6366f1", "#a855f7", "#ec4899", "#06b6d4"]}
+                  colors={[
+                    "#635bff",
+                    "#2f6ceb",
+                    "#0ea5e9",
+                    "#14b8a6",
+                  ]}
                   speed={1.2}
                 >
                   AI finance team
@@ -85,31 +88,16 @@ export default function HomePage() {
                 <span className="font-semibold text-neutral-900">
                   one clear thing to fix
                 </span>{" "}
-                each week. Open-source, runs on your laptop, never uploads
-                your finances.
+                each week. Open-source and{" "}
+                <span className="font-semibold text-neutral-900">
+                  runs locally on your machine
+                </span>
+                {" — "}your finances never leave your laptop.
               </p>
             </BlurFade>
 
             <BlurFade delay={0.28} inView>
               <div className="mt-7 flex flex-wrap items-center gap-3">
-                <a
-                  href="https://app.slash.cash"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ShimmerButton
-                    shimmerColor="#ffffff"
-                    shimmerSize="0.05em"
-                    borderRadius="999px"
-                    background="linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)"
-                    className="!h-11 !px-6"
-                  >
-                    <span className="inline-flex items-center gap-1.5 text-[0.92rem] font-semibold text-white">
-                      Open the dashboard
-                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                    </span>
-                  </ShimmerButton>
-                </a>
                 <a
                   href="https://github.com/slashcash"
                   target="_blank"
@@ -119,6 +107,9 @@ export default function HomePage() {
                   <Github className="h-3.5 w-3.5" />
                   View on GitHub
                 </a>
+                <span className="inline-flex h-11 items-center rounded-full border border-dashed border-black/15 bg-white/70 px-5 text-[0.92rem] font-medium text-neutral-500">
+                  Hosted dashboard — coming soon
+                </span>
               </div>
             </BlurFade>
 
@@ -129,11 +120,11 @@ export default function HomePage() {
                   100% local · zero cloud sync
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#635bff]" />
                   Works with UPI · cards · email
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#2f6ceb]" />
                   Open-source CLI
                 </span>
               </div>
@@ -158,7 +149,7 @@ export default function HomePage() {
               </span>
               <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[0.85rem] font-medium text-neutral-700">
                 <span className="inline-flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-violet-500" /> Local-first
+                  <Sparkles className="h-3.5 w-3.5 text-sky-600" /> Local-first
                 </span>
                 <span>·</span>
                 <span>Open-source MIT</span>
@@ -179,7 +170,7 @@ export default function HomePage() {
         title={
           <>
             Built for the way{" "}
-            <AuroraText colors={["#6366f1", "#a855f7", "#ec4899"]}>
+            <AuroraText colors={["#635bff", "#2f6ceb", "#0ea5e9"]}>
               modern money
             </AuroraText>{" "}
             actually moves.
@@ -200,7 +191,7 @@ export default function HomePage() {
         title={
           <>
             Your sources go in.{" "}
-            <AuroraText colors={["#a855f7", "#ec4899", "#06b6d4"]}>
+            <AuroraText colors={["#2f6ceb", "#0ea5e9", "#14b8a6"]}>
               Decisions
             </AuroraText>{" "}
             come out.
@@ -218,7 +209,7 @@ export default function HomePage() {
         title={
           <>
             Seven specialists.{" "}
-            <AuroraText colors={["#06b6d4", "#a855f7"]}>One job each.</AuroraText>
+            <AuroraText colors={["#14b8a6", "#2f6ceb"]}>One job each.</AuroraText>
           </>
         }
         description="No mega-model trying to do everything. Each agent is a small, inspectable program with one clear responsibility."
@@ -235,38 +226,19 @@ export default function HomePage() {
         <StatsBand />
       </Section>
 
-      {/* TESTIMONIALS */}
-      <Section
-        eyebrow="What users say"
-        title={
-          <>
-            People{" "}
-            <AuroraText colors={["#ec4899", "#f97316", "#a855f7"]}>
-              love
-            </AuroraText>{" "}
-            how it feels.
-          </>
-        }
-        description="The Monday brief is the killer feature. Three actions, one paragraph, written in plain English."
-        containerClassName="!max-w-[1280px]"
-      >
-        <TestimonialMarquee />
-      </Section>
-
       {/* PRICING */}
       <Section
         id="pricing"
         eyebrow="Pricing"
         title={
           <>
-            Free forever for personal use.{" "}
-            <br className="hidden md:block" />
-            <AuroraText colors={["#6366f1", "#ec4899"]}>
-              Pay only for convenience.
+            Simple tiers.{" "}
+            <AuroraText colors={["#635bff", "#2f6ceb"]}>
+              Your data stays on your disk.
             </AuroraText>
           </>
         }
-        description="The whole engine is free and open-source. Paid tiers fund development and unlock advanced workflows — never gate-keeping your own data."
+        description="The engine is open-source. When paid plans ship, they'll fund connectors and workflows — never rent-seeking access to money you already own."
       >
         <PricingTiers />
       </Section>
@@ -278,15 +250,15 @@ export default function HomePage() {
             className="relative overflow-hidden rounded-3xl border border-black/5 p-10 md:p-16"
             style={{
               background:
-                "linear-gradient(135deg, #ffffff 0%, rgba(99,102,241,0.06) 50%, rgba(236,72,153,0.06) 100%)",
+                "linear-gradient(135deg, #ffffff 0%, rgba(99,91,255,0.045) 50%, rgba(20,184,166,0.05) 100%)",
               boxShadow:
-                "0 1px 2px rgba(0,0,0,0.04), 0 24px 64px -16px rgba(168,85,247,0.25)",
+                "0 1px 2px rgba(0,0,0,0.04), 0 24px 64px -16px rgba(47,108,235,0.18)",
             }}
           >
             <DotPattern
               className={cn(
                 "[mask-image:radial-gradient(700px_circle_at_top_right,white,transparent)]",
-                "fill-violet-300/30",
+                "fill-sky-200/28",
               )}
               width={22}
               height={22}
@@ -299,7 +271,8 @@ export default function HomePage() {
                   <span
                     className="h-1.5 w-1.5 rounded-full"
                     style={{
-                      background: "linear-gradient(135deg, #6366f1, #ec4899)",
+                      background:
+                        "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-4))",
                     }}
                   />
                   Get started free
@@ -308,7 +281,12 @@ export default function HomePage() {
                   Stop watching dashboards.
                   <br />
                   <AuroraText
-                    colors={["#6366f1", "#a855f7", "#ec4899", "#06b6d4"]}
+                    colors={[
+                      "#635bff",
+                      "#2f6ceb",
+                      "#0ea5e9",
+                      "#14b8a6",
+                    ]}
                   >
                     Start fixing money.
                   </AuroraText>
@@ -321,32 +299,17 @@ export default function HomePage() {
               </div>
               <div className="flex flex-col items-stretch gap-3 md:items-end">
                 <a
-                  href="https://app.slash.cash"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <ShimmerButton
-                    shimmerColor="#ffffff"
-                    shimmerSize="0.05em"
-                    borderRadius="999px"
-                    background="linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)"
-                    className="!h-12 !px-6 !w-full md:!w-auto"
-                  >
-                    <span className="inline-flex items-center gap-1.5 text-[0.95rem] font-semibold text-white">
-                      Open the dashboard
-                      <ArrowRight className="h-4 w-4" />
-                    </span>
-                  </ShimmerButton>
-                </a>
-                <a
                   href="https://github.com/slashcash"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-black/10 bg-white px-6 text-[0.92rem] font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-black/10 bg-white px-6 text-[0.92rem] font-semibold text-neutral-700 transition hover:bg-neutral-50 md:w-auto"
                 >
                   <Github className="h-4 w-4" />
                   Read the source
                 </a>
+                <span className="text-center text-[0.85rem] text-neutral-400 md:text-right">
+                  Hosted app — coming soon
+                </span>
               </div>
             </div>
           </div>

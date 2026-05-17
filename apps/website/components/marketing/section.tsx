@@ -50,7 +50,7 @@ export function Section({
                   className="h-1.5 w-1.5 rounded-full"
                   style={{
                     background:
-                      "linear-gradient(135deg, #6366f1, #ec4899)",
+                      "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-4))",
                   }}
                   aria-hidden="true"
                 />

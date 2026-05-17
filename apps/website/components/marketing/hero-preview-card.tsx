@@ -18,7 +18,7 @@ export function HeroPreviewCard() {
         aria-hidden="true"
         style={{
           background:
-            "radial-gradient(circle at 70% 30%, rgba(168,85,247,0.25), transparent 55%), radial-gradient(circle at 25% 80%, rgba(99,102,241,0.18), transparent 55%), radial-gradient(circle at 80% 90%, rgba(236,72,153,0.18), transparent 55%)",
+            "radial-gradient(circle at 70% 30%, rgba(47,108,235,0.2), transparent 55%), radial-gradient(circle at 25% 80%, rgba(99,91,255,0.15), transparent 55%), radial-gradient(circle at 80% 90%, rgba(20,184,166,0.14), transparent 55%)",
           filter: "blur(8px)",
         }}
       />
@@ -27,7 +27,7 @@ export function HeroPreviewCard() {
         initial={{ opacity: 0, y: 20, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        className="relative overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_30px_80px_-20px_rgba(99,102,241,0.25)]"
+        className="relative overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_30px_80px_-20px_rgba(47,108,235,0.2)]"
       >
         {/* Window chrome */}
         <div className="flex items-center gap-1.5 border-b border-black/5 bg-neutral-50 px-4 py-2.5">
@@ -51,7 +51,7 @@ export function HeroPreviewCard() {
                 6 agents running locally
               </span>
             </div>
-            <span className="flex-none rounded-full bg-violet-50 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wider text-violet-700">
+            <span className="flex-none rounded-full bg-sky-50 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wider text-sky-800">
               Live
             </span>
           </div>
@@ -86,10 +86,10 @@ export function HeroPreviewCard() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.65 }}
-            className="relative overflow-hidden rounded-2xl border border-violet-200/60 p-4"
+            className="relative overflow-hidden rounded-2xl border border-sky-200/55 p-4"
             style={{
               background:
-                "linear-gradient(135deg, rgba(99,102,241,0.06), rgba(236,72,153,0.05) 60%, rgba(6,182,212,0.06))",
+                "linear-gradient(135deg, rgba(99,91,255,0.06), rgba(47,108,235,0.045) 60%, rgba(20,184,166,0.06))",
             }}
           >
             <div className="flex items-center justify-between text-[0.6rem] font-semibold uppercase tracking-[0.16em] text-neutral-400">
@@ -108,7 +108,7 @@ export function HeroPreviewCard() {
                   className="bg-clip-text text-transparent"
                   style={{
                     backgroundImage:
-                      "linear-gradient(135deg, #6366f1, #a855f7, #ec4899)",
+                      "linear-gradient(135deg, #635bff, #2f6ceb, #0ea5e9)",
                   }}
                 >
                   72
@@ -118,12 +118,12 @@ export function HeroPreviewCard() {
                 /100
               </span>
             </div>
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-violet-100">
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-sky-100">
               <motion.span
                 className="block h-full rounded-full"
                 style={{
                   background:
-                    "linear-gradient(90deg, #6366f1, #a855f7, #ec4899)",
+                    "linear-gradient(90deg, #635bff, #2f6ceb, #0ea5e9)",
                 }}
                 initial={{ width: 0 }}
                 animate={{ width: "72%" }}
@@ -131,7 +131,7 @@ export function HeroPreviewCard() {
               />
             </div>
             <div className="mt-3 flex items-center gap-1.5 text-[0.74rem] text-neutral-600">
-              <Sparkles className="h-3 w-3 text-violet-500" aria-hidden="true" />
+              <Sparkles className="h-3 w-3 text-sky-600" aria-hidden="true" />
               <span>
                 Suggested:{" "}
                 <span className="font-semibold text-neutral-900">

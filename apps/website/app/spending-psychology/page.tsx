@@ -24,17 +24,17 @@ export const metadata: Metadata = {
 
 const biases = [
   {
-    icon: <Brain className="h-5 w-5 text-violet-500" />,
+    icon: <Brain className="h-5 w-5 text-indigo-600" />,
     title: "Mental accounting",
     body: "We treat ₹500 on food delivery as “lifestyle” and ₹500 of subscriptions as “invisible.” Slash Cash collapses every category into the same lens — money out, behavior pattern.",
   },
   {
-    icon: <Repeat className="h-5 w-5 text-fuchsia-500" />,
+    icon: <Repeat className="h-5 w-5 text-sky-600" />,
     title: "The compounding leak",
     body: "Three forgotten subscriptions cost more than a missed SIP step-up. The Leak Agent surfaces these every Monday so you fix them before they recur.",
   },
   {
-    icon: <CreditCard className="h-5 w-5 text-cyan-500" />,
+    icon: <CreditCard className="h-5 w-5 text-teal-500" />,
     title: "Friction asymmetry",
     body: "Spending is one tap. Reviewing is a workflow. Slash Cash inverts that — review is automatic, intervention is opt-in, the dashboard is ready before you open it.",
   },
@@ -44,7 +44,7 @@ const biases = [
     body: "Credit scores reward debt. Money health rewards savings rate, low recurring load, investment consistency, and emergency cover.",
   },
   {
-    icon: <TrendingUp className="h-5 w-5 text-rose-500" />,
+    icon: <TrendingUp className="h-5 w-5 text-[#2f6ceb]" />,
     title: "Decisions, not charts",
     body: "Charts narrate the past. Agents make a recommendation: cut ₹X here, move ₹Y to SIP, cancel these three subscriptions. One action a week beats ten dashboards.",
   },
@@ -57,7 +57,7 @@ export default function SpendingPsychologyPage() {
         <DotPattern
           className={cn(
             "[mask-image:radial-gradient(700px_circle_at_top_right,white,transparent)]",
-            "fill-violet-300/40",
+            "fill-sky-300/35",
           )}
           width={28}
           height={28}
@@ -72,7 +72,8 @@ export default function SpendingPsychologyPage() {
               <span
                 className="h-1.5 w-1.5 rounded-full"
                 style={{
-                  background: "linear-gradient(135deg, #6366f1, #ec4899)",
+                  background:
+                    "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-4))",
                 }}
               />
               Essay
@@ -82,7 +83,7 @@ export default function SpendingPsychologyPage() {
           <BlurFade delay={0.12} inView>
             <h1 className="mt-5 max-w-3xl text-[2.6rem] font-bold leading-[1.05] tracking-tight md:text-[3.2rem]">
               Why we overspend —{" "}
-              <AuroraText colors={["#6366f1", "#a855f7", "#ec4899"]}>
+              <AuroraText colors={["#635bff", "#2f6ceb", "#0ea5e9"]}>
                 and what an honest finance agent does about it.
               </AuroraText>
             </h1>
@@ -124,8 +125,8 @@ export default function SpendingPsychologyPage() {
           className="mt-12 rounded-2xl p-8 md:p-10"
           style={{
             background:
-              "linear-gradient(135deg, rgba(99,102,241,0.07), rgba(236,72,153,0.07))",
-            border: "1px solid rgba(99,102,241,0.12)",
+              "linear-gradient(135deg, rgba(99,91,255,0.06), rgba(20,184,166,0.07))",
+            border: "1px solid rgba(47,108,235,0.14)",
           }}
         >
           <p className="text-center text-[1.05rem] leading-relaxed text-neutral-700 md:text-[1.15rem]">

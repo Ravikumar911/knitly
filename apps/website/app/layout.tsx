@@ -3,9 +3,7 @@ import { Inter } from "next/font/google"
 import { ThemeProvider } from "next-themes"
 import Script from "next/script"
 import Link from "next/link"
-import { ArrowRight, Github } from "lucide-react"
-
-import { ShimmerButton } from "@workspace/ui/components/magicui/shimmer-button"
+import { Github } from "lucide-react"
 
 import "./globals.css"
 
@@ -113,25 +111,9 @@ function Header() {
             <Github className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Star</span>
           </a>
-          <a
-            href="https://app.slash.cash"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex"
-          >
-            <ShimmerButton
-              shimmerColor="#ffffff"
-              shimmerSize="0.05em"
-              borderRadius="999px"
-              background="linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)"
-              className="!h-9 !px-4 !py-0 !text-[0.82rem] font-semibold"
-            >
-              <span className="inline-flex items-center gap-1.5 text-white">
-                Get started
-                <ArrowRight className="h-3 w-3" aria-hidden="true" />
-              </span>
-            </ShimmerButton>
-          </a>
+          <span className="inline-flex h-9 items-center rounded-full border border-black/10 bg-white/85 px-3.5 text-[0.82rem] font-medium text-neutral-600">
+            Coming soon
+          </span>
         </div>
       </div>
     </header>
@@ -196,9 +178,7 @@ function Footer() {
               <li><Link href="/spending-psychology" className="transition hover:text-neutral-900">Spending psychology</Link></li>
               <li><Link href="/swiggy" className="transition hover:text-neutral-900">Email connectors</Link></li>
               <li>
-                <a href="https://app.slash.cash" target="_blank" rel="noopener noreferrer" className="transition hover:text-neutral-900">
-                  Dashboard
-                </a>
+                <span className="text-neutral-400">Dashboard (coming soon)</span>
               </li>
             </ul>
           </div>

@@ -78,8 +78,8 @@ function ReviewCard({ name, username, body, initials, tint }: Review) {
     <figure
       className={cn(
         "relative w-72 cursor-pointer overflow-hidden rounded-2xl border border-black/5 bg-white p-4",
-        "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(99,102,241,0.12)]",
-        "transition hover:-translate-y-0.5 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_16px_32px_-16px_rgba(168,85,247,0.25)]",
+        "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(47,108,235,0.1)]",
+        "transition hover:-translate-y-0.5 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_16px_32px_-16px_rgba(47,108,235,0.18)]",
       )}
     >
       <div className="flex items-center gap-2.5">

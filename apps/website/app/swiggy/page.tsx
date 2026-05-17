@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Inbox, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { CheckCircle2, Inbox, Mail, ShieldCheck, Sparkles } from "lucide-react";
 
 import { AuroraText } from "@workspace/ui/components/aurora-text";
 import { BlurFade } from "@workspace/ui/components/magicui/blur-fade";
 import { DotPattern } from "@workspace/ui/components/magicui/dot-pattern";
-import { ShimmerButton } from "@workspace/ui/components/magicui/shimmer-button";
 import { cn } from "@workspace/ui/lib/utils";
 
 import { Section } from "@/components/marketing/section";
@@ -33,7 +32,7 @@ const connectors: { name: string; state: "Stable" | "Featured" | "Beta" }[] = [
 const stateStyle: Record<string, string> = {
   Stable: "bg-emerald-50 text-emerald-700",
   Featured:
-    "bg-gradient-to-r from-violet-100 via-fuchsia-100 to-cyan-100 text-violet-800",
+    "bg-gradient-to-r from-sky-100 via-blue-50 to-teal-100 text-sky-900",
   Beta: "bg-neutral-100 text-neutral-500",
 };
 
@@ -44,7 +43,7 @@ export default function ConnectorsPage() {
         <DotPattern
           className={cn(
             "[mask-image:radial-gradient(700px_circle_at_top_right,white,transparent)]",
-            "fill-violet-300/40",
+            "fill-sky-300/35",
           )}
           width={28}
           height={28}
@@ -58,7 +57,7 @@ export default function ConnectorsPage() {
             <span className="slash-eyebrow">
               <span
                 className="h-1.5 w-1.5 rounded-full"
-                style={{ background: "linear-gradient(135deg, #6366f1, #ec4899)" }}
+                style={{ background: "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-4))" }}
               />
               Connectors
             </span>
@@ -68,7 +67,7 @@ export default function ConnectorsPage() {
             <h1 className="mt-5 max-w-3xl text-[2.6rem] font-bold leading-[1.05] tracking-tight md:text-[3.2rem]">
               Your financial life lives in email.
               <br />
-              <AuroraText colors={["#6366f1", "#a855f7", "#ec4899", "#06b6d4"]}>
+              <AuroraText colors={["#635bff", "#2f6ceb", "#0ea5e9", "#14b8a6"]}>
                 Slash Cash reads it on your laptop.
               </AuroraText>
             </h1>
@@ -86,24 +85,6 @@ export default function ConnectorsPage() {
           <BlurFade delay={0.28} inView>
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <a
-                href="https://app.slash.cash"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ShimmerButton
-                  shimmerColor="#ffffff"
-                  shimmerSize="0.05em"
-                  borderRadius="999px"
-                  background="linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)"
-                  className="!h-11 !px-6"
-                >
-                  <span className="inline-flex items-center gap-1.5 text-[0.92rem] font-semibold text-white">
-                    Try in the dashboard
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </span>
-                </ShimmerButton>
-              </a>
-              <a
                 href="https://github.com/slashcash"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -111,6 +92,9 @@ export default function ConnectorsPage() {
               >
                 View source
               </a>
+              <span className="inline-flex h-11 items-center rounded-full border border-dashed border-black/15 bg-white/70 px-5 text-[0.92rem] font-medium text-neutral-500">
+                Dashboard · coming soon
+              </span>
             </div>
           </BlurFade>
         </div>
@@ -124,12 +108,12 @@ export default function ConnectorsPage() {
         <div className="grid gap-4 md:grid-cols-3">
           {[
             {
-              icon: <Inbox className="h-5 w-5 text-violet-500" />,
+              icon: <Inbox className="h-5 w-5 text-indigo-500" />,
               title: "Read-only IMAP",
               body: "Use your provider's app-password feature. Slash Cash only reads labelled finance threads. It can't send, archive, or modify your inbox.",
             },
             {
-              icon: <Sparkles className="h-5 w-5 text-fuchsia-500" />,
+              icon: <Sparkles className="h-5 w-5 text-sky-600" />,
               title: "Deterministic extractors",
               body: "Per-source extractors with snapshot tests. The same Swiggy receipt yields the same transaction every time — auditable, versionable, open-source.",
             },
@@ -162,12 +146,12 @@ export default function ConnectorsPage() {
         title={
           <>
             Sources Slash Cash recognizes{" "}
-            <AuroraText colors={["#6366f1", "#ec4899"]}>today.</AuroraText>
+            <AuroraText colors={["#635bff", "#2f6ceb"]}>today.</AuroraText>
           </>
         }
         description="Connectors graduate from Beta to Stable when deterministic snapshot tests cover real-world variants. Add your own — the extractor pattern is open."
       >
-        <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_64px_-32px_rgba(99,102,241,0.18)]">
+        <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_64px_-32px_rgba(47,108,235,0.14)]">
           {connectors.map((c, idx) => (
             <div
               key={c.name}
@@ -176,8 +160,8 @@ export default function ConnectorsPage() {
                 idx > 0 && "border-t border-black/5",
               )}
             >
-              <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-violet-50 ring-1 ring-violet-100">
-                <Mail className="h-4 w-4 text-violet-500" />
+              <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-sky-50 ring-1 ring-sky-100">
+                <Mail className="h-4 w-4 text-[#635bff]" />
               </span>
               <span className="text-[0.95rem] font-medium text-neutral-800">
                 {c.name}
@@ -214,7 +198,7 @@ export default function ConnectorsPage() {
           Want a connector that isn't here yet?{" "}
           <Link
             href="/"
-            className="font-semibold text-violet-600 underline-offset-2 hover:underline"
+            className="font-semibold text-sky-800 underline-offset-2 hover:underline"
           >
             Open an issue on GitHub →
           </Link>

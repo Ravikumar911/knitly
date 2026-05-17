@@ -101,7 +101,7 @@ function BentoCell({
 
 function BentoEyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <span className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-violet-600">
+    <span className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-sky-800">
       {children}
     </span>
   );
@@ -125,7 +125,7 @@ export function BentoFeatures() {
               className="absolute inset-0"
               style={{
                 background:
-                  "radial-gradient(circle at 50% 40%, rgba(99,102,241,0.15), transparent 60%), radial-gradient(circle at 70% 80%, rgba(236,72,153,0.1), transparent 50%)",
+                  "radial-gradient(circle at 50% 40%, rgba(47,108,235,0.14), transparent 60%), radial-gradient(circle at 70% 80%, rgba(20,184,166,0.1), transparent 50%)",
               }}
             />
             <Globe className="!relative !top-auto !bottom-[-180px] !mx-auto !aspect-square !w-[110%]" />
@@ -166,7 +166,7 @@ export function BentoFeatures() {
                 className="bg-clip-text text-transparent"
                 style={{
                   backgroundImage:
-                    "linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)",
+                    "linear-gradient(135deg, #635bff 0%, #2f6ceb 50%, #0ea5e9 100%)",
                 }}
               >
                 <NumberTicker value={72} className="!text-transparent" />
@@ -199,7 +199,7 @@ export function BentoFeatures() {
               <AnimatedSpan className="text-amber-600">
                 <span>! Leak Agent · 3 flagged</span>
               </AnimatedSpan>
-              <AnimatedSpan className="text-violet-600">
+              <AnimatedSpan className="text-sky-700">
                 <span>✓ Score 72 (+4) ready</span>
               </AnimatedSpan>
             </Terminal>
@@ -239,7 +239,7 @@ export function BentoFeatures() {
                 </span>
               ))}
             </div>
-            <Plug className="pointer-events-none absolute right-4 top-4 h-6 w-6 text-violet-300" />
+            <Plug className="pointer-events-none absolute right-4 top-4 h-6 w-6 text-sky-300" />
           </div>
         }
       />
@@ -262,19 +262,19 @@ export function BentoFeaturesSecondary() {
               className="absolute inset-0"
               style={{
                 background:
-                  "radial-gradient(circle at 30% 40%, rgba(168,85,247,0.18), transparent 55%)",
+                  "radial-gradient(circle at 30% 40%, rgba(47,108,235,0.14), transparent 55%)",
               }}
             />
             <div className="absolute inset-0 grid place-items-center p-6">
-              <code className="rounded-2xl border border-black/5 bg-white px-5 py-4 text-[0.78rem] font-mono leading-relaxed text-neutral-700 shadow-[0_12px_32px_-12px_rgba(99,102,241,0.18)]">
+              <code className="rounded-2xl border border-black/5 bg-white px-5 py-4 text-[0.78rem] font-mono leading-relaxed text-neutral-700 shadow-[0_12px_32px_-12px_rgba(47,108,235,0.15)]">
                 <span className="text-neutral-400">$</span>{" "}
-                <span className="text-violet-600">npm i -g</span> slashcash
+                <span className="text-sky-700">npm i -g</span> slashcash
                 <br />
                 <span className="text-neutral-400">$</span>{" "}
-                <span className="text-violet-600">slashcash</span> onboard
+                <span className="text-sky-700">slashcash</span> onboard
                 <br />
                 <span className="text-neutral-400">$</span>{" "}
-                <span className="text-violet-600">slashcash</span> start
+                <span className="text-sky-700">slashcash</span> start
               </code>
             </div>
           </div>
@@ -293,7 +293,7 @@ export function BentoFeaturesSecondary() {
               className="grid h-24 w-24 place-items-center rounded-3xl"
               style={{
                 background:
-                  "linear-gradient(135deg, rgba(16,185,129,0.15), rgba(99,102,241,0.15))",
+                  "linear-gradient(135deg, rgba(16,185,129,0.15), rgba(47,108,235,0.15))",
               }}
             >
               <ShieldCheck className="h-10 w-10 text-emerald-600" strokeWidth={1.5} />
@@ -334,13 +334,13 @@ export function AgentsBento() {
                 className="absolute inset-0 rounded-full"
                 style={{
                   background:
-                    "conic-gradient(from 90deg, #6366f1, #a855f7, #ec4899, #06b6d4, #6366f1)",
+                    "conic-gradient(from 90deg, #635bff, #2f6ceb, #0ea5e9, #14b8a6, #635bff)",
                   filter: "blur(14px)",
                   opacity: 0.5,
                 }}
               />
-              <div className="relative grid h-24 w-24 place-items-center rounded-full bg-white shadow-[0_12px_32px_-8px_rgba(99,102,241,0.4)]">
-                <ScanSearch className="h-8 w-8 text-violet-500" strokeWidth={1.5} />
+              <div className="relative grid h-24 w-24 place-items-center rounded-full bg-white shadow-[0_12px_32px_-8px_rgba(47,108,235,0.28)]">
+                <ScanSearch className="h-8 w-8 text-[#635bff]" strokeWidth={1.5} />
               </div>
             </div>
           </div>

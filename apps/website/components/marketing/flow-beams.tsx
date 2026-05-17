@@ -34,7 +34,7 @@ const Circle = forwardRef<
     <div
       ref={ref}
       className={cn(
-        "z-10 flex items-center justify-center rounded-full border-2 border-black/5 bg-white shadow-[0_0_0_8px_white,0_8px_24px_-8px_rgba(99,102,241,0.25)]",
+        "z-10 flex items-center justify-center rounded-full border-2 border-black/5 bg-white shadow-[0_0_0_8px_white,0_8px_24px_-8px_rgba(47,108,235,0.2)]",
         sizeClass,
         className,
       )}
@@ -62,11 +62,11 @@ export function FlowBeams() {
   ];
 
   const sources = [
-    { icon: <Smartphone className="h-5 w-5 text-fuchsia-500" />, label: "UPI" },
-    { icon: <CreditCard className="h-5 w-5 text-violet-500" />, label: "Cards" },
-    { icon: <Mail className="h-5 w-5 text-indigo-500" />, label: "Email" },
-    { icon: <MessageSquareText className="h-5 w-5 text-cyan-500" />, label: "SMS" },
-    { icon: <FileSpreadsheet className="h-5 w-5 text-rose-500" />, label: "PDF/CSV" },
+    { icon: <Smartphone className="h-5 w-5 text-sky-500" />, label: "UPI" },
+    { icon: <CreditCard className="h-5 w-5 text-indigo-500" />, label: "Cards" },
+    { icon: <Mail className="h-5 w-5 text-[#635bff]" />, label: "Email" },
+    { icon: <MessageSquareText className="h-5 w-5 text-teal-500" />, label: "SMS" },
+    { icon: <FileSpreadsheet className="h-5 w-5 text-[#2f6ceb]" />, label: "PDF/CSV" },
   ];
 
   const outputs = [
@@ -99,7 +99,7 @@ export function FlowBeams() {
             className="grid h-full w-full place-items-center rounded-full text-lg font-bold text-white"
             style={{
               background:
-                "linear-gradient(135deg, #6366f1, #a855f7 50%, #ec4899)",
+                "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-4))",
             }}
           >
             /
@@ -133,8 +133,8 @@ export function FlowBeams() {
           duration={5}
           delay={i * 0.3}
           curvature={i % 2 === 0 ? 30 : -30}
-          gradientStartColor="#6366f1"
-          gradientStopColor="#ec4899"
+          gradientStartColor="#635bff"
+          gradientStopColor="#0ea5e9"
           pathColor="#e5e5e5"
           pathOpacity={0.5}
         />
@@ -149,7 +149,7 @@ export function FlowBeams() {
           duration={5}
           delay={1 + i * 0.3}
           curvature={i === 1 ? 0 : i === 0 ? -30 : 30}
-          gradientStartColor="#a855f7"
+          gradientStartColor="#2f6ceb"
           gradientStopColor="#10b981"
           pathColor="#e5e5e5"
           pathOpacity={0.5}

@@ -14,11 +14,11 @@ import { OrbitingCircles } from "@workspace/ui/components/orbiting-circles";
 
 const innerAgents = [
   {
-    icon: <ScanSearch className="h-5 w-5 text-violet-500" />,
+    icon: <ScanSearch className="h-5 w-5 text-indigo-500" />,
     title: "Spend",
   },
   {
-    icon: <AlertTriangle className="h-5 w-5 text-rose-500" />,
+    icon: <AlertTriangle className="h-5 w-5 text-sky-500" />,
     title: "Leak",
   },
   {
@@ -30,7 +30,7 @@ const innerAgents = [
 const outerAgents = [
   { icon: <Plug className="h-5 w-5 text-indigo-500" />, title: "Connector" },
   { icon: <CircleDollarSign className="h-5 w-5 text-cyan-500" />, title: "Investor" },
-  { icon: <Brain className="h-5 w-5 text-fuchsia-500" />, title: "Review" },
+  { icon: <Brain className="h-5 w-5 text-[#635bff]" />, title: "Review" },
   {
     icon: <FilePieChart className="h-5 w-5 text-amber-500" />,
     title: "Alert",
@@ -39,7 +39,7 @@ const outerAgents = [
 
 function AgentChip({ icon, title }: { icon: React.ReactNode; title: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-full border border-black/5 bg-white pl-1.5 pr-3 py-1 shadow-[0_4px_16px_-4px_rgba(99,102,241,0.18)]">
+    <div className="flex items-center gap-2 rounded-full border border-black/5 bg-white pl-1.5 pr-3 py-1 shadow-[0_4px_16px_-4px_rgba(47,108,235,0.14)]">
       <span className="grid h-7 w-7 flex-none place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5">
         {icon}
       </span>
@@ -59,7 +59,7 @@ export function AgentsOrbit() {
         aria-hidden="true"
         style={{
           background:
-            "radial-gradient(circle at 50% 50%, rgba(168,85,247,0.12), transparent 55%)",
+            "radial-gradient(circle at 50% 50%, rgba(47,108,235,0.1), transparent 55%)",
         }}
       />
 
@@ -69,9 +69,9 @@ export function AgentsOrbit() {
           className="absolute inset-0 rounded-full"
           style={{
             background:
-              "linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)",
+              "linear-gradient(135deg, var(--slash-grad-1) 0%, var(--slash-grad-3) 100%)",
             boxShadow:
-              "0 0 0 6px rgba(255,255,255,1), 0 24px 48px -12px rgba(99,102,241,0.4)",
+              "0 0 0 6px rgba(255,255,255,1), 0 24px 48px -12px rgba(47,108,235,0.32)",
           }}
         />
         <span className="relative text-3xl font-bold text-white">/</span>

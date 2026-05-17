@@ -18,40 +18,40 @@ const stats: Stat[] = [
     label: "transactions classified",
     suffix: "M+",
     value: 12,
-    tint: "linear-gradient(135deg, #6366f1, #a855f7)",
+    tint: "linear-gradient(135deg, #635bff, #2f6ceb)",
   },
   {
     label: "in unused subs flagged",
     prefix: "₹",
     suffix: "K+",
     value: 480,
-    tint: "linear-gradient(135deg, #a855f7, #ec4899)",
+    tint: "linear-gradient(135deg, #2f6ceb, #0ea5e9)",
   },
   {
     label: "average score lift / 90 days",
     prefix: "+",
     suffix: " pts",
     value: 11,
-    tint: "linear-gradient(135deg, #ec4899, #f97316)",
+    tint: "linear-gradient(135deg, #0ea5e9, #14b8a6)",
   },
   {
     label: "data uploaded to our cloud",
     suffix: "",
     value: 0,
     valueLabel: "0",
-    tint: "linear-gradient(135deg, #06b6d4, #6366f1)",
+    tint: "linear-gradient(135deg, #14b8a6, #635bff)",
   },
 ];
 
 export function StatsBand() {
   return (
-    <div className="relative isolate overflow-hidden rounded-3xl border border-black/5 bg-white p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_64px_-32px_rgba(99,102,241,0.25)] md:p-12">
+    <div className="relative isolate overflow-hidden rounded-3xl border border-black/5 bg-white p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_64px_-32px_rgba(47,108,235,0.18)] md:p-12">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10"
         style={{
           background:
-            "radial-gradient(circle at 0% 0%, rgba(99,102,241,0.08), transparent 50%), radial-gradient(circle at 100% 100%, rgba(236,72,153,0.08), transparent 50%)",
+            "radial-gradient(circle at 0% 0%, rgba(99,91,255,0.07), transparent 50%), radial-gradient(circle at 100% 100%, rgba(20,184,166,0.08), transparent 50%)",
         }}
       />
       <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
