@@ -67,7 +67,7 @@ describe("config loader", () => {
       ai: {
         ollamaBaseUrl: "http://127.0.0.1:11434/v1",
         chatModel: "tiny-local",
-        visionModel: "gemma3n:e4b",
+        visionModel: "gemma4:latest",
       },
       pdfExtractor: {
         enabled: true,

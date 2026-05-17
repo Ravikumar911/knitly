@@ -1,6 +1,6 @@
 # Testing — customer journeys and release gates
 
-This document defines how slashcash is verified now that Gmail ingest runs through IMAP and app-password-backed local state, and that PDF attachments are converted to text by the local Python lane (Docling) before the single Gemma source extraction pass.
+This document defines how slashcash is verified now that Gmail ingest runs through IMAP and app-password-backed local state, and that Swiggy PDF/body extraction is deterministic Python-backed ingest rather than a Gemma source extraction pass.
 
 ## Testing layers
 
@@ -9,7 +9,7 @@ There are four layers:
 1. **Unit tests** next to the code.
 2. **Targeted integration tests** for boundary modules where behavior really lives.
 3. **Customer-journey UI coverage** in Playwright, booted through the real `slashcash start` path.
-4. **Phase acceptance gates** that run the real CLI against fixture or release-like environments.
+4. **Named acceptance gates** that run the real CLI against fixture or release-like environments.
 
 ## Where tests live
 
@@ -31,21 +31,9 @@ There are four layers:
 
 The harness owns setup details such as temporary `SLASHCASH_HOME`, seeded SQLite state, IMAP fixture import, and the mock Ollama endpoint.
 
-## Phase 1 acceptance gate
+## Ingest acceptance gate
 
-Phase 1 proves the local stack boots and survives a normal lifecycle:
-
-- `slashcash doctor`
-- `slashcash db seed`
-- `slashcash start`
-- `/api/healthz`
-- assistant API smoke
-- `slashcash status`
-- `slashcash stop`
-
-## Phase 2 acceptance gate (ingest)
-
-Phase 2 now means fixture-backed IMAP ingest + the new Python extractor lane.
+The ingest gate means fixture-backed IMAP ingest + PDF text extraction + Swiggy transaction storage.
 
 `packages/e2e-tests/scenarios/phase-2.ts` (aliased as `e2e:ingest` once the PDF-extractor pivot lands):
 
@@ -54,13 +42,13 @@ Phase 2 now means fixture-backed IMAP ingest + the new Python extractor lane.
 - runs `slashcash doctor --quick`
 - runs `slashcash sync --full` against `.eml` IMAP fixtures
 - asserts at least one attachment file is written locally
-- with `SLASHCASH_PDF_EXTRACTOR_DISABLED` unset on nodes that have Python 3.11+: asserts at least one `transactions_v2` row has `schemaUsed = swiggy.sources.v1` and `dataSource = BOTH` or `PDF_ATTACHMENT`
-- with `SLASHCASH_PDF_EXTRACTOR_DISABLED=1`: asserts ingest still succeeds via body-only extraction (`schemaUsed = swiggy.body.v1` or `swiggy.fallback.v1`)
+- with `SLASHCASH_PDF_EXTRACTOR_DISABLED` unset on nodes that have Python 3.11+: asserts PDF text extraction runs and transactions are written via `swiggy.llm.v1` when an assistant provider is available, or `swiggy.fallback.v1` when fixture CI is running without a model
+- with `SLASHCASH_PDF_EXTRACTOR_DISABLED=1`: asserts ingest still succeeds via body-only extraction (`schemaUsed = swiggy.fallback.v1`)
 - verifies that disabling `gmail-swiggy` blocks sync
 
 The real-account version of this gate (real Gmail account + real app password + real Docling install + manual diff of transactions against actual receipts) is the PDF-extractor pivot's dogfood step and is intentionally not part of normal fixture CI.
 
-## Phase 3 acceptance gate
+## CLI acceptance gate
 
 `packages/e2e-tests/scenarios/phase-3.ts` exercises the CLI contract:
 
@@ -74,7 +62,7 @@ The real-account version of this gate (real Gmail account + real app password + 
 
 The full clean-machine cancel-during-`ollama pull` exercise is still a manual dogfood step because it requires interrupting a real model pull.
 
-## Phase 4 acceptance gate
+## Quality acceptance gate
 
 `packages/e2e-tests/scenarios/phase-4.ts` is the meta gate for the test pyramid. It runs:
 
@@ -84,7 +72,7 @@ The full clean-machine cancel-during-`ollama pull` exercise is still a manual do
 
 The IMAP boundary replacement for the retired mailbox-wrapper spec is `packages/tasks/src/gmail/imap-client.integration.test.ts`, run with `VITEST_INTEGRATION=1 pnpm --filter @workspace/tasks test`.
 
-## Phase 5 acceptance gate
+## Release acceptance gate
 
 `packages/e2e-tests/scenarios/phase-5.ts` covers release-readiness checks that do not need external credentials:
 
@@ -107,7 +95,7 @@ Published-package smoke still lives in release automation and manual dogfood.
 
 `packages/pdf-extractor/tests/` ships Python tests that exercise:
 
-- happy path: a fixture Swiggy-shaped PDF produces a JSON object whose `raw.text` contains the invoice text
+- happy path: a fixture Swiggy-shaped PDF produces a JSON object whose deterministic fields match the invoice values and whose `raw.text` contains the invoice text
 - non-transaction fixture: a non-invoice PDF still returns raw text without crashing
 - CLI exit codes: missing file → `2`, unreadable PDF → `1`, unexpected exception → `3`, success → `0`
 
@@ -122,7 +110,7 @@ The Python pydantic models in `packages/pdf-extractor/src/slashcash_pdf_extracto
 These still require a real machine, a real Gmail account, or release credentials:
 
 - clean-machine `npm i -g slashcash` verification (including `slashcash doctor --fix` provisioning the Python venv from scratch)
-- real Gmail app-password dogfood, with at least five `transactions_v2` rows hand-diffed against real Swiggy receipts to validate the source extraction pass
+- real Gmail app-password dogfood, with at least twenty `transactions_v2` rows hand-diffed against real Swiggy receipts to validate deterministic extraction
 - cancel-during-`ollama pull` interrupt, then `slashcash doctor --fix` completing the pull and landing green (survived from the retired phase-2 doc)
 - npm publish / provenance / SBOM verification
 - DNS and hosted-surface shutdown tasks

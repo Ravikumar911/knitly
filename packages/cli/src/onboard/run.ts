@@ -1,8 +1,14 @@
 import { existsSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { platform } from "node:os";
+import { dirname, join } from "node:path";
 import pc from "picocolors";
 import {
   describeCredentialStore,
+  readAssistantCredential,
   readStoredCredentials,
+  writeAssistantCredential,
   writeStoredCredentials,
 } from "../config/credentials.js";
 import { loadConfig, writeConfig } from "../config/load.js";
@@ -36,7 +42,18 @@ import type { WizardPrompter } from "../wizard/prompts.js";
 const HOMEBREW_INSTALL_URL = "https://brew.sh/";
 const APP_PASSWORD_URL = "https://myaccount.google.com/apppasswords";
 const OLLAMA_FORMULA = "ollama";
-const DEFAULT_CHAT_MODEL = "gemma3n:e4b";
+const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1";
+const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
+const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1";
+const DEFAULT_OLLAMA_CHAT_MODEL = "gemma4:latest";
+const DEFAULT_OPENAI_CHAT_MODEL = "gpt-5.4-mini";
+const DEFAULT_ANTHROPIC_CHAT_MODEL = "claude-haiku-4-5";
+
+type AssistantProvider = SlashcashConfig["assistant"]["provider"];
+type HostedAssistantProvider = Extract<
+  AssistantProvider,
+  "openai-compatible" | "anthropic"
+>;
 
 type DetectResult =
   | { done: true; message?: string }
@@ -104,7 +121,9 @@ export async function runOnboard(
 
     await runPipeline(ctx, buildSteps(), activeState);
     printFinalSummary(ctx);
-    ctx.prompter.outro("Onboarding complete. Run `slashcash start`.");
+    ctx.prompter.outro(
+      `Onboarding complete. Open http://${ctx.config.server.host}:${ctx.config.server.port}.`,
+    );
   } catch (error) {
     if (error instanceof WizardCancelledError) {
       process.exitCode = 130;
@@ -118,19 +137,22 @@ export async function runOnboard(
 
 function buildSteps(): Step[] {
   return [
+    welcomeStep,
+    assistantProviderStep,
     homebrewStep,
-    modelQuestionStep,
     ollamaInstallStep,
     ollamaServiceStep,
+    modelQuestionStep,
     ollamaPullStep,
+    stateDirStep,
+    dbMigrateStep,
     gmailAccountStep,
     gmailAppPasswordStep,
     imapVerifyStep,
-    stateDirStep,
-    dbMigrateStep,
     localProfileStep,
     pythonEnvStep,
     bundledSkillsStep,
+    kickoffSyncStep,
   ];
 }
 
@@ -159,12 +181,120 @@ function isSkipped(ctx: OnboardContext) {
   return ctx.skipExternal || process.env.SLASHCASH_E2E === "1";
 }
 
+function browserOpenCommand(url: string) {
+  if (platform() === "darwin") {
+    return { command: "open", args: [url] };
+  }
+  if (platform() === "win32") {
+    return { command: "cmd", args: ["/c", "start", "", url] };
+  }
+  return { command: "xdg-open", args: [url] };
+}
+
+function openUrlInDefaultBrowser(url: string) {
+  const { command, args } = browserOpenCommand(url);
+  const result = runCommand(command, args, { timeoutMs: 10_000 });
+  if (!result.ok) {
+    throw new Error(
+      result.stderr.trim() ||
+        result.stdout.trim() ||
+        `\`${command}\` exited with ${result.code ?? "no code"}`,
+    );
+  }
+}
+
+async function promptToOpenAppPasswordPage(ctx: OnboardContext) {
+  await ctx.prompter.text({
+    message: "Press Enter to open Google App Passwords in your browser.",
+  });
+
+  const stepSpinner = ctx.prompter.spinner();
+  stepSpinner.start("Opening Google App Passwords");
+  try {
+    openUrlInDefaultBrowser(APP_PASSWORD_URL);
+    stepSpinner.stop("Opened Google App Passwords");
+  } catch (error) {
+    stepSpinner.error("Could not open Google App Passwords");
+    throw new CliError({
+      area: "auth",
+      symptom: "Could not open the Google App Passwords page.",
+      cause: error instanceof Error ? error.message : String(error),
+      fix: "Rerun `slashcash onboard` from a desktop session where the OS browser opener is available.",
+      docs: APP_PASSWORD_URL,
+    });
+  }
+}
+
+function isHostedAssistant(ctx: OnboardContext) {
+  return isHostedAssistantProvider(ctx.config.assistant.provider);
+}
+
+function isHostedAssistantProvider(
+  provider: AssistantProvider,
+): provider is HostedAssistantProvider {
+  return provider === "openai-compatible" || provider === "anthropic";
+}
+
+function isOllamaAssistant(ctx: OnboardContext) {
+  return ctx.config.assistant.provider === "ollama-local";
+}
+
+function providerDefaults(provider: AssistantProvider) {
+  if (provider === "anthropic") {
+    return {
+      provider,
+      baseUrl: DEFAULT_ANTHROPIC_BASE_URL,
+      chatModel: DEFAULT_ANTHROPIC_CHAT_MODEL,
+    } as const;
+  }
+  if (provider === "openai-compatible") {
+    return {
+      provider,
+      baseUrl: DEFAULT_OPENAI_BASE_URL,
+      chatModel: DEFAULT_OPENAI_CHAT_MODEL,
+    } as const;
+  }
+  return {
+    provider: "ollama-local" as const,
+    baseUrl: DEFAULT_OLLAMA_BASE_URL,
+    chatModel: DEFAULT_OLLAMA_CHAT_MODEL,
+  };
+}
+
+function setAssistantConfig(
+  ctx: OnboardContext,
+  input: {
+    provider: Exclude<AssistantProvider, "none">;
+    baseUrl?: string;
+    chatModel?: string;
+  },
+) {
+  const defaults = providerDefaults(input.provider);
+  ctx.config.assistant = {
+    provider: input.provider,
+    baseUrl: input.baseUrl || defaults.baseUrl,
+    chatModel: input.chatModel || defaults.chatModel,
+  };
+  if (input.provider === "ollama-local") {
+    ctx.config.ai.ollamaBaseUrl = ctx.config.assistant.baseUrl;
+    ctx.config.ai.chatModel = ctx.config.assistant.chatModel;
+    ctx.config.ai.visionModel ||= ctx.config.assistant.chatModel;
+  }
+  writeConfig(ctx.config);
+}
+
 const homebrewStep: Step = {
   id: "homebrew",
   label: "Homebrew",
   detect(ctx) {
     if (isSkipped(ctx)) {
       return { done: true, message: "skipped by local/E2E mode" };
+    }
+    if (isHostedAssistant(ctx)) {
+      return { done: true, message: "hosted assistant provider" };
+    }
+    if (platform() !== "darwin") {
+      return { done: true, message: "not required on this platform" };
     }
     return commandExists("brew")
       ? { done: true, message: "installed" }
@@ -186,15 +316,134 @@ const homebrewStep: Step = {
   },
 };
 
+const welcomeStep: Step = {
+  id: "welcome",
+  label: "Welcome",
+  detect() {
+    return { done: true, message: "local Gmail + SQLite setup" };
+  },
+  install() {},
+  verify() {},
+};
+
+const assistantProviderStep: Step = {
+  id: "assistant-provider",
+  label: "Assistant provider",
+  async detect(ctx) {
+    if (ctx.dryRun || process.env.SLASHCASH_E2E === "1") {
+      return {
+        done: true,
+        message:
+          ctx.config.assistant.provider === "none"
+            ? "skipped by local/E2E mode"
+            : ctx.config.assistant.provider,
+      };
+    }
+
+    if (ctx.config.assistant.provider !== "none" && !ctx.freshConfig) {
+      const provider = ctx.config.assistant.provider;
+      if (isHostedAssistantProvider(provider)) {
+        const existing = await readAssistantCredential(provider);
+        if (!existing) {
+          return { done: false, message: "missing assistant API key" };
+        }
+      }
+      return { done: true, message: provider };
+    }
+
+    if (ctx.yes) {
+      if (ctx.config.assistant.provider === "none") {
+        setAssistantConfig(ctx, providerDefaults("ollama-local"));
+      }
+      return { done: true, message: ctx.config.assistant.provider };
+    }
+
+    if (ctx.config.assistant.provider === "none") {
+      return { done: false };
+    }
+    const provider = ctx.config.assistant.provider;
+    if (isHostedAssistantProvider(provider)) {
+      const existing = await readAssistantCredential(provider);
+      if (!existing) {
+        return { done: false, message: "missing assistant API key" };
+      }
+    }
+    return { done: true, message: provider };
+  },
+  async install(ctx) {
+    if (ctx.nonInteractive) {
+      throw new CliError({
+        area: "config",
+        symptom: "Onboarding needs an assistant provider choice.",
+        cause:
+          "`--non-interactive` was passed before the assistant provider was configured.",
+        fix: "Run `slashcash onboard --yes` to use local Ollama, or run `slashcash assistant install` first.",
+      });
+    }
+
+    const provider = await ctx.prompter.select({
+      message: "Where should slash.cash run extraction and chat?",
+      initialValue:
+        ctx.config.assistant.provider === "none"
+          ? "ollama-local"
+          : ctx.config.assistant.provider,
+      options: [
+        {
+          value: "ollama-local",
+          label: "Ollama",
+          hint: "Runs locally with gemma4:latest.",
+        },
+        {
+          value: "openai-compatible",
+          label: "OpenAI",
+          hint: "Hosted OpenAI-compatible API.",
+        },
+        {
+          value: "anthropic",
+          label: "Anthropic",
+          hint: "Hosted Claude-compatible config.",
+        },
+      ],
+    });
+
+    const defaults = providerDefaults(provider);
+    setAssistantConfig(ctx, defaults);
+
+    if (provider === "openai-compatible" || provider === "anthropic") {
+      const existing = await readAssistantCredential(provider);
+      if (!existing) {
+        const apiKey = await ctx.prompter.password({
+          message:
+            provider === "anthropic"
+              ? "Paste the Anthropic API key."
+              : "Paste the OpenAI API key.",
+          validate(value) {
+            return value?.trim() ? undefined : "API key is required.";
+          },
+        });
+        await writeAssistantCredential({ provider, apiKey });
+      }
+    }
+  },
+  verify(ctx) {
+    if (ctx.config.assistant.provider === "none") {
+      throw new Error("assistant provider is not configured.");
+    }
+  },
+};
+
 const modelQuestionStep: Step = {
   id: "chat-model",
   label: "Chat model",
   detect(ctx) {
+    if (!isOllamaAssistant(ctx)) {
+      return { done: true, message: ctx.config.assistant.chatModel };
+    }
     if (ctx.dryRun || process.env.SLASHCASH_E2E === "1") {
-      return { done: true, message: ctx.config.ai.chatModel };
+      return { done: true, message: ctx.config.assistant.chatModel };
     }
     if (!ctx.freshConfig || ctx.yes) {
-      return { done: true, message: ctx.config.ai.chatModel };
+      return { done: true, message: ctx.config.assistant.chatModel };
     }
     return { done: false };
   },
@@ -211,31 +460,24 @@ const modelQuestionStep: Step = {
 
     const model = await ctx.prompter.select({
       message: "Choose the local chat model.",
-      initialValue: ctx.config.ai.chatModel || DEFAULT_CHAT_MODEL,
+      initialValue: ctx.config.assistant.chatModel || DEFAULT_OLLAMA_CHAT_MODEL,
       options: [
         {
-          value: DEFAULT_CHAT_MODEL,
-          label: DEFAULT_CHAT_MODEL,
-          hint: "Default balance of quality and download size.",
-        },
-        {
-          value: "gemma3:4b",
-          label: "gemma3:4b",
-          hint: "Smaller and faster.",
-        },
-        {
-          value: "qwen2.5:7b",
-          label: "qwen2.5:7b",
-          hint: "Larger and slower, usually stronger.",
+          value: DEFAULT_OLLAMA_CHAT_MODEL,
+          label: DEFAULT_OLLAMA_CHAT_MODEL,
+          hint: "Local Gemma 4 (multimodal).",
         },
       ],
     });
+    ctx.config.assistant.chatModel = model;
+    ctx.config.assistant.baseUrl ||= DEFAULT_OLLAMA_BASE_URL;
     ctx.config.ai.chatModel = model;
+    ctx.config.ai.ollamaBaseUrl = ctx.config.assistant.baseUrl;
     ctx.config.ai.visionModel ||= model;
     writeConfig(ctx.config);
   },
   verify(ctx) {
-    if (!ctx.config.ai.chatModel.trim()) {
+    if (!ctx.config.assistant.chatModel.trim()) {
       throw new Error("chat model is empty.");
     }
   },
@@ -248,11 +490,23 @@ const ollamaInstallStep: Step = {
     if (isSkipped(ctx)) {
       return { done: true, message: "skipped by local/E2E mode" };
     }
+    if (isHostedAssistant(ctx)) {
+      return { done: true, message: "hosted assistant provider" };
+    }
     return commandExists("ollama")
       ? { done: true, message: "installed" }
       : { done: false };
   },
   install(ctx) {
+    if (platform() !== "darwin") {
+      throw new CliError({
+        area: "binary",
+        symptom: "Ollama is required for the local assistant provider.",
+        cause: "slash.cash could not find `ollama` in PATH.",
+        fix: "Install Ollama for your platform from https://ollama.com/download, then rerun `slashcash onboard`.",
+        docs: "https://ollama.com/download",
+      });
+    }
     const stepSpinner = ctx.prompter.spinner();
     stepSpinner.start("Installing Ollama with Homebrew");
     const result = runCommand("brew", ["install", OLLAMA_FORMULA], {
@@ -280,26 +534,39 @@ const ollamaServiceStep: Step = {
     if (isSkipped(ctx)) {
       return { done: true, message: "skipped by local/E2E mode" };
     }
-    return (await isOllamaReachable(ctx.config.ai.ollamaBaseUrl, 250))
+    if (isHostedAssistant(ctx)) {
+      return { done: true, message: "hosted assistant provider" };
+    }
+    return (await isOllamaReachable(ctx.config.assistant.baseUrl, 250))
       ? { done: true, message: "reachable" }
       : { done: false };
   },
   async install(ctx) {
     const stepSpinner = ctx.prompter.spinner();
     stepSpinner.start("Starting Ollama background service");
-    runCommand("brew", ["services", "start", OLLAMA_FORMULA], {
-      timeoutMs: 60_000,
-    });
-    if (!(await isOllamaReachable(ctx.config.ai.ollamaBaseUrl, 20_000))) {
+    if (platform() === "darwin" && commandExists("brew")) {
+      runCommand("brew", ["services", "start", OLLAMA_FORMULA], {
+        timeoutMs: 60_000,
+      });
+    } else {
+      const child = spawn("ollama", ["serve"], {
+        detached: true,
+        stdio: "ignore",
+      });
+      child.unref();
+    }
+    if (!(await isOllamaReachable(ctx.config.assistant.baseUrl, 20_000))) {
       stepSpinner.error("Ollama did not become reachable");
       throw new Error(
-        "Ollama did not become reachable. Try: brew services restart ollama",
+        platform() === "darwin"
+          ? "Ollama did not become reachable. Try: brew services restart ollama"
+          : "Ollama did not become reachable. Start `ollama serve` and rerun onboarding.",
       );
     }
     stepSpinner.stop("Ollama service is reachable");
   },
   async verify(ctx) {
-    if (!(await isOllamaReachable(ctx.config.ai.ollamaBaseUrl, 1_000))) {
+    if (!(await isOllamaReachable(ctx.config.assistant.baseUrl, 1_000))) {
       throw new Error("Ollama is not reachable.");
     }
   },
@@ -312,29 +579,34 @@ const ollamaPullStep: Step = {
     if (isSkipped(ctx)) {
       return { done: true, message: "skipped by local/E2E mode" };
     }
+    if (isHostedAssistant(ctx)) {
+      return { done: true, message: "hosted assistant provider" };
+    }
     const list = runCommand("ollama", ["list"], { timeoutMs: 15_000 });
     if (!list.ok) return { done: false };
-    return list.stdout.includes(ctx.config.ai.chatModel)
-      ? { done: true, message: ctx.config.ai.chatModel }
+    return list.stdout.includes(ctx.config.assistant.chatModel)
+      ? { done: true, message: ctx.config.assistant.chatModel }
       : { done: false };
   },
   async install(ctx) {
     const stepSpinner = ctx.prompter.spinner();
-    stepSpinner.start(`Pulling ${ctx.config.ai.chatModel}`);
+    stepSpinner.start(`Pulling ${ctx.config.assistant.chatModel}`);
     const code = await runInteractive("ollama", [
       "pull",
-      ctx.config.ai.chatModel,
+      ctx.config.assistant.chatModel,
     ]);
     if (code !== 0) {
       stepSpinner.error(`ollama pull exited with ${code}`);
       throw new Error(`ollama pull exited with ${code}.`);
     }
-    stepSpinner.stop(`${ctx.config.ai.chatModel} is ready`);
+    stepSpinner.stop(`${ctx.config.assistant.chatModel} is ready`);
   },
   verify(ctx) {
     const list = runCommand("ollama", ["list"], { timeoutMs: 15_000 });
-    if (!list.ok || !list.stdout.includes(ctx.config.ai.chatModel)) {
-      throw new Error(`${ctx.config.ai.chatModel} is not available in ollama.`);
+    if (!list.ok || !list.stdout.includes(ctx.config.assistant.chatModel)) {
+      throw new Error(
+        `${ctx.config.assistant.chatModel} is not available in ollama.`,
+      );
     }
   },
 };
@@ -416,6 +688,7 @@ const gmailAppPasswordStep: Step = {
     }
 
     ctx.prompter.note(PRE_APP_PASSWORD_INPUT, "Gmail app password");
+    await promptToOpenAppPasswordPage(ctx);
     const password = await ctx.prompter.password({
       message: "Paste the 16-character Gmail app password.",
       validate(value) {
@@ -515,6 +788,7 @@ const imapVerifyStep: Step = {
         });
       }
 
+      await promptToOpenAppPasswordPage(ctx);
       const password = await ctx.prompter.password({
         message: "Paste a new Gmail app password.",
         validate(value) {
@@ -649,29 +923,37 @@ const pythonEnvStep: Step = {
     return { done: true, message: result.runtime.pythonBin };
   },
   async install(ctx) {
-    const stepSpinner = ctx.prompter.spinner();
-    stepSpinner.start(
-      "Installing PDF extractor (~60s first time, cached after)",
+    const pid = startDetachedCommand(ctx, ["doctor", "--fix", "--quick"]);
+    console.log(
+      pc.yellow(
+        `Installing PDF extractor in the background (pid ${pid}); sync will use body-only extraction until it is ready.`,
+      ),
     );
-    const result = await ensurePythonEnvReady({
-      config: ctx.config,
-      paths: ctx.paths,
-      fix: true,
-    });
-    if (!result.ok) {
-      stepSpinner.error("Python extractor setup failed");
-      throw new Error(result.error.message);
-    }
-    stepSpinner.stop(`PDF extractor ready at ${result.runtime.pythonBin}`);
   },
-  async verify(ctx) {
-    const result = await ensurePythonEnvReady({
-      config: ctx.config,
-      paths: ctx.paths,
-      fix: false,
-    });
-    if (!result.ok) {
-      throw new Error(result.error.message);
+  verify() {
+    return;
+  },
+};
+
+const kickoffSyncStep: Step = {
+  id: "kickoff-sync",
+  label: "Initial sync",
+  detect(ctx) {
+    if (ctx.dryRun || process.env.SLASHCASH_E2E === "1") {
+      return { done: true, message: "skipped by local/E2E mode" };
+    }
+    return { done: false };
+  },
+  install(ctx) {
+    const pid = startDetachedCommand(ctx, ["sync", "--full"]);
+    const pidPath = join(ctx.paths.home, "pid", "sync.pid");
+    mkdirSync(dirname(pidPath), { recursive: true });
+    writeFileSync(pidPath, `${pid}\n`, { mode: 0o600 });
+  },
+  verify(ctx) {
+    const pidPath = join(ctx.paths.home, "pid", "sync.pid");
+    if (!existsSync(pidPath)) {
+      throw new Error("initial sync pid file was not written.");
     }
   },
 };
@@ -681,12 +963,31 @@ function printFinalSummary(ctx: OnboardContext) {
   console.log(`home        ${ctx.paths.home}`);
   console.log(`database    ${ctx.paths.db}`);
   console.log(`skills      ${ctx.paths.skills}`);
-  console.log(`model       ${ctx.config.ai.chatModel}`);
+  console.log(
+    `dashboard   http://${ctx.config.server.host}:${ctx.config.server.port}`,
+  );
+  console.log(`assistant   ${ctx.config.assistant.provider}`);
   console.log(
     FINAL_SUMMARY({
       credentialStore: describeCredentialStore(ctx.credentialStore),
     }),
   );
+}
+
+function startDetachedCommand(ctx: OnboardContext, args: string[]) {
+  const child = spawn("pnpm", ["--filter", "slashcash", "dev", "--", ...args], {
+    cwd: process.cwd(),
+    detached: true,
+    stdio: "ignore",
+    env: {
+      ...process.env,
+      SLASHCASH_HOME: ctx.paths.home,
+      SQLITE_DB_PATH: ctx.paths.db,
+      SLASHCASH_ATTACHMENTS_DIR: ctx.paths.attachments,
+    },
+  });
+  child.unref();
+  return child.pid ?? 0;
 }
 
 async function isOllamaReachable(baseUrl: string, timeoutMs: number) {

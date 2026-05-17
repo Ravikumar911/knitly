@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  extractFromEmailSources: vi.fn(),
   extractTextFromPdf: vi.fn(),
+  extractSwiggyWithLlm: vi.fn(),
   storeTransactionV2Input: vi.fn(),
-}));
-
-vi.mock("./extract-from-email-body", () => ({
-  extractFromEmailSources: mocks.extractFromEmailSources,
 }));
 
 vi.mock("./extract-from-pdf", () => ({
   extractTextFromPdf: mocks.extractTextFromPdf,
+}));
+
+vi.mock("./swiggy-llm", () => ({
+  extractSwiggyWithLlm: mocks.extractSwiggyWithLlm,
 }));
 
 vi.mock("@workspace/database", () => ({
@@ -21,66 +21,26 @@ vi.mock("@workspace/database", () => ({
 import { extractTransactionFromEmail } from "./pipeline";
 
 describe("extractTransactionFromEmail", () => {
-  const previousSkipAi = process.env.SLASHCASH_SYNC_SKIP_AI;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.SLASHCASH_SYNC_SKIP_AI;
     mocks.storeTransactionV2Input.mockResolvedValue({ id: "txn-1" });
+    mocks.extractSwiggyWithLlm.mockResolvedValue(
+      llmResult({
+        amount: 512.4,
+        orderId: "SWG-PDF-1001",
+        restaurantName: "Millet Bowl Co",
+      }),
+    );
   });
 
   afterEach(() => {
-    if (previousSkipAi === undefined) {
-      delete process.env.SLASHCASH_SYNC_SKIP_AI;
-    } else {
-      process.env.SLASHCASH_SYNC_SKIP_AI = previousSkipAi;
-    }
+    vi.clearAllMocks();
   });
 
-  it("passes email body and Docling PDF text through one model call", async () => {
+  it("stores LLM output from PDF text and email body", async () => {
     mocks.extractTextFromPdf.mockResolvedValue({
       ok: true,
-      value: {
-        text: [
-          "Swiggy Invoice",
-          "Order ID: SWG-PDF-1001",
-          "Restaurant: Millet Bowl Co",
-          "Total: INR 512.40",
-        ].join("\n"),
-        warnings: [],
-        attachmentPath: "/tmp/fixture.pdf",
-        extractor: "docling",
-        extractorVersion: "2.88.0",
-        pageCount: 1,
-        tableCount: 0,
-      },
-    });
-    mocks.extractFromEmailSources.mockResolvedValue({
-      extractionData: {
-        detectedProvider: "Swiggy",
-        emailType: "ORDER_CONFIRMATION",
-        emailSubject: "Your Swiggy order",
-        parseSuccess: true,
-        parseErrors: [],
-        confidenceScore: 0.92,
-        dataSource: "BOTH",
-        transaction: {
-          amount: 512.4,
-          currency: "INR",
-          type: "DEBIT",
-          status: "COMPLETED",
-          transactionDate: "2026-04-22T19:42:00+05:30",
-          description: "Swiggy order - Millet Bowl Co",
-          orderId: "SWG-PDF-1001",
-          referenceIds: { orderId: "SWG-PDF-1001" },
-        },
-      },
-      merchantId: "swiggy",
-      merchantCode: "SWIGGY",
-      schemaUsed: "swiggy.sources.v1",
-      extractionConfidence: 0.92,
-      parseSuccess: true,
-      parseErrors: [],
+      value: deterministicSource("/tmp/fixture.pdf"),
     });
 
     const result = await extractTransactionFromEmail(
@@ -89,7 +49,7 @@ describe("extractTransactionFromEmail", () => {
         emailId: "email-1",
         threadId: "thread-1",
         subject: "Your Swiggy order",
-        body: "Total in email: INR 348.50",
+        body: "Paid Via UPI ₹512.40",
         date: "2026-04-22T19:42:00+05:30",
         from: "orders@swiggy.in",
         attachments: [
@@ -104,48 +64,45 @@ describe("extractTransactionFromEmail", () => {
       { parsedEmailId: "email-1", storeTransaction: true },
     );
 
-    expect(mocks.extractFromEmailSources).toHaveBeenCalledOnce();
-    expect(mocks.extractFromEmailSources).toHaveBeenCalledWith(
+    expect(mocks.extractTextFromPdf).toHaveBeenCalledWith({
+      attachmentPath: "/tmp/fixture.pdf",
+      emailBody: "Paid Via UPI ₹512.40",
+      subject: "Your Swiggy order",
+    });
+    expect(mocks.extractSwiggyWithLlm).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: "Total in email: INR 348.50",
+        subject: "Your Swiggy order",
+        body: "Paid Via UPI ₹512.40",
       }),
-      expect.anything(),
-      expect.objectContaining({
-        storeTransaction: false,
-        pdfTextSources: [
-          expect.objectContaining({
-            text: expect.stringContaining("Total: INR 512.40"),
-            attachmentPath: "/tmp/fixture.pdf",
-          }),
-        ],
-      }),
+      expect.arrayContaining([
+        expect.objectContaining({ attachmentPath: "/tmp/fixture.pdf" }),
+      ]),
     );
-    expect(result.schemaUsed).toBe("swiggy.sources.v1");
+    expect(result.schemaUsed).toBe("swiggy.llm.v1");
     expect(result.dataSource).toBe("BOTH");
     expect(result.transactionId).toBe("txn-1");
     expect(mocks.storeTransactionV2Input).toHaveBeenCalledWith(
       expect.objectContaining({
         amount: 512.4,
-        schemaUsed: "swiggy.sources.v1",
+        schemaUsed: "swiggy.llm.v1",
         dataSource: "BOTH",
+        merchantData: expect.objectContaining({
+          provenance: expect.objectContaining({
+            parser: "swiggy-llm",
+            sourceQuality: "text",
+          }),
+        }),
       }),
     );
   });
 
-  it("falls back to the body regex when neither AI nor PDF extraction produce a candidate", async () => {
-    process.env.SLASHCASH_SYNC_SKIP_AI = "1";
-    mocks.extractTextFromPdf.mockResolvedValue({
-      ok: true,
-      value: {
-        text: "This PDF text is ignored while AI is skipped.",
-        warnings: [],
-        attachmentPath: "/tmp/fixture.pdf",
-        extractor: "docling",
-        extractorVersion: "2.88.0",
-        pageCount: 1,
-        tableCount: 0,
-      },
-    });
+  it("falls back to the body regex when LLM extraction is unavailable", async () => {
+    mocks.extractSwiggyWithLlm.mockResolvedValue(
+      llmResult({
+        parseSuccess: false,
+        parseErrors: ["Extraction model unavailable: no-assistant-provider."],
+      }),
+    );
 
     const result = await extractTransactionFromEmail(
       {
@@ -153,7 +110,11 @@ describe("extractTransactionFromEmail", () => {
         emailId: "email-1",
         threadId: "thread-1",
         subject: "Your Swiggy order",
-        body: "Total: INR 348.50",
+        body: [
+          "Order ID: SW123456789",
+          "Restaurant: Meghana Foods",
+          "Total: INR 348.50",
+        ].join("\n"),
         date: "2026-04-22T19:42:00+05:30",
         from: "orders@swiggy.in",
         attachments: [],
@@ -164,6 +125,149 @@ describe("extractTransactionFromEmail", () => {
     expect(result.parseSuccess).toBe(true);
     expect(result.schemaUsed).toBe("swiggy.fallback.v1");
     expect(result.extractionData.transaction?.amount).toBe(348.5);
-    expect(mocks.extractFromEmailSources).not.toHaveBeenCalled();
+    expect(mocks.extractTextFromPdf).not.toHaveBeenCalled();
+  });
+
+  it("keeps recoverable PDF extraction failures as warnings when fallback succeeds", async () => {
+    mocks.extractTextFromPdf.mockResolvedValue({
+      ok: false,
+      message: "The PDF extractor timed out after 30000ms.",
+    });
+    mocks.extractSwiggyWithLlm.mockResolvedValue(
+      llmResult({
+        parseSuccess: false,
+        parseErrors: ["Extraction model unavailable: missing-api-key."],
+      }),
+    );
+
+    const result = await extractTransactionFromEmail({
+      userId: "local-user-id",
+      emailId: "email-1",
+      threadId: "thread-1",
+      subject: "Your Swiggy order",
+      body: [
+        "Order ID: SW123456789",
+        "Restaurant: Meghana Foods",
+        "Paid Via UPI ₹348.50",
+      ].join("\n"),
+      date: "2026-04-22T19:42:00+05:30",
+      from: "orders@swiggy.in",
+      attachments: [
+        {
+          filename: "invoice.pdf",
+          mimeType: "application/pdf",
+          content: "base64",
+          storageUrl: "/tmp/fixture.pdf",
+        },
+      ],
+    });
+
+    expect(result.parseSuccess).toBe(true);
+    expect(result.parseErrors).toEqual([]);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        "The PDF extractor timed out after 30000ms.",
+        "Extraction model unavailable: missing-api-key.",
+      ]),
+    );
+    expect(result.extractionData.parseErrors).toEqual([]);
   });
 });
+
+function llmResult(
+  input: {
+    amount?: number;
+    orderId?: string;
+    restaurantName?: string;
+    parseSuccess?: boolean;
+    parseErrors?: string[];
+  } = {},
+) {
+  const parseSuccess = input.parseSuccess ?? true;
+  return {
+    parseSuccess,
+    parseErrors: input.parseErrors ?? [],
+    extractionConfidence: parseSuccess ? 0.92 : 0,
+    dataSource: "BOTH",
+    contributedByPdf: true,
+    provenance: {
+      parser: "swiggy-llm",
+      parserVersion: "1",
+      parsersUsed: ["slashcash_pdf_extractor", "pdfplumber"],
+      sourceQuality: "text",
+      warnings: [],
+      pdfAttachmentPath: "/tmp/fixture.pdf",
+      extractedAt: "2026-04-22T00:00:00.000Z",
+    },
+    extractionData: {
+      detectedProvider: "Swiggy",
+      emailType: parseSuccess ? "ORDER_CONFIRMATION" : "OTHER",
+      emailSubject: "Your Swiggy order",
+      parseSuccess,
+      parseErrors: input.parseErrors ?? [],
+      confidenceScore: parseSuccess ? 0.92 : 0,
+      dataSource: "BOTH",
+      merchantId: "swiggy",
+      merchantCode: "SWIGGY",
+      transaction: parseSuccess
+        ? {
+            amount: input.amount ?? 512.4,
+            currency: "INR",
+            type: "DEBIT",
+            status: "COMPLETED",
+            transactionDate: "2026-04-22T19:42:00+05:30",
+            description: `Swiggy order - ${input.restaurantName ?? "Swiggy"}`,
+            category: "Food",
+            paymentMethod: "UPI",
+            referenceIds: { orderId: input.orderId ?? "SWG-PDF-1001" },
+            orderId: input.orderId ?? "SWG-PDF-1001",
+            restaurantName: input.restaurantName ?? "Millet Bowl Co",
+          }
+        : undefined,
+      swiggyMetadata: parseSuccess
+        ? {
+            service: "FOOD_DELIVERY",
+            orderType: "DELIVERY",
+          }
+        : undefined,
+    },
+  };
+}
+
+function deterministicSource(attachmentPath: string) {
+  return {
+    text: "Order ID: SWG-PDF-1001\nTotal: INR 512.40",
+    warnings: [],
+    attachmentPath,
+    extractor: "slashcash_pdf_extractor",
+    extractorVersion: "0.1.0",
+    pageCount: 1,
+    tableCount: 0,
+    sourceQuality: {
+      kind: "text",
+      page_count: 1,
+      parsers_used: ["pdfplumber"],
+      warnings: [],
+    },
+    extraction: {
+      schema_version: "2",
+      extractor: "slashcash_pdf_extractor",
+      extractor_version: "0.1.0",
+      merchant: "swiggy",
+      confidence: 0,
+      fields: {},
+      raw: {
+        page_count: 1,
+        tables: [],
+        text: "Order ID: SWG-PDF-1001\nTotal: INR 512.40",
+        sources: {},
+      },
+      source_quality: {
+        kind: "text",
+        page_count: 1,
+        parsers_used: ["pdfplumber"],
+        warnings: [],
+      },
+    },
+  };
+}

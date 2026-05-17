@@ -1,0 +1,13 @@
+From: orders@swiggy.in
+To: user@gmail.com
+Subject: Your order is on the way
+Date: Fri, 17 May 2024 19:00:00 +0530
+Message-ID: <swiggy-status-update@slashcash.local>
+X-Slashcash-Fixture-Id: swiggy-status-update
+X-GM-THRID: fixture-thread-status
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Your delivery partner has picked up your order.
+Track the order in the Swiggy app.

@@ -45,14 +45,14 @@ describe("extractPdf", () => {
       [
         "import json, sys",
         "print(json.dumps({",
-        "'schemaVersion': '1',",
+        "'schema_version': '2',",
         "'extractor': 'stub',",
-        "'extractorVersion': '1.0.0',",
+        "'extractor_version': '1.0.0',",
         "'merchant': 'swiggy',",
         "'confidence': 0.92,",
-        "'fields': {},",
-        "'warnings': [],",
-        "'raw': {'pageCount': 1, 'tables': [], 'text': 'Total: INR 512.40'}",
+        "'fields': {'service_type': 'UNKNOWN', 'items': []},",
+        "'raw': {'page_count': 1, 'tables': [], 'text': 'Total: INR 512.40', 'sources': {}},",
+        "'source_quality': {'kind': 'text', 'page_count': 1, 'parsers_used': ['stub'], 'warnings': []}",
         "}))",
       ].join("\n"),
     );
@@ -64,7 +64,7 @@ describe("extractPdf", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.raw.text).toBe("Total: INR 512.40");
-      expect(result.value.fields.totalAmount).toBeUndefined();
+      expect(result.value.fields.invoice_total).toBeUndefined();
     }
   });
 

@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { extname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import {
   PdfExtractionSchema,
   type PdfExtraction,
@@ -28,8 +30,13 @@ export type PdfExtractResult =
   | { ok: false; error: PdfExtractError };
 
 export async function extractPdf(
-  absolutePath: string,
-  opts: { timeoutMs?: number; signal?: AbortSignal } = {},
+  absolutePath: string | null,
+  opts: {
+    timeoutMs?: number;
+    signal?: AbortSignal;
+    emailBody?: string;
+    subject?: string;
+  } = {},
 ): Promise<PdfExtractResult> {
   if (process.env.SLASHCASH_PDF_EXTRACTOR_DISABLED === "1") {
     return {
@@ -41,7 +48,7 @@ export async function extractPdf(
     };
   }
 
-  if (extname(absolutePath).toLowerCase() !== ".pdf") {
+  if (absolutePath && extname(absolutePath).toLowerCase() !== ".pdf") {
     return {
       ok: false,
       error: {
@@ -54,11 +61,20 @@ export async function extractPdf(
   const pythonBin = resolvePdfExtractorPython();
   const timeoutMs = resolveTimeoutMs(opts.timeoutMs);
   const startedAt = Date.now();
+  const tempDir =
+    opts.emailBody !== undefined
+      ? mkdtempSync(join(tmpdir(), "slashcash-pdf-body-"))
+      : null;
+  const bodyPath = tempDir ? join(tempDir, "email-body.txt") : null;
+  if (bodyPath) {
+    writeFileSync(bodyPath, opts.emailBody || "", "utf8");
+  }
 
   syncDebug("pdf-subprocess-start", {
-    path: resolve(absolutePath),
+    path: absolutePath ? resolve(absolutePath) : null,
     pythonBin,
     timeoutMs,
+    hasEmailBody: opts.emailBody !== undefined,
   });
 
   return new Promise<PdfExtractResult>((resolveResult) => {
@@ -67,19 +83,23 @@ export async function extractPdf(
     let stderr = "";
     let killTimer: NodeJS.Timeout | undefined;
 
-    const child = spawn(
-      pythonBin,
-      ["-m", "slashcash_pdf_extractor", resolve(absolutePath)],
-      {
-        env: process.env,
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
+    const args = ["-m", "slashcash_pdf_extractor"];
+    if (absolutePath) args.push(resolve(absolutePath));
+    if (bodyPath) args.push("--email-body", bodyPath);
+    if (opts.subject) args.push("--subject", opts.subject);
+
+    const child = spawn(pythonBin, args, {
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
 
     const settle = (result: PdfExtractResult) => {
       if (settled) return;
       settled = true;
       if (killTimer) clearTimeout(killTimer);
+      if (tempDir) {
+        rmSync(tempDir, { recursive: true, force: true });
+      }
       syncDebug("pdf-subprocess-finish", {
         ok: result.ok,
         elapsedMs: Date.now() - startedAt,

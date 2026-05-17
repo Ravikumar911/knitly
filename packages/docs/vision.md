@@ -1,6 +1,6 @@
 # Vision
 
-> **Revision on 2026-04-23.** The Gmail access story shipped end-to-end: IMAP + a user-issued Gmail app password (ADR-024) replaces the original `gws` + `gcloud` path (ADR-004, ADR-011, ADR-022), and the `@clack/prompts` wizard (ADR-025) replaces the original readline-only script. The next pivot, captured in [`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md), splits PDF conversion out of Gemma into a local Python library (Docling, ADR-026) invoked per PDF via `child_process.spawn` against a venv bootstrapped by `slashcash doctor --fix` (ADR-027). Gemma keeps chat and performs one structured extraction pass over the email body plus Docling PDF text. The rest of this document — local-first posture, loopback auth boundary, single-user, Ollama, `~/.slashcash/`, no telemetry — is unchanged. Paragraphs below that still mention `gws` are kept for historical continuity; treat them as superseded where they conflict.
+> **Revision on 2026-04-26.** The Gmail access story shipped end-to-end: IMAP + a user-issued Gmail app password (ADR-024) replaces the original `gws` + `gcloud` path (ADR-004, ADR-011, ADR-022), and the `@clack/prompts` wizard (ADR-025) replaces the original readline-only script. The current PDF extractor pivot, captured in [`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md), makes Swiggy ingest deterministic: a local Python package (Docling when available, plus PyMuPDF/pdfplumber fallback) extracts text/tables/fields via `child_process.spawn`, and TypeScript maps the result without an LLM. Assistant models are optional post-onboarding. The rest of this document — local-first posture, loopback auth boundary, single-user, `~/.slashcash/`, no telemetry — is unchanged. Paragraphs below that still mention `gws` are kept for historical continuity; treat them as superseded where they conflict.
 
 ## The problem we are pivoting away from
 
@@ -12,7 +12,7 @@ Most prospects don't get past that ask. They want the product. They don't want a
 
 ## What we're building instead
 
-A local-first, single-user app that the person installs on their own laptop. Globally installed from npm. Onboarded by a single interactive wizard that prepares the machine (Homebrew, Ollama, the `gemma3n:e4b` model) and asks for the user's Gmail address and a 16-character app password generated at <https://myaccount.google.com/apppasswords>. Started by a single command that boots the existing dashboard on `127.0.0.1` and schedules an in-process cron worker that pulls Gmail over IMAP (`imap.gmail.com:993` with the user's app password), parses it with the local model, and writes everything to a single SQLite file.
+A local-first, single-user app that the person installs on their own laptop. Globally installed from npm. Onboarded by a single interactive wizard that prepares the machine (Homebrew, Ollama, the `gemma4:latest` model) and asks for the user's Gmail address and a 16-character app password generated at <https://myaccount.google.com/apppasswords>. Started by a single command that boots the existing dashboard on `127.0.0.1` and schedules an in-process cron worker that pulls Gmail over IMAP (`imap.gmail.com:993` with the user's app password), parses it with the local model, and writes everything to a single SQLite file.
 
 The hosted app at `slash.cash` / `app.slash.cash` is being **retired** as part of this pivot. The marketing site stays, as a landing page that points at the CLI; the hosted dashboard goes away once the CLI reaches feature parity. There is no "cloud mode" in the codebase — one code path, one product, fully local.
 
@@ -21,7 +21,7 @@ The hosted app at `slash.cash` / `app.slash.cash` is being **retired** as part o
 - Data lives on the user's disk, under `~/.slashcash/`.
 - There is no hosted auth. The server binds to loopback only; that's the boundary.
 - Gmail is read over IMAP using a user-issued app password stored in the macOS Keychain (or, as a clearly-flagged fallback, in `~/.slashcash/credentials.json` with mode `0600`). We don't ship a Google client ID, don't run an OAuth flow, and don't install `gcloud` or `gws`.
-- Parsing happens through a local Ollama server with `gemma3n:e4b`. We don't call OpenAI, Mistral, Anthropic or anything else.
+- Parsing happens through a local Ollama server with `gemma4:latest`. We don't call OpenAI, Mistral, Anthropic or anything else.
 - Background work is a `node-cron` schedule inside the same Node process that runs the Next.js dashboard. No Trigger.dev, no queues.
 - Distribution is a public npm package. The product is the CLI.
 
@@ -64,6 +64,6 @@ The pivot is done — i.e. it's what `slash.cash` recommends on the landing page
 
 1. A clean macOS machine goes from `npm i -g slashcash` to a populated dashboard in under ten minutes, including the model download.
 2. The dashboard at `http://127.0.0.1:<port>` shows real Swiggy analytics computed from the user's actual Gmail, with no outbound network calls after `onboard` completes.
-3. The chat assistant answers Swiggy questions using `gemma3n:e4b` locally at a quality level agreed against the existing eval suite (see Phase 2 W10).
+3. The chat assistant answers Swiggy questions using `gemma4:latest` locally at a quality level agreed against the existing eval suite (see Phase 2 W10).
 4. `slashcash doctor` is green after a clean `onboard`, with no manual steps required.
 5. The hosted dashboard is off; `slash.cash` points at the CLI; there are no remaining references to Supabase, Trigger.dev, OpenAI or Mistral in the shipping code.

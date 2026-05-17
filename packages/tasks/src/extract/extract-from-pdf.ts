@@ -1,31 +1,39 @@
 import { logPipelineStep, syncDebug } from "../utils/sync-debug";
 import { extractPdf } from "./pdf-extractor";
+import type { PdfExtraction, SourceQuality } from "./pdf-extractor-schema";
 
-export type PdfTextSource = {
+export type PdfExtractionSource = {
+  extraction: PdfExtraction;
   text: string;
   warnings: string[];
-  attachmentPath: string;
+  attachmentPath: string | null;
   extractor: string;
   extractorVersion: string;
   pageCount?: number | null;
   tableCount: number;
+  sourceQuality: SourceQuality;
 };
 
 export async function extractTextFromPdf(input: {
-  attachmentPath: string;
+  attachmentPath?: string | null;
+  emailBody?: string;
+  subject?: string;
 }): Promise<
-  { ok: true; value: PdfTextSource } | { ok: false; message: string }
+  { ok: true; value: PdfExtractionSource } | { ok: false; message: string }
 > {
-  const result = await extractPdf(input.attachmentPath);
+  const result = await extractPdf(input.attachmentPath ?? null, {
+    emailBody: input.emailBody,
+    subject: input.subject,
+  });
   if (!result.ok) {
     syncDebug("pdf-wrapper-error", {
-      attachmentPath: input.attachmentPath,
+      attachmentPath: input.attachmentPath ?? null,
       code: result.error.code,
       message: result.error.message,
     });
     const stderr = result.error.stderr
       ? result.error.stderr.length > 400
-        ? `${result.error.stderr.slice(0, 400)}…`
+        ? `${result.error.stderr.slice(0, 400)}...`
         : result.error.stderr
       : undefined;
     logPipelineStep("pdf-extractor", {
@@ -35,7 +43,7 @@ export async function extractTextFromPdf(input: {
       message: result.error.message,
       exitCode: result.error.exitCode ?? null,
       stderr: stderr,
-      path: input.attachmentPath,
+      path: input.attachmentPath ?? null,
     });
     return {
       ok: false,
@@ -44,43 +52,40 @@ export async function extractTextFromPdf(input: {
   }
 
   const pdf = result.value;
+  const warnings = pdf.source_quality.warnings;
   logPipelineStep("pdf-extractor", {
     step: 2,
     outcome: "ok",
-    path: input.attachmentPath,
+    path: input.attachmentPath ?? null,
     extractor: pdf.extractor,
-    extractorVersion: pdf.extractorVersion,
+    extractorVersion: pdf.extractor_version,
     rawTextChars: pdf.raw.text.length,
     tableCount: pdf.raw.tables.length,
-    warningCount: pdf.warnings.length,
+    sourceQuality: pdf.source_quality.kind,
+    warningCount: warnings.length,
   });
   syncDebug("pdf-wrapper-text", {
-    attachmentPath: input.attachmentPath,
+    attachmentPath: input.attachmentPath ?? null,
     extractor: pdf.extractor,
-    extractorVersion: pdf.extractorVersion,
-    warningCount: pdf.warnings.length,
+    extractorVersion: pdf.extractor_version,
+    warningCount: warnings.length,
     rawTextChars: pdf.raw.text.length,
     tableCount: pdf.raw.tables.length,
+    sourceQuality: pdf.source_quality.kind,
   });
-
-  const text = pdf.raw.text.trim();
-  if (!text) {
-    return {
-      ok: false,
-      message: "The PDF extractor returned no text.",
-    };
-  }
 
   return {
     ok: true,
     value: {
-      text,
-      warnings: pdf.warnings,
-      attachmentPath: input.attachmentPath,
+      extraction: pdf,
+      text: pdf.raw.text.trim(),
+      warnings,
+      attachmentPath: input.attachmentPath ?? null,
       extractor: pdf.extractor,
-      extractorVersion: pdf.extractorVersion,
-      pageCount: pdf.raw.pageCount,
+      extractorVersion: pdf.extractor_version,
+      pageCount: pdf.raw.page_count,
       tableCount: pdf.raw.tables.length,
+      sourceQuality: pdf.source_quality,
     },
   };
 }

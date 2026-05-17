@@ -1,13 +1,14 @@
-'use client';
+"use client";
 
-import { useSuspenseQuery, useMutation } from '@tanstack/react-query';
-import { useTRPC } from '@/trpc/client';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Button } from '@workspace/ui/components/button';
-import { cn } from '@workspace/ui/lib/utils';
-import { MessageSquare, Trash2 } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useSuspenseQuery, useMutation } from "@tanstack/react-query";
+import { useTRPC } from "@/trpc/client";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useResolvedPathname } from "@/lib/assistant/resolved-pathname";
+import { Button } from "@workspace/ui/components/button";
+import { cn } from "@workspace/ui/lib/utils";
+import { MessageSquare, MessageSquarePlus, Trash2 } from "lucide-react";
+import { useState, useMemo } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,14 +18,45 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@workspace/ui/components/alert-dialog';
-import { ScrollArea } from '@workspace/ui/components/scroll-area';
-import { useRouter } from 'next/navigation';
-import { TRPCClientError } from '@trpc/client';
+} from "@workspace/ui/components/alert-dialog";
+import { ScrollArea } from "@workspace/ui/components/scroll-area";
+import { TRPCClientError } from "@trpc/client";
 
-export function ChatSidebar() {
+export function AssistantNewChatButton({
+  className,
+}: {
+  className?: string;
+}) {
+  return (
+    <Button
+      asChild
+      className={cn("h-8 shrink-0", className)}
+      size="sm"
+      variant="default"
+    >
+      <Link
+        href="/assistant"
+        className="inline-flex items-center justify-center gap-0"
+      >
+        <MessageSquarePlus className="h-4 w-4 shrink-0" />
+        <span className="ml-1.5">New chat</span>
+      </Link>
+    </Button>
+  );
+}
+
+/** Top strip when the sidebar shows its own row (non-merged layout). */
+export function AssistantChatSidebarToolbar() {
+  return (
+    <div className="flex w-full justify-end">
+      <AssistantNewChatButton />
+    </div>
+  );
+}
+
+export function ChatSidebar({ hideTitleRow = false }: { hideTitleRow?: boolean }) {
   const trpc = useTRPC();
-  const pathname = usePathname();
+  const pathname = useResolvedPathname();
   const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
@@ -37,22 +69,24 @@ export function ChatSidebar() {
   const { data } = useSuspenseQuery(queryOptions);
 
   // ✅ Use useMutation with mutationOptions pattern
-  const deleteMutation = useMutation(trpc.chat.delete.mutationOptions({
-    onSuccess: () => {
-      // Invalidate and refetch chats
-      router.refresh();
-      if (pathname === `/assistant/${chatToDelete}`) {
-        router.push('/assistant');
-      }
-    },
-    onError: (err) => {
-      if (err instanceof TRPCClientError) {
-        console.error('Failed to delete chat:', err.message);
-      } else {
-        console.error('An error occurred while deleting chat');
-      }
-    }
-  }));
+  const deleteMutation = useMutation(
+    trpc.chat.delete.mutationOptions({
+      onSuccess: () => {
+        // Invalidate and refetch chats
+        router.refresh();
+        if (pathname === `/assistant/${chatToDelete}`) {
+          router.push("/assistant");
+        }
+      },
+      onError: (err) => {
+        if (err instanceof TRPCClientError) {
+          console.error("Failed to delete chat:", err.message);
+        } else {
+          console.error("An error occurred while deleting chat");
+        }
+      },
+    }),
+  );
 
   const handleDelete = (chatId: string) => {
     setChatToDelete(chatId);
@@ -69,20 +103,23 @@ export function ChatSidebar() {
 
   return (
     <>
-      <aside className="hidden md:flex md:w-80 md:border-r bg-muted/30 flex-col overflow-hidden shrink-0">
-        <div className="px-3 py-2.5 border-b shrink-0">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5 text-primary shrink-0" />
-            <h2 className="font-semibold text-sm">Chat History</h2>
+      <aside className="hidden h-full min-h-0 shrink-0 flex-col overflow-hidden bg-muted/30 md:flex md:w-80 md:border-r">
+        {!hideTitleRow ? (
+          <div className="shrink-0 border-b px-3 py-2.5">
+            <AssistantChatSidebarToolbar />
           </div>
-        </div>
-        <ScrollArea className="flex-1">
+        ) : null}
+        <ScrollArea className="min-h-0 flex-1">
           <div className="px-2 py-1.5 space-y-0.5">
             {data.chats.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
                 <MessageSquare className="h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground mb-1">No chats yet</p>
-                <p className="text-xs text-muted-foreground">Start a new conversation!</p>
+                <p className="text-sm text-muted-foreground mb-1">
+                  No chats yet
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Start a new conversation!
+                </p>
               </div>
             ) : (
               data.chats.map((chat) => {
@@ -91,8 +128,8 @@ export function ChatSidebar() {
                   <div
                     key={chat.id}
                     className={cn(
-                      'group relative rounded-md hover:bg-accent transition-colors',
-                      isActive && 'bg-accent'
+                      "group relative rounded-md hover:bg-accent transition-colors",
+                      isActive && "bg-accent",
                     )}
                   >
                     <div className="flex items-center gap-2 px-2 py-2">
@@ -101,7 +138,9 @@ export function ChatSidebar() {
                         className="flex items-center gap-2 flex-1 min-w-0"
                       >
                         <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="text-sm line-clamp-1">{chat.title}</span>
+                        <span className="text-sm line-clamp-1">
+                          {chat.title}
+                        </span>
                       </Link>
                       <Button
                         variant="ghost"
@@ -130,16 +169,18 @@ export function ChatSidebar() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Chat</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this chat? This action cannot be undone.
+              Are you sure you want to delete this chat? This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
   );
 }
-

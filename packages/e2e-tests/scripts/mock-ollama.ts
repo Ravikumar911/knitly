@@ -5,7 +5,7 @@ import {
 } from "node:http";
 
 const port = Number(process.env.MOCK_OLLAMA_PORT || 3302);
-const model = "mock-swiggy";
+const model = "gemma4:latest";
 const reply =
   "Local mock assistant: your recent spending is mostly Swiggy food delivery right now.";
 

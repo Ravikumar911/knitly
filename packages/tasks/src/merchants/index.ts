@@ -1,4 +1,4 @@
-import { EmailData } from "../types/slashAI";
+import { EmailData } from "../types/email-extraction";
 import { MerchantConfig, MerchantMatch } from "./types";
 
 const logger = {
@@ -36,17 +36,17 @@ export interface MerchantEmailConfig {
  * This function extracts email filtering data from the codebase merchant registry
  */
 export function getMerchantEmailConfigs(): MerchantEmailConfig[] {
-  return MERCHANT_REGISTRY
-    .filter(merchant => merchant.isActive)
-    .map(merchant => ({
+  return MERCHANT_REGISTRY.filter((merchant) => merchant.isActive).map(
+    (merchant) => ({
       id: merchant.id,
       name: merchant.name,
       code: merchant.code,
       domains: extractDomainsFromEmailPatterns(merchant.emailPatterns),
       subjectPatterns: merchant.subjectPatterns || [],
       bodyPatterns: merchant.bodyPatterns || [],
-      isActive: merchant.isActive
-    }));
+      isActive: merchant.isActive,
+    }),
+  );
 }
 
 /**
@@ -54,35 +54,39 @@ export function getMerchantEmailConfigs(): MerchantEmailConfig[] {
  */
 function extractDomainsFromEmailPatterns(emailPatterns: string[]): string[] {
   const domains: string[] = [];
-  
+
   for (const pattern of emailPatterns) {
     // Extract domain from full email addresses
-    if (pattern.includes('@')) {
-      const domain = pattern.split('@')[1];
+    if (pattern.includes("@")) {
+      const domain = pattern.split("@")[1];
       if (domain && !domains.includes(domain)) {
         domains.push(domain);
       }
-    } 
+    }
     // Handle direct domain patterns
-    else if (pattern.includes('.') && !pattern.includes('/')) {
+    else if (pattern.includes(".") && !pattern.includes("/")) {
       if (!domains.includes(pattern)) {
         domains.push(pattern);
       }
     }
   }
-  
+
   return domains;
 }
 
 /**
  * Get merchant configuration by ID (replaces database getMerchantById)
  */
-export function getMerchantConfig(merchantId: string): MerchantEmailConfig | null {
-  const merchant = MERCHANT_REGISTRY.find(m => m.id === merchantId && m.isActive);
+export function getMerchantConfig(
+  merchantId: string,
+): MerchantEmailConfig | null {
+  const merchant = MERCHANT_REGISTRY.find(
+    (m) => m.id === merchantId && m.isActive,
+  );
   if (!merchant) {
     return null;
   }
-  
+
   return {
     id: merchant.id,
     name: merchant.name,
@@ -90,7 +94,7 @@ export function getMerchantConfig(merchantId: string): MerchantEmailConfig | nul
     domains: extractDomainsFromEmailPatterns(merchant.emailPatterns),
     subjectPatterns: merchant.subjectPatterns || [],
     bodyPatterns: merchant.bodyPatterns || [],
-    isActive: merchant.isActive
+    isActive: merchant.isActive,
   };
 }
 
@@ -109,14 +113,14 @@ function matchPattern(text: string, pattern: string): boolean {
     // Convert to lowercase for case-insensitive matching
     const lowerText = text.toLowerCase();
     const lowerPattern = pattern.toLowerCase();
-    
+
     // Check if pattern is a regex (starts and ends with /)
-    if (pattern.startsWith('/') && pattern.endsWith('/')) {
+    if (pattern.startsWith("/") && pattern.endsWith("/")) {
       const regexPattern = pattern.slice(1, -1); // Remove / from start and end
-      const regex = new RegExp(regexPattern, 'i'); // Case insensitive
+      const regex = new RegExp(regexPattern, "i"); // Case insensitive
       return regex.test(text);
     }
-    
+
     // Simple string match
     return lowerText.includes(lowerPattern);
   } catch (error) {
@@ -128,64 +132,70 @@ function matchPattern(text: string, pattern: string): boolean {
 /**
  * Score how well a merchant matches the email data
  */
-function scoreMerchantMatch(emailData: EmailData, merchant: MerchantConfig): MerchantMatch | null {
+function scoreMerchantMatch(
+  emailData: EmailData,
+  merchant: MerchantConfig,
+): MerchantMatch | null {
   let score = 0;
-  const matchedPatterns: MerchantMatch['matchedPatterns'] = {};
-  
+  const matchedPatterns: MerchantMatch["matchedPatterns"] = {};
+
   // Email pattern matching (highest weight - 50 points)
-  const emailMatches = merchant.emailPatterns.filter(pattern => 
-    matchPattern(emailData.from, pattern)
+  const emailMatches = merchant.emailPatterns.filter((pattern) =>
+    matchPattern(emailData.from, pattern),
   );
   if (emailMatches.length > 0) {
     score += 50;
     matchedPatterns.email = emailMatches;
   }
-  
+
   // Subject pattern matching (medium weight - 30 points)
   if (merchant.subjectPatterns) {
-    const subjectMatches = merchant.subjectPatterns.filter(pattern =>
-      matchPattern(emailData.subject, pattern)
+    const subjectMatches = merchant.subjectPatterns.filter((pattern) =>
+      matchPattern(emailData.subject, pattern),
     );
     if (subjectMatches.length > 0) {
       score += 30;
       matchedPatterns.subject = subjectMatches;
     }
   }
-  
+
   // Body pattern matching (lowest weight - 20 points)
   if (merchant.bodyPatterns) {
-    const bodyMatches = merchant.bodyPatterns.filter(pattern =>
-      matchPattern(emailData.body, pattern)
+    const bodyMatches = merchant.bodyPatterns.filter((pattern) =>
+      matchPattern(emailData.body, pattern),
     );
     if (bodyMatches.length > 0) {
       score += 20;
       matchedPatterns.body = bodyMatches;
     }
   }
-  
+
   // Priority bonus (up to 10 points)
   score += Math.min(merchant.priority * 0.1, 10);
-  
+
   // Return null if no meaningful match
-  if (score < 30) { // Minimum threshold
+  if (score < 30) {
+    // Minimum threshold
     return null;
   }
-  
+
   return {
     merchant,
     matchScore: Math.min(score, 100), // Cap at 100
-    matchedPatterns
+    matchedPatterns,
   };
 }
 
 /**
  * Identify the best matching merchant for an email
  */
-export async function identifyMerchant(emailData: EmailData): Promise<MerchantMatch | null> {
+export async function identifyMerchant(
+  emailData: EmailData,
+): Promise<MerchantMatch | null> {
   try {
     // Always return Swiggy as the merchant
-    const swiggyMerchant = MERCHANT_REGISTRY.find(m => m.id === 'swiggy');
-    
+    const swiggyMerchant = MERCHANT_REGISTRY.find((m) => m.id === "swiggy");
+
     if (!swiggyMerchant) {
       logger.error("Swiggy merchant not found in registry");
       return null;
@@ -197,8 +207,8 @@ export async function identifyMerchant(emailData: EmailData): Promise<MerchantMa
       matchedPatterns: {
         email: swiggyMerchant.emailPatterns,
         subject: swiggyMerchant.subjectPatterns || [],
-        body: swiggyMerchant.bodyPatterns || []
-      }
+        body: swiggyMerchant.bodyPatterns || [],
+      },
     };
 
     logger.log("Merchant identified as Swiggy", {
@@ -206,7 +216,7 @@ export async function identifyMerchant(emailData: EmailData): Promise<MerchantMa
       merchantCode: match.merchant.code,
       score: match.matchScore,
       subject: emailData.subject,
-      from: emailData.from
+      from: emailData.from,
     });
 
     return match;
@@ -214,7 +224,7 @@ export async function identifyMerchant(emailData: EmailData): Promise<MerchantMa
     logger.error("Error identifying merchant", {
       error: error instanceof Error ? error.message : String(error),
       subject: emailData.subject,
-      from: emailData.from
+      from: emailData.from,
     });
     return null;
   }
@@ -224,21 +234,21 @@ export async function identifyMerchant(emailData: EmailData): Promise<MerchantMa
  * Get merchant by ID
  */
 export function getMerchantById(merchantId: string): MerchantConfig | null {
-  return MERCHANT_REGISTRY.find(m => m.id === merchantId) || null;
+  return MERCHANT_REGISTRY.find((m) => m.id === merchantId) || null;
 }
 
 /**
  * Get merchant by code
  */
 export function getMerchantByCode(merchantCode: string): MerchantConfig | null {
-  return MERCHANT_REGISTRY.find(m => m.code === merchantCode) || null;
+  return MERCHANT_REGISTRY.find((m) => m.code === merchantCode) || null;
 }
 
 /**
  * Get all active merchants
  */
 export function getActiveMerchants(): MerchantConfig[] {
-  return MERCHANT_REGISTRY.filter(m => m.isActive);
+  return MERCHANT_REGISTRY.filter((m) => m.isActive);
 }
 
 /**
@@ -246,8 +256,10 @@ export function getActiveMerchants(): MerchantConfig[] {
  */
 export function registerMerchant(merchant: MerchantConfig): void {
   // Check if merchant already exists
-  const existingIndex = MERCHANT_REGISTRY.findIndex(m => m.id === merchant.id);
-  
+  const existingIndex = MERCHANT_REGISTRY.findIndex(
+    (m) => m.id === merchant.id,
+  );
+
   if (existingIndex >= 0) {
     // Replace existing merchant
     MERCHANT_REGISTRY[existingIndex] = merchant;
@@ -257,4 +269,4 @@ export function registerMerchant(merchant: MerchantConfig): void {
     MERCHANT_REGISTRY.push(merchant);
     logger.log("New merchant added to registry", { merchantId: merchant.id });
   }
-} 
+}

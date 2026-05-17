@@ -16,11 +16,12 @@ export * from "./schema/relations";
 
 export * from "./schema/transactionsV2";
 
-export * from "./queries/transactionsEnhanced";
+export * from "./queries/transactionWrites";
 
 export * from "./queries/transactions";
 
 export * from "./queries/insights/swiggyAnalytics";
+export * from "./queries/insights/swiggyAssistant";
 
 export * from "./queries/feedback";
 

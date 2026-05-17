@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 
+const assistantChatUrl =
+  /\/assistant\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
 test.describe("Customer assistant and feedback journeys", () => {
   test("starts a chat, gets a streamed reply, and can return to a fresh chat", async ({
     page,
@@ -22,14 +25,14 @@ test.describe("Customer assistant and feedback journeys", () => {
     await warmupResponse.text();
 
     await page.goto("/assistant");
+    await expect(page).toHaveURL(assistantChatUrl, { timeout: 15_000 });
 
     await expect(
-      page.getByRole("heading", { name: "Swiggy Spending Assistant" }),
+      page.getByRole("link", { name: /New chat/i }).first(),
     ).toBeVisible();
-    await expect(page.getByText("Swiggy spending snapshot")).toBeVisible();
 
     await page
-      .getByPlaceholder("Ask about your Swiggy spending...")
+      .getByPlaceholder(/Ask about your spending/)
       .fill("Summarize my recent spending in one sentence.");
     await page.getByRole("button", { name: "Submit" }).click();
 
@@ -39,12 +42,9 @@ test.describe("Customer assistant and feedback journeys", () => {
       ),
     ).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole("button", { name: /New Chat/i }).click();
-
-    await expect(page).toHaveURL(/\/assistant$/);
-    await expect(
-      page.getByPlaceholder("Ask about your Swiggy spending..."),
-    ).toBeVisible();
+    await page.goto("/assistant");
+    await expect(page).toHaveURL(assistantChatUrl, { timeout: 15_000 });
+    await expect(page.getByPlaceholder(/Ask about your spending/)).toBeVisible();
   });
 
   test("submits product feedback from inside the app", async ({ page }) => {

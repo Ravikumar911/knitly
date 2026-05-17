@@ -16,12 +16,15 @@ class ExtractorTests(unittest.TestCase):
         self.assertEqual(result.merchant, "swiggy")
         self.assertIn("Order ID: SWG-PDF-1001", result.raw.text)
         self.assertIn("Total: INR 512.40", result.raw.text)
-        self.assertIsNone(result.fields.orderId)
-        self.assertIsNone(result.fields.totalAmount)
+        self.assertEqual(result.schema_version, "2")
+        self.assertEqual(result.fields, {})
+        self.assertEqual(result.confidence, 0)
+        self.assertEqual(result.source_quality.kind, "text")
 
     def test_extracts_raw_text_from_non_transaction_fixture(self) -> None:
         result = extract_pdf(FIXTURES / "newsletter.pdf")
 
         self.assertEqual(result.merchant, "swiggy")
         self.assertIn("Local newsletter", result.raw.text)
-        self.assertIsNone(result.fields.totalAmount)
+        self.assertEqual(result.fields, {})
+        self.assertEqual(result.source_quality.kind, "text")

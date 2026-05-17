@@ -1,5 +1,6 @@
-"use client"
+"use client";
 
+import { Toaster } from "@workspace/ui/components/sonner";
 import { ThemeProvider } from "next-themes";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -11,6 +12,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange
     >
       {children}
+      <Toaster />
     </ThemeProvider>
   );
 } 

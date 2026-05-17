@@ -1,382 +1,144 @@
-import React from "react";
-import { Metadata } from "next";
-import { Button } from "@workspace/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
-import { Badge } from "@workspace/ui/components/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar";
-import { Progress } from "@workspace/ui/components/progress";
-import { AlertCircle, ArrowRight, BrainCircuit, CreditCard, LineChart, PiggyBank, TrendingUp, BarChart4 } from "lucide-react";
-import Image from "next/image";
+import type { Metadata } from "next";
+import {
+  Brain,
+  CreditCard,
+  PiggyBank,
+  Repeat,
+  TrendingUp,
+} from "lucide-react";
+
+import { AuroraText } from "@workspace/ui/components/aurora-text";
+import { BlurFade } from "@workspace/ui/components/magicui/blur-fade";
+import { DotPattern } from "@workspace/ui/components/magicui/dot-pattern";
+import { cn } from "@workspace/ui/lib/utils";
+
+import { Section } from "@/components/marketing/section";
+
+export const dynamic = "force-static";
 
 export const metadata: Metadata = {
-  title: "The Hidden Psychology Behind Spending | Slash",
-  description: "Discover why we overspend, the impact of instant gratification, and how Slash helps you build mindful money habits. Start tracking with Slash, the best credit card spend tracker and subscription manager in India.",
-  keywords: [
-    "credit card spend tracker",
-    "email finance tracker", 
-    "subscription manager India",
-    "AI personal finance tool",
-    "how to track EMI payments",
-    "spending psychology",
-    "financial habits",
-    "mindful spending"
-  ],
-  openGraph: {
-    title: "The Hidden Psychology Behind Spending | Slash",
-    description: "Learn the real reasons behind overspending and how Slash helps you take control. Start tracking with Slash today!",
-    url: "https://slashapp.in/spending-psychology",
-    siteName: "Slash",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Slash App - The Hidden Psychology Behind Spending"
-      }
-    ],
-    locale: "en_US",
-    type: "article",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "The Hidden Psychology Behind Spending | Slash",
-    description: "Learn the real reasons behind overspending and how Slash helps you take control. Start tracking with Slash today!",
-    images: ["/og-image.png"],
-  }
+  title: "Spending psychology",
+  description:
+    "Why we overspend, why dashboards don't help, and how Slash Cash's local agents turn money behavior into one clear weekly action.",
 };
 
-const schemaData = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "Slash",
-  "applicationCategory": "Finance",
-  "offers": {
-    "@type": "Offer",
-    "price": "Free",
-    "priceCurrency": "INR"
+const biases = [
+  {
+    icon: <Brain className="h-5 w-5 text-violet-500" />,
+    title: "Mental accounting",
+    body: "We treat ₹500 on food delivery as “lifestyle” and ₹500 of subscriptions as “invisible.” Slash Cash collapses every category into the same lens — money out, behavior pattern.",
   },
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "4.8",
-    "reviewCount": "1200"
+  {
+    icon: <Repeat className="h-5 w-5 text-fuchsia-500" />,
+    title: "The compounding leak",
+    body: "Three forgotten subscriptions cost more than a missed SIP step-up. The Leak Agent surfaces these every Monday so you fix them before they recur.",
   },
-  "review": [
-    {
-      "@type": "Review",
-      "author": "Amit S.",
-      "reviewBody": "Slash helped me finally see where my money was going. The insights are a game changer!",
-      "reviewRating": {
-        "@type": "Rating",
-        "ratingValue": "5"
-      }
-    }
-  ],
-  "keywords": [
-    "credit card spend tracker",
-    "email finance tracker",
-    "subscription manager India",
-    "AI personal finance tool",
-    "how to track EMI payments"
-  ]
-};
+  {
+    icon: <CreditCard className="h-5 w-5 text-cyan-500" />,
+    title: "Friction asymmetry",
+    body: "Spending is one tap. Reviewing is a workflow. Slash Cash inverts that — review is automatic, intervention is opt-in, the dashboard is ready before you open it.",
+  },
+  {
+    icon: <PiggyBank className="h-5 w-5 text-emerald-500" />,
+    title: "Behavior, not credit",
+    body: "Credit scores reward debt. Money health rewards savings rate, low recurring load, investment consistency, and emergency cover.",
+  },
+  {
+    icon: <TrendingUp className="h-5 w-5 text-rose-500" />,
+    title: "Decisions, not charts",
+    body: "Charts narrate the past. Agents make a recommendation: cut ₹X here, move ₹Y to SIP, cancel these three subscriptions. One action a week beats ten dashboards.",
+  },
+];
 
 export default function SpendingPsychologyPage() {
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }} />
-      
-      {/* Header/Hero Section */}
-      <section className="relative pt-20 pb-20 overflow-hidden">
-        <div className="absolute inset-0 hero-gradient opacity-40"></div>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10">
-          <Badge variant="secondary" className="mb-6 text-sm px-4 py-1 inline-block">
-            Spending Psychology Series
-          </Badge>
-          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight mb-4 bg-clip-text text-transparent bg-gradient-to-b from-primary to-foreground/80">
-            The Hidden Psychology Behind Spending
-          </h1>
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mb-10">
-            Why we spend more than we should, and how understanding your spending psychology can help you save smarter.
-          </p>
+    <div>
+      <section className="relative isolate overflow-hidden">
+        <DotPattern
+          className={cn(
+            "[mask-image:radial-gradient(700px_circle_at_top_right,white,transparent)]",
+            "fill-violet-300/40",
+          )}
+          width={28}
+          height={28}
+          cr={1}
+          aria-hidden="true"
+        />
+        <div className="slash-halo" aria-hidden="true" />
+
+        <div className="mx-auto max-w-[1180px] px-6 pb-12 pt-32 md:pt-40 md:pb-20">
+          <BlurFade delay={0.05} inView>
+            <span className="slash-eyebrow">
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{
+                  background: "linear-gradient(135deg, #6366f1, #ec4899)",
+                }}
+              />
+              Essay
+            </span>
+          </BlurFade>
+
+          <BlurFade delay={0.12} inView>
+            <h1 className="mt-5 max-w-3xl text-[2.6rem] font-bold leading-[1.05] tracking-tight md:text-[3.2rem]">
+              Why we overspend —{" "}
+              <AuroraText colors={["#6366f1", "#a855f7", "#ec4899"]}>
+                and what an honest finance agent does about it.
+              </AuroraText>
+            </h1>
+          </BlurFade>
+
+          <BlurFade delay={0.2} inView>
+            <p className="mt-5 max-w-2xl text-[1.05rem] leading-relaxed text-neutral-500 md:text-[1.12rem]">
+              A short read on the loops most finance apps reinforce, and how
+              Slash Cash is built around what actually changes behavior.
+            </p>
+          </BlurFade>
         </div>
       </section>
 
-      {/* Main Content */}
-      <main className="flex-1">
-        {/* Section 1: Why We Spend More */}
-        <section className="py-16 bg-muted/30">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <BrainCircuit className="w-8 h-8 text-primary" />
-                  <h2 className="text-3xl font-bold">Why We Spend More Than We Should</h2>
-                </div>
-                <p className="text-lg mb-4">It&apos;s not just math. It&apos;s psychology.</p>
-                <p className="mb-4">Most of us don&apos;t overspend because we&apos;re bad with numbers—we overspend because we&apos;re wired to seek pleasure, avoid discomfort, and follow habits we don&apos;t even notice.</p>
-                <p className="mb-6">From treating yourself on a bad day to blindly swiping your credit card because &quot;you&apos;ll figure it out later,&quot; the way we spend is more emotional than rational.</p>
-                <Card className="bg-primary/5 border-primary/20 mb-6">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start gap-3">
-                      <div className="bg-primary/10 p-2 rounded-full">
-                        <AlertCircle className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium mb-1">Research Insight</p>
-                        <p className="text-muted-foreground">According to behavioral economist Dan Ariely, most spending decisions are predictably irrational—we tend to anchor on defaults, overvalue free shipping, and underestimate monthly totals.</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              <div className="relative">
-                <div className="relative rounded-xl overflow-hidden shadow-xl">
-                  <Image 
-                    src="/images/brain-money-decision.png" 
-                    alt="Brain making financial decisions" 
-                    className="w-full h-full object-cover"
-                    width={600}
-                    height={400}
-                    priority
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
-                    <div className="text-white text-xl font-medium">Your brain on spending decisions</div>
-                  </div>
-                </div>
-                <div className="absolute -bottom-15 -right-15 bg-background p-4 rounded-lg shadow-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <LineChart className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">Emotional vs Rational</span>
-                  </div>
-                  <Progress value={75} className="h-2 w-32" />
-                  <span className="text-xs text-muted-foreground">75% of purchases are emotional</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 2: Instant Gratification */}
-        <section className="py-16 bg-background">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div className="order-2 md:order-1">
-                <div className="grid grid-cols-2 gap-4">
-                  <Card className="bg-muted/50 border-primary/10 shadow-sm">
-                    <CardContent className="pt-6">
-                      <div className="flex flex-col items-center text-center gap-2">
-                        <span className="text-4xl">🍔</span>
-                        <p className="font-medium">Swiggy feels easier than cooking</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-muted/50 border-primary/10 shadow-sm">
-                    <CardContent className="pt-6">
-                      <div className="flex flex-col items-center text-center gap-2">
-                        <span className="text-4xl">📺</span>
-                        <p className="font-medium">A monthly subscription feels harmless</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-muted/50 border-primary/10 shadow-sm col-span-2">
-                    <CardContent className="pt-6">
-                      <div className="flex flex-col items-center text-center gap-2">
-                        <span className="text-4xl">💸</span>
-                        <p className="font-medium">&quot;Buy Now, Pay Later&quot; sounds like a gift</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-                <div className="mt-6 bg-muted/30 p-4 rounded-lg border border-muted-foreground/10">
-                  <p className="italic text-muted-foreground">These micro-decisions stack up until you check your credit card bill and wonder, &quot;How did this happen?&quot;</p>
-                </div>
-              </div>
-              <div className="order-1 md:order-2">
-                <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="w-8 h-8 text-primary" />
-                  <h2 className="text-3xl font-bold">The Trap of Instant Gratification</h2>
-                </div>
-                <p className="text-lg mb-6">The brain loves rewards now.</p>
-                <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 shadow-sm">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start gap-3">
-                      <Avatar className="h-10 w-10 border-2 border-background">
-                        <AvatarImage src="/avatars/brain-avatar.png" alt="Brain" />
-                        <AvatarFallback className="bg-primary/20 text-primary">🧠</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium mb-1">Your Brain</p>
-                        <p className="text-muted-foreground">When faced with a purchase, your brain releases dopamine for immediate rewards, while the pain of paying is delayed—creating a perfect environment for overspending.</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 3: Small Charges */}
-        <section className="py-16 bg-muted/30">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <CreditCard className="w-8 h-8 text-primary" />
-                  <h2 className="text-3xl font-bold">Small Charges, Big Impact</h2>
-                </div>
-                <p className="text-lg mb-4">It&apos;s not just the big-ticket items.</p>
-                <p className="mb-6">Often, it&apos;s the ₹199 here and ₹49 there—the tiny charges that are forgettable until they silently drain ₹5,000+ a month.</p>
-                
-                <Card className="bg-primary/5 border-primary/20 shadow-md">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <span className="text-xl">👩🏽‍💻</span> 
-                      Real-life Example: Priya&apos;s Story
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-6 gap-4">
-                        <div className="col-span-4 font-medium">Subscription</div>
-                        <div className="col-span-2 font-medium text-right">Monthly Cost</div>
-                      </div>
-                      <div className="grid grid-cols-6 gap-4 border-b pb-2">
-                        <div className="col-span-4">4 OTT Apps</div>
-                        <div className="col-span-2 text-right">₹1,200</div>
-                      </div>
-                      <div className="grid grid-cols-6 gap-4 border-b pb-2">
-                        <div className="col-span-4">Unused Fitness Tracker</div>
-                        <div className="col-span-2 text-right">₹499</div>
-                      </div>
-                      <div className="grid grid-cols-6 gap-4 border-b pb-2">
-                        <div className="col-span-4">Annual Online Course (monthly)</div>
-                        <div className="col-span-2 text-right">₹599</div>
-                      </div>
-                      <div className="grid grid-cols-6 gap-4 pt-2">
-                        <div className="col-span-4 font-medium">Total Monthly Damage</div>
-                        <div className="col-span-2 text-right font-bold text-primary">₹2,298</div>
-                      </div>
-                      <div className="text-muted-foreground text-sm italic">
-                        She only actively used 2 of these services.
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              <div className="relative">
-                <div className="aspect-square relative">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="relative w-72 h-72">
-                      <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping opacity-30"></div>
-                      <div className="absolute inset-4 rounded-full bg-primary/15 animate-ping opacity-40 animation-delay-200"></div>
-                      <div className="absolute inset-8 rounded-full bg-primary/20 animate-ping opacity-50 animation-delay-400"></div>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="bg-background rounded-full p-6 shadow-lg">
-                          <div className="text-center">
-                            <div className="text-4xl font-bold text-primary">₹5,000+</div>
-                            <div className="text-sm text-muted-foreground">Monthly Silent Drain</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 4: What Slash Does */}
-        <section className="py-16 bg-background">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6">
-            <div className="text-center mb-12">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <BarChart4 className="w-8 h-8 text-primary" />
-                <h2 className="text-3xl font-bold">What Slash Does Differently</h2>
-              </div>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Most apps just show you the numbers. Slash shows you the patterns.
+      <Section
+        eyebrow="Five biases"
+        title="The patterns we've been designing around."
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          {biases.map((b) => (
+            <div
+              key={b.title}
+              className="slash-bento-card flex flex-col gap-3 p-6"
+            >
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-neutral-50 ring-1 ring-black/5">
+                {b.icon}
+              </span>
+              <h3 className="text-[1.1rem] font-semibold tracking-tight text-neutral-900">
+                {b.title}
+              </h3>
+              <p className="text-[0.92rem] leading-relaxed text-neutral-500">
+                {b.body}
               </p>
             </div>
+          ))}
+        </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
-              <Card className="shadow-md bg-gradient-to-br from-background to-muted/30 border-primary/10">
-                <CardContent className="pt-8">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="bg-primary/10 rounded-full p-4 mb-4">
-                      <PiggyBank className="w-8 h-8 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-medium mb-2">Recurring Charge Detection</h3>
-                    <p className="text-muted-foreground">
-                      Automatically identifies subscriptions you no longer use—even the forgotten ones
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-md bg-gradient-to-br from-background to-muted/30 border-primary/10">
-                <CardContent className="pt-8">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="bg-primary/10 rounded-full p-4 mb-4">
-                      <CreditCard className="w-8 h-8 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-medium mb-2">Category Awareness</h3>
-                    <p className="text-muted-foreground">
-                      Visualizes which categories you consistently overspend on with insightful patterns
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-md bg-gradient-to-br from-background to-muted/30 border-primary/10">
-                <CardContent className="pt-8">
-                  <div className="flex flex-col items-center text-center">
-                    <div className="bg-primary/10 rounded-full p-4 mb-4">
-                      <BrainCircuit className="w-8 h-8 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-medium mb-2">Mindful Nudges</h3>
-                    <p className="text-muted-foreground">
-                      Weekly personalized nudges that prompt reflection on spending habits and patterns
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="mt-10 text-center">
-              <p className="text-lg mb-6">
-                It turns &quot;how much&quot; into why and how often—so you can change behavior, not just log expenses.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Takeaway & CTA */}
-        <section className="py-16 bg-muted/30">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-            <h2 className="text-3xl font-bold mb-6">✅ Takeaway</h2>
-            <p className="text-xl mb-10">
-              Money isn&apos;t just spent with your wallet—it&apos;s spent with your emotions and attention.<br />
-              Slash helps you regain both.
-            </p>
-            
-            <div className="max-w-md mx-auto">
-              <Card className="bg-primary text-primary-foreground shadow-xl transform hover:scale-[1.02] transition-all">
-                <CardContent className="p-8">
-                  <h3 className="text-2xl font-bold mb-4">Start Building Awareness</h3>
-                  <p className="mb-6">Take the first step toward healthier spending habits today.</p>
-                  <Button size="lg" className="w-full h-12 font-semibold text-lg" variant="secondary" asChild>
-                    <a href="https://app.slash.cash" target="_blank" rel="noopener noreferrer">
-                      Start Tracking with Slash <ArrowRight className="ml-2 h-5 w-5" />
-                    </a>
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </section>
-      </main>
+        <div
+          className="mt-12 rounded-2xl p-8 md:p-10"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(99,102,241,0.07), rgba(236,72,153,0.07))",
+            border: "1px solid rgba(99,102,241,0.12)",
+          }}
+        >
+          <p className="text-center text-[1.05rem] leading-relaxed text-neutral-700 md:text-[1.15rem]">
+            The point of Slash Cash isn't to make you feel guilty about a
+            coffee. It's to put{" "}
+            <span className="font-semibold text-neutral-900">
+              one clear, well-explained action
+            </span>{" "}
+            in front of you each week — and to do that without ever uploading
+            your finances.
+          </p>
+        </div>
+      </Section>
     </div>
   );
-} 
+}

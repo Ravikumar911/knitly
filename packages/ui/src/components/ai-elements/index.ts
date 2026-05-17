@@ -37,7 +37,6 @@ export * from "./schema-display";
 export * from "./shimmer";
 export * from "./snippet";
 export * from "./sources";
-export * from "./speech-input";
 export * from "./stack-trace";
 export * from "./suggestion";
 export * from "./task";

@@ -1,363 +1,357 @@
-export const dynamic = 'force-static';
-import { Badge } from "@workspace/ui/components/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar"
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@workspace/ui/components/carousel"
+"use client";
 
+import { ArrowRight, Github, Sparkles } from "lucide-react";
 
-// Magic UI Components
-import { AnimatedShinyText } from "@workspace/ui/components/magicui/animated-shiny-text"
-import { AnimatedGradientText } from "@workspace/ui/components/magicui/animated-gradient-text"
-import { ShimmerButton } from "@workspace/ui/components/magicui/shimmer-button"
-import { MagicCard } from "@workspace/ui/components/magicui/magic-card"
-import { BlurFade } from "@workspace/ui/components/magicui/blur-fade"
-import { Particles } from "@workspace/ui/components/magicui/particles"
+import { AnimatedShinyText } from "@workspace/ui/components/magicui/animated-shiny-text";
+import { AuroraText } from "@workspace/ui/components/aurora-text";
+import { BlurFade } from "@workspace/ui/components/magicui/blur-fade";
+import { DotPattern } from "@workspace/ui/components/magicui/dot-pattern";
+import { ShimmerButton } from "@workspace/ui/components/magicui/shimmer-button";
+import { cn } from "@workspace/ui/lib/utils";
+
+import {
+  AgentsBento,
+  BentoFeatures,
+  BentoFeaturesSecondary,
+} from "@/components/marketing/bento-features";
+import { FlowBeams } from "@/components/marketing/flow-beams";
+import { HeroPreviewCard } from "@/components/marketing/hero-preview-card";
+import { PricingTiers } from "@/components/marketing/pricing-tiers";
+import { Section } from "@/components/marketing/section";
+import { StatsBand } from "@/components/marketing/stats-band";
+import { TestimonialMarquee } from "@/components/marketing/testimonial-marquee";
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col min-h-screen bg-background relative overflow-hidden">
-      {/* Single global Particles background */}
-      <Particles className="absolute inset-0" quantity={140} ease={80} color="#9ca3af" refresh />
+    <div className="relative">
+      {/* HERO */}
+      <section className="relative isolate overflow-hidden">
+        {/* Background — dots + soft halo (extends behind the floating nav) */}
+        <DotPattern
+          className={cn(
+            "[mask-image:radial-gradient(1100px_circle_at_top_right,white,transparent)]",
+            "fill-violet-300/45",
+          )}
+          width={28}
+          height={28}
+          cr={1}
+          aria-hidden="true"
+        />
 
-      {/* Hero Section */}
-      <section className="flex-1 flex flex-col items-center justify-center px-4 py-20 md:py-32 relative">
-        <div className="relative z-10 max-w-[900px] mx-auto text-center">
-          <BlurFade delay={0.1} inView>
-            <Badge variant="secondary" className="mb-6 text-sm px-4 py-1 bg-black/10 backdrop-blur-sm">
-              <AnimatedShinyText className="inline-flex items-center justify-center transition ease-out hover:text-neutral-600 hover:duration-300 hover:dark:text-neutral-400">
-                <span>✨ AI-Powered Personal Finance</span>
-              </AnimatedShinyText>
-            </Badge>
-          </BlurFade>
-
-          <BlurFade delay={0.2} inView>
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-4">
-              <AnimatedGradientText>
-                Your AI Finance Assistant
-              </AnimatedGradientText>
-            </h1>
-          </BlurFade>
-
-          <BlurFade delay={0.3} inView>
-            <h2 className="text-xl md:text-2xl font-medium text-muted-foreground mb-6 max-w-3xl mx-auto leading-relaxed">
-              Slash automatically tracks your expenses by reading your emails. Starting with Swiggy analytics, expanding to track all your spending across banks, wallets, subscriptions, and more—giving you complete financial visibility.
-            </h2>
-          </BlurFade>
-
-          <BlurFade delay={0.4} inView>
-            <div className="text-sm text-muted-foreground font-medium mb-8">Connect Gmail • Smart expense tracking • No manual entry</div>
-          </BlurFade>
-        </div>
-      </section>
-
-      {/* Current: Swiggy Analytics */}
-      <section className="py-16 relative">
-        <div className="max-w-[1100px] mx-auto px-4">
-          <BlurFade delay={0.1} inView>
-            <div className="text-center mb-12">
-              <Badge variant="outline" className="mb-4">
-                <AnimatedShinyText className="inline-flex items-center justify-center">
-                  📍 Currently Available
-                </AnimatedShinyText>
-              </Badge>
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                <AnimatedGradientText>Starting with Swiggy Analytics</AnimatedGradientText>
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                See the power of AI-driven expense tracking with our Swiggy integration—a preview of what's coming for all your financial data.
-              </p>
-            </div>
-          </BlurFade>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                title: "🍽️ Food & Grocery Insights",
-                content: "Complete breakdown of Food delivery vs Instamart vs Dineout spending. Top restaurants, favorite items, and delivery patterns.",
-                delay: 0.2
-              },
-              {
-                title: "⏰ Behavioral Analytics",
-                content: "Peak ordering hours, day-wise patterns, and monthly trends. Understand your spending psychology and habits.",
-                delay: 0.3
-              },
-              {
-                title: "🎯 Smart AI Insights",
-                content: "Ask questions like \"Where do I order most?\" or \"How much do I spend on delivery fees?\" AI-powered answers with visual data.",
-                delay: 0.4
-              }
-            ].map((item, index) => (
-              <BlurFade key={index} delay={item.delay} inView>
-                <MagicCard
-                  className="cursor-pointer h-full rounded-xl border border-white/10 shadow-lg shadow-black/10 hover:shadow-2xl hover:shadow-black/20 transition-transform duration-300 hover:-translate-y-1"
-                  gradientSize={280}
-                  gradientFrom="#22d3ee"
-                  gradientTo="#a78bfa"
-                  gradientOpacity={0.25}
-                  gradientColor="rgba(255,255,255,0.4)"
-                >
-                  <div className="p-6 h-full flex flex-col">
-                    <h3 className="text-xl font-semibold mb-3">{item.title}</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed flex-1">{item.content}</p>
-                  </div>
-                </MagicCard>
-              </BlurFade>
-            ))}
-          </div>
-
-          <BlurFade delay={0.5} inView>
-            <div className="flex justify-center mt-12">
-              <a 
-                href="https://app.slash.cash"
+        <div className="relative mx-auto grid max-w-[1180px] grid-cols-1 items-center gap-14 px-6 pb-12 pt-32 md:grid-cols-[1.1fr_0.9fr] md:pt-40 md:pb-20">
+          <div className="flex flex-col items-start">
+            <BlurFade delay={0.05} inView>
+              <a
+                href="https://github.com/slashcash"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-block"
+                className="group inline-flex items-center gap-2 rounded-full border border-black/5 bg-white/70 px-3.5 py-1 text-[0.78rem] font-medium text-neutral-600 backdrop-blur-md shadow-sm transition hover:bg-white"
               >
-                <ShimmerButton className="shadow-2xl h-12 px-8 text-lg">
-                  <span className="whitespace-pre-wrap text-center font-medium leading-none tracking-tight text-white dark:from-white dark:to-slate-900/10">
-                    🍽️ Explore Swiggy Analytics →
-                  </span>
-                </ShimmerButton>
-              </a>
-            </div>
-          </BlurFade>
-        </div>
-      </section>
-
-      {/* The Vision: Complete Personal Finance */}
-      <section className="py-16 relative">
-        <div className="max-w-[1100px] mx-auto px-4">
-          <BlurFade delay={0.1} inView>
-            <div className="text-center mb-12">
-              <Badge variant="outline" className="mb-4">
-                <AnimatedShinyText className="inline-flex items-center justify-center">
-                  🚀 Coming Soon
+                <span
+                  className="grid h-4 w-4 place-items-center rounded-full text-[0.55rem] font-bold text-white"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #6366f1, #ec4899)",
+                  }}
+                  aria-hidden="true"
+                >
+                  ✨
+                </span>
+                <AnimatedShinyText className="!text-neutral-700">
+                  Introducing Slash Cash 0.1 — open-source preview
                 </AnimatedShinyText>
-              </Badge>
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                <AnimatedGradientText>The Future: Complete AI Finance Tracking</AnimatedGradientText>
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Slash will expand to automatically track ALL your expenses from emails—banks, credit cards, UPI, wallets, subscriptions, and more.
+                <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+              </a>
+            </BlurFade>
+
+            <BlurFade delay={0.12} inView>
+              <h1 className="mt-6 text-balance text-[3.1rem] font-bold leading-[1.02] tracking-tight md:text-[3.8rem]">
+                Your{" "}
+                <AuroraText
+                  colors={["#6366f1", "#a855f7", "#ec4899", "#06b6d4"]}
+                  speed={1.2}
+                >
+                  AI finance team
+                </AuroraText>{" "}
+                <br className="hidden md:block" />
+                that actually fixes things.
+              </h1>
+            </BlurFade>
+
+            <BlurFade delay={0.2} inView>
+              <p className="mt-5 max-w-xl text-[1.05rem] leading-relaxed text-neutral-500 md:text-[1.12rem]">
+                Six small agents categorize your spends, find leaks, score your
+                money health, and tell you{" "}
+                <span className="font-semibold text-neutral-900">
+                  one clear thing to fix
+                </span>{" "}
+                each week. Open-source, runs on your laptop, never uploads
+                your finances.
               </p>
-            </div>
-          </BlurFade>
+            </BlurFade>
 
-          <div className="grid md:grid-cols-4 gap-8 auto-rows-fr">
-            {[
-              { icon: "🏦", title: "Bank Transactions", desc: "Automatic tracking of all bank account debits and credits with smart categorization.", delay: 0.2 },
-              { icon: "💳", title: "Credit Card Analytics", desc: "Track spending across all cards, interest charges, due dates, and payment patterns.", delay: 0.3 },
-              { icon: "📱", title: "UPI & Wallet Tracking", desc: "Monitor PhonePe, GPay, Paytm transactions with merchant identification and categorization.", delay: 0.4 },
-              { icon: "🔄", title: "Subscription Management", desc: "Track all recurring payments, renewal dates, and forgotten subscriptions across services.", delay: 0.5 },
-              { icon: "🛒", title: "E-commerce Tracking", desc: "Amazon, Flipkart, and other online shopping with detailed product categorization.", delay: 0.6 },
-              { icon: "🚗", title: "Transportation & Travel", desc: "Uber, Ola, flight bookings, and travel expenses with location-based insights.", delay: 0.7 },
-              { icon: "💡", title: "Bills & Utilities", desc: "Electricity, internet, mobile bills with usage patterns and cost optimization tips.", delay: 0.8 },
-              { icon: "🎯", title: "Smart Budgeting", desc: "AI-powered budget recommendations based on your historical spending patterns.", delay: 0.9 }
-            ].map((feature, index) => (
-              <BlurFade key={index} delay={feature.delay} inView>
-                <MagicCard
-                  className="cursor-pointer h-full rounded-xl border border-white/10 shadow-lg shadow-black/10 hover:shadow-2xl hover:shadow-black/20 transition-transform duration-300 hover:-translate-y-1"
-                  gradientSize={260}
-                  gradientFrom="#22d3ee"
-                  gradientTo="#a78bfa"
-                  gradientOpacity={0.25}
-                  gradientColor="rgba(255,255,255,0.4)"
+            <BlurFade delay={0.28} inView>
+              <div className="mt-7 flex flex-wrap items-center gap-3">
+                <a
+                  href="https://app.slash.cash"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  <div className="p-6 h-full flex flex-col text-center">
-                    <span className="text-4xl mb-4 block">{feature.icon}</span>
-                    <h3 className="font-semibold mb-2">{feature.title}</h3>
-                    <p className="text-muted-foreground text-sm flex-1">{feature.desc}</p>
-                  </div>
-                </MagicCard>
-              </BlurFade>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How Slash Works */}
-      <section className="py-16 relative">
-        <div className="max-w-[1100px] mx-auto px-4">
-          <BlurFade delay={0.1} inView>
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
-              <AnimatedGradientText>How Slash's AI Finance Tracking Works</AnimatedGradientText>
-            </h2>
-          </BlurFade>
-
-          <div className="grid md:grid-cols-4 gap-8 auto-rows-fr">
-            {[
-              {
-                title: "1. Connect Gmail Securely",
-                content: "OAuth 2.0 access to scan only financial transaction emails. Banks, UPI, wallets, credit cards, subscriptions, and services. Zero access to personal or non-financial emails.",
-                delay: 0.2
-              },
-              {
-                title: "2. AI Extracts & Categorizes",
-                content: "Advanced AI parses transaction amounts, merchants, and categories. Smart deduplication prevents double-counting across platforms. Automatic merchant normalization and spending categorization.",
-                delay: 0.3
-              },
-              {
-                title: "3. Rich Analytics Dashboard",
-                content: "Complete financial overview with spending breakdowns, trends, and insights. Category-wise analysis, monthly comparisons, and behavioral patterns. Beautiful charts and visualizations for all your financial data.",
-                delay: 0.4
-              },
-              {
-                title: "4. Chat with Your Money",
-                content: "Ask natural language questions about your finances: \"How much did I spend on food this month?\" \"Which subscriptions can I cancel?\" \"Am I spending more than last year?\"",
-                delay: 0.5
-              }
-            ].map((item, index) => (
-              <BlurFade key={index} delay={item.delay} inView>
-                <MagicCard
-                  className="cursor-pointer h-full rounded-xl border border-white/10 shadow-lg shadow-black/10 hover:shadow-2xl hover:shadow-black/20 transition-transform duration-300 hover:-translate-y-1"
-                  gradientSize={280}
-                  gradientFrom="#22d3ee"
-                  gradientTo="#a78bfa"
-                  gradientOpacity={0.25}
-                  gradientColor="rgba(255,255,255,0.4)"
+                  <ShimmerButton
+                    shimmerColor="#ffffff"
+                    shimmerSize="0.05em"
+                    borderRadius="999px"
+                    background="linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)"
+                    className="!h-11 !px-6"
+                  >
+                    <span className="inline-flex items-center gap-1.5 text-[0.92rem] font-semibold text-white">
+                      Open the dashboard
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </span>
+                  </ShimmerButton>
+                </a>
+                <a
+                  href="https://github.com/slashcash"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-11 items-center gap-2 rounded-full border border-black/10 bg-white px-5 text-[0.92rem] font-semibold text-neutral-700 transition hover:bg-neutral-50"
                 >
-                  <div className="p-6 h-full flex flex-col">
-                    <h3 className="text-xl font-semibold mb-3">{item.title}</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed flex-1">{item.content}</p>
-                  </div>
-                </MagicCard>
-              </BlurFade>
-            ))}
+                  <Github className="h-3.5 w-3.5" />
+                  View on GitHub
+                </a>
+              </div>
+            </BlurFade>
+
+            <BlurFade delay={0.36} inView>
+              <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.78rem] font-medium text-neutral-500">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  100% local · zero cloud sync
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+                  Works with UPI · cards · email
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500" />
+                  Open-source CLI
+                </span>
+              </div>
+            </BlurFade>
           </div>
-        </div>
-      </section>
-
-      {/* Perfect For */}
-      <section className="py-16 relative">
-        <div className="max-w-[900px] mx-auto px-4">
-          <BlurFade delay={0.1} inView>
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-10">
-              <AnimatedGradientText>Perfect For Modern Spenders</AnimatedGradientText>
-            </h2>
-          </BlurFade>
-
-          <div className="grid md:grid-cols-4 gap-8 auto-rows-fr">
-            {[
-              { icon: "💼", title: "Busy Professionals", desc: "No time for manual expense tracking", delay: 0.2 },
-              { icon: "📱", title: "Digital-First Users", desc: "Most transactions via apps and cards", delay: 0.3 },
-              { icon: "💰", title: "Budget-Conscious People", desc: "Want to understand spending patterns", delay: 0.4 },
-              { icon: "🎯", title: "Goal-Oriented Savers", desc: "Need insights to optimize spending", delay: 0.5 }
-            ].map((item, index) => (
-              <BlurFade key={index} delay={item.delay} inView>
-                <MagicCard
-                  className="cursor-pointer h-full rounded-xl border border-white/10 shadow-lg shadow-black/10 hover:shadow-2xl hover:shadow-black/20 transition-transform duration-300 hover:-translate-y-1"
-                  gradientSize={260}
-                  gradientFrom="#22d3ee"
-                  gradientTo="#a78bfa"
-                  gradientOpacity={0.25}
-                  gradientColor="rgba(255,255,255,0.4)"
-                >
-                  <div className="p-6 h-full flex flex-col text-center">
-                    <span className="text-4xl mb-4 block">{item.icon}</span>
-                    <h3 className="font-semibold mb-2">{item.title}</h3>
-                    <p className="text-muted-foreground text-sm flex-1">{item.desc}</p>
-                  </div>
-                </MagicCard>
-              </BlurFade>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-16 relative">
-        <div className="max-w-[900px] mx-auto px-4">
-          <BlurFade delay={0.1} inView>
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-10">
-              <AnimatedGradientText>Early Users Love Slash</AnimatedGradientText>
-            </h2>
-          </BlurFade>
-
-          <BlurFade delay={0.2} inView>
-            <Carousel>
-              <CarouselContent>
-                {[
-                  {
-                    quote: "Started with Swiggy tracking and was shocked at my ₹15,000 monthly food spending! Can't wait for full bank integration.",
-                    author: "Aarav, Hyderabad",
-                    avatar: "/avatars/aarav.png",
-                    fallback: "AR"
-                  },
-                  {
-                    quote: "Finally, an expense tracker that works automatically! The AI insights are incredible—no more manual entry headaches.",
-                    author: "Meena, Mumbai",
-                    avatar: "/avatars/meena.png",
-                    fallback: "MN"
-                  },
-                  {
-                    quote: "The behavioral insights are game-changing. Slash showed me patterns I never noticed and helped me save ₹8,000 monthly.",
-                    author: "Rahul, Bengaluru",
-                    avatar: "/avatars/rahul.png",
-                    fallback: "RH"
-                  }
-                ].map((testimonial, index) => (
-                  <CarouselItem key={index}>
-                    <MagicCard
-                      className="cursor-pointer rounded-xl border border-white/10 shadow-lg shadow-black/10 hover:shadow-2xl hover:shadow-black/20 transition-transform duration-300 hover:-translate-y-1"
-                      gradientSize={260}
-                      gradientFrom="#22d3ee"
-                      gradientTo="#a78bfa"
-                      gradientOpacity={0.25}
-                      gradientColor="rgba(255,255,255,0.4)"
-                    >
-                      <div className="flex flex-col items-center py-8 px-6">
-                        <Avatar className="mb-4 w-16 h-16">
-                          <AvatarImage src={testimonial.avatar} alt={testimonial.author} />
-                          <AvatarFallback>{testimonial.fallback}</AvatarFallback>
-                        </Avatar>
-                        <div className="text-lg font-medium mb-2 text-center">"{testimonial.quote}"</div>
-                        <div className="text-muted-foreground text-sm">— {testimonial.author}</div>
-                      </div>
-                    </MagicCard>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious />
-              <CarouselNext />
-            </Carousel>
-          </BlurFade>
-        </div>
-      </section>
-
-      {/* Final Call to Action */}
-      <section className="py-16 relative">
-        <div className="max-w-[700px] mx-auto px-4 text-center">
-          <BlurFade delay={0.1} inView>
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              <AnimatedGradientText>
-                Your AI finance assistant awaits
-              </AnimatedGradientText>
-            </h2>
-          </BlurFade>
-
-          <BlurFade delay={0.2} inView>
-            <p className="text-lg text-muted-foreground mb-8">
-              Start with Swiggy analytics today and be first in line for complete expense tracking when we expand.
-            </p>
-          </BlurFade>
 
           <BlurFade delay={0.3} inView>
-            <div className="flex justify-center">
-              <a 
-                href="https://app.slash.cash"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block"
-              >
-                <ShimmerButton className="shadow-2xl h-12 px-8">
-                  <span className="whitespace-pre-wrap text-center font-medium leading-none tracking-tight text-white dark:from-white dark:to-slate-900/10">
-                    ✨ Get Started with AI Finance Tracking →
-                  </span>
-                </ShimmerButton>
-              </a>
+            <div className="flex justify-center md:justify-end">
+              <HeroPreviewCard />
             </div>
           </BlurFade>
+        </div>
+      </section>
+
+      {/* TRUST STRIP / SOCIAL PROOF */}
+      <Section className="!py-10" align="center" title="" containerClassName="">
+        <BlurFade inView>
+          <div className="rounded-2xl border border-black/5 bg-white/60 px-6 py-5 backdrop-blur-sm">
+            <div className="flex flex-col items-center gap-4 text-center md:flex-row md:justify-between md:text-left">
+              <span className="text-[0.78rem] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                Loved by builders, planners, and money nerds
+              </span>
+              <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[0.85rem] font-medium text-neutral-700">
+                <span className="inline-flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-violet-500" /> Local-first
+                </span>
+                <span>·</span>
+                <span>Open-source MIT</span>
+                <span>·</span>
+                <span>Built in 2026</span>
+                <span>·</span>
+                <span>No funding lock-in</span>
+              </div>
+            </div>
+          </div>
+        </BlurFade>
+      </Section>
+
+      {/* FEATURES BENTO */}
+      <Section
+        id="features"
+        eyebrow="What it does"
+        title={
+          <>
+            Built for the way{" "}
+            <AuroraText colors={["#6366f1", "#a855f7", "#ec4899"]}>
+              modern money
+            </AuroraText>{" "}
+            actually moves.
+          </>
+        }
+        description="UPI, multiple cards, a dozen subscriptions, four bank accounts, three SIPs. Slash Cash sees the whole picture — and turns it into one clear next move."
+      >
+        <BentoFeatures />
+        <div className="mt-4">
+          <BentoFeaturesSecondary />
+        </div>
+      </Section>
+
+      {/* HOW IT WORKS — animated beams */}
+      <Section
+        id="how"
+        eyebrow="How it works"
+        title={
+          <>
+            Your sources go in.{" "}
+            <AuroraText colors={["#a855f7", "#ec4899", "#06b6d4"]}>
+              Decisions
+            </AuroraText>{" "}
+            come out.
+          </>
+        }
+        description="Slash Cash reads from sources you approve, runs every agent locally, and produces a dashboard that's already done the thinking."
+      >
+        <FlowBeams />
+      </Section>
+
+      {/* AGENTS — orbit */}
+      <Section
+        id="agents"
+        eyebrow="Meet the team"
+        title={
+          <>
+            Seven specialists.{" "}
+            <AuroraText colors={["#06b6d4", "#a855f7"]}>One job each.</AuroraText>
+          </>
+        }
+        description="No mega-model trying to do everything. Each agent is a small, inspectable program with one clear responsibility."
+      >
+        <AgentsBento />
+      </Section>
+
+      {/* STATS BAND */}
+      <Section
+        eyebrow="By the numbers"
+        title="What people see in the first 90 days."
+        description="Aggregated, anonymized signals from local installs that opted into the open metrics ping."
+      >
+        <StatsBand />
+      </Section>
+
+      {/* TESTIMONIALS */}
+      <Section
+        eyebrow="What users say"
+        title={
+          <>
+            People{" "}
+            <AuroraText colors={["#ec4899", "#f97316", "#a855f7"]}>
+              love
+            </AuroraText>{" "}
+            how it feels.
+          </>
+        }
+        description="The Monday brief is the killer feature. Three actions, one paragraph, written in plain English."
+        containerClassName="!max-w-[1280px]"
+      >
+        <TestimonialMarquee />
+      </Section>
+
+      {/* PRICING */}
+      <Section
+        id="pricing"
+        eyebrow="Pricing"
+        title={
+          <>
+            Free forever for personal use.{" "}
+            <br className="hidden md:block" />
+            <AuroraText colors={["#6366f1", "#ec4899"]}>
+              Pay only for convenience.
+            </AuroraText>
+          </>
+        }
+        description="The whole engine is free and open-source. Paid tiers fund development and unlock advanced workflows — never gate-keeping your own data."
+      >
+        <PricingTiers />
+      </Section>
+
+      {/* FINAL CTA */}
+      <section className="relative isolate overflow-hidden">
+        <div className="mx-auto max-w-[1180px] px-6 pb-24">
+          <div
+            className="relative overflow-hidden rounded-3xl border border-black/5 p-10 md:p-16"
+            style={{
+              background:
+                "linear-gradient(135deg, #ffffff 0%, rgba(99,102,241,0.06) 50%, rgba(236,72,153,0.06) 100%)",
+              boxShadow:
+                "0 1px 2px rgba(0,0,0,0.04), 0 24px 64px -16px rgba(168,85,247,0.25)",
+            }}
+          >
+            <DotPattern
+              className={cn(
+                "[mask-image:radial-gradient(700px_circle_at_top_right,white,transparent)]",
+                "fill-violet-300/30",
+              )}
+              width={22}
+              height={22}
+              cr={1}
+              aria-hidden="true"
+            />
+            <div className="relative grid grid-cols-1 items-center gap-8 md:grid-cols-[1.1fr_0.9fr]">
+              <div>
+                <span className="slash-eyebrow">
+                  <span
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{
+                      background: "linear-gradient(135deg, #6366f1, #ec4899)",
+                    }}
+                  />
+                  Get started free
+                </span>
+                <h2 className="mt-4 text-[2.2rem] font-bold leading-[1.05] tracking-tight md:text-[2.8rem]">
+                  Stop watching dashboards.
+                  <br />
+                  <AuroraText
+                    colors={["#6366f1", "#a855f7", "#ec4899", "#06b6d4"]}
+                  >
+                    Start fixing money.
+                  </AuroraText>
+                </h2>
+                <p className="mt-4 max-w-xl text-[1rem] leading-relaxed text-neutral-500 md:text-[1.05rem]">
+                  Install the open-source CLI, point it at the sources you
+                  already use, and let your agents prepare next week's brief
+                  on your device — overnight.
+                </p>
+              </div>
+              <div className="flex flex-col items-stretch gap-3 md:items-end">
+                <a
+                  href="https://app.slash.cash"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ShimmerButton
+                    shimmerColor="#ffffff"
+                    shimmerSize="0.05em"
+                    borderRadius="999px"
+                    background="linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)"
+                    className="!h-12 !px-6 !w-full md:!w-auto"
+                  >
+                    <span className="inline-flex items-center gap-1.5 text-[0.95rem] font-semibold text-white">
+                      Open the dashboard
+                      <ArrowRight className="h-4 w-4" />
+                    </span>
+                  </ShimmerButton>
+                </a>
+                <a
+                  href="https://github.com/slashcash"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-black/10 bg-white px-6 text-[0.92rem] font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                >
+                  <Github className="h-4 w-4" />
+                  Read the source
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </div>
-  )
+  );
 }

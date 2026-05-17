@@ -1,6 +1,6 @@
 # slashcash — Plan & Reference
 
-This package is the single source of truth for the **slashcash** local-first, single-user CLI that runs the existing dashboard on a user's machine, talks to a local LLM via Ollama, reads Gmail over IMAP with a user-issued app password (ADR-024), extracts PDF invoices with a locally-installed Python library (ADR-026), and stores everything in a local SQLite file.
+This package is the single source of truth for the **slashcash** local-first, single-user CLI that runs the existing dashboard on a user's machine, reads Gmail over IMAP with a user-issued app password (ADR-024), extracts Swiggy invoices with local deterministic Python libraries, optionally talks to a configured chat provider for the assistant, and stores everything in a local SQLite file.
 
 This is a **fully local** product. There is no dual-run mode and no cloud fallback. The hosted app at `app.slash.cash` is being retired; the marketing site at `slash.cash` is updated when the CLI reaches feature parity to point at it. See ADR-013 in [`reference/decisions.md`](./reference/decisions.md).
 
@@ -10,8 +10,8 @@ Read in order on your first pass:
 
 1. [`vision.md`](./vision.md) — _Why we are doing this and the product principles._
 2. [`current-state.md`](./current-state.md) — _What ships today, the retired-phase summary, and the pre-pivot snapshot kept for historical context._
-3. [`architecture.md`](./architecture.md) — _Target topology, process model, data flow, config layout — including Docling PDF text conversion and the single Gemma source extraction call._
-4. [`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md) — **Active execution plan** (2026-04-23). Swap Gemma-based PDF extraction for local Docling PDF text conversion plus one structured source extraction call. Includes the new `packages/pdf-extractor/` Python package and the `doctor --fix` venv bootstrap.
+3. [`architecture.md`](./architecture.md) — _Target topology, process model, data flow, config layout — including deterministic Python-backed Swiggy extraction._
+4. [`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md) — **Active execution plan index** (2026-04-26). Splits the pivot into [`phase-1.md`](./roadmap/phase-1.md) (deterministic Python extractor), [`phase-2.md`](./roadmap/phase-2.md) (remove AI from ingest), [`phase-3.md`](./roadmap/phase-3.md) (parallel sync), [`phase-4.md`](./roadmap/phase-4.md) (fast onboarding + post-onboarding assistant setup), and [`phase-5.md`](./roadmap/phase-5.md) (fixtures, dogfood, cleanup).
 
 > **Retired on 2026-04-23.** The five roadmap files that drove the hosted → local-first migration (`phase-1.md` … `phase-4.md`, `pivot-imap.md`) shipped and were deleted on this date. Their one-line summaries live in the "Retired phase docs" section of [`current-state.md`](./current-state.md); their full history is reachable via `git log -- packages/docs/roadmap/<file>`. A fresh chat should pick up `roadmap/pdf-extractor.md` and work it top to bottom.
 
@@ -42,7 +42,12 @@ packages/docs/
 ├── current-state.md       ← what ships today + retired-phase summary
 ├── architecture.md        ← the target
 ├── roadmap/
-│   └── pdf-extractor.md   ← ACTIVE execution plan (Docling text + source extraction)
+│   ├── pdf-extractor.md   ← ACTIVE plan index (deterministic Swiggy ingest)
+│   ├── phase-1.md         ← Lock the deterministic Python extractor
+│   ├── phase-2.md         ← Remove AI from ingestion
+│   ├── phase-3.md         ← Parallelize IMAP / PDF / writes
+│   ├── phase-4.md         ← Fast onboarding + assistant provider setup
+│   └── phase-5.md         ← Fixtures, golden tests, dogfood, cleanup
 └── reference/
     ├── cli.md
     ├── config.md

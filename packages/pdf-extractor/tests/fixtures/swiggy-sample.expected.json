@@ -1,0 +1,20 @@
+{
+  "customer_address": null,
+  "delivery_fee": null,
+  "discount_total": null,
+  "invoice_date": null,
+  "invoice_no": null,
+  "invoice_total": 512.4,
+  "item_subtotal": null,
+  "items": [],
+  "order_id": "SWG-PDF-1001",
+  "packaging_fee": null,
+  "paid_amount": 512.4,
+  "payment_method": "UPI",
+  "pincode": "560038",
+  "platform_fee": null,
+  "restaurant_address": null,
+  "restaurant_name": "Millet Bowl Co",
+  "service_type": "FOOD_DELIVERY",
+  "tax_total": null
+}

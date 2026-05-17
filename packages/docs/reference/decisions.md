@@ -44,13 +44,13 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 **Revisit if.** `gws` ever becomes unmaintained, or we decide to absorb the OAuth verification work to shave the two browser consents out of onboarding — at which point ADR-022 flips too.
 
-## ADR-005 — Ollama with `gemma3n:e4b` as the default model
+## ADR-005 — Ollama with `gemma4:latest` as the default model
 
 > **Scope updated on 2026-04-24 by ADR-026.** Gemma remains the sole model for chat and for structured Swiggy extraction. PDF conversion is no longer Gemma's job; it is delegated to Docling, then the resulting text is passed into the same `generateObject` call as the email body (see ADR-026). The rest of this ADR is unchanged.
 
-**Decision.** The CLI pulls and targets `gemma3n:e4b` during `onboard`. The AI SDK's OpenAI-compatible adapter is pointed at Ollama's local endpoint.
+**Decision.** The CLI pulls and targets `gemma4:latest` during `onboard`. The AI SDK's OpenAI-compatible adapter is pointed at Ollama's local endpoint.
 
-**Why.** `gemma3n:e4b` is a multimodal Gemma 3n variant tuned for efficiency and reasonable accuracy at about 3 GB on disk, which fits the ten-minute-onboard budget. Ollama is the de-facto standard for running local models on macOS and integrates cleanly with the AI SDK via OpenAI compatibility.
+**Why.** `gemma4:latest` (Gemma 4 E4B-class default in Ollama) is a multimodal model with stronger reasoning and tool-style workflows than Gemma 3n, at about 9–10 GB on disk. Ollama is the de-facto standard for running local models on macOS and integrates cleanly with the AI SDK via OpenAI compatibility. Users who need a smaller download can pick `gemma4:e2b` in onboarding.
 
 **Rejected.** Hard-coding a larger model (quality gain not worth the download time). A multi-provider abstraction (premature; one model is plenty for v1).
 
@@ -172,7 +172,7 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 > **Amended on 2026-04-22 by ADR-024.** The onboarding surface now has three user inputs instead of one: the chat-model `select`, the Gmail address `text`, and the app-password `password`. The justification below still stands for "don't ask for anything else" (port, schedule, skill choice, etc.); the Gmail pair is not a "question" in the ADR-018 sense but a credential input that has no defensible default. Do not add prompts beyond these three without a new ADR.
 
-**Decision.** `slashcash onboard` asks exactly one user-facing question: which chat model to pull and use. The default is `gemma3n:e4b`, with `gemma3:4b` and `qwen2.5:7b` offered as alternatives. `--yes` accepts the default and `--non-interactive` fails if a prompt would be needed.
+**Decision.** `slashcash onboard` asks exactly one user-facing question: which chat model to pull and use. The default is `gemma4:latest`, with `gemma4:e2b` and `qwen2.5:7b` offered as alternatives. `--yes` accepts the default and `--non-interactive` fails if a prompt would be needed.
 
 **Why.** Every additional prompt adds friction. The model choice is the only current setup question with a real user trade-off: download size, speed and answer quality.
 
@@ -319,15 +319,15 @@ Gmail ingest reads messages through IMAP (`imapflow`) using the Gmail `X-GM-RAW`
 
 ## ADR-026 — Docling as the local PDF invoice extractor
 
-**Decision.** PDF attachments are converted to text by [Docling](https://github.com/DS4SD/docling) (IBM, MIT-licensed), running fully locally in a Python 3.11+ venv at `~/.slashcash/py-venv`. Gemma over Ollama is no longer responsible for reading PDF bytes. Gemma continues to handle (a) structured source-text extraction from the email body plus Docling text, and (b) the dashboard chat assistant.
+**Decision.** PDF attachments and matching email bodies are parsed by the local `slashcash_pdf_extractor` Python package, running fully locally in a Python 3.11+ venv at `~/.slashcash/py-venv`. Docling remains the preferred PDF text/table adapter when installed, with PyMuPDF probing and pdfplumber fallback. Gemma/Ollama is no longer part of ingest; models are reserved for the optional dashboard assistant.
 
 The split pipeline, per ingested message, is:
 
-1. Each `application/pdf` attachment → `python -m slashcash_pdf_extractor <path>` → validated JSON with raw Docling text.
-2. Email body + Docling PDF text → Gemma `generateObject` against the merchant Zod schema.
-3. If the PDF extractor is unavailable or fails on a given attachment, ingest degrades to email-body-only extraction and surfaces the Python lane state via `slashcash doctor`.
+1. Each message body plus optional `application/pdf` attachment → `python -m slashcash_pdf_extractor <path> --email-body <body-file> --subject <subject>` → validated JSON with raw text/tables, source quality, and typed Swiggy fields.
+2. TypeScript validates the pydantic-compatible JSON with Zod and maps it into the merchant schema without an LLM call.
+3. If the PDF extractor is unavailable or fails on a given attachment, ingest degrades to deterministic email-body extraction and surfaces the Python lane state via `slashcash doctor`.
 
-**Why.** `gemma3n:e4b` is tuned for chat and light structured output at ~3 GB of weights. PDF receipts (Swiggy in v1, bank statements later) carry totals, per-line items and tax breakdowns inside layout-aware tables that Gemma reads poorly from raw PDF bytes. Docling is purpose-built for document understanding, reads tables correctly, runs offline, and is permissively licensed. Confining Docling to text conversion and letting Gemma map all source text into the merchant schema keeps the pipeline simple: one model call, one output object.
+**Why.** PDF receipts (Swiggy in v1, bank statements later) carry totals, per-line items and tax breakdowns inside layout-aware tables. Local chat models read those layouts inconsistently and make ingest slower, harder to test, and dependent on assistant setup. A deterministic parser gives us fixture-golden behavior, structured provenance, and fast sync while preserving the local-first posture.
 
 **Rejected.**
 
@@ -337,13 +337,13 @@ The split pipeline, per ingested message, is:
 - **Cloud OCR (AWS Textract, Google Document AI, Mistral OCR).** Violates the local-first posture in ADR-013 and the no-telemetry posture in vision.md § principles.
 - **A long-lived Python sidecar over HTTP.** See ADR-027 — we chose per-PDF subprocess for v1; sidecar is the next-step promotion if latency becomes user-visible.
 
-**Scope.** Docling is a deterministic text+table extractor, not a financial reasoner. The `slashcash_pdf_extractor` Python entry exposes raw text and table text in our stable JSON schema. Merchant-specific mapping stays in the TypeScript source extraction prompt and Zod schema.
+**Scope.** The Python extractor is a deterministic text/table/field extractor, not a financial reasoner. The `slashcash_pdf_extractor` entry exposes raw sources and typed Swiggy fields in our stable JSON schema. Merchant-specific mapping stays in TypeScript code and Zod schemas, not prompts.
 
-**Revisit if.** Docling is discontinued or its license changes; source extraction confidence on real dogfood runs stays below the ADR-012 threshold even with Docling text; or we add a merchant whose receipts are primarily image-only (then the converter layer grows an OCR step or switches libraries, possibly per-merchant).
+**Revisit if.** Docling is discontinued or its license changes; deterministic extraction confidence on real dogfood runs stays below the ADR-012 threshold; or we add a merchant whose receipts are primarily image-only (then the converter layer grows an OCR step or switches libraries, possibly per-merchant).
 
 ## ADR-027 — Python extractor as a per-PDF subprocess, venv bootstrapped by `doctor --fix`
 
-**Decision.** Node calls the Python extractor via `child_process.spawn`, once per PDF, with a 30-second default timeout, against the interpreter at `~/.slashcash/py-venv/bin/python`. The venv is created and populated by `slashcash doctor --fix` from a pinned `packages/pdf-extractor/requirements.txt` (exact versions with SHA256 hashes, installed via `pip install --require-hashes`). The install state is tracked by a hash file at `~/.slashcash/py-venv/.slashcash.install-hash` so doctor re-runs `pip install` only when `requirements.txt` changes. No Python code ships inside the npm tarball; the Python package lives at `packages/pdf-extractor/` and `doctor --fix` installs it from the globally-installed CLI's `node_modules` copy.
+**Decision.** Node calls the Python extractor via `child_process.spawn`, once per source, with a 30-second default timeout, against the interpreter at `~/.slashcash/py-venv/bin/python`. The venv is created and populated by `slashcash doctor --fix` from exact-version-pinned `packages/pdf-extractor/requirements.txt`. The install state is tracked by a hash file at `~/.slashcash/py-venv/.slashcash.install-hash` so doctor re-runs `pip install` only when `requirements.txt` changes. The Python package lives at `packages/pdf-extractor/` and `doctor --fix` installs it from the globally-installed CLI's `node_modules` copy.
 
 The extractor is pure: `(pdf path) -> JSON on stdout`. Exit codes: `0` success, `1` deterministic extractor failure, `2` bad argv, `3` unexpected exception. Stderr is human-readable diagnostics only. The Node wrapper returns a `Result<PdfExtraction, PdfExtractError>` with a closed error union (`pdf-extractor-not-ready`, `pdf-extractor-timeout`, `pdf-extractor-crashed`, `pdf-extractor-bad-output`, `pdf-extractor-unsupported-format`, `pdf-extractor-empty`, `unknown`) and never throws.
 
@@ -351,7 +351,7 @@ The extractor is pure: `(pdf path) -> JSON on stdout`. Exit codes: `0` success, 
 
 1. **No state leaks between calls.** A per-PDF subprocess gets a fresh Python interpreter; if Docling's internal caches ever misbehave, the blast radius is one email.
 2. **No daemon lifecycle.** We already fought this battle with Trigger.dev and Supabase. Adding a long-lived `127.0.0.1:<port>` Python service re-introduces "is it up?", "is it the right version?", "did the user kill it?", plus a second healthz surface in doctor.
-3. **Fork cost is not the bottleneck.** Ingest runs ≤ 50 messages per tick (see `SLASHCASH_SYNC_LIMIT` default) and runs every 15 minutes. A ~200ms Python cold start per PDF is imperceptible against the Gemma calls.
+3. **Fork cost is not the bottleneck.** Ingest runs with bounded fetch/extract concurrency and defaults to ≤ 50 messages per tick (see `SLASHCASH_SYNC_LIMIT`). A ~200ms Python cold start per source is acceptable, and the Phase 3 pool keeps it from serialising the whole sync.
 
 A pinned venv under `~/.slashcash/` (rather than a project-local `pnpm-packed` Python) is the only option that survives `npm i -g slashcash` on an end-user machine: the npm tarball cannot ship Python wheels portably, and installing into a globally-writable Python path fights macOS's "externally-managed-environment" PEP 668 shield. A per-user venv is the macOS-sanctioned answer.
 
@@ -360,12 +360,12 @@ A pinned venv under `~/.slashcash/` (rather than a project-local `pnpm-packed` P
 - **Long-lived FastAPI / uvicorn sidecar on 127.0.0.1.** Better batch latency, but ADR-006's "one Node process" simplicity argument applies again here: a second supervised process on 127.0.0.1 is the exact complexity this product keeps avoiding. Promotion is the next step if per-PDF spawn ever dominates sync runtime.
 - **pipx install as a user-global tool.** Works, but makes `slashcash doctor --fix` depend on another package manager (`pipx`) that itself needs installing. Native `python3 -m venv` is already on any Python 3 install.
 - **Ship Python wheels inside the npm tarball.** Cross-architecture (Intel vs Apple Silicon) wheels for Docling's native deps are too fragile to embed; we would reinvent what `pip` already does. Also blows the npm-publish-with-provenance story.
-- **Use `uv` from astral.** `uv` is excellent, but "add `uv` to the install chain" crosses a line: the user went from one brew dep (Ollama) to two (Ollama + Python 3) for this pivot; adding `uv` makes it three. Revisit if doctor-provisioned `pip install` reliably exceeds 90 seconds on normal broadband.
+- **Use `uv` from astral.** `uv` is excellent, but adding another package manager to the end-user install chain crosses a line. Revisit if doctor-provisioned `pip install` reliably exceeds 90 seconds on normal broadband.
 - **Run the extractor via `pnpm` or tsx as a Node-hosted Python interpreter (PyOdide, RustPython).** No Docling support; not a serious option.
 
 **Install story that the user actually sees.**
 
-- First `slashcash onboard` on a clean machine includes a `python-env` step in the wizard that runs the same code as `doctor --fix`: detect `python3 --version`, create the venv if missing, `pip install --require-hashes -r requirements.txt`. The step shows a single spinner line `Installing PDF extractor (~60s first time, cached after)`.
+- First `slashcash onboard` on a clean machine kicks off the Python extractor install in the background and points `doctor --fix` at the same provisioning path: detect `python3 --version`, create the venv if missing, and run `pip install -r requirements.txt`. The step shows a single status line and lets initial sync proceed with body-only fallback until the lane is ready.
 - On subsequent `slashcash start` / `slashcash sync` runs, the CLI checks the install-hash file cheaply (no `pip` call); if it matches, the lane is ready immediately.
 - If Python 3 itself is missing, the error block points at `brew install python@3.12`. We do not auto-install Python; the user retains control over their system Python installation.
 

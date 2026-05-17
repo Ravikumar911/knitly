@@ -25,7 +25,7 @@ Scoped rules for `@knitly/main` (local slash.cash dashboard). Repo-wide rules li
 ## Environment
 
 - **Port**: `SLASHCASH_PORT` or `PORT` (see `trpc/client.tsx` `getUrl()` for server-side absolute URL to tRPC).
-- **Models**: Ollama via root `.env.example` variables (`OLLAMA_*`).
+- **Assistant providers**: read from `~/.slashcash/config.json` (`assistant.*`) and optional provider API keys; ingest is independent of this setup.
 
 ## Verification
 

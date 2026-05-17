@@ -1,4 +1,7 @@
 import type { Command } from "commander";
+import { spawn } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import pc from "picocolors";
 import { loadConfig } from "../../config/load.js";
 import { resolvePaths } from "../../config/paths.js";
@@ -17,14 +20,31 @@ export function register(program: Command) {
     .command("sync")
     .description("Run Gmail sync now")
     .option("--full", "Scan the configured Gmail query from the beginning")
+    .option("--background", "Run sync in a detached background process")
     .option("--query <query>", "Override the configured Gmail query")
     .option("--limit <limit>", "Maximum messages to inspect", (value) =>
       Number(value),
     )
     .action(
-      async (options: { full?: boolean; query?: string; limit?: number }) => {
+      async (options: {
+        full?: boolean;
+        background?: boolean;
+        query?: string;
+        limit?: number;
+      }) => {
         const config = loadConfig({ createIfMissing: true });
         const paths = resolvePaths();
+        if (options.background) {
+          const pid = startBackgroundSync(options);
+          const pidPath = join(paths.home, "pid", "sync.pid");
+          mkdirSync(dirname(pidPath), { recursive: true });
+          writeFileSync(pidPath, `${pid}\n`, { mode: 0o600 });
+          console.log(
+            pc.green(`Initial sync running in background (pid ${pid}).`),
+          );
+          return;
+        }
+
         const maxMessages =
           options.limit ?? (options.full ? undefined : config.sync.maxMessages);
 
@@ -70,4 +90,27 @@ export function register(program: Command) {
         );
       },
     );
+}
+
+function startBackgroundSync(options: {
+  full?: boolean;
+  query?: string;
+  limit?: number;
+}) {
+  const args = ["--filter", "slashcash", "dev", "--", "sync"];
+  if (options.full) args.push("--full");
+  if (options.query) args.push("--query", options.query);
+  if (options.limit !== undefined) args.push("--limit", String(options.limit));
+
+  const child = spawn("pnpm", args, {
+    cwd: process.cwd(),
+    detached: true,
+    stdio: "ignore",
+    env: {
+      ...process.env,
+      SLASHCASH_BACKGROUND_SYNC: "1",
+    },
+  });
+  child.unref();
+  return child.pid ?? 0;
 }

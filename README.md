@@ -1,8 +1,8 @@
 # slash.cash
 
-Local-first personal finance dashboard built with Next.js, SQLite, Drizzle ORM, tRPC, and Ollama-compatible local AI.
+Local-first personal finance dashboard built with Next.js, SQLite, Drizzle ORM, tRPC, deterministic local ingest, and optional assistant AI.
 
-> Gmail sync now uses IMAP + a user-generated Gmail app password, and `slashcash onboard` walks that setup through an interactive `@clack/prompts` wizard. Active plan and rollout notes: [`packages/docs/roadmap/pivot-imap.md`](./packages/docs/roadmap/pivot-imap.md). ADRs: [`ADR-024`](./packages/docs/reference/decisions.md#adr-024--gmail-access-via-imap--user-issued-app-password), [`ADR-025`](./packages/docs/reference/decisions.md#adr-025--interactive-onboarding-wizard-on-clackprompts).
+> Gmail sync uses IMAP + a user-generated Gmail app password. Swiggy extraction is deterministic Python-backed ingest; chat providers are configured later from the assistant tab or `slashcash assistant`.
 
 ## Project Structure
 
@@ -27,8 +27,8 @@ The current local app runs fully on the developer machine:
 
 - SQLite database in `~/.slashcash/db.sqlite` by default.
 - No hosted auth, remote job queue, cloud storage, or hosted database.
-- Ollama-compatible chat/extraction models through `OLLAMA_BASE_URL` and `OLLAMA_CHAT_MODEL`.
-- A `slashcash` CLI for onboarding, start, stop, status, doctor, reset, config, db, sync, skills, and logs commands.
+- Optional assistant providers configured with `slashcash assistant`.
+- A `slashcash` CLI for onboarding, start, stop, status, doctor, reset, config, db, sync, assistant, skills, and logs commands.
 - Gmail ingestion over IMAP (`imap.gmail.com:993`) using a user-generated app password stored in the macOS Keychain or `~/.slashcash/credentials.json` when Keychain is unavailable.
 - Local PDF attachment storage under `~/.slashcash/attachments`.
 - Typed SQLite-backed Swiggy analytics tools for the assistant.
@@ -37,8 +37,7 @@ The current local app runs fully on the developer machine:
 
 - Node.js 20 or newer
 - pnpm 10.4.1 or newer
-- Optional for fixture/dev flows: `SLASHCASH_SYNC_SKIP_AI=1`
-- Ollama for local parsing (installed by `slashcash onboard` on macOS).
+- Optional: Ollama if you want local assistant chat after onboarding.
 - A Gmail account with 2-Step Verification enabled and a 16-character app password generated at <https://myaccount.google.com/apppasswords>. `slashcash onboard` walks you through this.
 
 ## Install
@@ -99,7 +98,7 @@ pnpm lint
 pnpm architecture-smells
 pnpm fixtures:check
 pnpm e2e:all
-SLASHCASH_EVAL_SKIP_MODEL=1 pnpm e2e:phase-5
+pnpm eval:gate
 pnpm bench
 ```
 
@@ -117,5 +116,5 @@ Package verification notes for published releases live in [`packages/docs/refere
 - SQLite with Drizzle ORM
 - tRPC and TanStack Query
 - shadcn/ui and Tailwind CSS
-- AI SDK with an OpenAI-compatible local endpoint
+- AI SDK for the dashboard assistant
 - Turborepo and pnpm workspaces

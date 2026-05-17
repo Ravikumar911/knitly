@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
+    "diagnose-extraction": "tsx scripts/diagnose-extraction.ts",
     "lint": "echo 'Linting not configured for tasks package'",
     "lint:fix": "echo 'Linting not configured for tasks package'",
     "test": "vitest run",
@@ -21,16 +22,6 @@
       "types": "./src/trigger/*.ts",
       "import": "./dist/trigger/*.js",
       "default": "./dist/trigger/*.js"
-    },
-    "./ai/*": {
-      "types": "./src/ai/*.ts",
-      "import": "./dist/ai/*.js",
-      "default": "./dist/ai/*.js"
-    },
-    "./agents/*": {
-      "types": "./src/agents/*.ts",
-      "import": "./dist/agents/*.js",
-      "default": "./dist/agents/*.js"
     },
     "./extract/*": {
       "types": "./src/extract/*.ts",
@@ -64,9 +55,9 @@
     }
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "1.0.17",
-    "ai": "5.0.26",
+    "@ai-sdk/openai-compatible": "2.0.41",
     "@workspace/database": "workspace:*",
+    "ai": "6.0.168",
     "imapflow": "^1.0.181",
     "mailparser": "^3.7.2",
     "zod": "^3.25.76"

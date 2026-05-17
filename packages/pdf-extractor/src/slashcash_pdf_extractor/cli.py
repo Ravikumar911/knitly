@@ -11,6 +11,8 @@ from . import __version__
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="slashcash_pdf_extractor")
     parser.add_argument("pdf", nargs="?")
+    parser.add_argument("--email-body")
+    parser.add_argument("--subject", default="")
     parser.add_argument("--version", action="store_true")
     parser.add_argument("--self-check", action="store_true")
     return parser
@@ -28,19 +30,30 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"ok": True, "version": __version__}))
         return 0
 
-    if not args.pdf:
+    if not args.pdf and not args.email_body:
         parser.print_usage(sys.stderr)
         return 2
 
-    pdf_path = Path(args.pdf)
-    if not pdf_path.exists():
+    pdf_path = Path(args.pdf) if args.pdf else None
+    if pdf_path is not None and not pdf_path.exists():
         print(f"File not found: {pdf_path}", file=sys.stderr)
         return 2
+    email_body = None
+    if args.email_body:
+        email_body_path = Path(args.email_body)
+        if not email_body_path.exists():
+            print(f"File not found: {email_body_path}", file=sys.stderr)
+            return 2
+        email_body = email_body_path.read_text(encoding="utf8")
 
     from .extractor import PdfExtractorError, extract_pdf
 
     try:
-        extraction = extract_pdf(pdf_path)
+        extraction = extract_pdf(
+            pdf_path,
+            email_body=email_body,
+            subject=args.subject,
+        )
     except FileNotFoundError as error:
         print(str(error), file=sys.stderr)
         return 2

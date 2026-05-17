@@ -26,14 +26,13 @@ export function createPlaywrightEnv(): NodeJS.ProcessEnv {
     SQLITE_DB_PATH: playwrightDbPath,
     SLASHCASH_ATTACHMENTS_DIR: playwrightAttachmentsDir,
     SLASHCASH_IMAP_FIXTURE_DIR: imapFixtureDir,
-    SLASHCASH_SYNC_SKIP_AI: "1",
     SLASHCASH_DOCTOR_SKIP_OLLAMA:
       process.env.SLASHCASH_DOCTOR_SKIP_OLLAMA || "1",
     SLASHCASH_NO_OPEN: "1",
     SLASHCASH_PORT: String(appPort),
-    OLLAMA_BASE_URL: mockOllamaBaseUrl,
-    OLLAMA_CHAT_MODEL: "mock-swiggy",
-    OLLAMA_VISION_MODEL: "mock-swiggy",
+    SLASHCASH_ASSISTANT_PROVIDER: "ollama-local",
+    SLASHCASH_ASSISTANT_BASE_URL: mockOllamaBaseUrl,
+    SLASHCASH_ASSISTANT_CHAT_MODEL: "gemma4:latest",
   };
 }
 

@@ -34,9 +34,9 @@ const forbiddenDirs = [
 ];
 
 const forbiddenFiles = ["packages/tasks/trigger.config.ts"];
-const legacyShimPath = "packages/tasks/src/agents/slashAIV2.ts";
 const pythonSpawnAllowList = new Set([
   "packages/tasks/src/extract/pdf-extractor.ts",
+  "packages/cli/src/python/env.ts",
 ]);
 
 const forbiddenDbReferences = [
@@ -67,6 +67,14 @@ const forbiddenPackageStrings = [
   ["gcl", "oud"].join(""),
   ["google", "cloud", "sdk"].join("-"),
   ["googleworkspace", "cli"].join("-"),
+];
+
+const forbiddenLegacyStrings = [
+  "slashAIV2",
+  "transactionsEnhanced",
+  "OCRModel",
+  "ATTACHMENT HANDLING",
+  "swiggy.sources.v1",
 ];
 
 const ignoredSegments = new Set([
@@ -115,6 +123,7 @@ export async function collectArchitectureSmells(): Promise<Smell[]> {
     if (rel === "packages/e2e-tests/architecture-smells.test.ts") continue;
     if (rel.startsWith("packages/")) {
       collectPackageTextSmells(file, rel, smells);
+      collectLegacyTextSmells(file, rel, smells);
     }
     if (
       rel === "packages/pdf-extractor/requirements.txt" ||
@@ -218,13 +227,46 @@ function collectPackageTextSmells(file: string, rel: string, smells: Smell[]) {
   }
 }
 
+function collectLegacyTextSmells(file: string, rel: string, smells: Smell[]) {
+  if (!/\.(ts|tsx|js|jsx|mjs|cjs|json|md)$/.test(rel)) return;
+  if (
+    rel === "packages/e2e-tests/architecture-smells.test.ts" ||
+    rel.startsWith("packages/docs/")
+  ) {
+    return;
+  }
+
+  const source = readFileSync(file, "utf8");
+  for (const specifier of forbiddenLegacyStrings) {
+    let index = source.indexOf(specifier);
+    while (index >= 0) {
+      smells.push({
+        category: "forbidden-legacy-string",
+        file: rel,
+        line: lineOfOffset(source, index),
+        kind: "text",
+        specifier,
+        reason:
+          "Retired AI-ingest and enhanced-transaction labels must not appear in shipping code.",
+      });
+      index = source.indexOf(specifier, index + specifier.length);
+    }
+  }
+}
+
 function collectImportSmells(file: string, rel: string, smells: Smell[]) {
   const source = readFileSync(file, "utf8");
   const importPattern =
     /\b(?:import|export)\b[\s\S]*?\bfrom\s*["']([^"']+)["']|import\s*\(\s*["']([^"']+)["']\s*\)|require\s*\(\s*["']([^"']+)["']\s*\)/g;
   for (const match of source.matchAll(importPattern)) {
     const specifier = match[1] ?? match[2] ?? match[3] ?? "";
-    if (specifier.includes("slashAIV2") && rel !== legacyShimPath) {
+    if (
+      rel.startsWith("packages/tasks/src/") &&
+      (specifier === "ai" ||
+        specifier.startsWith("@ai-sdk/") ||
+        specifier === "../ai/model" ||
+        specifier.endsWith("/ai/model"))
+    ) {
       smells.push({
         category: "forbidden-import",
         file: rel,
@@ -232,7 +274,7 @@ function collectImportSmells(file: string, rel: string, smells: Smell[]) {
         kind: "import",
         specifier,
         reason:
-          "Import the new extract pipeline modules directly; slashAIV2 is a compat shim only.",
+          "packages/tasks must stay deterministic and cannot import chat-model providers.",
       });
     }
     if (

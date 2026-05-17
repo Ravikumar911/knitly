@@ -76,6 +76,8 @@ describe("reset command", () => {
     expect(mocks.rmSync).toHaveBeenCalledWith("/tmp/slashcash-home", {
       recursive: true,
       force: true,
+      maxRetries: 10,
+      retryDelay: 100,
     });
     expect(mocks.clearPidFile).toHaveBeenCalledOnce();
   });
@@ -99,6 +101,8 @@ describe("reset command", () => {
     expect(mocks.rmSync).toHaveBeenCalledWith("/tmp/slashcash-home", {
       recursive: true,
       force: true,
+      maxRetries: 10,
+      retryDelay: 100,
     });
     expect(logSpy).toHaveBeenCalledWith(
       "Reset local slash.cash state. Run `slashcash onboard`.",
@@ -121,6 +125,8 @@ describe("reset command", () => {
     expect(mocks.rmSync).toHaveBeenCalledWith("/tmp/slashcash-home", {
       recursive: true,
       force: true,
+      maxRetries: 10,
+      retryDelay: 100,
     });
   });
 });

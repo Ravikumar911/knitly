@@ -33,7 +33,7 @@ export default async function globalSetup() {
       "config",
       "set",
       "ai.chatModel",
-      "mock-swiggy",
+      "gemma4:latest",
     ],
     "configure the local assistant model",
   );
@@ -46,7 +46,7 @@ export default async function globalSetup() {
       "config",
       "set",
       "ai.visionModel",
-      "mock-swiggy",
+      "gemma4:latest",
     ],
     "configure the local vision model",
   );

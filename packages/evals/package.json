@@ -6,16 +6,11 @@
   "scripts": {
     "eval": "tsx src/hello.eval.ts",
     "eval:gate": "tsx src/eval-gate.ts",
-    "eval:swiggy": "tsx src/swiggy-extraction.eval.ts",
-    "eval:swiggy:local": "tsx src/swiggy-extraction.eval.ts",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "test": "pnpm eval"
   },
   "dependencies": {
-    "@workspace/tasks": "workspace:*",
-    "ai": "5.0.26",
-    "@ai-sdk/openai-compatible": "1.0.17",
     "autoevals": "^0.0.94",
     "dotenv": "^16.4.7",
     "zod": "^3.25.76"

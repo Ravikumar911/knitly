@@ -35,7 +35,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm architecture-smells
       - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm fixtures:check
       - run: pnpm bench
+      - run: pnpm eval:gate
+        env:
+          SLASHCASH_EVAL_SKIP_MODEL: "1"
       - run: pnpm e2e:all
 
   bundle-smoke:

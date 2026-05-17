@@ -12,13 +12,13 @@ import {
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
 
-type BreadcrumbItem = {
+type RouteCrumb = {
   href: string;
   label: string;
 };
 
 // Define exact breadcrumb paths for each route
-const ROUTE_BREADCRUMBS: Record<string, BreadcrumbItem[]> = {
+const ROUTE_BREADCRUMBS: Record<string, RouteCrumb[]> = {
   "/dashboard": [{ href: "/dashboard", label: "Dashboard" }],
   "/dashboard/transactions": [
     { href: "/dashboard", label: "Dashboard" },
@@ -59,12 +59,38 @@ const ROUTE_BREADCRUMBS: Record<string, BreadcrumbItem[]> = {
   ],
 };
 
+const ASSISTANT_PREFIX = "/assistant";
+
+function breadcrumbsForPathname(pathname: string): RouteCrumb[] {
+  if (pathname === ASSISTANT_PREFIX || pathname === `${ASSISTANT_PREFIX}/`) {
+    return [
+      { href: "/dashboard", label: "Dashboard" },
+      { href: ASSISTANT_PREFIX, label: "Assistant" },
+    ];
+  }
+  if (
+    pathname.startsWith(`${ASSISTANT_PREFIX}/`) &&
+    pathname.length > ASSISTANT_PREFIX.length + 1
+  ) {
+    const rest = pathname.slice(ASSISTANT_PREFIX.length + 1);
+    if (!rest.includes("/")) {
+      return [
+        { href: "/dashboard", label: "Dashboard" },
+        { href: ASSISTANT_PREFIX, label: "Assistant" },
+        { href: pathname, label: "Conversation" },
+      ];
+    }
+  }
+  return ROUTE_BREADCRUMBS[pathname] || [];
+}
+
 export function RouteBreadcrumb() {
   const pathname = usePathname();
 
-  const breadcrumbs = useMemo(() => {
-    return ROUTE_BREADCRUMBS[pathname] || [];
-  }, [pathname]);
+  const breadcrumbs = useMemo(
+    () => breadcrumbsForPathname(pathname),
+    [pathname],
+  );
 
   if (breadcrumbs.length === 0) {
     return null;
@@ -89,7 +115,7 @@ export function RouteBreadcrumb() {
               {index !== breadcrumbs.length - 1 && <BreadcrumbSeparator />}
             </React.Fragment>
           );
-        })} 
+        })}
       </BreadcrumbList>
     </Breadcrumb>
   );

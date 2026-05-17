@@ -5,48 +5,29 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-class PdfExtractionItem(BaseModel):
-    name: str | None = None
-    quantity: float | None = None
-    unitPrice: float | None = None
-    lineTotal: float | None = None
-
-
-class PdfExtractionTaxes(BaseModel):
-    gst: float | None = None
-    serviceCharge: float | None = None
-
-
-class PdfExtractionDelivery(BaseModel):
-    address: str | None = None
-    pincode: str | None = None
-    fee: float | None = None
-
-
-class PdfExtractionFields(BaseModel):
-    orderId: str | None = None
-    totalAmount: float | None = None
-    currency: str = "INR"
-    transactionDate: str | None = None
-    items: list[PdfExtractionItem] = Field(default_factory=list)
-    taxes: PdfExtractionTaxes | None = None
-    delivery: PdfExtractionDelivery | None = None
-    paymentMethod: str | None = None
-    restaurantName: str | None = None
+PdfExtractionFields = dict[str, Any]
 
 
 class PdfExtractionRaw(BaseModel):
-    pageCount: int | None = None
+    page_count: int | None = None
     tables: list[dict[str, Any]] = Field(default_factory=list)
     text: str = ""
+    sources: dict[str, Any] = Field(default_factory=dict)
+
+
+class SourceQuality(BaseModel):
+    kind: Literal["text", "scanned", "empty", "encrypted", "corrupted"]
+    page_count: int
+    parsers_used: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class PdfExtraction(BaseModel):
-    schemaVersion: Literal["1"] = "1"
+    schema_version: Literal["2"] = "2"
     extractor: str
-    extractorVersion: str
+    extractor_version: str
     merchant: Literal["swiggy"] = "swiggy"
     confidence: float
-    fields: PdfExtractionFields
-    warnings: list[str] = Field(default_factory=list)
+    fields: PdfExtractionFields = Field(default_factory=dict)
     raw: PdfExtractionRaw
+    source_quality: SourceQuality

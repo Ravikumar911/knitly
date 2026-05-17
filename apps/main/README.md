@@ -14,7 +14,7 @@ Open `http://localhost:3000`.
 
 - The app always uses the local user.
 - Database access goes through `@workspace/database`.
-- AI chat uses `OLLAMA_BASE_URL` and `OLLAMA_CHAT_MODEL`.
+- Assistant chat is optional and reads `SLASHCASH_ASSISTANT_*` provider config or `~/.slashcash/config.json`.
 - `/api/healthz` reports local runtime status.
 
 ## Build

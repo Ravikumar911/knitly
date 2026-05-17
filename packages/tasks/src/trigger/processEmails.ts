@@ -1,3 +1,4 @@
+import { cpus } from "node:os";
 import {
   initializeSync,
   markSyncComplete,
@@ -7,7 +8,8 @@ import {
   storeEmailData,
   updateEmailData,
   updateSyncProgress,
-  isEmailProcessed,
+  getProcessedEmailIds,
+  storeTransactionV2Input,
   dbPath,
 } from "@workspace/database";
 import { extractTransactionFromEmail } from "../extract/pipeline";
@@ -15,9 +17,12 @@ import {
   fetchMessage,
   listMessages,
   type FetchedImapMessage,
+  type ImapMessageRef,
 } from "../gmail/imap-client";
 import { runSingleFlight } from "../runtime/mutex";
-import type { EmailData } from "../types/slashAI";
+import { createWorkPool } from "../runtime/pool";
+import { SwiggyMerchant } from "../merchants/swiggy";
+import type { EmailData } from "../types/email-extraction";
 import { writeAttachmentFile } from "../utils/attachments-fs";
 import { errorSummary, syncDebug } from "../utils/sync-debug";
 import {
@@ -36,11 +41,24 @@ export type ProcessEmailsPayload = {
 
 export type EmailSyncResult = {
   success: true;
+  totalFound: number;
+  outcomes: SyncOutcome[];
+  counts: {
+    processed: number;
+    skipped_existing: number;
+    skipped_non_transaction: number;
+    failed: number;
+  };
   processedCount: number;
   skippedCount: number;
   errorCount: number;
-  totalFound: number;
 };
+
+export type SyncOutcome =
+  | { kind: "processed"; messageId: string; transactionId: string }
+  | { kind: "skipped_existing"; messageId: string }
+  | { kind: "skipped_non_transaction"; messageId: string; reason: string }
+  | { kind: "failed"; messageId: string; error: ImapError | Error };
 
 export async function runEmailSync(
   payload: ProcessEmailsPayload,
@@ -52,10 +70,17 @@ export async function runEmailSync(
   if (singleFlight.status === "skipped") {
     return {
       success: true,
+      totalFound: 0,
+      outcomes: [],
+      counts: {
+        processed: 0,
+        skipped_existing: 1,
+        skipped_non_transaction: 0,
+        failed: 0,
+      },
       processedCount: 0,
       skippedCount: 1,
       errorCount: 0,
-      totalFound: 0,
       skipped: true,
     };
   }
@@ -80,8 +105,6 @@ async function runEmailSyncUnsafe(
     query,
     maxMessages,
     full: Boolean(payload.full),
-    skipAi: process.env.SLASHCASH_SYNC_SKIP_AI === "1",
-    model: process.env.OLLAMA_CHAT_MODEL || null,
     dbPath,
     pdfExtractorPython: process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON || null,
   });
@@ -100,136 +123,63 @@ async function runEmailSyncUnsafe(
 
   await initializeSync(payload.userId, listed.data.length);
 
-  let processedCount = 0;
-  let skippedCount = 0;
-  let errorCount = 0;
-
-  for (const [index, ref] of listed.data.entries()) {
-    try {
-      syncDebug("message-start", {
-        index: index + 1,
-        total: listed.data.length,
-        messageId: ref.id,
-        threadId: ref.threadId,
-      });
-
-      if (await isEmailProcessed(payload.userId, ref.id)) {
-        skippedCount += 1;
-        syncDebug("message-skipped-existing", {
-          messageId: ref.id,
-        });
-        continue;
-      }
-
-      const fetched = await fetchMessage(ref.id);
-      if (!fetched.ok) {
-        throw fetched.error;
-      }
-
-      const emailData = toEmailData(payload.userId, fetched.data);
-      syncDebug("message-fetched", {
-        messageId: ref.id,
-        gmailThreadId: fetched.data.gmailThreadId,
-        from: fetched.data.from,
-        date: fetched.data.date,
-        textChars: fetched.data.text.length,
-        htmlChars: fetched.data.html.length,
-        bodyChars: emailData.body.length,
-        bodyTruncated:
-          emailData.body.length >= resolveMaxEmailBodyChars() &&
-          fetched.data.text.length + fetched.data.html.length >
-            emailData.body.length,
-        attachmentCount: emailData.attachments?.length || 0,
-        pdfAttachmentCount:
-          emailData.attachments?.filter(
-            (attachment) => attachment.mimeType === "application/pdf",
-          ).length || 0,
-      });
-
-      const storedEmail = await storeEmailData({
-        id: emailData.emailId,
-        userId: payload.userId,
-        snippet: fetched.data.snippet,
-        senderEmailId: emailData.from,
-        threadId: ref.id,
-        subject: emailData.subject,
-        receivedDate: new Date(emailData.date),
-        parseSuccess: false,
-        parseErrors: null,
-        rawContent: fetched.data.raw,
-        attachmentStoragePath:
-          emailData.attachments
-            ?.map((attachment) => attachment.storageUrl)
-            .filter((path): path is string => Boolean(path)) ?? null,
-        parsedAt: new Date(),
-      });
-
-      const parsedEmailId = storedEmail[0]?.id ?? emailData.emailId ?? ref.id;
-      syncDebug("email-stored", {
-        messageId: ref.id,
-        parsedEmailId,
-        attachmentStoragePathCount:
-          emailData.attachments?.filter((attachment) =>
-            Boolean(attachment.storageUrl),
-          ).length || 0,
-      });
-
-      const extracted = await extractTransactionFromEmail(emailData, {
-        parsedEmailId,
-        storeTransaction: true,
-      });
-      await updateEmailData(parsedEmailId, {
-        parseSuccess: extracted.parseSuccess,
-        parseErrors:
-          extracted.parseErrors.length > 0
-            ? JSON.stringify(extracted.parseErrors)
-            : null,
-      });
-      syncDebug("extraction-stored", {
-        messageId: ref.id,
-        parsedEmailId,
-        parseSuccess: extracted.parseSuccess,
-        transactionId: extracted.transactionId || null,
-        schemaUsed: extracted.schemaUsed,
-        dataSource: extracted.dataSource,
-        contributedByPdf: extracted.contributedByPdf,
-        confidence: extracted.extractionConfidence,
-        amount: extracted.extractionData.transaction?.amount ?? null,
-        orderId: extracted.extractionData.transaction?.orderId ?? null,
-        warningCount: extracted.warnings.length,
-        parseErrorCount: extracted.parseErrors.length,
-      });
-
-      if (!extracted.parseSuccess) {
-        throw new Error(
-          "Could not extract transaction data from the Gmail message.",
-        );
-      }
-
-      processedCount += 1;
-      syncDebug("message-complete", {
-        messageId: ref.id,
-        processedCount,
-        skippedCount,
-        errorCount,
-      });
-    } catch (error) {
-      errorCount += 1;
-      const classified = classifyImapError(error);
-      console.error(
-        "Failed to process IMAP message",
-        ref.id,
-        classified.message,
-      );
-      syncDebug("message-failed", {
-        messageId: ref.id,
-        classified: classified.code,
-        error: errorSummary(error),
-      });
-    } finally {
+  const outcomes: SyncOutcome[] = [];
+  const processedIds = await getProcessedEmailIds(
+    payload.userId,
+    listed.data.map((ref) => ref.id),
+  );
+  const pendingRefs: ImapMessageRef[] = [];
+  for (const ref of listed.data) {
+    if (processedIds.has(ref.id) || processedIds.has(ref.threadId)) {
+      outcomes.push({ kind: "skipped_existing", messageId: ref.id });
+      syncDebug("message-skipped-existing", { messageId: ref.id });
       await updateSyncProgress(payload.userId, 1);
+    } else {
+      pendingRefs.push(ref);
     }
   }
+
+  const messagePool = createWorkPool<ImapMessageRef, SyncOutcome>({
+    concurrency: resolveMessageConcurrency(),
+    async work(ref) {
+      return processMessage(payload.userId, ref);
+    },
+  });
+
+  const processedOutcomes = await Promise.all(
+    pendingRefs.map((ref, index) =>
+      messagePool
+        .submit(ref)
+        .catch((error) => {
+          const classified = classifyImapError(error);
+          console.error(
+            "Failed to process IMAP message",
+            ref.id,
+            classified.message,
+          );
+          syncDebug("message-failed", {
+            index: index + 1,
+            total: listed.data.length,
+            messageId: ref.id,
+            classified: classified.code,
+            error: errorSummary(error),
+          });
+          return {
+            kind: "failed",
+            messageId: ref.id,
+            error: classified,
+          } satisfies SyncOutcome;
+        })
+        .finally(() => recordMessageProgress(payload.userId, ref.id)),
+    ),
+  );
+  await messagePool.drain();
+  outcomes.push(...processedOutcomes);
+
+  const counts = countOutcomes(outcomes);
+  const processedCount = counts.processed;
+  const skippedCount = counts.skipped_existing + counts.skipped_non_transaction;
+  const errorCount = counts.failed;
 
   if (errorCount > 0 && processedCount === 0) {
     await markSyncFailed(
@@ -242,11 +192,249 @@ async function runEmailSyncUnsafe(
 
   return {
     success: true,
+    totalFound: listed.data.length,
+    outcomes,
+    counts,
     processedCount,
     skippedCount,
     errorCount,
-    totalFound: listed.data.length,
   };
+}
+
+async function writeExtractedMessage(
+  userId: string,
+  item: {
+    ref: { id: string; threadId: string };
+    fetched: FetchedImapMessage;
+    emailData: EmailData;
+    extracted: Awaited<ReturnType<typeof extractTransactionFromEmail>>;
+  },
+): Promise<SyncOutcome> {
+  const { ref, fetched, emailData, extracted } = item;
+  const storedEmail = await storeEmailData({
+    id: emailData.emailId,
+    userId,
+    snippet: fetched.snippet,
+    senderEmailId: emailData.from,
+    threadId: ref.threadId || fetched.gmailThreadId || ref.id,
+    subject: emailData.subject,
+    receivedDate: new Date(emailData.date),
+    parseSuccess: false,
+    parseErrors: null,
+    rawContent: fetched.raw,
+    attachmentStoragePath:
+      emailData.attachments
+        ?.map((attachment) => attachment.storageUrl)
+        .filter((path): path is string => Boolean(path)) ?? null,
+    parsedAt: new Date(),
+  });
+
+  const parsedEmailId = storedEmail[0]?.id ?? emailData.emailId ?? ref.id;
+  syncDebug("email-stored", {
+    messageId: ref.id,
+    parsedEmailId,
+    attachmentStoragePathCount:
+      emailData.attachments?.filter((attachment) =>
+        Boolean(attachment.storageUrl),
+      ).length || 0,
+  });
+
+  if (!extracted.parseSuccess || !extracted.extractionData.transaction) {
+    const reason =
+      extracted.parseErrors[0] || "No completed Swiggy transaction.";
+    const parseErrors =
+      extracted.parseErrors.length > 0
+        ? JSON.stringify(extracted.parseErrors)
+        : null;
+
+    if (isTechnicalExtractionFailure(extracted.parseErrors)) {
+      await updateEmailData(parsedEmailId, {
+        parseSuccess: false,
+        parseErrors,
+      });
+      return {
+        kind: "failed",
+        messageId: ref.id,
+        error: new Error(reason),
+      };
+    }
+
+    await updateEmailData(parsedEmailId, {
+      parseSuccess: true,
+      parseErrors: null,
+    });
+    return {
+      kind: "skipped_non_transaction",
+      messageId: ref.id,
+      reason,
+    };
+  }
+
+  const transaction = extracted.extractionData.transaction;
+  const stored = await storeTransactionV2Input({
+    userId: emailData.userId,
+    parsedEmailId,
+    merchantId: SwiggyMerchant.id,
+    merchantCode: SwiggyMerchant.code,
+    merchantName: SwiggyMerchant.name,
+    amount: transaction.amount,
+    currency: transaction.currency || "INR",
+    type: "DEBIT",
+    status: "COMPLETED",
+    transactionDate: new Date(transaction.transactionDate || emailData.date),
+    description: transaction.description || emailData.subject,
+    category: "Food",
+    paymentMethod: transaction.paymentMethod || undefined,
+    referenceIds: transaction.orderId ? transaction.referenceIds : {},
+    merchantData: {
+      ...extracted.extractionData,
+      warnings: extracted.warnings,
+      provenance: extracted.provenance,
+    } as Record<string, unknown>,
+    extractionConfidence: extracted.extractionConfidence,
+    schemaUsed: extracted.schemaUsed,
+    dataSource: extracted.dataSource,
+  });
+  const transactionId = stored?.id;
+
+  await updateEmailData(parsedEmailId, {
+    parseSuccess: true,
+    parseErrors:
+      extracted.parseErrors.length > 0
+        ? JSON.stringify(extracted.parseErrors)
+        : null,
+  });
+  syncDebug("extraction-stored", {
+    messageId: ref.id,
+    parsedEmailId,
+    parseSuccess: extracted.parseSuccess,
+    transactionId: transactionId || null,
+    schemaUsed: extracted.schemaUsed,
+    dataSource: extracted.dataSource,
+    contributedByPdf: extracted.contributedByPdf,
+    confidence: extracted.extractionConfidence,
+    amount: transaction.amount,
+    orderId: transaction.orderId ?? null,
+    warningCount: extracted.warnings.length,
+    parseErrorCount: extracted.parseErrors.length,
+  });
+
+  return {
+    kind: "processed",
+    messageId: ref.id,
+    transactionId: transactionId || "unknown",
+  };
+}
+
+async function processMessage(
+  userId: string,
+  ref: ImapMessageRef,
+): Promise<SyncOutcome> {
+  const fetched = await fetchMessage(ref.id);
+  if (!fetched.ok) {
+    throw fetched.error;
+  }
+
+  const emailData = toEmailData(userId, fetched.data);
+  syncDebug("message-fetched", {
+    messageId: ref.id,
+    gmailThreadId: fetched.data.gmailThreadId,
+    from: fetched.data.from,
+    date: fetched.data.date,
+    textChars: fetched.data.text.length,
+    htmlChars: fetched.data.html.length,
+    bodyChars: emailData.body.length,
+    bodyTruncated:
+      emailData.body.length >= resolveMaxEmailBodyChars() &&
+      fetched.data.text.length + fetched.data.html.length >
+        emailData.body.length,
+    attachmentCount: emailData.attachments?.length || 0,
+    pdfAttachmentCount:
+      emailData.attachments?.filter(
+        (attachment) => attachment.mimeType === "application/pdf",
+      ).length || 0,
+  });
+
+  const extracted = await extractTransactionFromEmail(emailData, {
+    storeTransaction: false,
+  });
+
+  return writeExtractedMessage(userId, {
+    ref,
+    fetched: fetched.data,
+    emailData,
+    extracted,
+  });
+}
+
+async function recordMessageProgress(userId: string, messageId: string) {
+  try {
+    await updateSyncProgress(userId, 1);
+  } catch (error) {
+    syncDebug("progress-update-failed", {
+      messageId,
+      error: errorSummary(error),
+    });
+  }
+}
+
+function countOutcomes(outcomes: SyncOutcome[]): EmailSyncResult["counts"] {
+  return {
+    processed: outcomes.filter((outcome) => outcome.kind === "processed")
+      .length,
+    skipped_existing: outcomes.filter(
+      (outcome) => outcome.kind === "skipped_existing",
+    ).length,
+    skipped_non_transaction: outcomes.filter(
+      (outcome) => outcome.kind === "skipped_non_transaction",
+    ).length,
+    failed: outcomes.filter((outcome) => outcome.kind === "failed").length,
+  };
+}
+
+function isTechnicalExtractionFailure(parseErrors: string[]) {
+  return parseErrors.some((error) =>
+    /extraction model unavailable|missing-api-key|unknown-provider|response_format|json_schema|schema|llm extraction failed|could not be resolved|timed out|timeout|aborted|pdf extractor/i.test(
+      error,
+    ),
+  );
+}
+
+function resolveConcurrency(envName: string, fallback: number) {
+  const configured = Number(process.env[envName]);
+  if (Number.isFinite(configured) && configured > 0) {
+    return Math.floor(configured);
+  }
+  return fallback;
+}
+
+function defaultExtractConcurrency() {
+  if (process.env.SLASHCASH_ASSISTANT_PROVIDER === "ollama-local") {
+    return 1;
+  }
+  return Math.max(1, Math.min(4, cpus().length - 1 || 1));
+}
+
+function resolveExtractConcurrency() {
+  const explicitLlmConcurrency = Number(
+    process.env.SLASHCASH_EXTRACT_LLM_CONCURRENCY,
+  );
+  if (Number.isFinite(explicitLlmConcurrency) && explicitLlmConcurrency > 0) {
+    return Math.floor(explicitLlmConcurrency);
+  }
+  return resolveConcurrency(
+    "SLASHCASH_SYNC_EXTRACT_CONCURRENCY",
+    defaultExtractConcurrency(),
+  );
+}
+
+function resolveMessageConcurrency() {
+  const fetchConcurrency = resolveConcurrency(
+    "SLASHCASH_SYNC_FETCH_CONCURRENCY",
+    4,
+  );
+  const extractConcurrency = resolveExtractConcurrency();
+  return Math.max(1, Math.min(fetchConcurrency, extractConcurrency));
 }
 
 function toEmailData(userId: string, message: FetchedImapMessage): EmailData {
@@ -268,7 +456,7 @@ function toEmailData(userId: string, message: FetchedImapMessage): EmailData {
   return {
     userId,
     emailId: message.id,
-    threadId: message.id,
+    threadId: message.gmailThreadId || message.threadId || message.id,
     subject: message.subject,
     body: compactEmailBody(message),
     date: message.date,

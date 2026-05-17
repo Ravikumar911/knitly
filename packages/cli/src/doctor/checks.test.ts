@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   accessSync: vi.fn(),
   loadConfig: vi.fn(),
   getCredentialState: vi.fn(),
+  readAssistantCredential: vi.fn(),
   resolvePaths: vi.fn(),
   ensureStateDirs: vi.fn(),
   loadDatabase: vi.fn(),
@@ -28,6 +29,7 @@ vi.mock("../config/load.js", () => ({
 
 vi.mock("../config/credentials.js", () => ({
   getCredentialState: mocks.getCredentialState,
+  readAssistantCredential: mocks.readAssistantCredential,
 }));
 
 vi.mock("../config/paths.js", () => ({
@@ -83,6 +85,11 @@ describe("doctor checks", () => {
         ollamaBaseUrl: "http://127.0.0.1:11434/v1",
         chatModel: "tiny-chat",
       },
+      assistant: {
+        provider: "openai-compatible",
+        baseUrl: "https://api.openai.com/v1",
+        chatModel: "tiny-chat",
+      },
       pdfExtractor: {
         enabled: true,
         timeoutMs: 30_000,
@@ -101,6 +108,11 @@ describe("doctor checks", () => {
       address: "user@gmail.com",
       store: "keychain",
       warning: null,
+    });
+    mocks.readAssistantCredential.mockResolvedValue({
+      provider: "openai-compatible",
+      apiKey: "sk-test",
+      store: "keychain",
     });
     mocks.loadDatabase.mockResolvedValue({
       ensureLocalDatabase: mocks.ensureLocalDatabase,
@@ -156,13 +168,14 @@ describe("doctor checks", () => {
       "gmail-credentials",
       "sqlite",
       "skills",
+      "assistant-provider",
     ]);
     expect(checks.every((check) => check.status === "ok")).toBe(true);
     expect(mocks.installBundledSkills).not.toHaveBeenCalled();
     expect(process.env.SQLITE_DB_PATH).toBe("/tmp/slashcash-home/db.sqlite");
   });
 
-  it("adds the skipped Ollama check and installs bundled skills when fixing", async () => {
+  it("checks assistant and IMAP and installs bundled skills when fixing", async () => {
     process.env.SLASHCASH_DOCTOR_SKIP_OLLAMA = "1";
 
     const { runChecks } = await import("./checks.js");
@@ -179,12 +192,14 @@ describe("doctor checks", () => {
       "gmail-credentials",
       "sqlite",
       "skills",
-      "ollama",
+      "assistant-provider",
       "gmail-imap",
     ]);
-    expect(checks.find((check) => check.id === "ollama")).toMatchObject({
+    expect(
+      checks.find((check) => check.id === "assistant-provider"),
+    ).toMatchObject({
       status: "ok",
-      message: "Skipped by environment",
+      message: "openai-compatible (tiny-chat)",
     });
     expect(checks.find((check) => check.id === "gmail-imap")).toMatchObject({
       status: "ok",

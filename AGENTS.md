@@ -1,6 +1,6 @@
 # Repository guidelines
 
-- **Product**: slash.cash — local-first personal finance dashboard (Next.js, SQLite, Drizzle ORM, tRPC v11, Ollama-compatible AI).
+- **Product**: slash.cash — local-first personal finance dashboard (Next.js, SQLite, Drizzle ORM, tRPC v11, deterministic Swiggy ingest, optional assistant AI).
 - **Monorepo**: pnpm workspaces + Turborepo. Root package name: `slash-cash`.
 - **Chat replies**: Prefer repo-root-relative paths (e.g. `apps/main/trpc/init.ts`); avoid absolute machine paths.
 
@@ -14,7 +14,7 @@
 └── packages/
     ├── cli/               # slashcash CLI (slashcash package)
     ├── database/          # @workspace/database — SQLite schema, migrations, all queries
-    ├── tasks/             # Local ingestion, Gmail sync helpers, AI extraction
+    ├── tasks/             # Local ingestion, Gmail sync helpers, deterministic extraction
     ├── ui/                # @workspace/ui — shared UI (shadcn-style)
     ├── e2e-tests/         # Playwright + architecture checks
     ├── evals/             # Local extraction evaluations
@@ -27,7 +27,7 @@
 
 - **SQLite**: default DB at `~/.slashcash/db.sqlite` (override with `SQLITE_DB_PATH` or `SLASHCASH_HOME`).
 - **Attachments**: `~/.slashcash/attachments` (per product docs).
-- **Ollama**: `OLLAMA_BASE_URL`, `OLLAMA_CHAT_MODEL` (see `.env.example`).
+- **Assistant providers**: configured after onboarding with `slashcash assistant`; ingest does not require Ollama or any model.
 - **Dashboard**: typically `http://127.0.0.1:3000` via `pnpm --filter @knitly/main dev` or `pnpm slashcash -- start`.
 
 Do not assume Supabase, Trigger.dev, or other hosted services unless the user explicitly asks to add them.
@@ -52,7 +52,7 @@ Do not assume Supabase, Trigger.dev, or other hosted services unless the user ex
 
 ### `packages/tasks`
 
-- Long-running or batch work: Gmail sync, extraction, agents under `packages/tasks/src/`. The `trigger/` folder name is **local** job wiring, not Trigger.dev.
+- Long-running or batch work: Gmail sync and deterministic extraction under `packages/tasks/src/`. The `trigger/` folder name is **local** job wiring, not Trigger.dev.
 
 ### `packages/cli` (slashcash)
 
@@ -69,7 +69,7 @@ Do not assume Supabase, Trigger.dev, or other hosted services unless the user ex
 - **Dev CLI**: `pnpm slashcash -- start` (or `pnpm --filter slashcash dev -- …`)
 - **Typecheck / lint / test (monorepo)**: `pnpm typecheck`, `pnpm lint`, `pnpm test`
 - **Quality gates**: `pnpm architecture-smells`, `pnpm fixtures:check`
-- **E2E phases**: `pnpm e2e:phase-1` … `pnpm e2e:phase-5`, or `pnpm e2e:all`
+- **E2E**: Playwright journeys (`pnpm e2e:journeys` / `pnpm e2e:all`), plus `pnpm e2e:onboarding` for the fast-path script; `pnpm e2e:all` runs the browser suite then onboarding
 - **Evals**: `pnpm eval:gate`
 - **Bench**: `pnpm bench`
 - **DB** (from README): `pnpm --filter @workspace/database build`, `pnpm --filter slashcash dev -- db seed`

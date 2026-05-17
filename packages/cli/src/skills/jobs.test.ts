@@ -41,9 +41,9 @@ describe("skill jobs", () => {
     "SLASHCASH_GMAIL_QUERY",
     "SLASHCASH_SYNC_LIMIT",
     "SLASHCASH_IMAP_SERVER",
-    "OLLAMA_BASE_URL",
-    "OLLAMA_CHAT_MODEL",
-    "OLLAMA_VISION_MODEL",
+    "SLASHCASH_ASSISTANT_PROVIDER",
+    "SLASHCASH_ASSISTANT_BASE_URL",
+    "SLASHCASH_ASSISTANT_CHAT_MODEL",
     "SLASHCASH_PDF_EXTRACTOR_PYTHON",
     "SLASHCASH_PDF_EXTRACTOR_TIMEOUT_MS",
   ] as const;
@@ -76,9 +76,9 @@ describe("skill jobs", () => {
       process.env.SLASHCASH_GMAIL_QUERY = config.sync.gmailQuery;
       process.env.SLASHCASH_SYNC_LIMIT = String(config.sync.maxMessages);
       process.env.SLASHCASH_IMAP_SERVER = config.gmail.imapServer;
-      process.env.OLLAMA_BASE_URL = config.ai.ollamaBaseUrl;
-      process.env.OLLAMA_CHAT_MODEL = config.ai.chatModel;
-      process.env.OLLAMA_VISION_MODEL = config.ai.visionModel;
+      process.env.SLASHCASH_ASSISTANT_PROVIDER = config.assistant.provider;
+      process.env.SLASHCASH_ASSISTANT_BASE_URL = config.assistant.baseUrl;
+      process.env.SLASHCASH_ASSISTANT_CHAT_MODEL = config.assistant.chatModel;
       process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON =
         config.pdfExtractor.pythonBin || `${paths.pyVenv}/bin/python`;
       process.env.SLASHCASH_PDF_EXTRACTOR_TIMEOUT_MS = String(
@@ -173,15 +173,20 @@ describe("skill jobs", () => {
     const registrations = buildSkillJobRegistrations(
       {
         ...defaultConfig,
-        ai: {
-          ollamaBaseUrl: "http://127.0.0.1:11434/v1",
+        assistant: {
+          provider: "ollama-local",
+          baseUrl: "http://127.0.0.1:11434/v1",
           chatModel: "tiny-chat",
-          visionModel: "tiny-vision",
         },
         sync: {
           schedule: "*/10 * * * *",
           gmailQuery: "label:finance",
           maxMessages: 25,
+          concurrency: {
+            fetch: 4,
+            extract: 4,
+            write: 1,
+          },
         },
         gmail: {
           address: "user@gmail.com",
@@ -206,8 +211,8 @@ describe("skill jobs", () => {
     expect(process.env.SLASHCASH_GMAIL_QUERY).toBe("label:finance");
     expect(process.env.SLASHCASH_SYNC_LIMIT).toBe("25");
     expect(process.env.SLASHCASH_IMAP_SERVER).toBe("imap.gmail.com:993");
-    expect(process.env.OLLAMA_CHAT_MODEL).toBe("tiny-chat");
-    expect(process.env.OLLAMA_VISION_MODEL).toBe("tiny-vision");
+    expect(process.env.SLASHCASH_ASSISTANT_PROVIDER).toBe("ollama-local");
+    expect(process.env.SLASHCASH_ASSISTANT_CHAT_MODEL).toBe("tiny-chat");
     expect(mocks.writeLog).toHaveBeenCalledWith("cron", {
       event: "sync",
       skillId: "gmail-swiggy",

@@ -1,27 +1,27 @@
 import { z } from "zod";
-import { EmailData } from "../types/slashAI";
+import { EmailData } from "../types/email-extraction";
 
 // Schema type constraint
-export type MerchantSchemaType = 'base' | 'swiggy' | 'phonepe';
+export type MerchantSchemaType = "base" | "swiggy" | "phonepe";
 
 // Merchant configuration interface with better typing
 export interface MerchantConfig {
   id: MerchantSchemaType;
   name: string;
   code: string; // Unique merchant code
-  
+
   // Email identification patterns
   emailPatterns: string[]; // Email domains or patterns to match
   subjectPatterns?: string[]; // Subject line patterns
   bodyPatterns?: string[]; // Body content patterns
-  
+
   // Schema and prompt configuration
   schema: z.ZodSchema<any>;
   prompt: string;
-  
+
   // Priority for matching (higher = more specific)
   priority: number;
-  
+
   // Active status
   isActive: boolean;
 }
@@ -38,7 +38,9 @@ export interface MerchantMatch {
 }
 
 // Merchant identification function type
-export type MerchantIdentifier = (emailData: EmailData) => Promise<MerchantMatch | null>;
+export type MerchantIdentifier = (
+  emailData: EmailData,
+) => Promise<MerchantMatch | null>;
 
 // Generic extraction result with better typing
 export interface MerchantExtractionResult<T = any> {
@@ -51,4 +53,4 @@ export interface MerchantExtractionResult<T = any> {
     success: boolean;
     errors?: string[];
   };
-} 
+}

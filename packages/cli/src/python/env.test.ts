@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, sep } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -172,5 +175,64 @@ describe("python env bootstrap", () => {
       ["upgrade", "python@3.12"],
       expect.anything(),
     );
+  });
+
+  it("reports a stale managed extractor before running an old self-check", async () => {
+    const home = mkdtempSync(join(tmpdir(), "slashcash-env-test-"));
+    const pyVenv = join(home, "py-venv");
+    const pythonBin = join(pyVenv, "bin", "python");
+    const pyInstallHash = join(pyVenv, ".slashcash.install-hash");
+    mkdirSync(pyVenv, { recursive: true });
+    writeFileSync(pyInstallHash, "stale");
+
+    mocks.existsSync.mockImplementation((path) => {
+      const value = String(path);
+      return (
+        value === pythonBin ||
+        value === pyInstallHash ||
+        value.includes(`${sep}packages${sep}pdf-extractor${sep}`)
+      );
+    });
+    mocks.runCommand.mockImplementation((command: string, args: string[]) => {
+      if (command === pythonBin && args[0] === "--version") {
+        return ok("Python 3.12.11\n");
+      }
+      return fail(`unexpected command: ${command} ${args.join(" ")}`);
+    });
+
+    try {
+      const { defaultConfig } = await import("../config/schema.js");
+      const { ensurePythonEnvReady } = await import("./env.js");
+      const result = await ensurePythonEnvReady({
+        config: defaultConfig,
+        paths: {
+          home,
+          config: join(home, "config.json"),
+          credentials: join(home, "credentials.json"),
+          db: join(home, "db.sqlite"),
+          attachments: join(home, "attachments"),
+          cache: join(home, "cache"),
+          logs: join(home, "logs"),
+          skills: join(home, "skills"),
+          pyVenv,
+          pyInstallHash,
+          pidDir: join(home, "pid"),
+          pidFile: join(home, "pid", "slashcash.pid.json"),
+        },
+        fix: false,
+      });
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.code).toBe("extractor-stale");
+      }
+      expect(mocks.runCommand).not.toHaveBeenCalledWith(
+        pythonBin,
+        ["-m", "slashcash_pdf_extractor", "--self-check"],
+        expect.anything(),
+      );
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
   });
 });
