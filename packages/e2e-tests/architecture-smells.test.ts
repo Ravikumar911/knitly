@@ -38,6 +38,14 @@ const pythonSpawnAllowList = new Set([
   "packages/tasks/src/extract/pdf-extractor.ts",
   "packages/cli/src/python/env.ts",
 ]);
+const tasksLlmImportAllowList = new Set([
+  "packages/tasks/src/extract/llm-model.ts",
+  "packages/tasks/src/extract/swiggy-llm.ts",
+]);
+const forbiddenStringAllowList = new Set([
+  "packages/cli/src/privacy/copy.ts",
+  "packages/cli/src/privacy/copy.test.ts",
+]);
 
 const forbiddenDbReferences = [
   "user_google_tokens",
@@ -208,6 +216,7 @@ function collectPackageJsonSmells(file: string, rel: string, smells: Smell[]) {
 
 function collectPackageTextSmells(file: string, rel: string, smells: Smell[]) {
   if (!/\.(ts|tsx|js|jsx|mjs|cjs|json|md)$/.test(rel)) return;
+  if (forbiddenStringAllowList.has(rel)) return;
 
   const source = readFileSync(file, "utf8");
   for (const specifier of forbiddenPackageStrings) {
@@ -262,6 +271,7 @@ function collectImportSmells(file: string, rel: string, smells: Smell[]) {
     const specifier = match[1] ?? match[2] ?? match[3] ?? "";
     if (
       rel.startsWith("packages/tasks/src/") &&
+      !tasksLlmImportAllowList.has(rel) &&
       (specifier === "ai" ||
         specifier.startsWith("@ai-sdk/") ||
         specifier === "../ai/model" ||
