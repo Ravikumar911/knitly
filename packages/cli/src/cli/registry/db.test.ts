@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   resolvePaths: vi.fn(),
   loadDatabase: vi.fn(),
   ensureLocalDatabase: vi.fn(),
+  clearLocalSeedData: vi.fn(),
   seedLocalDatabase: vi.fn(),
 }));
 
@@ -40,6 +41,7 @@ describe("db command", () => {
     });
     mocks.loadDatabase.mockResolvedValue({
       ensureLocalDatabase: mocks.ensureLocalDatabase,
+      clearLocalSeedData: mocks.clearLocalSeedData,
       seedLocalDatabase: mocks.seedLocalDatabase,
     });
   });
@@ -76,7 +78,7 @@ describe("db command", () => {
     expect(mocks.rmSync).not.toHaveBeenCalled();
   });
 
-  it("clears attachments and reseeds when reset is confirmed", async () => {
+  it("clears attachments and leaves an empty database by default", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const { register } = await import("./db.js");
     const program = new Command();
@@ -88,7 +90,23 @@ describe("db command", () => {
       recursive: true,
       force: true,
     });
+    expect(mocks.clearLocalSeedData).toHaveBeenCalled();
+    expect(mocks.ensureLocalDatabase).toHaveBeenCalled();
+    expect(mocks.seedLocalDatabase).not.toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalledWith(
+      "Reset local database and attachments. Run `slashcash sync --full` to ingest Gmail again.",
+    );
+  });
+
+  it("reseeds demo data when --seed is provided", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const { register } = await import("./db.js");
+    const program = new Command();
+    register(program);
+
+    await program.parseAsync(["db", "reset", "--yes", "--seed"], { from: "user" });
+
     expect(mocks.seedLocalDatabase).toHaveBeenCalled();
-    expect(logSpy).toHaveBeenCalledWith("Reset and seeded local data.");
+    expect(logSpy).toHaveBeenCalledWith("Reset and seeded local demo data.");
   });
 });

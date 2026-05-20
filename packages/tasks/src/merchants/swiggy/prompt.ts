@@ -46,10 +46,13 @@ For failed extractions:
 
 export const SWIGGY_RECONCILIATION_RULES = `
 RECONCILIATION RULES:
-- Prefer the PDF amount when the email body and PDF disagree.
-- Prefer the PDF order ID when both sources provide one.
-- Prefer the email sender and email date as the canonical message metadata.
-- If the amounts disagree by more than 1%, cut confidence in half and surface an "amount mismatch" warning.
+- transaction.amount must come from the email body ("Paid Via", "Grand Total", or "Order Total"), never from the PDF invoice total.
+- The PDF "Invoice Total" is usually the restaurant food subtotal only. Platform fees, delivery, and Swiggy discounts live in the email body.
+- A difference between PDF invoice total and email "Paid Via" amount is normal. Do not treat it as an extraction failure.
+- Prefer the PDF for invoice fields, line items, restaurant name, taxes, and packaging.
+- Prefer the email body for final paid amount, payment method, order ID when present, and service type hints.
+- Swiggy delivery confirmation emails ("successfully delivered", "delivered on time/superfast") are valid receipts when they include Order ID and a final paid amount.
+- Return parseSuccess=false only for marketing/promotional email without an order receipt, or when order ID and final paid amount are both missing.
 `;
 
 export const SWIGGY_PROMPT = buildMerchantPrompt(

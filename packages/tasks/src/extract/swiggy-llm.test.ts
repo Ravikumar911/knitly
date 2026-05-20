@@ -73,6 +73,72 @@ describe("extractSwiggyWithLlm", () => {
     );
   });
 
+  it("reconciles a final paid amount from the email body when the model omits it", async () => {
+    mocks.generateText.mockResolvedValueOnce({
+      text: JSON.stringify({
+        parseSuccess: false,
+        confidenceScore: 0.2,
+        parseErrors: [
+          "This is a delivery update email without a completed paid transaction.",
+        ],
+        orderId: "236008303060924",
+        amount: null,
+        restaurantName: "AL Khaja Resturent",
+        paymentMethod: null,
+        orderItems: [{ name: "Grilled Chicken", quantity: 1, price: 270 }],
+        service: "FOOD_DELIVERY",
+        orderType: "DELIVERY",
+      }),
+      usage: { totalTokens: 100 },
+    });
+
+    const result = await extractSwiggyWithLlm(
+      {
+        subject: "Your Swiggy order was successfully delivered",
+        body: "Order ID: 236008303060924 Paid Via Credit/Debit card ₹301.00",
+        date: "2026-04-24T14:25:01.000Z",
+      },
+      [],
+    );
+
+    expect(result.parseSuccess).toBe(true);
+    expect(result.extractionConfidence).toBeGreaterThanOrEqual(0.9);
+    expect(result.extractionData.transaction?.amount).toBe(301);
+    expect(result.extractionData.transaction?.paymentMethod).toBe(
+      "Credit/Debit card",
+    );
+  });
+
+  it("rejects marketing email payloads", async () => {
+    mocks.generateText.mockResolvedValueOnce({
+      text: JSON.stringify({
+        parseSuccess: true,
+        confidenceScore: 0.95,
+        parseErrors: [],
+        orderId: "123456789012345",
+        amount: 600,
+        restaurantName: "Promo",
+      }),
+      usage: { totalTokens: 50 },
+    });
+
+    const result = await extractSwiggyWithLlm(
+      {
+        subject: "Ravikumar, win up to ₹600 today!",
+        body: "Tap to claim your reward now.",
+        date: "2026-04-24T14:25:01.000Z",
+      },
+      [],
+    );
+
+    expect(result.parseSuccess).toBe(false);
+    expect(result.parseErrors).toEqual(
+      expect.arrayContaining([
+        "Email appears to be marketing rather than a completed Swiggy order.",
+      ]),
+    );
+  });
+
   it("treats null optional fields as missing instead of failing validation", async () => {
     mocks.generateText.mockResolvedValueOnce({
       text: JSON.stringify({
@@ -102,7 +168,7 @@ describe("extractSwiggyWithLlm", () => {
     expect(result.parseSuccess).toBe(false);
     expect(result.parseErrors).toEqual(
       expect.arrayContaining([
-        "LLM extraction did not include a final paid amount.",
+        "Extraction did not include a final paid amount.",
       ]),
     );
   });

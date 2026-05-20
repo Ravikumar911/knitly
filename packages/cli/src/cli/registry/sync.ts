@@ -20,6 +20,10 @@ export function register(program: Command) {
     .command("sync")
     .description("Run Gmail sync now")
     .option("--full", "Scan the configured Gmail query from the beginning")
+    .option(
+      "--reextract",
+      "Re-run extraction for already-processed messages and update stored transactions",
+    )
     .option("--background", "Run sync in a detached background process")
     .option("--query <query>", "Override the configured Gmail query")
     .option("--limit <limit>", "Maximum messages to inspect", (value) =>
@@ -28,6 +32,7 @@ export function register(program: Command) {
     .action(
       async (options: {
         full?: boolean;
+        reextract?: boolean;
         background?: boolean;
         query?: string;
         limit?: number;
@@ -74,6 +79,7 @@ export function register(program: Command) {
           query: options.query || config.sync.gmailQuery,
           maxMessages,
           full: options.full,
+          reextract: options.reextract,
         });
 
         if (result.skipped) {

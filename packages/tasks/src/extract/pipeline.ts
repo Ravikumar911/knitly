@@ -9,6 +9,7 @@ import {
   type PdfExtractionSource,
 } from "./extract-from-pdf";
 import { extractSwiggyWithLlm } from "./swiggy-llm";
+import { isSwiggyMarketingEmail } from "./swiggy-body-signals";
 import type { ExtractionProvenance } from "./swiggy-deterministic";
 
 type SwiggyExtraction = z.infer<typeof SwiggyMerchant.schema>;
@@ -137,8 +138,16 @@ export async function extractTransactionFromEmail(
   }
 
   if (!finalCandidate) {
-    const fallback = fallbackSwiggy(emailData);
-    if (fallback) {
+    if (isSwiggyMarketingEmail(emailData.subject, emailData.body)) {
+      logPipelineStep("merge", {
+        step: 3,
+        emailId: emailData.emailId ?? null,
+        decision: "none",
+        reason: "marketing_email",
+      });
+    } else {
+      const fallback = fallbackSwiggy(emailData);
+      if (fallback) {
       finalCandidate = {
         extractionData: SwiggyMerchant.schema.parse({
           detectedProvider: "Swiggy",
@@ -190,13 +199,14 @@ export async function extractTransactionFromEmail(
         schemaUsed: "swiggy.fallback.v1",
         amount: finalCandidate.extractionData.transaction?.amount ?? null,
       });
-    } else {
-      logPipelineStep("merge", {
-        step: 3,
-        emailId: emailData.emailId ?? null,
-        decision: "none",
-        reason: "no_body_pdf_or_fallback",
-      });
+      } else {
+        logPipelineStep("merge", {
+          step: 3,
+          emailId: emailData.emailId ?? null,
+          decision: "none",
+          reason: "no_body_pdf_or_fallback",
+        });
+      }
     }
   }
 

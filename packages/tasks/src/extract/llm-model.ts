@@ -83,7 +83,8 @@ export function resolveExtractionModel(): {
             : config.provider,
         baseURL: config.baseUrl,
         apiKey,
-        supportsStructuredOutputs: true,
+        // Plain-text JSON extraction; Anthropic rejects min/max on number schemas.
+        supportsStructuredOutputs: false,
       })(config.chatModel),
       config,
     };

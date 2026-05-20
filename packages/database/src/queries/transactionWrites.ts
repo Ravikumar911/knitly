@@ -146,6 +146,14 @@ export async function storeTransactionV2(transaction: Transaction) {
   return result[0];
 }
 
+export async function deleteTransactionV2(transactionId: string) {
+  const result = await db
+    .delete(transactionsV2)
+    .where(eq(transactionsV2.id, transactionId))
+    .returning({ id: transactionsV2.id });
+  return result[0]?.id ?? null;
+}
+
 /**
  * Get transactions for a user
  */

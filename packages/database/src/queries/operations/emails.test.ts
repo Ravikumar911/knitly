@@ -89,4 +89,50 @@ describe("email processing queries", () => {
       new Set(),
     );
   });
+
+  it("reuses an existing parsed email row when the thread id already exists", async () => {
+    const userId = `email-thread-test-${randomUUID()}`;
+    const originalId = `message-${randomUUID()}`;
+    const replacementId = `message-${randomUUID()}`;
+    const threadId = `thread-${randomUUID()}`;
+    ensureLocalDatabase();
+    await db.insert(profiles).values({
+      id: userId,
+      email: null,
+      first_name: "Email",
+      last_name: "Thread Test",
+      updated_at: new Date(),
+    });
+
+    await storeEmailData({
+      id: originalId,
+      userId,
+      senderEmailId: "noreply@swiggy.in",
+      threadId,
+      subject: "Swiggy order original",
+      receivedDate: new Date(),
+      parseSuccess: true,
+      parseErrors: null,
+      rawContent: "raw",
+      attachmentStoragePath: null,
+      parsedAt: new Date(),
+    });
+
+    const updated = await storeEmailData({
+      id: replacementId,
+      userId,
+      senderEmailId: "noreply@swiggy.in",
+      threadId,
+      subject: "Swiggy order reextracted",
+      receivedDate: new Date(),
+      parseSuccess: true,
+      parseErrors: null,
+      rawContent: "updated raw",
+      attachmentStoragePath: ["/tmp/invoice.pdf"],
+      parsedAt: new Date(),
+    });
+
+    expect(updated[0]?.id).toBe(originalId);
+    expect(updated[0]?.subject).toBe("Swiggy order reextracted");
+  });
 });

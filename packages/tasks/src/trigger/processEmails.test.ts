@@ -152,6 +152,50 @@ describe("runEmailSync", () => {
     });
   });
 
+  it("reprocesses previously stored messages when reextract is enabled", async () => {
+    mocks.listMessages.mockResolvedValue({
+      ok: true,
+      data: [{ id: "msg-1", threadId: "thread-1" }],
+    });
+    mocks.getProcessedEmailIds.mockResolvedValue(new Set(["msg-1"]));
+    mocks.fetchMessage.mockResolvedValue({
+      ok: true,
+      data: fetchedMessage("msg-1", "Your Swiggy order was delivered"),
+    });
+    mocks.extractTransactionFromEmail.mockResolvedValue({
+      parseSuccess: true,
+      parseErrors: [],
+      warnings: [],
+      schemaUsed: "swiggy.llm.v1",
+      dataSource: "BOTH",
+      contributedByPdf: true,
+      extractionConfidence: 0.95,
+      provenance: null,
+      extractionData: {
+        parseSuccess: true,
+        transaction: {
+          amount: 208,
+          orderId: "236403526545349",
+          referenceIds: { orderId: "236403526545349" },
+        },
+      },
+    });
+
+    const result = await runEmailSync({
+      userId: "local-user-id",
+      full: true,
+      reextract: true,
+    });
+
+    expect(result.counts).toMatchObject({
+      processed: 1,
+      skipped_existing: 0,
+      failed: 0,
+    });
+    expect(mocks.getProcessedEmailIds).not.toHaveBeenCalled();
+    expect(mocks.storeTransactionV2Input).toHaveBeenCalled();
+  });
+
   it("stores each processed message without waiting for every fetch to finish", async () => {
     const slowFetch = deferred<ReturnType<typeof okFetchedMessage>>();
     mocks.listMessages.mockResolvedValue({

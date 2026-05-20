@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
     "diagnose-extraction": "tsx scripts/diagnose-extraction.ts",
+    "repair-extractions": "tsx scripts/repair-extractions.ts",
     "lint": "echo 'Linting not configured for tasks package'",
     "lint:fix": "echo 'Linting not configured for tasks package'",
     "test": "vitest run",

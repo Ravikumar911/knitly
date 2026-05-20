@@ -37,6 +37,8 @@ export type ProcessEmailsPayload = {
   query?: string;
   maxMessages?: number;
   full?: boolean;
+  /** Re-run extraction for messages already marked processed (updates transactions in place). */
+  reextract?: boolean;
 };
 
 export type EmailSyncResult = {
@@ -105,6 +107,7 @@ async function runEmailSyncUnsafe(
     query,
     maxMessages,
     full: Boolean(payload.full),
+    reextract: Boolean(payload.reextract),
     dbPath,
     pdfExtractorPython: process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON || null,
   });
@@ -124,18 +127,22 @@ async function runEmailSyncUnsafe(
   await initializeSync(payload.userId, listed.data.length);
 
   const outcomes: SyncOutcome[] = [];
-  const processedIds = await getProcessedEmailIds(
-    payload.userId,
-    listed.data.map((ref) => ref.id),
-  );
   const pendingRefs: ImapMessageRef[] = [];
-  for (const ref of listed.data) {
-    if (processedIds.has(ref.id) || processedIds.has(ref.threadId)) {
-      outcomes.push({ kind: "skipped_existing", messageId: ref.id });
-      syncDebug("message-skipped-existing", { messageId: ref.id });
-      await updateSyncProgress(payload.userId, 1);
-    } else {
-      pendingRefs.push(ref);
+  if (payload.reextract) {
+    pendingRefs.push(...listed.data);
+  } else {
+    const processedIds = await getProcessedEmailIds(
+      payload.userId,
+      listed.data.map((ref) => ref.id),
+    );
+    for (const ref of listed.data) {
+      if (processedIds.has(ref.id) || processedIds.has(ref.threadId)) {
+        outcomes.push({ kind: "skipped_existing", messageId: ref.id });
+        syncDebug("message-skipped-existing", { messageId: ref.id });
+        await updateSyncProgress(payload.userId, 1);
+      } else {
+        pendingRefs.push(ref);
+      }
     }
   }
 
@@ -358,6 +365,7 @@ async function processMessage(
   const extracted = await extractTransactionFromEmail(emailData, {
     storeTransaction: false,
   });
+  await sleepAfterExtraction();
 
   return writeExtractedMessage(userId, {
     ref,
@@ -409,7 +417,10 @@ function resolveConcurrency(envName: string, fallback: number) {
 }
 
 function defaultExtractConcurrency() {
-  if (process.env.SLASHCASH_ASSISTANT_PROVIDER === "ollama-local") {
+  if (
+    process.env.SLASHCASH_ASSISTANT_PROVIDER === "ollama-local" ||
+    process.env.SLASHCASH_ASSISTANT_PROVIDER === "anthropic"
+  ) {
     return 1;
   }
   return Math.max(1, Math.min(4, cpus().length - 1 || 1));
@@ -482,6 +493,20 @@ function resolveMaxEmailBodyChars() {
     process.env.SLASHCASH_EMAIL_BODY_MAX_CHARS || 12_000,
   );
   return Number.isFinite(configured) && configured > 0 ? configured : 12_000;
+}
+
+async function sleepAfterExtraction() {
+  const ms = resolveExtractPacingMs();
+  if (ms <= 0) return;
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function resolveExtractPacingMs() {
+  const configured = Number(process.env.SLASHCASH_EXTRACT_PACING_MS);
+  if (Number.isFinite(configured) && configured >= 0) {
+    return Math.floor(configured);
+  }
+  return process.env.SLASHCASH_ASSISTANT_PROVIDER === "anthropic" ? 1500 : 0;
 }
 
 function textFromHtml(html: string) {

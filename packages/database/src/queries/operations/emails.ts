@@ -9,8 +9,27 @@ export async function storeEmailData(
   data: Omit<ParsedEmail, "id" | "createdAt" | "updatedAt"> & { id?: string },
 ) {
   const now = new Date();
+  let resolvedId = data.id;
+
+  if (data.threadId) {
+    const [existingByThread] = await db
+      .select({ id: parsedEmails.id })
+      .from(parsedEmails)
+      .where(
+        and(
+          eq(parsedEmails.userId, data.userId),
+          eq(parsedEmails.threadId, data.threadId),
+        ),
+      )
+      .limit(1);
+
+    if (existingByThread?.id) {
+      resolvedId = existingByThread.id;
+    }
+  }
+
   const values = {
-    id: data.id,
+    id: resolvedId,
     userId: data.userId,
     senderEmailId: data.senderEmailId,
     threadId: data.threadId,
