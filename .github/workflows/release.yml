@@ -151,10 +151,7 @@ jobs:
             echo "Release tarball not found."
             exit 1
           fi
-          npm publish "$TARBALL" --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          npm publish "$TARBALL" --access public --provenance
       - name: Verify published install
         run: node packages/cli/scripts/verify-published-install.mjs "${{ needs.preflight.outputs.version }}"
       - name: Create GitHub release

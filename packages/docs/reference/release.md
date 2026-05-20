@@ -44,4 +44,4 @@ These checks only exist on a real tagged publish:
 
 ## Provenance note
 
-npm provenance currently requires a public source repository. While this repository remains private, the workflow uses token-based publishing without `--provenance`. After the repository is public and the package exists on npm, maintainers can configure Trusted Publishing from the package settings and re-enable provenance-backed publishing.
+The publish job uses npm Trusted Publishing (OIDC) via the `npm-release` GitHub environment and `release.yml`. No `NPM_TOKEN` secret is required. Ensure the npm package is linked to this repository/workflow in npm package settings before the first provenance-backed publish.
