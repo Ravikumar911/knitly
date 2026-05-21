@@ -138,7 +138,7 @@ export function BentoFeatures() {
         className="md:col-span-1 min-h-[360px]"
         eyebrow="Always working"
         title="A team of agents on a schedule"
-        description="Six small agents wake up overnight and do one job each, so your week's most important moves are ready before you open the app."
+        description="Seven small agents wake up overnight and do one job each, so your week's most important moves are ready before you open the app."
         layout="stack"
         visual={
           <div className="absolute inset-0 px-5 pt-5">

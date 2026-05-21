@@ -22,6 +22,8 @@ const tiers: PricingTier[] = [
     name: "Free",
     price: "₹0",
     description: "The whole open-source engine. For everyone.",
+    badge: "Available now",
+    highlighted: true,
     features: [
       "All 7 agents on your laptop",
       "IMAP + UPI + cards connectors",
@@ -29,16 +31,15 @@ const tiers: PricingTier[] = [
       "Local SQLite database",
       "Community support",
     ],
-    cta: "Get the CLI",
-    href: "https://github.com/slashcash",
+    cta: "Install on npm",
+    href: "https://www.npmjs.com/package/slashcash",
   },
   {
     name: "Pro",
     price: "₹399",
     cadence: "/ month",
     description: "Advanced workflows + premium connectors.",
-    badge: "Most popular",
-    highlighted: true,
+    badge: "Planned",
     features: [
       "Everything in Free",
       "Investor Agent · advanced planning",
