@@ -12,7 +12,7 @@ import {
   CreditCard,
   FileSpreadsheet,
   Mail,
-  MessageSquareText,
+  Receipt,
   Smartphone,
   TrendingUp,
 } from "lucide-react";
@@ -65,7 +65,7 @@ export function FlowBeams() {
     { icon: <Smartphone className="h-5 w-5 text-sky-500" />, label: "UPI" },
     { icon: <CreditCard className="h-5 w-5 text-indigo-500" />, label: "Cards" },
     { icon: <Mail className="h-5 w-5 text-[#635bff]" />, label: "Email" },
-    { icon: <MessageSquareText className="h-5 w-5 text-teal-500" />, label: "SMS" },
+    { icon: <Receipt className="h-5 w-5 text-teal-500" />, label: "Statements" },
     { icon: <FileSpreadsheet className="h-5 w-5 text-[#2f6ceb]" />, label: "PDF/CSV" },
   ];
 
