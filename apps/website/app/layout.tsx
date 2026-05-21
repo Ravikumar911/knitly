@@ -5,6 +5,9 @@ import Script from "next/script"
 import Link from "next/link"
 import { Github } from "lucide-react"
 
+import { MobileNav } from "@/components/marketing/mobile-nav"
+import { NPM_URL } from "@/lib/links"
+
 import "./globals.css"
 
 const inter = Inter({
@@ -46,10 +49,10 @@ export const metadata: Metadata = {
     url: "https://slash.cash",
     images: [
       {
-        url: "/og-image.png",
+        url: "/images/hero-illustration.jpg",
         width: 1200,
         height: 630,
-        alt: "Slash Cash — Your AI finance team",
+        alt: "Slash Cash — local-first AI finance team",
       },
     ],
   },
@@ -60,7 +63,7 @@ export const metadata: Metadata = {
       "Open-source slashcash CLI: local SQLite ledger, read-only connectors, seven agents, optional assistant.",
     site: "@slashcash",
     creator: "@slashcash",
-    images: ["/og-image.png"],
+    images: ["/images/hero-illustration.jpg"],
   },
 }
 
@@ -103,6 +106,7 @@ function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <MobileNav />
           <a
             href="https://github.com/slashcash"
             target="_blank"
@@ -114,10 +118,10 @@ function Header() {
             <span>GitHub</span>
           </a>
           <a
-            href="https://www.npmjs.com/package/slashcash"
+            href={NPM_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-9 items-center rounded-full border border-black/10 bg-white/90 px-3.5 text-[0.82rem] font-semibold text-neutral-800 shadow-sm transition hover:bg-white"
+            className="hidden sm:inline-flex h-9 items-center rounded-full border border-black/10 bg-white/90 px-3.5 text-[0.82rem] font-semibold text-neutral-800 shadow-sm transition hover:bg-white"
           >
             Install CLI
           </a>
@@ -190,7 +194,7 @@ function Footer() {
                 </a>
               </li>
               <li><Link href="/spending-psychology" className="transition hover:text-neutral-900">Spending psychology</Link></li>
-              <li><Link href="/swiggy" className="transition hover:text-neutral-900">Email connectors</Link></li>
+              <li><Link href="/connectors" className="transition hover:text-neutral-900">Email connectors</Link></li>
               <li>
                 <span className="text-neutral-400">Local dashboard via CLI</span>
               </li>

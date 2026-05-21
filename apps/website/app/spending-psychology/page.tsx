@@ -12,6 +12,7 @@ import { BlurFade } from "@workspace/ui/components/magicui/blur-fade";
 import { DotPattern } from "@workspace/ui/components/magicui/dot-pattern";
 import { cn } from "@workspace/ui/lib/utils";
 
+import { InstallCta } from "@/components/marketing/install-cta";
 import { Section } from "@/components/marketing/section";
 
 export const dynamic = "force-static";
@@ -130,14 +131,16 @@ export default function SpendingPsychologyPage() {
           }}
         >
           <p className="text-center text-[1.05rem] leading-relaxed text-neutral-700 md:text-[1.15rem]">
-            The point of Slash Cash isn't to make you feel guilty about a
-            coffee. It's to put{" "}
+            The point of Slash Cash is not to make you feel guilty about a
+            coffee. It is to put{" "}
             <span className="font-semibold text-neutral-900">
               one clear, well-explained action
             </span>{" "}
-            in front of you each week — and to do that without ever uploading
-            your finances.
+            in front of you each week — on your machine, without a hosted ledger.
           </p>
+          <div className="mt-8 flex justify-center">
+            <InstallCta />
+          </div>
         </div>
       </Section>
     </div>
