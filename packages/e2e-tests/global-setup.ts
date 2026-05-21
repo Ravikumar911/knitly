@@ -51,8 +51,12 @@ export default async function globalSetup() {
     "configure the local vision model",
   );
   run(
-    ["--filter", "slashcash", "dev", "--", "db", "reset", "--yes"],
+    ["--filter", "slashcash", "dev", "--", "db", "reset", "--yes", "--seed"],
     "seed deterministic local data",
+  );
+  run(
+    ["--filter", "slashcash", "dev", "--", "doctor", "--fix", "--quick"],
+    "provision the managed Python extractor environment",
   );
   run(
     ["--filter", "slashcash", "dev", "--", "sync", "--full"],
