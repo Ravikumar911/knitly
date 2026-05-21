@@ -25,7 +25,7 @@ test.describe("Customer assistant and feedback journeys", () => {
     await warmupResponse.text();
 
     await page.goto("/assistant");
-    await expect(page).toHaveURL(assistantChatUrl, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/assistant\/?$/);
 
     await expect(
       page.getByRole("link", { name: /New chat/i }).first(),
@@ -41,9 +41,10 @@ test.describe("Customer assistant and feedback journeys", () => {
         "Local mock assistant: your recent spending is mostly Swiggy food delivery right now.",
       ),
     ).toBeVisible({ timeout: 15_000 });
+    await expect(page).toHaveURL(assistantChatUrl, { timeout: 15_000 });
 
     await page.goto("/assistant");
-    await expect(page).toHaveURL(assistantChatUrl, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/assistant\/?$/);
     await expect(page.getByPlaceholder(/Ask about your spending/)).toBeVisible();
   });
 
