@@ -37,7 +37,7 @@ const tiers: PricingTier[] = [
     price: "₹399",
     cadence: "/ month",
     description: "Advanced workflows + premium connectors.",
-    badge: "Most popular",
+    badge: "Planned",
     highlighted: true,
     features: [
       "Everything in Free",

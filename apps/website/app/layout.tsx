@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s · Slash Cash",
   },
   description:
-    "Stop watching dashboards. Slash Cash is an AI finance team that runs on your laptop — categorizes spends, finds leaks, scores money health, and tells you what to fix this week. Open-source. Local-first. Private.",
+    "Local-first personal finance: open-source slashcash CLI, SQLite on your machine, read-only connectors, seven small agents for categorization and weekly review. Optional assistant; no hosted ledger.",
   keywords: [
     "ai personal finance",
     "expense tracker",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     siteName: "Slash Cash",
     title: "Slash Cash — Your AI finance team that actually fixes things",
     description:
-      "An AI finance team on your laptop. Categorizes spends, finds leaks, scores money health, suggests one action a week. Open-source and local-first.",
+      "Open-source CLI and local dashboard: SQLite ledger on your device, read-only connectors, seven agents for spends and weekly review. Optional assistant.",
     url: "https://slash.cash",
     images: [
       {
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Slash Cash — Your AI finance team that actually fixes things",
     description:
-      "An AI finance team on your laptop. Open-source. Local-first. Private.",
+      "Open-source slashcash CLI: local SQLite ledger, read-only connectors, seven agents, optional assistant.",
     site: "@slashcash",
     creator: "@slashcash",
     images: ["/og-image.png"],
@@ -94,10 +94,12 @@ function Header() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 text-[0.85rem] font-medium text-neutral-600">
+          <Link href="/#why" className="transition hover:text-neutral-900">Why us</Link>
           <Link href="/#features" className="transition hover:text-neutral-900">Features</Link>
           <Link href="/#agents" className="transition hover:text-neutral-900">Agents</Link>
           <Link href="/#how" className="transition hover:text-neutral-900">How it works</Link>
           <Link href="/#pricing" className="transition hover:text-neutral-900">Pricing</Link>
+          <Link href="/#faq" className="transition hover:text-neutral-900">FAQ</Link>
         </nav>
 
         <div className="flex items-center gap-2">
@@ -109,11 +111,16 @@ function Header() {
             className="hidden sm:inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[0.8rem] font-medium text-neutral-700 transition hover:bg-black/5"
           >
             <Github className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Star</span>
+            <span>GitHub</span>
           </a>
-          <span className="inline-flex h-9 items-center rounded-full border border-black/10 bg-white/85 px-3.5 text-[0.82rem] font-medium text-neutral-600">
-            Coming soon
-          </span>
+          <a
+            href="https://www.npmjs.com/package/slashcash"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-9 items-center rounded-full border border-black/10 bg-white/90 px-3.5 text-[0.82rem] font-semibold text-neutral-800 shadow-sm transition hover:bg-white"
+          >
+            Install CLI
+          </a>
         </div>
       </div>
     </header>
@@ -142,9 +149,9 @@ function Footer() {
               </span>
             </Link>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-neutral-500">
-              An AI finance team that runs on your laptop. Open-source core,
-              license keys for advanced workflows. Your money data never leaves
-              your device.
+              A local-first finance dashboard and CLI: SQLite on your disk,
+              read-only connectors, optional assistant. Open-source core; paid
+              tiers later for workflows — not rent on your own transactions.
             </p>
             <div className="mt-5 flex flex-wrap gap-2 text-xs text-neutral-500">
               <span className="rounded-full bg-black/5 px-2.5 py-1">Local-first</span>
@@ -158,10 +165,12 @@ function Footer() {
               Product
             </h3>
             <ul className="mt-4 space-y-2.5 text-sm text-neutral-600">
+              <li><Link href="/#why" className="transition hover:text-neutral-900">Why us</Link></li>
               <li><Link href="/#features" className="transition hover:text-neutral-900">Features</Link></li>
               <li><Link href="/#agents" className="transition hover:text-neutral-900">Agents</Link></li>
               <li><Link href="/#how" className="transition hover:text-neutral-900">How it works</Link></li>
               <li><Link href="/#pricing" className="transition hover:text-neutral-900">Pricing</Link></li>
+              <li><Link href="/#faq" className="transition hover:text-neutral-900">FAQ</Link></li>
             </ul>
           </div>
 
@@ -175,10 +184,15 @@ function Footer() {
                   GitHub
                 </a>
               </li>
+              <li>
+                <a href="https://www.npmjs.com/package/slashcash" target="_blank" rel="noopener noreferrer" className="transition hover:text-neutral-900">
+                  npm package
+                </a>
+              </li>
               <li><Link href="/spending-psychology" className="transition hover:text-neutral-900">Spending psychology</Link></li>
               <li><Link href="/swiggy" className="transition hover:text-neutral-900">Email connectors</Link></li>
               <li>
-                <span className="text-neutral-400">Dashboard (coming soon)</span>
+                <span className="text-neutral-400">Local dashboard via CLI</span>
               </li>
             </ul>
           </div>
@@ -243,7 +257,7 @@ export default function RootLayout({
               applicationCategory: "FinanceApplication",
               operatingSystem: "macOS, Linux, Windows",
               description:
-                "An AI finance team that runs on your laptop. Categorizes spends, finds leaks, scores money health, and tells you what to fix this week.",
+                "Open-source local-first finance: slashcash CLI, SQLite on your machine, read-only connectors, optional assistant. No hosted transaction ledger.",
               offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
               publisher: {
                 "@type": "Organization",
