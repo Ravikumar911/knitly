@@ -93,7 +93,7 @@ type QuestionScope = {
 };
 
 const financeIntentPattern =
-  /\b(swiggy|instamart|dineout|restaurant|restaurants|food delivery|delivery fee|delivery fees|spend|spent|spending|expense|expenses|transaction|transactions|order|ordered|orders|meal|meals|dish|dishes|menu|buy|bought|groceries|grocery)\b/i;
+  /\b(swiggy|instamart|dineout|dining out|restaurant|restaurants|food|food delivery|delivery fee|delivery fees|fee|fees|spend|spent|spending|expense|expenses|transaction|transactions|order|ordered|orders|meal|meals|dish|dishes|menu|buy|bought|groceries|grocery|payment|paid|card|upi|bill|bills|discount|discounts|savings|saved|weekend|weekday)\b/i;
 
 const favoriteFoodPattern =
   /\b(fav|favorite|favourite|top|most|least)\b.*\b(food|foods|dish|dishes|menu|meal|meals|item|items)\b|\b(food|foods|dish|dishes|menu|meal|meals|item|items)\b.*\b(fav|favorite|favourite|top|most|least)\b/i;
@@ -147,7 +147,11 @@ export function buildDeterministicQueryPlan(input: {
   const latest = userText.toLowerCase();
   const serviceSource = latest;
   const itemQuery = inferItemQuery(userText);
-  const requestedOrderLimit = inferRequestedOrderLimit(latest);
+  const requestedOrderLimit = inferRequestedOrderLimit(
+    latest,
+    conversationText,
+  );
+  const asksForGroceryItem = /\bgroceries|grocery\b/i.test(latest);
   const asksForFoodItem =
     favoriteFoodPattern.test(userText) ||
     Boolean(itemQuery) ||
@@ -161,7 +165,10 @@ export function buildDeterministicQueryPlan(input: {
 
   let intent: AssistantQueryPlan["intent"] = "summary";
   const asksForExpensiveOrder =
-    /\b(?:most expensive|biggest|largest|highest)\b.*\b(?:order|transaction)\b/i.test(
+    /\b(?:most expensive|biggest|largest|highest)\b.*\b(?:order|transaction|bill|payment)\b/i.test(
+      latest,
+    ) ||
+    /\b(?:order|transaction|bill|payment)\b.*\b(?:most expensive|biggest|largest|highest)\b/i.test(
       latest,
     );
 
@@ -172,7 +179,8 @@ export function buildDeterministicQueryPlan(input: {
     intent = "extreme";
     dimensions.add("order");
   } else if (
-    /\btrend|over time|month|monthly|highest|lowest|peak\b/i.test(latest)
+    /\btrend|over time|monthly|highest|lowest|peak\b/i.test(latest) ||
+    /\b(?:which|what)\s+month\b/i.test(latest)
   ) {
     intent = /\bhighest|lowest|peak\b/i.test(latest) ? "extreme" : "trend";
     dimensions.add("month");
@@ -183,7 +191,13 @@ export function buildDeterministicQueryPlan(input: {
   ) {
     intent = "rank";
   }
-  if (/\brestaurant|restaurants\b/i.test(latest)) {
+  if (
+    /\brestaurant|restaurants|places?|outlets?\b/i.test(latest) ||
+    /\b(?:where|who)\b.*\b(?:order|ordered|spend|spent|spending)\b/i.test(
+      latest,
+    ) ||
+    /\border(?:ed)?\b.*\bfrom\b.*\b(?:most|often)\b/i.test(latest)
+  ) {
     dimensions.add("restaurant");
   }
   if (/\bwhere\b.*\b(?:spend|spent|spending)\b/i.test(latest)) {
@@ -236,16 +250,24 @@ export function buildDeterministicQueryPlan(input: {
   }
 
   const services: AssistantQueryPlan["services"] = [];
-  if (/\binstamart\b/i.test(serviceSource)) services.push("instamart");
+  if (/\binstamart|groceries|grocery\b/i.test(serviceSource)) {
+    services.push("instamart");
+  }
   if (
-    /\bfood delivery|restaurant|restaurants|meal|meals|dish|dishes|menu\b/i.test(
-      latest,
-    ) ||
-    asksForFoodItem
+    /\bfood delivery|restaurants?|meals?|dishes?|menu\b/i.test(latest) ||
+    (asksForFoodItem && !asksForGroceryItem)
   ) {
     services.push("foodDelivery");
   }
-  if (/\bdineout\b/i.test(serviceSource)) services.push("dineout");
+  if (/\bdineout|dining out|eat(?:ing)? out\b/i.test(serviceSource)) {
+    services.push("dineout");
+  }
+  if (
+    services.length === 0 &&
+    shouldInheritServiceScopeFromConversation(latest, intent)
+  ) {
+    services.push(...inferReferencedServices(conversationText));
+  }
 
   const plan = assistantQueryPlanSchema.parse({
     isFinanceQuestion: true,
@@ -317,14 +339,67 @@ export function inferQuestionScope(
   conversationText = "",
 ): QuestionScope {
   const normalized = text.toLowerCase();
-  const recentOrderLimit = inferRequestedOrderLimit(normalized);
+  const recentOrderLimit = inferRequestedOrderLimit(
+    normalized,
+    conversationText,
+  );
   const recentOnly = isRecentOrderRequest(normalized);
-  const explicitMonth = inferMonthScope(text);
+  const explicitMonth = inferMonthScope(text, now);
   if (explicitMonth) {
     return {
       label: explicitMonth.label,
       startDate: explicitMonth.startDate,
       endDate: explicitMonth.endDate,
+      recentOrderLimit,
+      recentOnly,
+    };
+  }
+
+  if (/\btoday\b/.test(normalized)) {
+    return {
+      label: "today",
+      startDate: startOfDay(now),
+      endDate: endOfDay(now),
+      recentOrderLimit,
+      recentOnly,
+    };
+  }
+
+  if (/\byesterday\b/.test(normalized)) {
+    const yesterday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - 1,
+    );
+    return {
+      label: "yesterday",
+      startDate: startOfDay(yesterday),
+      endDate: endOfDay(yesterday),
+      recentOrderLimit,
+      recentOnly,
+    };
+  }
+
+  if (/\bthis week\b|\bcurrent week\b/.test(normalized)) {
+    return {
+      label: "this week",
+      startDate: startOfWeek(now),
+      endDate: endOfDay(now),
+      recentOrderLimit,
+      recentOnly,
+    };
+  }
+
+  if (/\blast week\b|\bprevious week\b/.test(normalized)) {
+    const thisWeekStart = startOfWeek(now);
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+    const lastWeekEnd = new Date(thisWeekStart);
+    lastWeekEnd.setDate(thisWeekStart.getDate() - 1);
+    return {
+      label: "last week",
+      startDate: startOfDay(lastWeekStart),
+      endDate: endOfDay(lastWeekEnd),
       recentOrderLimit,
       recentOnly,
     };
@@ -419,10 +494,12 @@ export function inferQuestionScope(
     };
   }
 
-  const referencedMonth =
-    isOrderDetailFollowUp(normalized) && conversationText
-      ? inferMonthScope(conversationText)
-      : null;
+  const referencedMonth = shouldInheritDateRangeFromConversation(
+    normalized,
+    conversationText,
+  )
+    ? inferMonthScope(conversationText, now)
+    : null;
   if (referencedMonth) {
     return {
       label: referencedMonth.label,
@@ -785,7 +862,10 @@ function shouldIncludeOrders(
   scope: QuestionScope,
 ) {
   if (!plan) return scope.recentOnly;
-  return plan.includeOrders || plan.intent === "details";
+  return (
+    plan.includeOrders ||
+    (plan.intent === "details" && plan.dimensions.includes("order"))
+  );
 }
 
 function formatOrderDetail(
@@ -820,12 +900,14 @@ export function shouldLoadFinanceContext(
 ) {
   if (isLikelyFinanceQuestion(userText)) return true;
   return (
-    isOrderDetailFollowUp(userText) && isLikelyFinanceQuestion(conversationText)
+    isLikelyFinanceQuestion(conversationText) &&
+    isContextualFinanceFollowUp(userText)
   );
 }
 
 function isOrderDetailFollowUp(text: string) {
   return (
+    isTerseOrderDetailFollowUp(text) ||
     /\b(details?|breakdown|list|show|get)\b.*\b(orders?|transactions?)\b/i.test(
       text,
     ) ||
@@ -836,6 +918,7 @@ function isOrderDetailFollowUp(text: string) {
 
 function asksForOrderDetails(text: string) {
   return (
+    isTerseOrderDetailFollowUp(text) ||
     isRecentOrderRequest(text) ||
     /\b(details?|breakdown|list|show all)\b.*\b(orders?|transactions?)\b/i.test(
       text,
@@ -847,6 +930,44 @@ function asksForOrderDetails(text: string) {
   );
 }
 
+function isTerseOrderDetailFollowUp(text: string) {
+  const normalized = text
+    .toLowerCase()
+    .replace(/[?.!]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized || normalized.length > 80) return false;
+  return (
+    /^(?:details?|breakdown|list)$/.test(normalized) ||
+    /^(?:give|show|get|send)\s+(?:me\s+)?(?:the\s+)?(?:details?|detail|breakdown|list)(?:\s+(?:please|pls))?$/.test(
+      normalized,
+    ) ||
+    /^(?:show|list)\s+(?:them|those|these|it|all)(?:\s+(?:please|pls))?$/.test(
+      normalized,
+    )
+  );
+}
+
+function isContextualFinanceFollowUp(text: string) {
+  const normalized = text
+    .toLowerCase()
+    .replace(/[?.!]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized || normalized.length > 140) return false;
+  if (isOrderDetailFollowUp(normalized)) return true;
+  if (
+    /^(?:and|also|same|same thing|same for|what about|how about|for|only|just|break it down|compare that|compare it)\b/.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+  return /\b(average|avg|aov|payment|paid|card|upi|fee|fees|discount|discounts|savings|saved|restaurants?|places?|items?|orders?|spend|spent|total|count|instamart|dineout|dining out|food delivery|food|groceries|grocery|today|yesterday|last week|this week|last month|this month|january|february|march|april|may|june|july|august|september|october|november|december)\b/.test(
+    normalized,
+  );
+}
+
 function isRecentOrderRequest(text: string) {
   return (
     /\blast\s+\d{1,2}\s+(?:swiggy\s+)?orders?\b/.test(text) ||
@@ -854,14 +975,24 @@ function isRecentOrderRequest(text: string) {
   );
 }
 
-function inferRequestedOrderLimit(text: string) {
+function inferRequestedOrderLimit(text: string, conversationText = "") {
+  return (
+    inferExplicitRequestedOrderLimit(text) ??
+    (isOrderDetailFollowUp(text)
+      ? inferReferencedOrderLimit(conversationText)
+      : null) ??
+    10
+  );
+}
+
+function inferExplicitRequestedOrderLimit(text: string) {
   if (/\b(?:last|latest|most recent)\s+(?:swiggy\s+)?order\b/.test(text)) {
     return 1;
   }
   const match =
     text.match(/\blast\s+(\d{1,2})\s+(?:swiggy\s+)?orders?\b/) ??
     text.match(/\b(?:all\s+)?(\d{1,2})\s+(?:swiggy\s+)?orders?\b/);
-  if (!match?.[1]) return 10;
+  if (!match?.[1]) return null;
   return Math.max(1, Math.min(Number(match[1]), 50));
 }
 
@@ -870,9 +1001,9 @@ function inferMerchantQuery(text: string) {
   if (quoted?.[1]) return cleanQueryCandidate(quoted[1]);
 
   const merchantMatch =
-    text.match(/\b(?:from|at|in)\s+([A-Z][A-Za-z0-9&'. -]{2,80})/) ??
+    text.match(/\b(?:from|at|in)\s+([A-Z][A-Za-z0-9&'. -]{2,80})/i) ??
     text.match(
-      /\b(?:show|list|get)\s+(?:my\s+)?([A-Z][A-Za-z0-9&'. -]{2,80})\s+(?:orders?|transactions?)\b/,
+      /\b(?:show|list|get)\s+(?:my\s+)?([A-Z][A-Za-z0-9&'. -]{2,80})\s+(?:orders?|transactions?)\b/i,
     );
   if (!merchantMatch?.[1]) return null;
 
@@ -880,6 +1011,15 @@ function inferMerchantQuery(text: string) {
 }
 
 function inferItemQuery(text: string) {
+  if (isOrderDetailFollowUp(text)) return null;
+  if (
+    /\b(?:average|avg)\s+order\s+value\b|\baov\b|\border\s+(?:value|count|counts|total|totals|breakdown|details?)\b/i.test(
+      text,
+    )
+  ) {
+    return null;
+  }
+
   const itemMatch = text.match(
     /\b(?:order|ordered|eat|ate|buy|bought|get|got)\s+(?!from\b|at\b|in\b)([A-Za-z][A-Za-z0-9&'.() -]{2,80}?)(?:\s+(?:from|at|in|last|this|on|during)\b|[?.!]*$)/i,
   );
@@ -900,13 +1040,104 @@ function cleanQueryCandidate(value: string) {
   return candidate;
 }
 
-function isGenericQueryCandidate(value: string) {
-  return /^(swiggy|instamart|dineout|food delivery|restaurant|restaurants|order|orders|transaction|transactions|food|dish|dishes|item|items|most|more|least)$/i.test(
-    value,
+function shouldInheritServiceScopeFromConversation(
+  text: string,
+  intent: AssistantQueryPlan["intent"],
+) {
+  if (!isContextualFinanceFollowUp(text)) return false;
+  if (asksForCrossRangeQuestion(text)) return false;
+  if (isRecentOrderRequest(text)) return false;
+  return intent === "details" || intent === "summary" || intent === "rank";
+}
+
+function shouldInheritDateRangeFromConversation(
+  text: string,
+  conversationText: string,
+) {
+  if (!conversationText) return false;
+  if (!isContextualFinanceFollowUp(text)) return false;
+  if (asksForCrossRangeQuestion(text)) return false;
+  if (isRecentOrderRequest(text)) return false;
+  return true;
+}
+
+function asksForCrossRangeQuestion(text: string) {
+  return /\b(?:which|what)\s+month\b|\bmonthly\b|\btrend\b|\bover time\b|\bhighest\b.*\bmonth\b|\blowest\b.*\bmonth\b|\bpeak\b.*\bmonth\b/i.test(
+    text,
   );
 }
 
-function inferMonthScope(text: string) {
+function inferReferencedServices(
+  conversationText: string,
+): AssistantQueryPlan["services"] {
+  for (const message of recentConversationMessages(conversationText)) {
+    if (!isLikelyFinanceQuestion(message)) continue;
+    const services = servicesMentionedInText(message);
+    if (services.length === 1) return services;
+    if (services.length > 1) return [];
+  }
+  return [];
+}
+
+function inferReferencedOrderLimit(conversationText: string) {
+  for (const message of recentConversationMessages(conversationText)) {
+    if (!isLikelyFinanceQuestion(message)) continue;
+
+    const primaryCount = message.match(
+      /\b(?:across|over)\s+(\d{1,2})\s+orders?\b/i,
+    )?.[1];
+    if (primaryCount) {
+      return Math.max(1, Math.min(Number(primaryCount), 50));
+    }
+
+    const counts = [
+      ...new Set(
+        [...message.matchAll(/\b(\d{1,2})\s+orders?\b/gi)]
+          .map((match) => Number(match[1]))
+          .filter((value) => Number.isFinite(value)),
+      ),
+    ];
+    if (counts.length === 1) {
+      return Math.max(1, Math.min(counts[0]!, 50));
+    }
+    if (counts.length > 1) return null;
+  }
+  return null;
+}
+
+function recentConversationMessages(conversationText: string) {
+  return conversationText
+    .split(/\n(?=(?:user|assistant):)/i)
+    .map((message) => message.trim())
+    .filter(Boolean)
+    .reverse();
+}
+
+function servicesMentionedInText(text: string): AssistantQueryPlan["services"] {
+  const services = new Set<AssistantQueryPlan["services"][number]>();
+  if (/\bfood delivery\b/i.test(text)) services.add("foodDelivery");
+  if (/\binstamart|groceries|grocery\b/i.test(text)) {
+    services.add("instamart");
+  }
+  if (/\bdineout|dining out|eat(?:ing)? out\b/i.test(text)) {
+    services.add("dineout");
+  }
+  return [...services];
+}
+
+function isGenericQueryCandidate(value: string) {
+  return (
+    /^(swiggy|instamart|dineout|food delivery|restaurant|restaurants|order|orders|transaction|transactions|food|dish|dishes|item|items|most|more|least)$/i.test(
+      value,
+    ) ||
+    /^(january|february|march|april|may|june|july|august|september|october|november|december)(?:\s+\d{4})?$/i.test(
+      value,
+    ) ||
+    /^\d{4}-\d{2}(?:-\d{2})?$/.test(value)
+  );
+}
+
+function inferMonthScope(text: string, now = new Date()) {
   const monthNameMatch = findLastMatch(
     text,
     /\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})\b/gi,
@@ -924,6 +1155,21 @@ function inferMonthScope(text: string) {
     const year = Number(isoMonthMatch[1]);
     const monthIndex = Number(isoMonthMatch[2]) - 1;
     if (monthIndex >= 0 && monthIndex < 12 && Number.isFinite(year)) {
+      return monthScope(year, monthIndex);
+    }
+  }
+
+  const monthWithoutYearMatch = findLastMatch(
+    text,
+    /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b(?!\s+\d{4})/gi,
+  );
+  if (monthWithoutYearMatch?.[1]) {
+    const monthIndex = monthNames.indexOf(
+      monthWithoutYearMatch[1].toLowerCase(),
+    );
+    if (monthIndex >= 0) {
+      const year =
+        monthIndex > now.getMonth() ? now.getFullYear() - 1 : now.getFullYear();
       return monthScope(year, monthIndex);
     }
   }
@@ -1009,6 +1255,14 @@ function startOfMonth(date: Date) {
 function startOfDay(date: Date) {
   const value = new Date(date);
   value.setHours(0, 0, 0, 0);
+  return value;
+}
+
+function startOfWeek(date: Date) {
+  const value = startOfDay(date);
+  const day = value.getDay();
+  const daysSinceMonday = day === 0 ? 6 : day - 1;
+  value.setDate(value.getDate() - daysSinceMonday);
   return value;
 }
 
