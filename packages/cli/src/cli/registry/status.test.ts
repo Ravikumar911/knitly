@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   resolvePaths: vi.fn(),
+  loadConfig: vi.fn(),
+  readDashboardServiceStatus: vi.fn(),
   readPidFile: vi.fn(),
   isProcessAlive: vi.fn(),
   listInstalledSkills: vi.fn(),
@@ -10,6 +12,14 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../config/paths.js", () => ({
   resolvePaths: mocks.resolvePaths,
+}));
+
+vi.mock("../../config/load.js", () => ({
+  loadConfig: mocks.loadConfig,
+}));
+
+vi.mock("../../daemon/service.js", () => ({
+  readDashboardServiceStatus: mocks.readDashboardServiceStatus,
 }));
 
 vi.mock("../../runtime/pid.js", () => ({
@@ -30,6 +40,15 @@ describe("status command", () => {
     mocks.resolvePaths.mockReturnValue({
       db: "/tmp/slashcash-home/db.sqlite",
       attachments: "/tmp/slashcash-home/attachments",
+    });
+    mocks.loadConfig.mockReturnValue({
+      server: { port: 3000 },
+    });
+    mocks.readDashboardServiceStatus.mockReturnValue({
+      kind: "none",
+      loaded: false,
+      stdoutPath: "/tmp/slashcash-home/logs/dashboard.log",
+      stderrPath: "/tmp/slashcash-home/logs/dashboard.err.log",
     });
     mocks.listInstalledSkills.mockReturnValue([
       { id: "gmail-swiggy", enabled: true },
@@ -60,10 +79,13 @@ describe("status command", () => {
     await program.parseAsync(["status"], { from: "user" });
 
     expect(logSpy.mock.calls.map((call) => call[0])).toEqual([
+      "service         none",
       "pid             4321",
       "process         running",
       "port            3000",
       "healthz         ok",
+      "service logs    /tmp/slashcash-home/logs/dashboard.log",
+      "service errors  /tmp/slashcash-home/logs/dashboard.err.log",
       "db              /tmp/custom.sqlite",
       "attachments     /tmp/attachments",
       "enabled skills  2",
@@ -72,6 +94,7 @@ describe("status command", () => {
 
   it("falls back to default paths when the app is not running", async () => {
     mocks.readPidFile.mockReturnValue(null);
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("connection refused"));
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     const { register } = await import("./status.js");
@@ -81,10 +104,13 @@ describe("status command", () => {
     await program.parseAsync(["status"], { from: "user" });
 
     expect(logSpy.mock.calls.map((call) => call[0])).toEqual([
+      "service         none",
       "pid             -",
       "process         stopped",
-      "port            -",
-      "healthz         not running",
+      "port            3000",
+      "healthz         unreachable",
+      "service logs    /tmp/slashcash-home/logs/dashboard.log",
+      "service errors  /tmp/slashcash-home/logs/dashboard.err.log",
       "db              /tmp/slashcash-home/db.sqlite",
       "attachments     /tmp/slashcash-home/attachments",
       "enabled skills  2",

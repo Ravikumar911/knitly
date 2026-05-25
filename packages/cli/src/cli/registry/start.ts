@@ -7,7 +7,21 @@ export function register(program: Command) {
     .description("Start the local dashboard on 127.0.0.1")
     .option("--port <port>", "Port to bind", (value) => Number(value))
     .option("--no-open", "Do not open the browser")
-    .action(async (options: { port?: number; open?: boolean }) => {
-      await startDashboard({ port: options.port, noOpen: options.open === false });
-    });
+    .option(
+      "--foreground",
+      "Run in the current terminal instead of the background service",
+    )
+    .action(
+      async (options: {
+        port?: number;
+        open?: boolean;
+        foreground?: boolean;
+      }) => {
+        await startDashboard({
+          port: options.port,
+          noOpen: options.open === false,
+          foreground: options.foreground === true,
+        });
+      },
+    );
 }

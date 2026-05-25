@@ -19,7 +19,9 @@ import {
   type SlashcashPaths,
 } from "../config/paths.js";
 import { CliError } from "../errors/format.js";
+import { ensureDashboardService } from "../daemon/service.js";
 import { ensurePythonEnvReady } from "../python/env.js";
+import { resolveDashboardLaunch } from "../start/resolve-server.js";
 import { loadDatabase } from "../runtime/database.js";
 import { loadImapClient } from "../runtime/tasks.js";
 import {
@@ -122,7 +124,7 @@ export async function runOnboard(
     await runPipeline(ctx, buildSteps(), activeState);
     printFinalSummary(ctx);
     ctx.prompter.outro(
-      `Onboarding complete. Open http://${ctx.config.server.host}:${ctx.config.server.port}.`,
+      `Onboarding complete. Run \`slashcash start\` to launch http://${ctx.config.server.host}:${ctx.config.server.port}.`,
     );
   } catch (error) {
     if (error instanceof WizardCancelledError) {
@@ -153,6 +155,7 @@ function buildSteps(): Step[] {
     pythonEnvStep,
     bundledSkillsStep,
     kickoffSyncStep,
+    dashboardServiceStep,
   ];
 }
 
@@ -955,6 +958,29 @@ const kickoffSyncStep: Step = {
     if (!existsSync(pidPath)) {
       throw new Error("initial sync pid file was not written.");
     }
+  },
+};
+
+const dashboardServiceStep: Step = {
+  id: "dashboard-service",
+  label: "Dashboard service",
+  detect(ctx) {
+    if (ctx.dryRun || process.env.SLASHCASH_E2E === "1") {
+      return { done: true, message: "skipped by local/E2E mode" };
+    }
+    if (resolveDashboardLaunch().mode !== "packaged") {
+      return { done: true, message: "dev mode" };
+    }
+    if (process.platform !== "darwin") {
+      return { done: true, message: "manual start required" };
+    }
+    return { done: false };
+  },
+  async install(ctx) {
+    await ensureDashboardService({ port: ctx.config.server.port });
+  },
+  verify(ctx) {
+    return;
   },
 };
 

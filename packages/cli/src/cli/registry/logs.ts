@@ -1,5 +1,7 @@
 import type { Command } from "commander";
 import pc from "picocolors";
+import { resolvePaths } from "../../config/paths.js";
+import { readServiceLogTail } from "../../daemon/logs.js";
 import {
   readLogEvents,
   type LogArea,
@@ -19,6 +21,14 @@ export function register(program: Command) {
     )
     .option("-f, --follow", "Follow new log lines")
     .option(
+      "--service",
+      "Show LaunchAgent dashboard stdout/stderr instead of structured logs",
+    )
+    .option(
+      "--stderr",
+      "With --service, show stderr only",
+    )
+    .option(
       "--filter <areas>",
       "Comma-separated areas, for example cron,ingest",
     )
@@ -36,11 +46,21 @@ export function register(program: Command) {
       async (options: {
         tail: number;
         follow?: boolean;
+        service?: boolean;
+        stderr?: boolean;
         filter?: string;
         since?: string;
         json?: boolean;
         level: LogLevel;
       }) => {
+        if (options.service) {
+          printServiceLogs({
+            tail: options.tail,
+            stderrOnly: options.stderr === true,
+          });
+          return;
+        }
+
         const filter = parseAreas(options.filter);
         const sinceMs = options.since
           ? Date.now() - parseDurationMs(options.since)
@@ -123,4 +143,19 @@ function colorLevel(level: LogLevel) {
   if (level === "warn") return pc.yellow(level);
   if (level === "debug") return pc.gray(level);
   return pc.green(level);
+}
+
+function printServiceLogs(options: { tail: number; stderrOnly: boolean }) {
+  const paths = resolvePaths();
+  const lines = readServiceLogTail(paths.home, {
+    tail: options.tail,
+    stream: options.stderrOnly ? "stderr" : "both",
+  });
+  if (lines.length === 0) {
+    console.log("No dashboard service logs yet.");
+    return;
+  }
+  for (const line of lines) {
+    console.log(line);
+  }
 }

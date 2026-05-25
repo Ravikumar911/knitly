@@ -7,6 +7,7 @@ const commandLoaders: Array<{
   load: () => Promise<{ register: Register }>;
 }> = [
   { id: "start", load: () => import("./registry/start.js") },
+  { id: "server", load: () => import("./registry/server.js") },
   { id: "stop", load: () => import("./registry/stop.js") },
   { id: "status", load: () => import("./registry/status.js") },
   { id: "doctor", load: () => import("./registry/doctor.js") },

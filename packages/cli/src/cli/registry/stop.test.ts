@@ -5,6 +5,11 @@ const mocks = vi.hoisted(() => ({
   clearPidFile: vi.fn(),
   isProcessAlive: vi.fn(),
   readPidFile: vi.fn(),
+  stopDashboardService: vi.fn(),
+}));
+
+vi.mock("../../daemon/service.js", () => ({
+  stopDashboardService: mocks.stopDashboardService,
 }));
 
 vi.mock("../../runtime/pid.js", () => ({
@@ -23,6 +28,7 @@ describe("stop command", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    mocks.stopDashboardService.mockReturnValue(null);
   });
 
   it("prints a friendly message when nothing is running", async () => {

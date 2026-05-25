@@ -22,6 +22,10 @@ describe("start command", () => {
 
     await program.parseAsync(["start", "--port", "4010", "--no-open"], { from: "user" });
 
-    expect(mocks.startDashboard).toHaveBeenCalledWith({ port: 4010, noOpen: true });
+    expect(mocks.startDashboard).toHaveBeenCalledWith({
+      port: 4010,
+      noOpen: true,
+      foreground: false,
+    });
   });
 });

@@ -1,38 +1,67 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { accessSync } from "node:fs";
-import { join, dirname, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
 import pc from "picocolors";
 import { loadConfig } from "../config/load.js";
 import { resolvePaths } from "../config/paths.js";
 import { applyRuntimeEnv } from "../config/runtime-env.js";
 import type { SlashcashConfig } from "../config/schema.js";
+import { ensureDashboardService } from "../daemon/service.js";
 import { clearPidFile, writePidFile } from "../runtime/pid.js";
 import { writeLog } from "../runtime/log.js";
 import { loadDatabase } from "../runtime/database.js";
 import { installBundledSkills } from "../skills/registry.js";
 import { startCronWorker } from "./cron.js";
+import { resolveDashboardLaunch } from "./resolve-server.js";
 
 export async function startDashboard(
-  options: { port?: number; noOpen?: boolean } = {},
+  options: { port?: number; noOpen?: boolean; foreground?: boolean } = {},
 ) {
   const config = loadConfig({ createIfMissing: true });
   const paths = resolvePaths();
   const port = options.port ?? config.server.port;
 
   await syncProfileFromConfig(config, paths.db);
-
-  await applyRuntimeEnv({
-    config,
-    paths,
-    port,
-  });
-
+  await applyRuntimeEnv({ config, paths, port });
   installBundledSkills();
 
-  const appDir = findMainAppDir();
+  if (!options.foreground && process.env.SLASHCASH_FOREGROUND !== "1") {
+    const launch = resolveDashboardLaunch();
+    if (launch.mode === "packaged") {
+      const service = await ensureDashboardService({
+        port,
+        foreground: false,
+      });
+      if (service.mode !== "foreground") {
+        await waitForHealthz(port);
+        const url = `http://127.0.0.1:${port}`;
+        console.log(pc.green(`slash.cash is running at ${url}`));
+        console.log(`service logs  ${service.stdoutPath}`);
+        console.log(`service errors ${service.stderrPath}`);
+        console.log("structured logs  slashcash logs --follow");
+        if (
+          !options.noOpen &&
+          process.env.SLASHCASH_NO_OPEN !== "1" &&
+          process.env.SLASHCASH_SERVICE !== "1"
+        ) {
+          openBrowser(url);
+        }
+        return;
+      }
+    }
+  }
+
+  await runDashboardServer({ port, noOpen: options.noOpen });
+}
+
+export async function runDashboardServer(options: {
+  port: number;
+  noOpen?: boolean;
+}) {
+  const config = loadConfig({ createIfMissing: true });
+  const paths = resolvePaths();
+  const launch = resolveDashboardLaunch();
   const cron = startCronWorker(config, paths);
-  const child = spawnDashboard(appDir, port);
+  const child = spawnDashboard(launch, options.port);
 
   if (!child.pid) {
     throw new Error("Failed to start the dashboard process.");
@@ -40,20 +69,20 @@ export async function startDashboard(
 
   writePidFile({
     pid: child.pid,
-    port,
+    port: options.port,
     dbPath: paths.db,
     attachmentsPath: paths.attachments,
     startedAt: new Date().toISOString(),
   });
-  writeLog("runtime", { event: "start", pid: child.pid, port });
+  writeLog("runtime", { event: "start", pid: child.pid, port: options.port });
 
   bindShutdown(child, cron.stop);
-  await waitForHealthz(port);
+  await waitForHealthz(options.port);
 
-  const url = `http://127.0.0.1:${port}`;
+  const url = `http://127.0.0.1:${options.port}`;
   console.log(pc.green(`slash.cash is running at ${url}`));
 
-  if (!options.noOpen && process.env.SLASHCASH_NO_OPEN !== "1") {
+  if (!options.noOpen && process.env.SLASHCASH_NO_OPEN !== "1" && process.env.SLASHCASH_SERVICE !== "1") {
     openBrowser(url);
   }
 
@@ -62,15 +91,13 @@ export async function startDashboard(
   clearPidFile();
 }
 
-function spawnDashboard(appDir: string, port: number): ChildProcess {
-  const standalone =
-    findPackagedServer() ||
-    (process.env.SLASHCASH_USE_STANDALONE === "1"
-      ? findStandaloneServer(appDir)
-      : null);
-  if (standalone) {
-    return spawn("node", [standalone], {
-      cwd: dirname(standalone),
+function spawnDashboard(
+  launch: ReturnType<typeof resolveDashboardLaunch>,
+  port: number,
+): ChildProcess {
+  if (launch.mode === "packaged") {
+    return spawn("node", [launch.serverPath], {
+      cwd: dirname(launch.serverPath),
       stdio: "inherit",
       env: {
         ...process.env,
@@ -85,7 +112,7 @@ function spawnDashboard(appDir: string, port: number): ChildProcess {
     "pnpm",
     ["exec", "next", "dev", "--hostname", "127.0.0.1", "--port", String(port)],
     {
-      cwd: appDir,
+      cwd: launch.appDir,
       stdio: "inherit",
       env: {
         ...process.env,
@@ -95,58 +122,6 @@ function spawnDashboard(appDir: string, port: number): ChildProcess {
       },
     },
   );
-}
-
-function findPackagedServer() {
-  const here = dirname(fileURLToPath(import.meta.url));
-  if (!here.includes(`${sep}dist${sep}`)) return null;
-
-  const candidates = [
-    join(here, "..", "app", "apps", "main", "server.js"),
-    join(here, "..", "app", "server.js"),
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      accessSync(candidate);
-      return candidate;
-    } catch {
-      // Continue looking for the packaged standalone server.
-    }
-  }
-
-  return null;
-}
-
-function findStandaloneServer(appDir: string) {
-  const candidates = [
-    join(appDir, ".next", "standalone", "apps", "main", "server.js"),
-    join(appDir, ".next", "standalone", "server.js"),
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      accessSync(candidate);
-      return candidate;
-    } catch {
-      // Continue looking for the local standalone server.
-    }
-  }
-
-  return null;
-}
-
-function findMainAppDir() {
-  const fromCwd = join(process.cwd(), "apps", "main");
-  try {
-    accessSync(join(fromCwd, "package.json"));
-    return fromCwd;
-  } catch {
-    const here = dirname(fileURLToPath(import.meta.url));
-    const fromPackage = join(here, "..", "..", "..", "..", "apps", "main");
-    accessSync(join(fromPackage, "package.json"));
-    return fromPackage;
-  }
 }
 
 async function waitForHealthz(port: number) {

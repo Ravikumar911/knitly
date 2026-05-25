@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import pc from "picocolors";
+import { stopDashboardService } from "../../daemon/service.js";
 import { clearPidFile, isProcessAlive, readPidFile } from "../../runtime/pid.js";
 
 export function register(program: Command) {
@@ -7,6 +8,13 @@ export function register(program: Command) {
     .command("stop")
     .description("Stop the local dashboard")
     .action(async () => {
+      const service = stopDashboardService();
+      if (service === "launchd") {
+        clearPidFile();
+        console.log(pc.green("Stopped slash.cash background service."));
+        return;
+      }
+
       const pid = readPidFile();
       if (!pid) {
         console.log("slash.cash is not running.");
