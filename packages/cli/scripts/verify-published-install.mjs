@@ -23,6 +23,7 @@ const installRetryDelayMs = readPositiveIntegerEnv(
 );
 
 try {
+  waitForPublishedVersion();
   installPublishedPackage();
   verifyPackageLayout();
   verifyInstalledBinary();
@@ -31,6 +32,41 @@ try {
   if (process.env.SLASHCASH_KEEP_PUBLISHED_SMOKE !== "1") {
     rmSync(tempRoot, { recursive: true, force: true });
   }
+}
+
+function waitForPublishedVersion() {
+  const npm = process.env.SLASHCASH_PUBLISHED_SMOKE_NPM || "npm";
+  const registryWaitMs = readPositiveIntegerEnv(
+    "SLASHCASH_PUBLISHED_REGISTRY_WAIT_MS",
+    180_000,
+  );
+  const registryPollMs = readPositiveIntegerEnv(
+    "SLASHCASH_PUBLISHED_REGISTRY_POLL_MS",
+    5_000,
+  );
+  const deadline = Date.now() + registryWaitMs;
+
+  while (Date.now() < deadline) {
+    const result = spawnSync(
+      npm,
+      ["view", packageSpec, "version", "--registry", "https://registry.npmjs.org"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    );
+
+    if (result.status === 0 && result.stdout.trim() === version) {
+      console.log(`${packageSpec} is visible on the npm registry.`);
+      return;
+    }
+
+    console.log(
+      `Waiting for ${packageSpec} to appear on the npm registry (${registryPollMs}ms poll).`,
+    );
+    sleep(registryPollMs);
+  }
+
+  throw new Error(
+    `Timed out after ${registryWaitMs}ms waiting for ${packageSpec} on the npm registry.`,
+  );
 }
 
 function installPublishedPackage() {
