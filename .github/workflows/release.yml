@@ -130,11 +130,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # Do not set registry-url here: setup-node writes an empty _authToken and
+      # npm CLI prefers that over OIDC token exchange (npm/cli#8730).
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          registry-url: "https://registry.npmjs.org"
-      - run: node --version && npm --version
+      - name: Ensure npm supports Trusted Publishing
+        run: |
+          node --version
+          npm --version
+          npm install -g npm@latest
+          npm --version
       - uses: actions/download-artifact@v4
         with:
           name: ${{ needs.preflight.outputs.artifact_name }}
@@ -152,9 +158,8 @@ jobs:
             echo "Release tarball not found."
             exit 1
           fi
-          npm publish "$TARBALL" --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Provenance requires a public GitHub source repo; knitly is private.
+          npm publish "$TARBALL" --access public --provenance=false
       - name: Verify published install
         run: node packages/cli/scripts/verify-published-install.mjs "${{ needs.preflight.outputs.version }}"
       - name: Create GitHub release
