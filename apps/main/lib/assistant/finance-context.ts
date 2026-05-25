@@ -1,6 +1,6 @@
 import {
-  getSwiggyAssistantSnapshot,
-  type SwiggyAssistantSnapshot,
+  getAssistantFinanceSnapshot,
+  type AssistantFinanceSnapshot,
 } from "@workspace/database";
 import { z } from "zod";
 
@@ -33,16 +33,15 @@ export const assistantQueryPlanSchema = z.object({
     .nullable()
     .optional()
     .default(null),
-  services: z
-    .array(z.enum(["foodDelivery", "instamart", "dineout", "unknown"]))
-    .default([]),
+  merchantIds: z.array(z.string().min(1)).default([]),
+  serviceTypes: z.array(z.string().min(1)).default([]),
   merchantQuery: z.string().nullable().default(null),
   itemQuery: z.string().nullable().default(null),
   dimensions: z
     .array(
       z.enum([
         "service",
-        "restaurant",
+        "merchant",
         "month",
         "paymentMethod",
         "dayOfWeek",
@@ -57,13 +56,13 @@ export const assistantQueryPlanSchema = z.object({
     .array(
       z.enum([
         "spend",
-        "orders",
+        "count",
         "averageOrderValue",
         "deliveryFee",
         "discount",
       ]),
     )
-    .default(["spend", "orders"]),
+    .default(["spend", "count"]),
   includeOrders: z.boolean().default(false),
   limit: z.number().int().min(1).max(50).default(10),
 });
@@ -93,7 +92,7 @@ type QuestionScope = {
 };
 
 const financeIntentPattern =
-  /\b(swiggy|instamart|dineout|dining out|restaurant|restaurants|food|food delivery|delivery fee|delivery fees|fee|fees|spend|spent|spending|expense|expenses|transaction|transactions|order|ordered|orders|meal|meals|dish|dishes|menu|buy|bought|groceries|grocery|payment|paid|card|upi|bill|bills|discount|discounts|savings|saved|weekend|weekday)\b/i;
+  /\b(trend|monthly|restaurant|restaurants|food|food delivery|delivery fee|delivery fees|fee|fees|spend|spent|spending|expense|expenses|transaction|transactions|order|ordered|orders|meal|meals|dish|dishes|menu|buy|bought|groceries|grocery|dining|dining out|payment|paid|card|upi|wallet|money|bill|bills|discount|discounts|savings|saved|weekend|weekday)\b/i;
 
 const favoriteFoodPattern =
   /\b(fav|favorite|favourite|top|most|least)\b.*\b(food|foods|dish|dishes|menu|meal|meals|item|items)\b|\b(food|foods|dish|dishes|menu|meal|meals|item|items)\b.*\b(fav|favorite|favourite|top|most|least)\b/i;
@@ -116,15 +115,20 @@ export async function buildAssistantFinanceContext({
   const scope =
     scopeFromPlan(queryPlan) ??
     inferQuestionScope(userText, now, conversationText);
-  const snapshot = await getSwiggyAssistantSnapshot(userId, {
+  const snapshot = await getAssistantFinanceSnapshot(userId, {
+    merchantIds: queryPlan?.merchantIds,
+    serviceTypes: queryPlan?.serviceTypes,
     startDate: scope.startDate,
     endDate: scope.endDate,
+    includeOrders: queryPlan?.includeOrders,
     recentOrderLimit: queryPlan?.limit ?? scope.recentOrderLimit,
     recentOnly: scope.recentOnly,
     topLimit: Math.min(queryPlan?.limit ?? 5, 10),
-    services: queryPlan?.services,
     merchantQuery: queryPlan?.merchantQuery ?? undefined,
     itemQuery: queryPlan?.itemQuery ?? undefined,
+    dimensions: queryPlan?.dimensions,
+    metrics: queryPlan?.metrics,
+    limit: queryPlan?.limit,
   });
 
   return {
@@ -160,7 +164,7 @@ export function buildDeterministicQueryPlan(input: {
   const dimensions = new Set<AssistantQueryPlan["dimensions"][number]>();
   const metrics = new Set<AssistantQueryPlan["metrics"][number]>([
     "spend",
-    "orders",
+    "count",
   ]);
 
   let intent: AssistantQueryPlan["intent"] = "summary";
@@ -198,20 +202,22 @@ export function buildDeterministicQueryPlan(input: {
     ) ||
     /\border(?:ed)?\b.*\bfrom\b.*\b(?:most|often)\b/i.test(latest)
   ) {
-    dimensions.add("restaurant");
+    dimensions.add("merchant");
   }
   if (/\bwhere\b.*\b(?:spend|spent|spending)\b/i.test(latest)) {
     intent = "rank";
-    dimensions.add("restaurant");
+    dimensions.add("merchant");
   }
   if (/\bcompare|vs|versus|service\b/i.test(latest)) {
     intent = "compare";
     dimensions.add("service");
   }
-  if (/\binstamart|food delivery|dineout\b/i.test(latest)) {
+  if (
+    /\binstamart|grocery|groceries|food delivery|dineout|dining\b/i.test(latest)
+  ) {
     dimensions.add("service");
   }
-  if (/\bpayment|paid|upi|card|swiggy money|method\b/i.test(latest)) {
+  if (/\bpayment|paid|upi|card|wallet|money|method\b/i.test(latest)) {
     dimensions.add("paymentMethod");
   }
   if (/\bweekday|weekend|day of week|which day|days?\b/i.test(latest)) {
@@ -249,24 +255,31 @@ export function buildDeterministicQueryPlan(input: {
     metrics.add("averageOrderValue");
   }
 
-  const services: AssistantQueryPlan["services"] = [];
+  const merchantIds = inferMerchantIds(userText);
+  const serviceTypes: AssistantQueryPlan["serviceTypes"] = [];
   if (/\binstamart|groceries|grocery\b/i.test(serviceSource)) {
-    services.push("instamart");
+    serviceTypes.push("grocery");
   }
   if (
     /\bfood delivery|restaurants?|meals?|dishes?|menu\b/i.test(latest) ||
     (asksForFoodItem && !asksForGroceryItem)
   ) {
-    services.push("foodDelivery");
+    serviceTypes.push("foodDelivery");
   }
-  if (/\bdineout|dining out|eat(?:ing)? out\b/i.test(serviceSource)) {
-    services.push("dineout");
+  if (/\bdineout|dining|dining out|eat(?:ing)? out\b/i.test(serviceSource)) {
+    serviceTypes.push("dineout");
   }
   if (
-    services.length === 0 &&
+    serviceTypes.length === 0 &&
     shouldInheritServiceScopeFromConversation(latest, intent)
   ) {
-    services.push(...inferReferencedServices(conversationText));
+    serviceTypes.push(...inferReferencedServiceTypes(conversationText));
+  }
+  if (
+    merchantIds.length === 0 &&
+    shouldInheritMerchantScopeFromConversation(latest)
+  ) {
+    merchantIds.push(...inferReferencedMerchantIds(conversationText));
   }
 
   const plan = assistantQueryPlanSchema.parse({
@@ -280,7 +293,8 @@ export function buildDeterministicQueryPlan(input: {
             endDate: formatDate(scope.endDate),
           }
         : null,
-    services: [...new Set(services)],
+    merchantIds: [...new Set(merchantIds)],
+    serviceTypes: [...new Set(serviceTypes)],
     merchantQuery: inferMerchantQuery(userText),
     itemQuery,
     dimensions: [...dimensions],
@@ -307,11 +321,12 @@ You are planning one local SQLite data retrieval for a personal finance assistan
 Return a JSON object matching the schema. Do not answer the user.
 
 Available semantic fields:
-- domain: Swiggy transactions only
-- metrics: spend, orders, averageOrderValue, deliveryFee, discount
-- dimensions: service, restaurant, month, paymentMethod, dayOfWeek, hour, item, fee, order
-- services: foodDelivery, instamart, dineout
-- filters: merchantQuery for restaurants, itemQuery for menu/grocery item names
+- domain: local finance transactions from normalized transaction rows
+- metrics: spend, count, averageOrderValue, deliveryFee, discount
+- dimensions: service, merchant, month, paymentMethod, dayOfWeek, hour, item, fee, order
+- merchantIds: optional transaction merchant ids such as a delivery platform or store
+- serviceTypes: foodDelivery, grocery, dineout, or other normalized service strings
+- filters: merchantQuery for merchant/place names, itemQuery for item names
 
 Conversation:
 ${input.conversationText || "(no prior conversation)"}
@@ -320,13 +335,13 @@ Latest user message:
 ${input.userText}
 
 Rules:
-- Set isFinanceQuestion true for Swiggy/spend/order/restaurant/grocery/Instamart/Dineout/payment/fee/discount questions, including follow-ups such as "show details".
+- Set isFinanceQuestion true for spend/order/restaurant/grocery/dining/payment/fee/discount questions, including follow-ups such as "show details".
 - If the user asks for "details", "list", "show all orders", or references a prior count, set intent "details", includeOrders true, dimension "order", and use the referenced date range from the conversation if present.
 - Use exact date ranges when the user or prior answer mentions a month like "May 2025" or "2025-05".
-- For "top restaurant", use dimension "restaurant" and metrics orders/spend.
+- For "top restaurant" or merchant questions, use dimension "merchant" and metrics count/spend.
 - For "favorite food" or dish/item questions, use dimension "item".
 - For "highest month", use dimension "month" and sort by spend conceptually.
-- Keep merchantQuery for restaurant/place names and itemQuery for menu/grocery item names.`;
+- Keep merchantQuery for merchant/place names and itemQuery for item names.`;
 }
 
 export function isLikelyFinanceQuestion(text: string) {
@@ -520,21 +535,24 @@ export function inferQuestionScope(
 }
 
 function renderFinanceSystemContext(
-  snapshot: SwiggyAssistantSnapshot,
+  snapshot: AssistantFinanceSnapshot,
   scope: QuestionScope,
   plan?: AssistantQueryPlan | null,
 ) {
   const lines = [
     "Local finance context for this request:",
-    "- Domain: Swiggy spending from the user's local SQLite database.",
-    "- Scope: completed debit Swiggy transactions only.",
+    "- Domain: local finance transactions from the user's SQLite database.",
+    "- Scope: completed debit transactions only.",
+    ...(plan?.merchantIds.length
+      ? [`- Merchant ids: ${plan.merchantIds.join(", ")}.`]
+      : []),
     `- Available data: ${snapshot.dataRange.transactionCount} transactions${
       snapshot.dataRange.startDate && snapshot.dataRange.endDate
         ? ` from ${snapshot.dataRange.startDate} to ${snapshot.dataRange.endDate}`
         : ""
     }.`,
     `- Question range: ${formatScope(scope)}.`,
-    `- Totals in range: ${formatOrderCount(snapshot.totals.orders)}, ${formatMoney(
+    `- Totals in range: ${formatCount(snapshot.totals.count)}, ${formatMoney(
       snapshot.totals.spend,
     )} spend, ${formatMoney(snapshot.totals.averageOrderValue)} average order value.`,
   ];
@@ -544,7 +562,7 @@ function renderFinanceSystemContext(
       `- Service mix: ${snapshot.serviceBreakdown
         .map(
           (item) =>
-            `${item.label}: ${formatOrderCount(item.orders)}, ${formatMoney(
+            `${item.label}: ${formatCount(item.count)}, ${formatMoney(
               item.spend,
             )}`,
         )
@@ -553,30 +571,14 @@ function renderFinanceSystemContext(
   }
 
   if (
-    shouldIncludeRestaurantRankings(plan) &&
-    snapshot.topRestaurantsByOrders.length > 0
+    shouldIncludeMerchantRankings(plan) &&
+    snapshot.merchantBreakdown.length > 0
   ) {
     lines.push(
-      `- Top restaurants by order count: ${snapshot.topRestaurantsByOrders
+      `- Top merchants by count: ${snapshot.merchantBreakdown
         .map(
           (item) =>
-            `${item.name}: ${formatOrderCount(item.orders)}, ${formatMoney(
-              item.spend,
-            )}`,
-        )
-        .join("; ")}.`,
-    );
-  }
-
-  if (
-    shouldIncludeRestaurantRankings(plan) &&
-    snapshot.topRestaurantsBySpend.length > 0
-  ) {
-    lines.push(
-      `- Top restaurants by spend: ${snapshot.topRestaurantsBySpend
-        .map(
-          (item) =>
-            `${item.name}: ${formatOrderCount(item.orders)}, ${formatMoney(
+            `${item.name}: ${formatCount(item.count)}, ${formatMoney(
               item.spend,
             )}`,
         )
@@ -586,35 +588,19 @@ function renderFinanceSystemContext(
 
   if (
     shouldIncludeDimension(plan, "item") &&
-    snapshot.topFoodItems.length > 0
+    snapshot.itemBreakdown.length > 0
   ) {
     lines.push(
-      `- Top food/menu items by order count: ${snapshot.topFoodItems
+      `- Top items by count: ${snapshot.itemBreakdown
         .map(
           (item) =>
-            `${item.name}: ${formatOrderCount(item.orders)}, ${formatQuantity(
+            `${item.name}: ${formatCount(item.count)}, ${formatQuantity(
               item.quantity,
             )} qty, ${formatMoney(item.spend)}${
-              item.restaurants.length > 0
-                ? ` from ${item.restaurants.slice(0, 3).join(", ")}`
+              item.merchants.length > 0
+                ? ` from ${item.merchants.slice(0, 3).join(", ")}`
                 : ""
             }`,
-        )
-        .join("; ")}.`,
-    );
-  }
-
-  if (
-    shouldIncludeInstamartItems(plan) &&
-    snapshot.topInstamartItems.length > 0
-  ) {
-    lines.push(
-      `- Top Instamart items by quantity: ${snapshot.topInstamartItems
-        .map(
-          (item) =>
-            `${item.name}: ${formatQuantity(item.quantity)}, ${formatMoney(
-              item.spend,
-            )}`,
         )
         .join("; ")}.`,
     );
@@ -628,7 +614,7 @@ function renderFinanceSystemContext(
       `- Payment method breakdown: ${snapshot.paymentBreakdown
         .map(
           (item) =>
-            `${item.method}: ${formatOrderCount(item.orders)}, ${formatMoney(
+            `${item.method}: ${formatCount(item.count)}, ${formatMoney(
               item.spend,
             )}`,
         )
@@ -640,8 +626,8 @@ function renderFinanceSystemContext(
     const highestMonth = maxBy(snapshot.monthlyTrend, (item) => item.spend);
     if (highestMonth && shouldIncludeDimension(plan, "month")) {
       lines.push(
-        `- Highest spending month in range: ${highestMonth.month}: ${formatOrderCount(
-          highestMonth.orders,
+        `- Highest spending month in range: ${highestMonth.month}: ${formatCount(
+          highestMonth.count,
         )}, ${formatMoney(highestMonth.spend)}.`,
       );
     }
@@ -650,7 +636,7 @@ function renderFinanceSystemContext(
       `- Monthly trend: ${snapshot.monthlyTrend
         .map(
           (item) =>
-            `${item.month}: ${formatOrderCount(item.orders)}, ${formatMoney(
+            `${item.month}: ${formatCount(item.count)}, ${formatMoney(
               item.spend,
             )}`,
         )
@@ -662,14 +648,11 @@ function renderFinanceSystemContext(
     shouldIncludeDimension(plan, "dayOfWeek") &&
     snapshot.dayOfWeekBreakdown.length > 0
   ) {
-    const busiestDay = maxBy(
-      snapshot.dayOfWeekBreakdown,
-      (item) => item.orders,
-    );
+    const busiestDay = maxBy(snapshot.dayOfWeekBreakdown, (item) => item.count);
     if (busiestDay) {
       lines.push(
-        `- Busiest day by order count: ${busiestDay.day}: ${formatOrderCount(
-          busiestDay.orders,
+        `- Busiest day by count: ${busiestDay.day}: ${formatCount(
+          busiestDay.count,
         )}, ${formatMoney(busiestDay.spend)}.`,
       );
     }
@@ -677,7 +660,7 @@ function renderFinanceSystemContext(
       `- Day-of-week breakdown: ${snapshot.dayOfWeekBreakdown
         .map(
           (item) =>
-            `${item.day}: ${formatOrderCount(item.orders)}, ${formatMoney(
+            `${item.day}: ${formatCount(item.count)}, ${formatMoney(
               item.spend,
             )}`,
         )
@@ -689,13 +672,13 @@ function renderFinanceSystemContext(
     shouldIncludeDimension(plan, "hour") &&
     snapshot.hourBreakdown.length > 0
   ) {
-    const busiestHour = maxBy(snapshot.hourBreakdown, (item) => item.orders);
+    const busiestHour = maxBy(snapshot.hourBreakdown, (item) => item.count);
     if (busiestHour) {
       lines.push(
-        `- Busiest hour by order count: ${String(busiestHour.hour).padStart(
+        `- Busiest hour by count: ${String(busiestHour.hour).padStart(
           2,
           "0",
-        )}:00: ${formatOrderCount(busiestHour.orders)}, ${formatMoney(
+        )}:00: ${formatCount(busiestHour.count)}, ${formatMoney(
           busiestHour.spend,
         )}.`,
       );
@@ -704,8 +687,8 @@ function renderFinanceSystemContext(
       `- Hour breakdown: ${snapshot.hourBreakdown
         .map(
           (item) =>
-            `${String(item.hour).padStart(2, "0")}:00: ${formatOrderCount(
-              item.orders,
+            `${String(item.hour).padStart(2, "0")}:00: ${formatCount(
+              item.count,
             )}, ${formatMoney(item.spend)}`,
         )
         .join("; ")}.`,
@@ -750,14 +733,14 @@ function renderFinanceSystemContext(
   }
 
   lines.push(
-    "Answering rules for Swiggy/local finance questions:",
+    "Answering rules for local finance questions:",
     "- Use only the local finance context above for numbers.",
     "- Mention the date range when giving totals or comparisons.",
-    "- If the range has zero orders, say that clearly and mention the available data range.",
-    "- For top restaurant questions, use the order-count ranking unless the user asks for spend.",
-    "- For favorite food questions, explain that this is inferred from menu-item order history, then use the top food/menu items by order count.",
-    "- For most expensive order questions, use the most expensive orders in range.",
-    "- For Instamart vs food delivery, compare the service mix.",
+    "- If the range has zero transactions, say that clearly and mention the available data range.",
+    "- For top merchant or restaurant questions, use the merchant count ranking unless the user asks for spend.",
+    "- For favorite item questions, explain that this is inferred from item-level history, then use the top items by count.",
+    "- For most expensive transaction questions, use the most expensive orders in range.",
+    "- For service comparisons, compare the service mix.",
     "- For detail/list requests, list the orders from the order details in range.",
     "- The retrieval is based on a validated semantic query plan, not SQL generated by the model.",
     "- Do not generate SQL or mention implementation details.",
@@ -799,12 +782,12 @@ function shouldIncludeFees(plan: AssistantQueryPlan | null | undefined) {
   );
 }
 
-function shouldIncludeRestaurantRankings(
+function shouldIncludeMerchantRankings(
   plan: AssistantQueryPlan | null | undefined,
 ) {
   if (!plan) return true;
   return (
-    plan.dimensions.includes("restaurant") ||
+    plan.dimensions.includes("merchant") ||
     Boolean(plan.merchantQuery) ||
     (!plan.dimensions.includes("item") &&
       !plan.dimensions.includes("service") &&
@@ -816,34 +799,11 @@ function shouldIncludeRestaurantRankings(
   );
 }
 
-function shouldIncludeInstamartItems(
-  plan: AssistantQueryPlan | null | undefined,
-) {
-  if (!plan) return true;
-  return (
-    plan.dimensions.includes("item") ||
-    (plan.intent !== "compare" && plan.services.includes("instamart"))
-  );
-}
-
 function shouldRenderDataQualityNote(
   note: string,
   plan: AssistantQueryPlan | null | undefined,
 ) {
   if (/hour-of-day/i.test(note)) return shouldIncludeDimension(plan, "hour");
-  if (/Instamart item-level/i.test(note)) {
-    return (
-      shouldIncludeInstamartItems(plan) || shouldIncludeDimension(plan, "item")
-    );
-  }
-  if (/Dineout/i.test(note)) {
-    return (
-      !plan ||
-      plan.services.includes("dineout") ||
-      shouldIncludeDimension(plan, "restaurant") ||
-      shouldIncludeDimension(plan, "service")
-    );
-  }
   return true;
 }
 
@@ -869,7 +829,7 @@ function shouldIncludeOrders(
 }
 
 function formatOrderDetail(
-  order: SwiggyAssistantSnapshot["recentOrders"][number],
+  order: AssistantFinanceSnapshot["recentOrders"][number],
 ) {
   const items =
     order.items.length > 0
@@ -883,10 +843,10 @@ function formatOrderDetail(
           )
           .join(", ")}`
       : "";
-  return `${order.date}${order.orderId ? ` #${order.orderId}` : ""} ${serviceLabel(
-    order.service,
-  )} ${order.merchant}${
-    order.merchant === "Unknown restaurant" && order.description
+  return `${order.date}${order.orderId ? ` #${order.orderId}` : ""} ${
+    order.serviceLabel
+  } ${order.merchantName}${
+    order.merchantName === "Unknown merchant" && order.description
       ? ` (${truncate(order.description, 72)})`
       : ""
   } ${formatMoney(order.amount)}${
@@ -970,8 +930,10 @@ function isContextualFinanceFollowUp(text: string) {
 
 function isRecentOrderRequest(text: string) {
   return (
-    /\blast\s+\d{1,2}\s+(?:swiggy\s+)?orders?\b/.test(text) ||
-    /\b(?:last|latest|most recent)\s+(?:swiggy\s+)?order\b/.test(text)
+    /\blast\s+\d{1,2}\s+orders?\b/.test(text) ||
+    /\b(?:last|latest|most recent)\s+(?:(?!month|week|year|quarter)[a-z0-9&'.-]+\s+){0,4}order\b/.test(
+      text,
+    )
   );
 }
 
@@ -986,19 +948,26 @@ function inferRequestedOrderLimit(text: string, conversationText = "") {
 }
 
 function inferExplicitRequestedOrderLimit(text: string) {
-  if (/\b(?:last|latest|most recent)\s+(?:swiggy\s+)?order\b/.test(text)) {
+  if (
+    /\b(?:last|latest|most recent)\s+(?:(?!month|week|year|quarter)[a-z0-9&'.-]+\s+){0,4}order\b/.test(
+      text,
+    )
+  ) {
     return 1;
   }
   const match =
-    text.match(/\blast\s+(\d{1,2})\s+(?:swiggy\s+)?orders?\b/) ??
-    text.match(/\b(?:all\s+)?(\d{1,2})\s+(?:swiggy\s+)?orders?\b/);
+    text.match(/\blast\s+(\d{1,2})\s+orders?\b/) ??
+    text.match(
+      /\b(?:all\s+)?(\d{1,2})\s+(?:(?!orders?\b)[a-z0-9&'.-]+\s+){0,4}orders?\b/,
+    ) ??
+    text.match(/\b(?:all\s+)?(\d{1,2})\s+orders?\b/);
   if (!match?.[1]) return null;
   return Math.max(1, Math.min(Number(match[1]), 50));
 }
 
 function inferMerchantQuery(text: string) {
   const quoted = text.match(/["']([^"']{2,80})["']/);
-  if (quoted?.[1]) return cleanQueryCandidate(quoted[1]);
+  if (quoted?.[1]) return cleanMerchantQueryCandidate(quoted[1]);
 
   const merchantMatch =
     text.match(/\b(?:from|at|in)\s+([A-Z][A-Za-z0-9&'. -]{2,80})/i) ??
@@ -1007,7 +976,29 @@ function inferMerchantQuery(text: string) {
     );
   if (!merchantMatch?.[1]) return null;
 
-  return cleanQueryCandidate(merchantMatch[1]);
+  return cleanMerchantQueryCandidate(merchantMatch[1]);
+}
+
+function inferMerchantIds(text: string) {
+  const merchantIds: string[] = [];
+  const patterns = [
+    /\b(?:on|via|through)\s+([A-Za-z][A-Za-z0-9&'. -]{2,80}?)(?=\s+(?:food delivery|grocery|groceries|dining|dining out|dineout|across|over|last|this|in|for|during|orders?|transactions?|spend|spent|today|yesterday|month|year|week|quarter)\b|[?.!]*$)/i,
+    /\b(?:show|list|get)\s+(?:my\s+)?(?:all\s+)?(?:\d{1,2}\s+)?(?:today'?s\s+)?([A-Za-z][A-Za-z0-9&'. -]{2,80}?)\s+orders?\b/i,
+    /\b(?:last|latest|most recent|most expensive|biggest|largest|highest)\s+([A-Za-z][A-Za-z0-9&'. -]{2,80}?)\s+(?:order|transaction|bill|payment)\b/i,
+    /\b(?:highest|lowest|peak|biggest|largest)\s+([A-Za-z][A-Za-z0-9&'. -]{2,80}?)\s+spend\b/i,
+    /\bmonthly\s+([A-Za-z][A-Za-z0-9&'. -]{2,80}?)\s+trend\b/i,
+    /^\s*([A-Za-z][A-Za-z0-9&'. -]{2,80}?)\s+(?:spend|orders?|transactions?|trend)\b/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (!match?.[1]) continue;
+    const candidate = cleanMerchantIdCandidate(match[1]);
+    if (candidate) {
+      merchantIds.push(candidate);
+      break;
+    }
+  }
+  return merchantIds;
 }
 
 function inferItemQuery(text: string) {
@@ -1030,7 +1021,11 @@ function inferItemQuery(text: string) {
 function cleanQueryCandidate(value: string) {
   const candidate = value
     .replace(
-      /\b(?:last|this|month|quarter|year|week|orders?|transactions?|more|most|least|often|usually)\b.*$/i,
+      /\b(?:across|over|last|this|month|quarter|year|week|orders?|transactions?|spend|spent|more|most|least|often|usually)\b.*$/i,
+      "",
+    )
+    .replace(
+      /^(?:my|the|a|an|today'?s|monthly|weekly|daily|last|latest|most recent|most expensive|biggest|largest|highest)\s+/i,
       "",
     )
     .replace(/[?.!]+$/g, "")
@@ -1038,6 +1033,41 @@ function cleanQueryCandidate(value: string) {
   if (candidate.length < 2) return null;
   if (isGenericQueryCandidate(candidate)) return null;
   return candidate;
+}
+
+function cleanMerchantQueryCandidate(value: string) {
+  const candidate = cleanQueryCandidate(value);
+  if (!candidate) return null;
+  if (isServicePhrase(candidate)) return null;
+  return candidate;
+}
+
+function cleanMerchantIdCandidate(value: string) {
+  const candidate = cleanQueryCandidate(value);
+  if (!candidate) return null;
+  if (isContextualReference(candidate)) return null;
+  if (isQuestionStem(candidate)) return null;
+  if (isServicePhrase(candidate)) return null;
+  return candidate
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function isServicePhrase(value: string) {
+  return /^(food delivery|delivery|restaurant|restaurants|meal|meals|dish|dishes|menu|grocery|groceries|instamart|dineout|dining out|orders?|transactions?)$/i.test(
+    value,
+  );
+}
+
+function isContextualReference(value: string) {
+  return /^(those|these|that|them|it|all|same|same thing)$/i.test(value.trim());
+}
+
+function isQuestionStem(value: string) {
+  return /\b(?:how|what|which|when|where|why|did|do|show|list|get|send|i|my|me|usually)\b/i.test(
+    value,
+  );
 }
 
 function shouldInheritServiceScopeFromConversation(
@@ -1048,6 +1078,13 @@ function shouldInheritServiceScopeFromConversation(
   if (asksForCrossRangeQuestion(text)) return false;
   if (isRecentOrderRequest(text)) return false;
   return intent === "details" || intent === "summary" || intent === "rank";
+}
+
+function shouldInheritMerchantScopeFromConversation(text: string) {
+  if (!isContextualFinanceFollowUp(text)) return false;
+  if (asksForCrossRangeQuestion(text)) return false;
+  if (isRecentOrderRequest(text)) return false;
+  return true;
 }
 
 function shouldInheritDateRangeFromConversation(
@@ -1067,14 +1104,23 @@ function asksForCrossRangeQuestion(text: string) {
   );
 }
 
-function inferReferencedServices(
+function inferReferencedServiceTypes(
   conversationText: string,
-): AssistantQueryPlan["services"] {
+): AssistantQueryPlan["serviceTypes"] {
   for (const message of recentConversationMessages(conversationText)) {
     if (!isLikelyFinanceQuestion(message)) continue;
-    const services = servicesMentionedInText(message);
-    if (services.length === 1) return services;
-    if (services.length > 1) return [];
+    const serviceTypes = serviceTypesMentionedInText(message);
+    if (serviceTypes.length === 1) return serviceTypes;
+    if (serviceTypes.length > 1) return [];
+  }
+  return [];
+}
+
+function inferReferencedMerchantIds(conversationText: string) {
+  for (const message of recentConversationMessages(conversationText)) {
+    if (!isLikelyFinanceQuestion(message)) continue;
+    const merchantIds = inferMerchantIds(message);
+    if (merchantIds.length > 0) return merchantIds;
   }
   return [];
 }
@@ -1113,21 +1159,23 @@ function recentConversationMessages(conversationText: string) {
     .reverse();
 }
 
-function servicesMentionedInText(text: string): AssistantQueryPlan["services"] {
-  const services = new Set<AssistantQueryPlan["services"][number]>();
-  if (/\bfood delivery\b/i.test(text)) services.add("foodDelivery");
+function serviceTypesMentionedInText(
+  text: string,
+): AssistantQueryPlan["serviceTypes"] {
+  const serviceTypes = new Set<AssistantQueryPlan["serviceTypes"][number]>();
+  if (/\bfood delivery\b/i.test(text)) serviceTypes.add("foodDelivery");
   if (/\binstamart|groceries|grocery\b/i.test(text)) {
-    services.add("instamart");
+    serviceTypes.add("grocery");
   }
-  if (/\bdineout|dining out|eat(?:ing)? out\b/i.test(text)) {
-    services.add("dineout");
+  if (/\bdineout|dining|dining out|eat(?:ing)? out\b/i.test(text)) {
+    serviceTypes.add("dineout");
   }
-  return [...services];
+  return [...serviceTypes];
 }
 
 function isGenericQueryCandidate(value: string) {
   return (
-    /^(swiggy|instamart|dineout|food delivery|restaurant|restaurants|order|orders|transaction|transactions|food|dish|dishes|item|items|most|more|least)$/i.test(
+    /^(food delivery|restaurant|restaurants|order|orders|transaction|transactions|food|dish|dishes|item|items|most|more|least)$/i.test(
       value,
     ) ||
     /^(january|february|march|april|may|june|july|august|september|october|november|december)(?:\s+\d{4})?$/i.test(
@@ -1216,8 +1264,8 @@ function formatQuantity(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
 }
 
-function formatOrderCount(value: number) {
-  return `${value} ${value === 1 ? "order" : "orders"}`;
+function formatCount(value: number) {
+  return `${value} ${value === 1 ? "transaction" : "transactions"}`;
 }
 
 function truncate(value: string, maxLength: number) {
@@ -1231,21 +1279,6 @@ function maxBy<T>(items: T[], score: (item: T) => number) {
     if (!best || score(item) > score(best)) return item;
     return best;
   }, null);
-}
-
-function serviceLabel(
-  service: SwiggyAssistantSnapshot["recentOrders"][number]["service"],
-) {
-  switch (service) {
-    case "foodDelivery":
-      return "food delivery";
-    case "instamart":
-      return "Instamart";
-    case "dineout":
-      return "Dineout";
-    default:
-      return "Swiggy";
-  }
 }
 
 function startOfMonth(date: Date) {

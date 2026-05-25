@@ -1,4 +1,6 @@
 import type { Command } from "commander";
+import { streamText, type LanguageModel } from "ai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import pc from "picocolors";
 import {
   clearAssistantCredential,
@@ -107,10 +109,7 @@ export function register(program: Command) {
     .command("test")
     .description("Check the configured assistant provider")
     .action(async () => {
-      const status = await assistantStatus();
-      if (!status.ready) {
-        throw new Error(status.reason || "assistant provider is not ready");
-      }
+      await testAssistantProvider();
       console.log(pc.green("assistant provider ready"));
     });
 
@@ -126,7 +125,28 @@ export function register(program: Command) {
     });
 }
 
-async function assistantStatus() {
+type AssistantStatus =
+  | {
+      provider: "none";
+      ready: false;
+      reason: "no-assistant-provider";
+    }
+  | {
+      provider: "ollama-local";
+      ready: boolean;
+      reason: "ollama-not-running" | null;
+      model: string;
+      baseUrl: string;
+    }
+  | {
+      provider: "openai-compatible" | "anthropic";
+      ready: boolean;
+      reason: "missing-api-key" | null;
+      model: string;
+      baseUrl: string;
+    };
+
+export async function assistantStatus(): Promise<AssistantStatus> {
   const config = loadConfig({ createIfMissing: true });
   const provider = config.assistant.provider;
   if (provider === "none") {
@@ -144,6 +164,7 @@ async function assistantStatus() {
       ready,
       reason: ready ? null : "ollama-not-running",
       model: config.assistant.chatModel,
+      baseUrl: config.assistant.baseUrl,
     };
   }
 
@@ -154,6 +175,7 @@ async function assistantStatus() {
       ready: false,
       reason: "missing-api-key",
       model: config.assistant.chatModel,
+      baseUrl: config.assistant.baseUrl,
     };
   }
 
@@ -163,6 +185,7 @@ async function assistantStatus() {
       ready: true,
       reason: null,
       model: config.assistant.chatModel,
+      baseUrl: config.assistant.baseUrl,
     };
   }
 
@@ -171,7 +194,55 @@ async function assistantStatus() {
     ready: true,
     reason: null,
     model: config.assistant.chatModel,
+    baseUrl: config.assistant.baseUrl,
   };
+}
+
+export async function testAssistantProvider() {
+  const status = await assistantStatus();
+  if (!status.ready) {
+    throw new Error(status.reason || "assistant provider is not ready");
+  }
+
+  const result = streamText({
+    model: await assistantLanguageModel(status),
+    system: "Reply with exactly: ok",
+    prompt: "Say ok.",
+    maxOutputTokens: 8,
+  });
+
+  for await (const chunk of result.textStream) {
+    if (chunk.trim().length > 0) {
+      return;
+    }
+  }
+
+  throw new Error("assistant provider returned an empty response");
+}
+
+async function assistantLanguageModel(
+  status: Exclude<AssistantStatus, { provider: "none"; ready: false }>,
+): Promise<LanguageModel> {
+  const credential =
+    status.provider === "openai-compatible" || status.provider === "anthropic"
+      ? await readAssistantCredential(status.provider)
+      : null;
+  if (
+    (status.provider === "openai-compatible" ||
+      status.provider === "anthropic") &&
+    !credential
+  ) {
+    throw new Error("missing-api-key");
+  }
+
+  return createOpenAICompatible({
+    name:
+      status.provider === "anthropic"
+        ? "anthropic-compatible"
+        : status.provider,
+    baseURL: status.baseUrl,
+    apiKey: credential?.apiKey,
+  })(status.model);
 }
 
 async function checkHttp(baseUrl: string) {

@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@workspace/database", () => ({
-  getSwiggyAssistantSnapshot: vi.fn(),
+  getAssistantFinanceSnapshot: vi.fn(),
 }));
 
-import { getSwiggyAssistantSnapshot } from "@workspace/database";
+import {
+  type AssistantFinanceSnapshot,
+  getAssistantFinanceSnapshot,
+} from "@workspace/database";
 import {
   type AssistantQueryPlan,
   buildAssistantFinanceContext,
@@ -12,8 +15,8 @@ import {
   shouldLoadFinanceContext,
 } from "./finance-context";
 
-const now = new Date("2026-05-25T12:00:00+05:30");
-const getSwiggyAssistantSnapshotMock = vi.mocked(getSwiggyAssistantSnapshot);
+const now = new Date(2026, 4, 25, 12, 0, 0);
+const getAssistantFinanceSnapshotMock = vi.mocked(getAssistantFinanceSnapshot);
 
 type PlanExpectation = Partial<
   Pick<
@@ -21,7 +24,8 @@ type PlanExpectation = Partial<
     | "intent"
     | "includeOrders"
     | "limit"
-    | "services"
+    | "merchantIds"
+    | "serviceTypes"
     | "merchantQuery"
     | "itemQuery"
   >
@@ -36,22 +40,22 @@ const aprilFoodDeliveryConversation =
   "user: How much did I spend on Swiggy last month?\n" +
   "assistant: In April 2026, you spent Rs 11,312 on Swiggy across 16 orders.\n" +
   "Food delivery: 13 orders, Rs 6,337\n" +
-  "Instamart: 2 orders, Rs 790\n" +
-  "Dineout: 1 order, Rs 4,185\n" +
+  "Grocery: 2 orders, Rs 790\n" +
+  "Dining: 1 order, Rs 4,185\n" +
   "user: Food delivery: 13 orders, Rs 6,337 really 13 ?\n" +
   "assistant: In April 2026, you spent Rs 6,337 on Swiggy food delivery across 13 orders, with an average order value of Rs 488.";
 
 const broadAprilConversation =
   "assistant: In April 2026, you spent Rs 11,312 on Swiggy across 16 orders.\n" +
   "Food delivery: 13 orders, Rs 6,337\n" +
-  "Instamart: 2 orders, Rs 790\n" +
-  "Dineout: 1 order, Rs 4,185";
+  "Grocery: 2 orders, Rs 790\n" +
+  "Dining: 1 order, Rs 4,185";
 
-const mayDineoutConversation =
-  "assistant: In May 2026, your Dineout spend is Rs 2,270 across 1 order.";
+const mayDiningConversation =
+  "assistant: In May 2026, your dining spend is Rs 2,270 across 1 order.";
 
 beforeEach(() => {
-  getSwiggyAssistantSnapshotMock.mockReset();
+  getAssistantFinanceSnapshotMock.mockReset();
 });
 
 function expectPlan(
@@ -66,14 +70,19 @@ function expectPlan(
     now,
   });
   expect(plan).not.toBeNull();
-  if (!plan) return;
+  if (!plan) return plan;
 
   if (expected.intent) expect(plan.intent).toBe(expected.intent);
   if (expected.includeOrders !== undefined) {
     expect(plan.includeOrders).toBe(expected.includeOrders);
   }
   if (expected.limit !== undefined) expect(plan.limit).toBe(expected.limit);
-  if (expected.services) expect(plan.services).toEqual(expected.services);
+  if (expected.merchantIds) {
+    expect(plan.merchantIds).toEqual(expected.merchantIds);
+  }
+  if (expected.serviceTypes) {
+    expect(plan.serviceTypes).toEqual(expected.serviceTypes);
+  }
   if (expected.merchantQuery !== undefined) {
     expect(plan.merchantQuery).toBe(expected.merchantQuery);
   }
@@ -105,12 +114,9 @@ describe("buildDeterministicQueryPlan", () => {
       question: "How much did I spend on Swiggy last month?",
       expected: {
         intent: "summary",
-        services: [],
-        dateRange: {
-          label: "last month",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        merchantIds: ["swiggy"],
+        serviceTypes: [],
+        dateRange: april2026("last month"),
       },
     },
     {
@@ -118,12 +124,9 @@ describe("buildDeterministicQueryPlan", () => {
       expected: {
         intent: "details",
         includeOrders: true,
+        merchantIds: ["swiggy"],
         dimensions: ["order"],
-        dateRange: {
-          label: "last month",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026("last month"),
       },
     },
     {
@@ -131,41 +134,37 @@ describe("buildDeterministicQueryPlan", () => {
       expected: {
         intent: "details",
         includeOrders: true,
+        merchantIds: ["swiggy"],
         limit: 16,
         dimensions: ["order"],
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026(),
       },
     },
     {
       question: "How much did I spend on food delivery in April?",
       expected: {
-        services: ["foodDelivery"],
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        serviceTypes: ["foodDelivery"],
+        dateRange: april2026(),
+      },
+    },
+    {
+      question: "How much did I spend on grocery in April 2026?",
+      expected: {
+        serviceTypes: ["grocery"],
+        dateRange: april2026(),
       },
     },
     {
       question: "How much did I spend on Instamart in April 2026?",
       expected: {
-        services: ["instamart"],
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        serviceTypes: ["grocery"],
+        dateRange: april2026(),
       },
     },
     {
-      question: "Dineout spend this month",
+      question: "Dining spend this month",
       expected: {
-        services: ["dineout"],
+        serviceTypes: ["dineout"],
         dateRange: {
           label: "this month",
           startDate: "2026-05-01",
@@ -174,10 +173,21 @@ describe("buildDeterministicQueryPlan", () => {
       },
     },
     {
-      question: "Compare Instamart vs food delivery this quarter",
+      question: "Dineout spend this month",
+      expected: {
+        serviceTypes: ["dineout"],
+        dateRange: {
+          label: "this month",
+          startDate: "2026-05-01",
+          endDate: "2026-05-25",
+        },
+      },
+    },
+    {
+      question: "Compare grocery vs food delivery this quarter",
       expected: {
         intent: "compare",
-        services: ["instamart", "foodDelivery"],
+        serviceTypes: ["grocery", "foodDelivery"],
         dimensions: ["service"],
         dateRange: {
           label: "this quarter",
@@ -190,31 +200,23 @@ describe("buildDeterministicQueryPlan", () => {
       question: "What's my top restaurant by orders?",
       expected: {
         intent: "rank",
-        dimensions: ["restaurant"],
+        dimensions: ["merchant"],
       },
     },
     {
       question: "Where did I order from most last month?",
       expected: {
         intent: "rank",
-        dimensions: ["restaurant"],
-        dateRange: {
-          label: "last month",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dimensions: ["merchant"],
+        dateRange: april2026("last month"),
       },
     },
     {
       question: "Which restaurant did I spend the most at in April?",
       expected: {
         intent: "rank",
-        dimensions: ["restaurant"],
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dimensions: ["merchant"],
+        dateRange: april2026(),
       },
     },
     {
@@ -234,11 +236,22 @@ describe("buildDeterministicQueryPlan", () => {
       },
     },
     {
+      question: "What did I buy from grocery?",
+      expected: {
+        intent: "details",
+        includeOrders: true,
+        serviceTypes: ["grocery"],
+        merchantQuery: null,
+        dimensions: ["service", "item", "order"],
+      },
+    },
+    {
       question: "What did I buy from Instamart?",
       expected: {
         intent: "details",
         includeOrders: true,
-        services: ["instamart"],
+        serviceTypes: ["grocery"],
+        merchantQuery: null,
         dimensions: ["service", "item", "order"],
       },
     },
@@ -246,20 +259,16 @@ describe("buildDeterministicQueryPlan", () => {
       question: "Top grocery items last month",
       expected: {
         intent: "rank",
-        services: ["instamart"],
+        serviceTypes: ["grocery"],
         dimensions: ["item"],
-        dateRange: {
-          label: "last month",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026("last month"),
       },
     },
     {
       question: "Did I order Chicken Kabab?",
       expected: {
         itemQuery: "Chicken Kabab",
-        services: ["foodDelivery"],
+        serviceTypes: ["foodDelivery"],
         dimensions: ["item"],
       },
     },
@@ -267,7 +276,7 @@ describe("buildDeterministicQueryPlan", () => {
       question: "How many times did I order Chicken Kabab?",
       expected: {
         itemQuery: "Chicken Kabab",
-        services: ["foodDelivery"],
+        serviceTypes: ["foodDelivery"],
         dimensions: ["item"],
         absentDimensions: ["hour", "order"],
       },
@@ -276,18 +285,28 @@ describe("buildDeterministicQueryPlan", () => {
       question: "whats my fav food ?",
       expected: {
         intent: "rank",
-        services: ["foodDelivery"],
+        serviceTypes: ["foodDelivery"],
         dimensions: ["item"],
-        absentDimensions: ["restaurant"],
+        absentDimensions: ["merchant"],
       },
     },
     {
       question: "What is my most expensive Swiggy order?",
       expected: {
         intent: "extreme",
+        merchantIds: ["swiggy"],
         limit: 1,
         dimensions: ["order"],
         absentDimensions: ["month"],
+      },
+    },
+    {
+      question: "What was my biggest dining bill?",
+      expected: {
+        intent: "extreme",
+        limit: 1,
+        serviceTypes: ["dineout"],
+        dimensions: ["order"],
       },
     },
     {
@@ -295,21 +314,17 @@ describe("buildDeterministicQueryPlan", () => {
       expected: {
         intent: "extreme",
         limit: 1,
-        services: ["dineout"],
+        serviceTypes: ["dineout"],
         dimensions: ["order"],
       },
     },
     {
       question: "Average order value last month",
       expected: {
-        services: [],
+        serviceTypes: [],
         itemQuery: null,
         metrics: ["averageOrderValue"],
-        dateRange: {
-          label: "last month",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026("last month"),
       },
     },
     {
@@ -317,11 +332,7 @@ describe("buildDeterministicQueryPlan", () => {
       expected: {
         dimensions: ["fee"],
         metrics: ["deliveryFee"],
-        dateRange: {
-          label: "last month",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026("last month"),
       },
     },
     {
@@ -336,11 +347,7 @@ describe("buildDeterministicQueryPlan", () => {
       expected: {
         dimensions: ["paymentMethod"],
         absentDimensions: ["order"],
-        dateRange: {
-          label: "last month",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026("last month"),
       },
     },
     {
@@ -348,22 +355,20 @@ describe("buildDeterministicQueryPlan", () => {
       expected: {
         intent: "compare",
         dimensions: ["dayOfWeek"],
-        dateRange: {
-          label: "last month",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026("last month"),
       },
     },
     {
-      question: "Which day do I usually order Swiggy?",
+      question: "Which day do I usually order on Swiggy?",
       expected: {
+        merchantIds: ["swiggy"],
         dimensions: ["dayOfWeek", "hour"],
       },
     },
     {
-      question: "When do I usually order Swiggy?",
+      question: "When do I usually order on Swiggy?",
       expected: {
+        merchantIds: ["swiggy"],
         dimensions: ["dayOfWeek", "hour"],
       },
     },
@@ -373,7 +378,7 @@ describe("buildDeterministicQueryPlan", () => {
         intent: "trend",
         includeOrders: true,
         limit: 10,
-        services: [],
+        serviceTypes: [],
         dimensions: ["month", "order"],
       },
     },
@@ -381,6 +386,7 @@ describe("buildDeterministicQueryPlan", () => {
       question: "Monthly Swiggy trend this year",
       expected: {
         intent: "trend",
+        merchantIds: ["swiggy"],
         dimensions: ["month"],
         dateRange: {
           label: "this year",
@@ -404,12 +410,34 @@ describe("buildDeterministicQueryPlan", () => {
       expected: {
         intent: "details",
         includeOrders: true,
+        merchantIds: ["swiggy"],
         dimensions: ["order"],
         dateRange: {
           label: "today",
           startDate: "2026-05-25",
           endDate: "2026-05-25",
         },
+      },
+    },
+    {
+      question: "Merchant Alpha spend this month",
+      expected: {
+        merchantIds: ["merchant-alpha"],
+        dateRange: {
+          label: "this month",
+          startDate: "2026-05-01",
+          endDate: "2026-05-25",
+        },
+      },
+    },
+    {
+      question: "Show Merchant Alpha orders from April 2026",
+      expected: {
+        intent: "details",
+        includeOrders: true,
+        merchantIds: ["merchant-alpha"],
+        dimensions: ["order"],
+        dateRange: april2026(),
       },
     },
   ];
@@ -432,16 +460,13 @@ describe("buildDeterministicQueryPlan", () => {
       expected: {
         intent: "details",
         includeOrders: true,
+        merchantIds: ["swiggy"],
+        serviceTypes: ["foodDelivery"],
         itemQuery: null,
-        services: ["foodDelivery"],
         limit: 13,
         dimensions: ["order"],
         absentDimensions: ["item"],
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026(),
       },
     },
     {
@@ -450,14 +475,11 @@ describe("buildDeterministicQueryPlan", () => {
       expected: {
         intent: "details",
         includeOrders: true,
-        services: ["foodDelivery"],
+        merchantIds: ["swiggy"],
+        serviceTypes: ["foodDelivery"],
         limit: 13,
         dimensions: ["order"],
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026(),
       },
     },
     {
@@ -466,63 +488,48 @@ describe("buildDeterministicQueryPlan", () => {
       expected: {
         intent: "details",
         includeOrders: true,
-        services: [],
+        merchantIds: ["swiggy"],
+        serviceTypes: [],
         limit: 16,
         dimensions: ["order"],
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026(),
       },
     },
     {
-      question: "what about Instamart?",
+      question: "what about grocery?",
       conversationText: broadAprilConversation,
       expected: {
-        services: ["instamart"],
+        merchantIds: ["swiggy"],
+        serviceTypes: ["grocery"],
         includeOrders: false,
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026(),
       },
     },
     {
-      question: "and Dineout?",
+      question: "and dining?",
       conversationText: broadAprilConversation,
       expected: {
-        services: ["dineout"],
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        merchantIds: ["swiggy"],
+        serviceTypes: ["dineout"],
+        dateRange: april2026(),
       },
     },
     {
       question: "food delivery only",
       conversationText: broadAprilConversation,
       expected: {
-        services: ["foodDelivery"],
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        merchantIds: ["swiggy"],
+        serviceTypes: ["foodDelivery"],
+        dateRange: april2026(),
       },
     },
     {
       question: "which restaurants?",
       conversationText: broadAprilConversation,
       expected: {
-        dimensions: ["restaurant"],
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        merchantIds: ["swiggy"],
+        dimensions: ["merchant"],
+        dateRange: april2026(),
       },
     },
     {
@@ -530,56 +537,44 @@ describe("buildDeterministicQueryPlan", () => {
       conversationText: aprilFoodDeliveryConversation,
       expected: {
         intent: "rank",
-        services: ["foodDelivery"],
+        merchantIds: ["swiggy"],
+        serviceTypes: ["foodDelivery"],
         dimensions: ["item"],
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026(),
       },
     },
     {
       question: "break it down by payment",
       conversationText: broadAprilConversation,
       expected: {
+        merchantIds: ["swiggy"],
         dimensions: ["paymentMethod"],
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026(),
       },
     },
     {
       question: "what was the average?",
       conversationText: broadAprilConversation,
       expected: {
+        merchantIds: ["swiggy"],
         metrics: ["averageOrderValue"],
-        dateRange: {
-          label: "April 2026",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        dateRange: april2026(),
       },
     },
     {
       question: "same for last month?",
-      conversationText: mayDineoutConversation,
+      conversationText: mayDiningConversation,
       expected: {
-        services: ["dineout"],
-        dateRange: {
-          label: "last month",
-          startDate: "2026-04-01",
-          endDate: "2026-04-30",
-        },
+        serviceTypes: ["dineout"],
+        dateRange: april2026("last month"),
       },
     },
     {
       question: "what about March?",
       conversationText: broadAprilConversation,
       expected: {
-        services: [],
+        merchantIds: ["swiggy"],
+        serviceTypes: [],
         dateRange: {
           label: "March 2026",
           startDate: "2026-03-01",
@@ -596,264 +591,35 @@ describe("buildDeterministicQueryPlan", () => {
     },
   );
 
-  it("does not inherit Instamart from prior broad Swiggy answers", () => {
+  it("does not inherit service categories for cross-range merchant trends", () => {
     const plan = buildDeterministicQueryPlan({
       userText: "Which month had my highest Swiggy spend?",
       conversationText:
-        "assistant: Food delivery: 5 orders, Rs 2,754\nInstamart: 1 order, Rs 226",
+        "assistant: Food delivery: 5 orders, Rs 2,754\nGrocery: 1 order, Rs 226",
       now,
     });
 
     expect(plan?.intent).toBe("extreme");
+    expect(plan?.merchantIds).toEqual(["swiggy"]);
     expect(plan?.dimensions).toContain("month");
-    expect(plan?.services).toEqual([]);
+    expect(plan?.serviceTypes).toEqual([]);
   });
 
-  it("uses the prior month and count for order-detail follow-ups", () => {
+  it("does not turn average order value into an item filter", () => {
     const plan = buildDeterministicQueryPlan({
-      userText: "get details about the 13 order",
-      conversationText: aprilFoodDeliveryConversation,
+      userText: "average order value for Merchant Alpha last month",
       now,
     });
 
-    expect(plan).toMatchObject({
-      intent: "details",
-      includeOrders: true,
-      itemQuery: null,
-      services: ["foodDelivery"],
-      limit: 13,
-      dateRange: {
-        label: "April 2026",
-        startDate: "2026-04-01",
-        endDate: "2026-04-30",
-      },
-    });
-  });
-
-  it("loads local data for terse order-detail follow-ups", () => {
-    const plan = buildDeterministicQueryPlan({
-      userText: "give me detail ?",
-      conversationText: aprilFoodDeliveryConversation,
-      now,
-    });
-
-    expect(
-      shouldLoadFinanceContext(
-        "give me detail ?",
-        aprilFoodDeliveryConversation,
-      ),
-    ).toBe(true);
-    expect(plan).toMatchObject({
-      intent: "details",
-      includeOrders: true,
-      itemQuery: null,
-      services: ["foodDelivery"],
-      limit: 13,
-      dateRange: {
-        label: "April 2026",
-        startDate: "2026-04-01",
-        endDate: "2026-04-30",
-      },
-    });
-    expect(plan?.dimensions).toContain("order");
+    expect(plan?.metrics).toContain("averageOrderValue");
+    expect(plan?.itemQuery).toBeNull();
     expect(plan?.dimensions).not.toContain("item");
-  });
-
-  it("keeps broad Swiggy detail follow-ups broad", () => {
-    const conversation =
-      "assistant: In April 2026, you spent Rs 11,312 on Swiggy across 16 orders.\n" +
-      "Food delivery: 13 orders, Rs 6,337\n" +
-      "Instamart: 2 orders, Rs 790\n" +
-      "Dineout: 1 order, Rs 4,185";
-    const plan = buildDeterministicQueryPlan({
-      userText: "give me details",
-      conversationText: conversation,
-      now,
-    });
-
-    expect(plan).toMatchObject({
-      services: [],
-      limit: 16,
-      dateRange: {
-        label: "April 2026",
-        startDate: "2026-04-01",
-        endDate: "2026-04-30",
-      },
-    });
-  });
-
-  it("does not inherit Instamart for last-order trend requests", () => {
-    const plan = buildDeterministicQueryPlan({
-      userText: "Show spending trends for my last 10 orders",
-      conversationText: "assistant: Instamart: 1 order, Rs 226",
-      now,
-    });
-
-    expect(plan?.services).toEqual([]);
-    expect(plan?.includeOrders).toBe(true);
-    expect(plan?.limit).toBe(10);
-  });
-
-  it("plans favorite food as a food item ranking", () => {
-    const plan = buildDeterministicQueryPlan({
-      userText: "whats my fav food ?",
-      now,
-    });
-
-    expect(shouldLoadFinanceContext("whats my fav food ?")).toBe(true);
-    expect(plan?.intent).toBe("rank");
-    expect(plan?.dimensions).toContain("item");
-    expect(plan?.dimensions).not.toContain("restaurant");
-    expect(plan?.services).toEqual(["foodDelivery"]);
-  });
-
-  it("infers restaurant filters from natural order-list phrasing", () => {
-    const plan = buildDeterministicQueryPlan({
-      userText: "show my Subway orders",
-      now,
-    });
-
-    expect(plan).toMatchObject({
-      intent: "details",
-      includeOrders: true,
-      merchantQuery: "Subway",
-    });
-    expect(plan?.dimensions).toContain("order");
-  });
-
-  it("keeps Instamart as a service filter, not a merchant filter", () => {
-    const plan = buildDeterministicQueryPlan({
-      userText: "what did I buy from Instamart?",
-      now,
-    });
-
-    expect(plan).toMatchObject({
-      intent: "details",
-      includeOrders: true,
-      merchantQuery: null,
-      services: ["instamart"],
-    });
-    expect(plan?.dimensions).toEqual(
-      expect.arrayContaining(["service", "item", "order"]),
-    );
-  });
-
-  it("handles last-order requests as one recent order", () => {
-    const plan = buildDeterministicQueryPlan({
-      userText: "what was my last Swiggy order?",
-      now,
-    });
-
-    expect(plan).toMatchObject({
-      includeOrders: true,
-      limit: 1,
-    });
-    expect(plan?.dimensions).toContain("order");
-  });
-
-  it("handles item count questions without treating times as hour", () => {
-    const plan = buildDeterministicQueryPlan({
-      userText: "how many times did I order Chicken Kabab?",
-      now,
-    });
-
-    expect(plan).toMatchObject({
-      itemQuery: "Chicken Kabab",
-      includeOrders: false,
-      services: ["foodDelivery"],
-    });
-    expect(plan?.dimensions).toContain("item");
-    expect(plan?.dimensions).not.toContain("hour");
-    expect(plan?.dimensions).not.toContain("order");
-  });
-
-  it("handles usual ordering-time questions as day and hour summaries", () => {
-    const plan = buildDeterministicQueryPlan({
-      userText: "when do I usually order Swiggy?",
-      now,
-    });
-
-    expect(plan?.dimensions).toEqual(
-      expect.arrayContaining(["dayOfWeek", "hour"]),
-    );
-    expect(plan?.dimensions).not.toContain("order");
-  });
-
-  it("plans most expensive order without forcing a month trend", () => {
-    const plan = buildDeterministicQueryPlan({
-      userText: "what is my most expensive Swiggy order?",
-      now,
-    });
-
-    expect(plan?.intent).toBe("extreme");
-    expect(plan?.dimensions).toContain("order");
-    expect(plan?.dimensions).not.toContain("month");
-    expect(plan?.limit).toBe(1);
-  });
-
-  it("does not treat food delivery service comparisons as item questions", () => {
-    const plan = buildDeterministicQueryPlan({
-      userText: "compare Instamart and food delivery this quarter",
-      now,
-    });
-
-    expect(plan?.intent).toBe("compare");
-    expect(plan?.dimensions).toContain("service");
-    expect(plan?.dimensions).not.toContain("item");
-    expect(plan?.services).toEqual(["instamart", "foodDelivery"]);
   });
 });
 
 describe("buildAssistantFinanceContext", () => {
   it("fetches the full prior service-specific order list for terse follow-ups", async () => {
-    getSwiggyAssistantSnapshotMock.mockResolvedValueOnce({
-      dataRange: {
-        startDate: "2025-05-02",
-        endDate: "2026-05-23",
-        transactionCount: 135,
-      },
-      totals: {
-        spend: 6337,
-        orders: 13,
-        averageOrderValue: 487.46,
-      },
-      serviceBreakdown: [
-        {
-          service: "foodDelivery",
-          label: "Food delivery",
-          spend: 6337,
-          orders: 13,
-        },
-      ],
-      topRestaurantsByOrders: [],
-      topRestaurantsBySpend: [],
-      topFoodItems: [],
-      topInstamartItems: [],
-      paymentBreakdown: [],
-      monthlyTrend: [],
-      dayOfWeekBreakdown: [],
-      hourBreakdown: [],
-      feeSummary: {
-        totalDeliveryFee: 0,
-        averageDeliveryFee: 0,
-        totalDiscount: 0,
-        averageDiscount: 0,
-      },
-      topOrdersBySpend: [],
-      recentOrders: [
-        {
-          date: "2026-04-30",
-          orderId: "236437869304157",
-          amount: 510,
-          service: "foodDelivery",
-          merchant: "KFC",
-          description: null,
-          paymentMethod: "Swiggy Money",
-          items: [],
-        },
-      ],
-      dataQualityNotes: [],
-    });
+    getAssistantFinanceSnapshotMock.mockResolvedValueOnce(mockSnapshot());
 
     const queryPlan = buildDeterministicQueryPlan({
       userText: "give me detail ?",
@@ -868,16 +634,85 @@ describe("buildAssistantFinanceContext", () => {
       now,
     });
 
-    expect(getSwiggyAssistantSnapshotMock).toHaveBeenCalledWith("local", {
-      startDate: new Date("2026-04-01T00:00:00"),
-      endDate: new Date("2026-04-30T23:59:59.999"),
-      recentOrderLimit: 13,
-      recentOnly: false,
-      topLimit: 10,
-      services: ["foodDelivery"],
-      merchantQuery: undefined,
-      itemQuery: undefined,
-    });
+    expect(getAssistantFinanceSnapshotMock).toHaveBeenCalledWith(
+      "local",
+      expect.objectContaining({
+        merchantIds: ["swiggy"],
+        serviceTypes: ["foodDelivery"],
+        startDate: new Date(2026, 3, 1, 0, 0, 0, 0),
+        endDate: new Date(2026, 3, 30, 23, 59, 59, 999),
+        includeOrders: true,
+        recentOrderLimit: 13,
+        recentOnly: false,
+        topLimit: 10,
+        merchantQuery: undefined,
+        itemQuery: undefined,
+        dimensions: expect.arrayContaining(["order"]),
+        metrics: expect.arrayContaining(["spend", "count"]),
+        limit: 13,
+      }),
+    );
     expect(context?.system).toContain("Order details in range:");
+    expect(context?.system).toContain("2026-04-30 #236437869304157");
   });
 });
+
+function april2026(label = "April 2026") {
+  return {
+    label,
+    startDate: "2026-04-01",
+    endDate: "2026-04-30",
+  };
+}
+
+function mockSnapshot(): AssistantFinanceSnapshot {
+  return {
+    dataRange: {
+      startDate: "2025-05-02",
+      endDate: "2026-05-23",
+      transactionCount: 135,
+    },
+    totals: {
+      spend: 6337,
+      count: 13,
+      averageOrderValue: 487.46,
+    },
+    serviceBreakdown: [
+      {
+        serviceType: "foodDelivery",
+        label: "Food delivery",
+        spend: 6337,
+        count: 13,
+      },
+    ],
+    merchantBreakdown: [],
+    itemBreakdown: [],
+    paymentBreakdown: [],
+    monthlyTrend: [],
+    dayOfWeekBreakdown: [],
+    hourBreakdown: [],
+    feeSummary: {
+      totalDeliveryFee: 0,
+      averageDeliveryFee: 0,
+      totalDiscount: 0,
+      averageDiscount: 0,
+    },
+    topOrdersBySpend: [],
+    recentOrders: [
+      {
+        date: "2026-04-30",
+        transactionId: "tx-1",
+        orderId: "236437869304157",
+        merchantId: "swiggy",
+        merchantName: "KFC",
+        serviceType: "foodDelivery",
+        serviceLabel: "Food delivery",
+        amount: 510,
+        description: null,
+        paymentMethod: "Swiggy Money",
+        items: [],
+      },
+    ],
+    dataQualityNotes: [],
+  };
+}
