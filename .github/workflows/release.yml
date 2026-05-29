@@ -158,8 +158,7 @@ jobs:
             echo "Release tarball not found."
             exit 1
           fi
-          # Provenance requires a public GitHub source repo; knitly is private.
-          npm publish "$TARBALL" --access public --provenance=false
+          npm publish "$TARBALL" --access public --provenance
       - name: Verify published install
         run: node packages/cli/scripts/verify-published-install.mjs "${{ needs.preflight.outputs.version }}"
       - name: Create GitHub release

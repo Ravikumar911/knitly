@@ -1,6 +1,12 @@
 # slash.cash
 
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](./LICENSE)
+
 Local-first personal finance dashboard built with Next.js, SQLite, Drizzle ORM, tRPC, deterministic local ingest, and optional assistant AI.
+
+## Open source
+
+This repository is open source under the [ISC License](./LICENSE). Contributions are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md). To report a security issue, follow [`SECURITY.md`](./SECURITY.md).
 
 > Gmail sync uses IMAP + a user-generated Gmail app password. Swiggy extraction is deterministic Python-backed ingest; chat providers are configured later from the assistant tab or `slashcash assistant`.
 
