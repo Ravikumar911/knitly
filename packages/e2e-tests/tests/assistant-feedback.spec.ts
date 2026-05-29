@@ -1,7 +1,5 @@
 import { expect, test } from "@playwright/test";
-
-const assistantChatUrl =
-  /\/assistant\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+import { randomUUID } from "node:crypto";
 
 test.describe("Customer assistant and feedback journeys", () => {
   test("starts a chat, gets a streamed reply, and can return to a fresh chat", async ({
@@ -9,7 +7,7 @@ test.describe("Customer assistant and feedback journeys", () => {
     request,
   }) => {
     // Warm up the streaming transport (the one the real UI uses).
-    const warmupId = `assistant-warmup-${Date.now()}`;
+    const warmupId = randomUUID();
     const warmupResponse = await request.post("/api/assistant/stream", {
       data: {
         chatId: warmupId,
@@ -27,7 +25,7 @@ test.describe("Customer assistant and feedback journeys", () => {
     await warmupResponse.text();
 
     await page.goto("/assistant");
-    await expect(page).toHaveURL(assistantChatUrl, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/assistant$/);
 
     await expect(
       page.getByRole("link", { name: /New chat/i }).first(),
@@ -49,7 +47,7 @@ test.describe("Customer assistant and feedback journeys", () => {
     ).toBeVisible({ timeout: 20_000 });
 
     await page.goto("/assistant");
-    await expect(page).toHaveURL(assistantChatUrl, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/assistant$/);
     await expect(
       page.getByPlaceholder(/Ask about your spending/),
     ).toBeVisible();

@@ -30,12 +30,12 @@ test.describe("Customer dashboard journeys", () => {
     await expect(page.getByText("Meghana Foods").first()).toBeVisible();
 
     await page.getByRole("link", { name: "Assistant" }).click();
-    await expect(page).toHaveURL(
-      /\/assistant\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i,
-      { timeout: 15_000 },
-    );
+    await expect(page).toHaveURL(/\/assistant$/);
     await expect(
       page.getByRole("link", { name: /New chat/i }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByPlaceholder(/Ask about your spending/),
     ).toBeVisible();
 
     await page.getByRole("link", { name: "Settings" }).click();

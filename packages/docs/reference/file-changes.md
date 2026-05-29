@@ -209,4 +209,4 @@ No changes in Phase 1. Marketing site stays as-is; its landing page is updated a
 
 ## Final grep checklist (Phase 1 exit gate)
 
-After Phase 1 lands, the following greps across the shipping code (i.e. everything except `packages/docs/`, `CHANGELOG_SETUP.md`, and archived marketing docs) should return zero hits: `@supabase/`, `@trigger.dev/`, `@vercel/analytics`, `@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/mistral`, `postgres`, `pgSchema`, `jsonb`, `ilike`, `doublePrecision`, `gen_random_uuid`, `SUPABASE_SERVICE_ROLE_KEY`, `TRIGGER_SECRET_KEY`, `GOOGLE_CLIENT_SECRET`, `VERCEL_URL`, `SLASHCASH_MODE`.
+After Phase 1 lands, the following greps across the shipping code (i.e. everything except `packages/docs/` and archived marketing docs) should return zero hits: `@supabase/`, `@trigger.dev/`, `@vercel/analytics`, `@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/mistral`, `postgres`, `pgSchema`, `jsonb`, `ilike`, `doublePrecision`, `gen_random_uuid`, `SUPABASE_SERVICE_ROLE_KEY`, `TRIGGER_SECRET_KEY`, `GOOGLE_CLIENT_SECRET`, `VERCEL_URL`, `SLASHCASH_MODE`.

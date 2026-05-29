@@ -21,6 +21,7 @@
     "@types/node": "^20",
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
+    "better-sqlite3": "latest",
     "dotenv": "^16.4.7",
     "tsx": "^4.19.3"
   }
