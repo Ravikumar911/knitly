@@ -14,12 +14,13 @@ type Smell = {
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
+const vercelAnalyticsPackage = "@vercel/analytics";
+
 const forbiddenPackages = [
   "@supabase/ssr",
   "@supabase/supabase-js",
   "@trigger.dev/sdk",
   "@trigger.dev/build",
-  "@vercel/analytics",
   "@ai-sdk/openai",
   "@ai-sdk/anthropic",
   "@ai-sdk/mistral",
@@ -186,6 +187,23 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   });
 }
 
+function isVercelAnalyticsAllowed(rel: string) {
+  return rel.startsWith("apps/website/");
+}
+
+function isForbiddenPackage(specifier: string, rel: string) {
+  if (
+    specifier === vercelAnalyticsPackage ||
+    specifier.startsWith(`${vercelAnalyticsPackage}/`)
+  ) {
+    return !isVercelAnalyticsAllowed(rel);
+  }
+  return (
+    forbiddenPackages.includes(specifier) ||
+    forbiddenPackages.some((pkg) => specifier.startsWith(`${pkg}/`))
+  );
+}
+
 function collectPackageJsonSmells(file: string, rel: string, smells: Smell[]) {
   const raw = JSON.parse(readFileSync(file, "utf8")) as {
     dependencies?: Record<string, string>;
@@ -200,14 +218,18 @@ function collectPackageJsonSmells(file: string, rel: string, smells: Smell[]) {
 
   for (const [section, deps] of sections) {
     for (const specifier of Object.keys(deps)) {
-      if (forbiddenPackages.includes(specifier)) {
+      if (isForbiddenPackage(specifier, rel)) {
         smells.push({
           category: "forbidden-package",
           file: rel,
           line: lineOf(file, specifier),
           kind: section,
           specifier,
-          reason: "Removed cloud/provider dependency must not be reintroduced.",
+          reason:
+            specifier === vercelAnalyticsPackage ||
+            specifier.startsWith(`${vercelAnalyticsPackage}/`)
+              ? "@vercel/analytics is only allowed in apps/website (marketing site)."
+              : "Removed cloud/provider dependency must not be reintroduced.",
         });
       }
     }
@@ -287,17 +309,18 @@ function collectImportSmells(file: string, rel: string, smells: Smell[]) {
           "packages/tasks must stay deterministic and cannot import chat-model providers.",
       });
     }
-    if (
-      forbiddenPackages.includes(specifier) ||
-      forbiddenPackages.some((pkg) => specifier.startsWith(`${pkg}/`))
-    ) {
+    if (isForbiddenPackage(specifier, rel)) {
       smells.push({
         category: "forbidden-import",
         file: rel,
         line: lineOfOffset(source, match.index ?? 0),
         kind: "import",
         specifier,
-        reason: "Removed cloud/provider import must not be reintroduced.",
+        reason:
+          specifier === vercelAnalyticsPackage ||
+          specifier.startsWith(`${vercelAnalyticsPackage}/`)
+            ? "@vercel/analytics is only allowed in apps/website (marketing site)."
+            : "Removed cloud/provider import must not be reintroduced.",
       });
     }
   }

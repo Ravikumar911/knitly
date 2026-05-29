@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next"
+import { Analytics } from "@vercel/analytics/react"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "next-themes"
 import Script from "next/script"
@@ -280,6 +281,7 @@ export default function RootLayout({
             <Footer />
           </div>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   )

@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "@workspace/ui": "workspace:*",
     "lucide-react": "^0.475.0",
     "motion": "^12.18.1",
