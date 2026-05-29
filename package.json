@@ -94,7 +94,7 @@
   "engines": {
     "node": ">=20"
   },
-  "description": "A local-first personal finance dashboard powered by Next.js, SQLite, Drizzle ORM, tRPC, and Ollama.",
+  "description": "An open-source local-first personal finance dashboard powered by Next.js, SQLite, Drizzle ORM, tRPC, and optional assistant AI.",
   "main": "eslint.config.mjs",
   "keywords": [],
   "author": "",

@@ -64,15 +64,14 @@ Fields are case-sensitive. npm does not validate the configuration when you save
 2. Remove or stop relying on the repo **`NPM_TOKEN`** secret for releases once OIDC publish succeeds.
 3. The publish job needs `permissions.id-token: write` and runs on Node 24 with npm 11.5.1+.
 
-### Private repository caveat
+### Provenance
 
-`Ravikumar911/knitly` is a private GitHub repository. npm OIDC publish works, but **provenance attestations do not** — npm rejects `--provenance` with a private source repo (the failure often surfaces as `404 Not Found` instead of the underlying `422`). The release workflow therefore publishes with `--provenance=false`. Re-enable provenance if the repository becomes public.
+`Ravikumar911/knitly` is public, so the release workflow publishes with npm provenance enabled. Keep `npm publish "$TARBALL" --access public --provenance` in the release workflow unless npm changes its Trusted Publishing requirements.
 
 ### Troubleshooting misleading publish errors
 
-| Symptom                                                      | Likely cause                                                                                                      |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| `404 ... is not in this registry` after provenance is signed | Private repo + provenance enabled                                                                                 |
-| `404` or `ENEEDAUTH` with OIDC configured                    | `registry-url` on `setup-node` plus empty/missing `NODE_AUTH_TOKEN`, or `NPM_TOKEN` still set on the publish step |
-| `404` with otherwise correct OIDC setup                      | npm CLI too old — upgrade to npm 11.5.1+ on Node 24                                                               |
-| Auth works but publish denied                                | Trusted Publisher workflow filename, environment, or repository mismatch on npmjs.com                             |
+| Symptom                                   | Likely cause                                                                                                      |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `404` or `ENEEDAUTH` with OIDC configured | `registry-url` on `setup-node` plus empty/missing `NODE_AUTH_TOKEN`, or `NPM_TOKEN` still set on the publish step |
+| `404` with otherwise correct OIDC setup   | npm CLI too old — upgrade to npm 11.5.1+ on Node 24                                                               |
+| Auth works but publish denied             | Trusted Publisher workflow filename, environment, or repository mismatch on npmjs.com                             |

@@ -1,10 +1,21 @@
 # slashcash
 
+## 0.1.12
+
+### Patch Changes
+
+- Reworked the npm README so the published `slashcash` package explains the open-source slash.cash app, local-first dashboard, install flow, requirements, common commands, contribution path, and security reporting.
+- Updated npm package metadata with a clearer app-focused description and discovery keywords.
+- Refreshed release documentation now that the repository is public and npm provenance is enabled.
+
+**Full Diff**: https://github.com/Ravikumar911/knitly/compare/v0.1.11...v0.1.12
+
 ## 0.1.11
 
 ### Major Features
 
 - **Assistant Refactor**: Complete migration from deterministic planner to model-driven AI SDK v5 tools
+
   - 6 new focused finance tools (`listOrders`, `spendingSummary`, `spendingTrends`, `topMerchants`, `orderDetail`, `spendingOverview`)
   - All tools backed exclusively by new helpers in `@workspace/database`
   - Strong system prompt enforcing "call `spendingOverview` first" for better context
