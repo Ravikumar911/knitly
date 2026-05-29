@@ -8,7 +8,7 @@ export type ImageProps = Experimental_GeneratedImage & {
 
 export const Image = ({
   base64,
-  uint8Array: _uint8Array,
+  uint8Array: _uint8Array, // eslint-disable-line @typescript-eslint/no-unused-vars
   mediaType,
   ...props
 }: ImageProps) => (
