@@ -41,6 +41,7 @@ jobs:
       - run: pnpm eval:gate
         env:
           SLASHCASH_EVAL_SKIP_MODEL: "1"
+      - run: pnpm --filter @workspace/e2e-tests exec playwright install --with-deps
       - run: pnpm e2e:all
 
   bundle-smoke:
