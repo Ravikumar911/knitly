@@ -47,7 +47,10 @@ export function HeroPreviewCard() {
                 <span className="block h-2 w-2 rounded-full bg-emerald-500" />
               </span>
               <span className="truncate text-[0.78rem] font-medium text-neutral-700">
-                <Activity className="mr-1 inline h-3 w-3 -translate-y-px" aria-hidden="true" />
+                <Activity
+                  className="mr-1 inline h-3 w-3 -translate-y-px"
+                  aria-hidden="true"
+                />
                 6 agents running locally
               </span>
             </div>

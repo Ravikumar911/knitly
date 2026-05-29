@@ -31,7 +31,6 @@ export interface GmailMessage {
   snippet?: string;
 }
 
-
 export interface GmailAttachment {
   filename: string;
   mimeType: string;

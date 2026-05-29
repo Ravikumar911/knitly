@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "eval:assistant": "tsx lib/ai/evals/run-assistant-eval.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "2.0.41",

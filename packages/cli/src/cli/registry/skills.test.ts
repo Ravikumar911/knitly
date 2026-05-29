@@ -57,13 +57,29 @@ describe("skills command", () => {
     register(program);
 
     await program.parseAsync(["skills", "list"], { from: "user" });
-    await program.parseAsync(["skills", "enable", "gmail-swiggy"], { from: "user" });
-    await program.parseAsync(["skills", "disable", "alpha-skill"], { from: "user" });
+    await program.parseAsync(["skills", "enable", "gmail-swiggy"], {
+      from: "user",
+    });
+    await program.parseAsync(["skills", "disable", "alpha-skill"], {
+      from: "user",
+    });
 
-    expect(logSpy.mock.calls[0]?.[0]).toContain("gmail-swiggy 1.0.0 Sync Swiggy receipts from Gmail");
-    expect(logSpy.mock.calls[1]?.[0]).toContain("alpha-skill 0.2.0 Custom local automation");
-    expect(mocks.setSkillEnabled).toHaveBeenNthCalledWith(1, "gmail-swiggy", true);
-    expect(mocks.setSkillEnabled).toHaveBeenNthCalledWith(2, "alpha-skill", false);
+    expect(logSpy.mock.calls[0]?.[0]).toContain(
+      "gmail-swiggy 1.0.0 Sync Swiggy receipts from Gmail",
+    );
+    expect(logSpy.mock.calls[1]?.[0]).toContain(
+      "alpha-skill 0.2.0 Custom local automation",
+    );
+    expect(mocks.setSkillEnabled).toHaveBeenNthCalledWith(
+      1,
+      "gmail-swiggy",
+      true,
+    );
+    expect(mocks.setSkillEnabled).toHaveBeenNthCalledWith(
+      2,
+      "alpha-skill",
+      false,
+    );
     expect(logSpy).toHaveBeenCalledWith("Enabled gmail-swiggy.");
     expect(logSpy).toHaveBeenCalledWith("Disabled alpha-skill.");
   });

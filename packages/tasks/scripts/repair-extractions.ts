@@ -147,7 +147,10 @@ async function repairRow(
       storeTransaction: false,
     });
 
-    if (!extracted.parseSuccess || !extracted.extractionData.transaction?.amount) {
+    if (
+      !extracted.parseSuccess ||
+      !extracted.extractionData.transaction?.amount
+    ) {
       return {
         parsedEmailId: row.parsedEmailId,
         outcome: "still_fallback",
@@ -194,7 +197,9 @@ async function repairRow(
     return {
       parsedEmailId: row.parsedEmailId,
       outcome:
-        extracted.schemaUsed === "swiggy.llm.v1" ? "repaired" : "still_fallback",
+        extracted.schemaUsed === "swiggy.llm.v1"
+          ? "repaired"
+          : "still_fallback",
       schemaUsed: extracted.schemaUsed,
       confidence: extracted.extractionConfidence,
     };
@@ -229,9 +234,11 @@ async function main() {
 
   const summary = {
     repaired: results.filter((row) => row.outcome === "repaired").length,
-    removed_marketing: results.filter((row) => row.outcome === "removed_marketing")
+    removed_marketing: results.filter(
+      (row) => row.outcome === "removed_marketing",
+    ).length,
+    still_fallback: results.filter((row) => row.outcome === "still_fallback")
       .length,
-    still_fallback: results.filter((row) => row.outcome === "still_fallback").length,
     failed: results.filter((row) => row.outcome === "failed").length,
     skipped: results.filter((row) => row.outcome === "skipped").length,
   };

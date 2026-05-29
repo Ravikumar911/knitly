@@ -25,7 +25,7 @@ function DashboardLoading() {
           </Card>
         ))}
       </div>
-      
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-full md:col-span-4">
           <CardHeader>
@@ -36,7 +36,7 @@ function DashboardLoading() {
             <Skeleton className="h-[300px] w-full" />
           </CardContent>
         </Card>
-        
+
         <Card className="col-span-full md:col-span-3">
           <CardHeader>
             <Skeleton className="h-6 w-[150px]" />
@@ -65,14 +65,14 @@ function DashboardLoading() {
 export default async function Page() {
   // Prefetch data status check on the server
   prefetch(trpc.emails.checkDataExists.queryOptions());
-  
-      return (
-      <HydrateClient>
-        <DataStatusRouter>
-          <Suspense fallback={<DashboardLoading />}>
-            <AnalyticsContent />
-          </Suspense>
-        </DataStatusRouter>
-      </HydrateClient>
-    );
+
+  return (
+    <HydrateClient>
+      <DataStatusRouter>
+        <Suspense fallback={<DashboardLoading />}>
+          <AnalyticsContent />
+        </Suspense>
+      </DataStatusRouter>
+    </HydrateClient>
+  );
 }

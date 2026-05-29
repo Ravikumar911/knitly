@@ -44,12 +44,14 @@ export function listInstalledSkills(): InstalledSkill[] {
       if (!existsSync(manifestPath)) return [];
       const raw = JSON.parse(readFileSync(manifestPath, "utf8")) as unknown;
       const manifest = skillManifestSchema.parse(raw);
-      return [{
-        id: manifest.id,
-        dir,
-        manifest,
-        enabled: config.skills.enabled[manifest.id] ?? false,
-      }];
+      return [
+        {
+          id: manifest.id,
+          dir,
+          manifest,
+          enabled: config.skills.enabled[manifest.id] ?? false,
+        },
+      ];
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 }

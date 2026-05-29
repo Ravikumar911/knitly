@@ -1,8 +1,8 @@
 // Export all schema entities
-export * from './users';
-export * from './parsedEmails';
-export * from './relations';
-export * from './transactionsV2';
-export * from './feedback';
-export * from './chat';
-export * from './chatMessages';
+export * from "./users";
+export * from "./parsedEmails";
+export * from "./relations";
+export * from "./transactionsV2";
+export * from "./feedback";
+export * from "./chat";
+export * from "./chatMessages";

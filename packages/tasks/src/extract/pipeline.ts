@@ -148,57 +148,57 @@ export async function extractTransactionFromEmail(
     } else {
       const fallback = fallbackSwiggy(emailData);
       if (fallback) {
-      finalCandidate = {
-        extractionData: SwiggyMerchant.schema.parse({
-          detectedProvider: "Swiggy",
-          emailType: "ORDER_CONFIRMATION",
-          emailSubject: emailData.subject,
-          parseSuccess: true,
-          parseErrors: [],
-          confidenceScore: 0.7,
-          dataSource: "EMAIL_BODY",
-          merchantId: SwiggyMerchant.id,
-          merchantCode: SwiggyMerchant.code,
-          transaction: {
-            amount: fallback.amount,
-            currency: "INR",
-            type: "DEBIT",
-            status: "COMPLETED",
-            transactionDate: emailData.date,
-            description: fallback.description,
-            category: "Food",
-            paymentMethod: fallback.paymentMethod ?? undefined,
-            referenceIds: { orderId: fallback.orderId },
-            orderId: fallback.orderId,
-            restaurantName: fallback.restaurant,
-            deliveryAddress: {
-              fullAddress: fallback.deliveryAddress || undefined,
+        finalCandidate = {
+          extractionData: SwiggyMerchant.schema.parse({
+            detectedProvider: "Swiggy",
+            emailType: "ORDER_CONFIRMATION",
+            emailSubject: emailData.subject,
+            parseSuccess: true,
+            parseErrors: [],
+            confidenceScore: 0.7,
+            dataSource: "EMAIL_BODY",
+            merchantId: SwiggyMerchant.id,
+            merchantCode: SwiggyMerchant.code,
+            transaction: {
+              amount: fallback.amount,
+              currency: "INR",
+              type: "DEBIT",
+              status: "COMPLETED",
+              transactionDate: emailData.date,
+              description: fallback.description,
+              category: "Food",
+              paymentMethod: fallback.paymentMethod ?? undefined,
+              referenceIds: { orderId: fallback.orderId },
+              orderId: fallback.orderId,
+              restaurantName: fallback.restaurant,
+              deliveryAddress: {
+                fullAddress: fallback.deliveryAddress || undefined,
+              },
+            } satisfies NonNullable<SwiggyExtraction["transaction"]>,
+            swiggyMetadata: {
+              service: "FOOD_DELIVERY",
+              orderType: "DELIVERY",
             },
-          } satisfies NonNullable<SwiggyExtraction["transaction"]>,
-          swiggyMetadata: {
-            service: "FOOD_DELIVERY",
-            orderType: "DELIVERY",
-          },
-        }),
-        extractionConfidence: 0.7,
-        parseErrors: [],
-        warnings: [
-          ...sourceWarnings,
-          ...sources.flatMap((source) => source.warnings),
-          ...llm.parseErrors,
-        ],
-        schemaUsed: "swiggy.fallback.v1",
-        dataSource: "EMAIL_BODY",
-        contributedByPdf: false,
-        provenance: llm.provenance,
-      };
-      logPipelineStep("merge", {
-        step: 3,
-        emailId: emailData.emailId ?? null,
-        decision: "fallback",
-        schemaUsed: "swiggy.fallback.v1",
-        amount: finalCandidate.extractionData.transaction?.amount ?? null,
-      });
+          }),
+          extractionConfidence: 0.7,
+          parseErrors: [],
+          warnings: [
+            ...sourceWarnings,
+            ...sources.flatMap((source) => source.warnings),
+            ...llm.parseErrors,
+          ],
+          schemaUsed: "swiggy.fallback.v1",
+          dataSource: "EMAIL_BODY",
+          contributedByPdf: false,
+          provenance: llm.provenance,
+        };
+        logPipelineStep("merge", {
+          step: 3,
+          emailId: emailData.emailId ?? null,
+          decision: "fallback",
+          schemaUsed: "swiggy.fallback.v1",
+          amount: finalCandidate.extractionData.transaction?.amount ?? null,
+        });
       } else {
         logPipelineStep("merge", {
           step: 3,

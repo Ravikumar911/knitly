@@ -25,11 +25,7 @@ const Circle = forwardRef<
   ComponentPropsWithoutRef<"div"> & { size?: "sm" | "md" | "lg" }
 >(({ className, children, size = "md" }, ref) => {
   const sizeClass =
-    size === "lg"
-      ? "size-16"
-      : size === "sm"
-        ? "size-10"
-        : "size-12";
+    size === "lg" ? "size-16" : size === "sm" ? "size-10" : "size-12";
   return (
     <div
       ref={ref}
@@ -63,15 +59,30 @@ export function FlowBeams() {
 
   const sources = [
     { icon: <Smartphone className="h-5 w-5 text-sky-500" />, label: "UPI" },
-    { icon: <CreditCard className="h-5 w-5 text-indigo-500" />, label: "Cards" },
+    {
+      icon: <CreditCard className="h-5 w-5 text-indigo-500" />,
+      label: "Cards",
+    },
     { icon: <Mail className="h-5 w-5 text-[#635bff]" />, label: "Email" },
-    { icon: <Receipt className="h-5 w-5 text-teal-500" />, label: "Statements" },
-    { icon: <FileSpreadsheet className="h-5 w-5 text-[#2f6ceb]" />, label: "PDF/CSV" },
+    {
+      icon: <Receipt className="h-5 w-5 text-teal-500" />,
+      label: "Statements",
+    },
+    {
+      icon: <FileSpreadsheet className="h-5 w-5 text-[#2f6ceb]" />,
+      label: "PDF/CSV",
+    },
   ];
 
   const outputs = [
-    { icon: <TrendingUp className="h-5 w-5 text-emerald-600" />, label: "Score" },
-    { icon: <BadgeIndianRupee className="h-5 w-5 text-emerald-600" />, label: "Save" },
+    {
+      icon: <TrendingUp className="h-5 w-5 text-emerald-600" />,
+      label: "Score",
+    },
+    {
+      icon: <BadgeIndianRupee className="h-5 w-5 text-emerald-600" />,
+      label: "Save",
+    },
     { icon: <Brain className="h-5 w-5 text-emerald-600" />, label: "Decide" },
   ];
 
@@ -83,9 +94,7 @@ export function FlowBeams() {
       <div className="flex h-full flex-col items-center justify-around gap-4">
         {sources.map((s, i) => (
           <div key={s.label} className="flex flex-col items-center gap-2">
-            <Circle ref={sourceRefs[i] as Ref<HTMLDivElement>}>
-              {s.icon}
-            </Circle>
+            <Circle ref={sourceRefs[i] as Ref<HTMLDivElement>}>{s.icon}</Circle>
             <span className="text-[0.7rem] font-medium uppercase tracking-wider text-neutral-500">
               {s.label}
             </span>
@@ -113,9 +122,7 @@ export function FlowBeams() {
       <div className="flex h-full flex-col items-center justify-around gap-6">
         {outputs.map((s, i) => (
           <div key={s.label} className="flex flex-col items-center gap-2">
-            <Circle ref={outputRefs[i] as Ref<HTMLDivElement>}>
-              {s.icon}
-            </Circle>
+            <Circle ref={outputRefs[i] as Ref<HTMLDivElement>}>{s.icon}</Circle>
             <span className="text-[0.7rem] font-medium uppercase tracking-wider text-neutral-500">
               {s.label}
             </span>

@@ -8,7 +8,9 @@ export function register(program: Command) {
 
   server
     .command("run")
-    .description("Run the dashboard in the foreground (used by the background service)")
+    .description(
+      "Run the dashboard in the foreground (used by the background service)",
+    )
     .option("--port <port>", "Port to bind", (value) => Number(value))
     .option("--no-open", "Do not open the browser")
     .action(async (options: { port?: number; open?: boolean }) => {

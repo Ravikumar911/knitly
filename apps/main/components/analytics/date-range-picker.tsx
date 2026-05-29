@@ -5,8 +5,18 @@ import { CalendarIcon } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { Button } from "@workspace/ui/components/button";
 import { Calendar } from "@workspace/ui/components/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@workspace/ui/components/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@workspace/ui/components/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select";
 import { useTransactionFilters } from "@/store/transaction-filters";
 
 // Define DateRange type for range mode
@@ -63,7 +73,8 @@ const presetRanges = [
 ];
 
 export function DateRangePicker({ className }: { className?: string }) {
-  const { startDate, endDate, setStartDate, setEndDate } = useTransactionFilters();
+  const { startDate, endDate, setStartDate, setEndDate } =
+    useTransactionFilters();
   const [isOpen, setIsOpen] = React.useState(false);
   const [isMobile, setIsMobile] = React.useState(false);
 
@@ -72,10 +83,10 @@ export function DateRangePicker({ className }: { className?: string }) {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768); // md breakpoint
     };
-    
+
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
   // Initialize with last 30 days if no dates are set (only once)
@@ -168,7 +179,7 @@ export function DateRangePicker({ className }: { className?: string }) {
             variant="outline"
             className={cn(
               "w-full sm:w-[300px] justify-start text-left font-normal",
-              !dateRange && "text-muted-foreground"
+              !dateRange && "text-muted-foreground",
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
@@ -205,7 +216,7 @@ export function DateRangePicker({ className }: { className?: string }) {
               selected={dateRange as any}
               onSelect={handleDateRangeChange as any}
               numberOfMonths={isMobile ? 1 : 2}
-              disabled={(date) => 
+              disabled={(date) =>
                 date > new Date() || date < new Date("1900-01-01")
               }
             />
@@ -214,4 +225,4 @@ export function DateRangePicker({ className }: { className?: string }) {
       </Popover>
     </div>
   );
-} 
+}

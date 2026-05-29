@@ -158,7 +158,10 @@ function PricingCard({ tier }: { tier: PricingTier }) {
 
       <ul className="flex flex-col gap-2.5">
         {tier.features.map((feat) => (
-          <li key={feat} className="flex items-start gap-2 text-[0.86rem] text-neutral-700">
+          <li
+            key={feat}
+            className="flex items-start gap-2 text-[0.86rem] text-neutral-700"
+          >
             <Check
               className={cn(
                 "mt-0.5 h-4 w-4 flex-none",
@@ -174,12 +177,8 @@ function PricingCard({ tier }: { tier: PricingTier }) {
       {tier.href ? (
         <a
           href={tier.href}
-          target={
-            tier.href.startsWith("http") ? "_blank" : undefined
-          }
-          rel={
-            tier.href.startsWith("http") ? "noopener noreferrer" : undefined
-          }
+          target={tier.href.startsWith("http") ? "_blank" : undefined}
+          rel={tier.href.startsWith("http") ? "noopener noreferrer" : undefined}
           className={cn(
             "mt-auto inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-[0.85rem] font-semibold transition",
             tier.highlighted

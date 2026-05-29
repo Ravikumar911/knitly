@@ -123,7 +123,10 @@ export function isLaunchAgentLoaded() {
 
   const plistPath = resolveLaunchAgentPlistPath();
   try {
-    execLaunchctl(["print", `${resolveGuiDomain()}/${DASHBOARD_LAUNCH_AGENT_LABEL}`]);
+    execLaunchctl([
+      "print",
+      `${resolveGuiDomain()}/${DASHBOARD_LAUNCH_AGENT_LABEL}`,
+    ]);
     return true;
   } catch {
     return false;

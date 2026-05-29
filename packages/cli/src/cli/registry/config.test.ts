@@ -47,11 +47,16 @@ describe("config command", () => {
     const program = new Command();
     register(program);
 
-    await program.parseAsync(["config", "get", "ai.chatModel"], { from: "user" });
+    await program.parseAsync(["config", "get", "ai.chatModel"], {
+      from: "user",
+    });
     await program.parseAsync(["config", "get"], { from: "user" });
 
     expect(logSpy).toHaveBeenNthCalledWith(1, "tiny-local");
-    expect(logSpy).toHaveBeenNthCalledWith(2, JSON.stringify({ updates: { checkOnVersion: true } }, null, 2));
+    expect(logSpy).toHaveBeenNthCalledWith(
+      2,
+      JSON.stringify({ updates: { checkOnVersion: true } }, null, 2),
+    );
   });
 
   it("persists config changes", async () => {
@@ -60,7 +65,9 @@ describe("config command", () => {
     const program = new Command();
     register(program);
 
-    await program.parseAsync(["config", "set", "server.port", "4242"], { from: "user" });
+    await program.parseAsync(["config", "set", "server.port", "4242"], {
+      from: "user",
+    });
 
     expect(mocks.setConfigValue).toHaveBeenCalledWith("server.port", "4242");
     expect(logSpy).toHaveBeenCalledWith("Set server.port");

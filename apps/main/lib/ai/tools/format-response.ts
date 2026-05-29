@@ -1,5 +1,5 @@
-import { tool } from 'ai';
-import { z } from 'zod';
+import { tool } from "ai";
+import { z } from "zod";
 
 export const formatResponseTool = tool({
   description: `Format SQL query results into a natural, conversational response for the user.
@@ -12,18 +12,22 @@ export const formatResponseTool = tool({
   - Highlight interesting patterns or trends
   - Keep the tone friendly and helpful
   - If data is empty, provide a helpful explanation`,
-  
+
   inputSchema: z.object({
-    response: z.string().describe('Natural language response to the user with formatted data'),
-    summary: z.string().optional().describe('Brief summary if data is complex or contains insights'),
+    response: z
+      .string()
+      .describe("Natural language response to the user with formatted data"),
+    summary: z
+      .string()
+      .optional()
+      .describe("Brief summary if data is complex or contains insights"),
   }),
-  
+
   execute: async ({ response, summary }) => {
-    return { 
-      response, 
+    return {
+      response,
       summary: summary || null,
       formatted: true,
     };
   },
 });
-

@@ -1,5 +1,5 @@
 // Export email processing tasks
-export * from './trigger/processEmails';
+export * from "./trigger/processEmails";
 
 // Export transaction processing tasks
-export * from './trigger/duplicateDetector';
+export * from "./trigger/duplicateDetector";

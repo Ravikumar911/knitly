@@ -17,6 +17,10 @@ export function AssistantLandingChat({
   assistantConfig: AssistantConfig;
 }) {
   return (
-    <ChatBot assistantConfig={assistantConfig} chatId={chatId} initialMessages={[]} />
+    <ChatBot
+      assistantConfig={assistantConfig}
+      chatId={chatId}
+      initialMessages={[]}
+    />
   );
 }

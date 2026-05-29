@@ -20,7 +20,9 @@ describe("start command", () => {
     const program = new Command();
     register(program);
 
-    await program.parseAsync(["start", "--port", "4010", "--no-open"], { from: "user" });
+    await program.parseAsync(["start", "--port", "4010", "--no-open"], {
+      from: "user",
+    });
 
     expect(mocks.startDashboard).toHaveBeenCalledWith({
       port: 4010,

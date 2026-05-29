@@ -22,6 +22,25 @@ export default function setupSlashcashVitestHome() {
   const previousEnv = new Map<EnvKey, string | undefined>(
     ENV_KEYS.map((key) => [key, process.env[key]]),
   );
+
+  // Opt-in: hit the developer's real ~/.slashcash db (see finance-live.test.ts).
+  if (
+    process.env.SLASHCASH_LIVE_FINANCE_TEST === "1" &&
+    process.env.SQLITE_DB_PATH?.trim()
+  ) {
+    process.env.VITEST = "true";
+    return () => {
+      for (const key of ENV_KEYS) {
+        const value = previousEnv.get(key);
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    };
+  }
+
   const testHome = mkdtempSync(join(tmpdir(), "slashcash-vitest-home-"));
   const slashcashHome = join(testHome, ".slashcash");
 

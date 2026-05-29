@@ -7,7 +7,10 @@ interface InstallCtaProps {
   showCommand?: boolean;
 }
 
-export function InstallCta({ className = "", showCommand = false }: InstallCtaProps) {
+export function InstallCta({
+  className = "",
+  showCommand = false,
+}: InstallCtaProps) {
   return (
     <div className={`flex flex-col gap-3 ${className}`}>
       <div className="flex flex-wrap items-center gap-3">

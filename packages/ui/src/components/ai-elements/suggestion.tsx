@@ -1,10 +1,7 @@
 "use client";
 
 import { Button } from "@workspace/ui/components/button";
-import {
-  ScrollArea,
-  ScrollBar,
-} from "@workspace/ui/components/scroll-area";
+import { ScrollArea, ScrollBar } from "@workspace/ui/components/scroll-area";
 import { cn } from "@workspace/ui/lib/utils";
 import type { ComponentProps } from "react";
 import { useCallback } from "react";

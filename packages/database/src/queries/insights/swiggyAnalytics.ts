@@ -96,14 +96,26 @@ const serviceKeys = {
   DINEOUT: "dineout",
 } as const;
 
-const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const dayNames = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 function asMerchantData(value: unknown): MerchantData {
   return (value && typeof value === "object" ? value : {}) as MerchantData;
 }
 
-function serviceBucket(service: string | undefined): keyof SwiggySpendingOverview["serviceBreakdown"] | null {
-  return service && service in serviceKeys ? serviceKeys[service as keyof typeof serviceKeys] : null;
+function serviceBucket(
+  service: string | undefined,
+): keyof SwiggySpendingOverview["serviceBreakdown"] | null {
+  return service && service in serviceKeys
+    ? serviceKeys[service as keyof typeof serviceKeys]
+    : null;
 }
 
 function amount(value: unknown): number {
@@ -111,7 +123,11 @@ function amount(value: unknown): number {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
-async function getSwiggyRows(userId: string, startDate: Date, endDate: Date): Promise<SwiggyRow[]> {
+async function getSwiggyRows(
+  userId: string,
+  startDate: Date,
+  endDate: Date,
+): Promise<SwiggyRow[]> {
   const rows = await db
     .select({
       amount: transactionsV2.amount,
@@ -145,8 +161,14 @@ export async function getSwiggySpendingOverview(
 
   const serviceBreakdown = { food: 0, instamart: 0, dineout: 0 };
   const orderBreakdown = { food: 0, instamart: 0, dineout: 0 };
-  const restaurants = new Map<string, { name: string; orders: number; spend: number }>();
-  const instamartItems = new Map<string, { name: string; count: number; amount: number }>();
+  const restaurants = new Map<
+    string,
+    { name: string; orders: number; spend: number }
+  >();
+  const instamartItems = new Map<
+    string,
+    { name: string; count: number; amount: number }
+  >();
 
   for (const row of orderRows) {
     const bucket = serviceBucket(row.merchantData.swiggyMetadata?.service);
@@ -157,7 +179,11 @@ export async function getSwiggySpendingOverview(
 
     const restaurant = row.merchantData.transaction?.restaurantName?.trim();
     if (restaurant && bucket !== "instamart") {
-      const existing = restaurants.get(restaurant) ?? { name: restaurant, orders: 0, spend: 0 };
+      const existing = restaurants.get(restaurant) ?? {
+        name: restaurant,
+        orders: 0,
+        spend: 0,
+      };
       existing.orders += 1;
       existing.spend += row.amount;
       restaurants.set(restaurant, existing);
@@ -169,7 +195,11 @@ export async function getSwiggySpendingOverview(
         if (!name) continue;
         const quantity = amount(item.quantity || 1);
         const price = amount(item.price);
-        const existing = instamartItems.get(name) ?? { name, count: 0, amount: 0 };
+        const existing = instamartItems.get(name) ?? {
+          name,
+          count: 0,
+          amount: 0,
+        };
         existing.count += quantity;
         existing.amount += price * quantity;
         instamartItems.set(name, existing);
@@ -186,8 +216,12 @@ export async function getSwiggySpendingOverview(
     avgOrderValue: orderCount ? totalSpend / orderCount : 0,
     serviceBreakdown,
     orderBreakdown,
-    topRestaurants: [...restaurants.values()].sort((a, b) => b.spend - a.spend).slice(0, 3),
-    topInstamartItems: [...instamartItems.values()].sort((a, b) => b.count - a.count).slice(0, 3),
+    topRestaurants: [...restaurants.values()]
+      .sort((a, b) => b.spend - a.spend)
+      .slice(0, 3),
+    topInstamartItems: [...instamartItems.values()]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3),
   };
 }
 
@@ -201,7 +235,12 @@ export async function getSwiggyBehaviorInsights(
   );
 
   const weekendVsWeekday = { weekend: 0, weekday: 0 };
-  const dayWiseSpending = dayNames.map((day, dayNumber) => ({ day, dayNumber, spend: 0, orders: 0 }));
+  const dayWiseSpending = dayNames.map((day, dayNumber) => ({
+    day,
+    dayNumber,
+    spend: 0,
+    orders: 0,
+  }));
   const dayTotals = dayNames.map(() => ({ spend: 0, orders: 0 }));
   const monthly = new Map<string, number>();
   let deliveryFeeTotal = 0;
@@ -227,15 +266,17 @@ export async function getSwiggyBehaviorInsights(
       deliveryFeeTotal += fee;
       deliveryFeeCount += 1;
     }
-    totalSavings += amount(transaction?.discount) + amount(transaction?.membershipDiscount);
+    totalSavings +=
+      amount(transaction?.discount) + amount(transaction?.membershipDiscount);
   }
 
-  const mostExpensiveDayIndex = dayTotals
-    .map((value, index) => ({
-      index,
-      average: value.orders ? value.spend / value.orders : 0,
-    }))
-    .sort((a, b) => b.average - a.average)[0]?.index ?? 0;
+  const mostExpensiveDayIndex =
+    dayTotals
+      .map((value, index) => ({
+        index,
+        average: value.orders ? value.spend / value.orders : 0,
+      }))
+      .sort((a, b) => b.average - a.average)[0]?.index ?? 0;
 
   return {
     weekendVsWeekday,
@@ -259,7 +300,10 @@ export async function getSwiggySmartInsights(
   );
 
   const hours = new Map<number, number>();
-  const areas = new Map<string, { area: string; pincode: string; orderCount: number }>();
+  const areas = new Map<
+    string,
+    { area: string; pincode: string; orderCount: number }
+  >();
   let mostExpensive = rows[0];
 
   for (const row of rows) {
@@ -274,14 +318,21 @@ export async function getSwiggySmartInsights(
     const area = address?.area?.trim();
     if (area) {
       const key = `${area}|${address?.pincode ?? ""}`;
-      const existing = areas.get(key) ?? { area, pincode: address?.pincode ?? "", orderCount: 0 };
+      const existing = areas.get(key) ?? {
+        area,
+        pincode: address?.pincode ?? "",
+        orderCount: 0,
+      };
       existing.orderCount += 1;
       areas.set(key, existing);
     }
   }
 
-  const peakOrderingHour = [...hours.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
-  const topDeliveryArea = [...areas.values()].sort((a, b) => b.orderCount - a.orderCount)[0] ?? {
+  const peakOrderingHour =
+    [...hours.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
+  const topDeliveryArea = [...areas.values()].sort(
+    (a, b) => b.orderCount - a.orderCount,
+  )[0] ?? {
     area: "",
     pincode: "",
     orderCount: 0,
@@ -291,7 +342,9 @@ export async function getSwiggySmartInsights(
     peakOrderingHour,
     mostExpensiveOrder: {
       amount: mostExpensive?.amount ?? 0,
-      restaurant: mostExpensive?.merchantData.transaction?.restaurantName ?? "Unknown Restaurant",
+      restaurant:
+        mostExpensive?.merchantData.transaction?.restaurantName ??
+        "Unknown Restaurant",
       date: mostExpensive?.transactionDate.toISOString().split("T")[0] ?? "",
     },
     topDeliveryArea,

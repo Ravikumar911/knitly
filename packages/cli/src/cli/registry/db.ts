@@ -7,28 +7,32 @@ import { loadDatabase } from "../../runtime/database.js";
 export function register(program: Command) {
   const db = program.command("db").description("Manage the local database");
 
-  db.command("seed").description("Seed deterministic local Swiggy data").action(async () => {
-    await prepareDbPath();
-    const { seedLocalDatabase } = await loadDatabase();
-    await seedLocalDatabase();
-    console.log("Seeded local Swiggy data.");
-  });
+  db.command("seed")
+    .description("Seed deterministic local Swiggy data")
+    .action(async () => {
+      await prepareDbPath();
+      const { seedLocalDatabase } = await loadDatabase();
+      await seedLocalDatabase();
+      console.log("Seeded local Swiggy data.");
+    });
 
   db.command("repair-extractions")
     .description(
       "Re-run extraction from stored emails/PDFs and upgrade fallback rows",
     )
-    .option(
-      "--all",
-      "Repair every Swiggy transaction, not just fallback rows",
-    )
+    .option("--all", "Repair every Swiggy transaction, not just fallback rows")
     .action(async (options: { all?: boolean }) => {
       await prepareDbPath();
       process.env.SLASHCASH_REPAIR_ONLY_FALLBACK = options.all ? "0" : "1";
       const { spawnSync } = await import("node:child_process");
       const { dirname, join } = await import("node:path");
       const { fileURLToPath } = await import("node:url");
-      const cliRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+      const cliRoot = join(
+        dirname(fileURLToPath(import.meta.url)),
+        "..",
+        "..",
+        "..",
+      );
       const tasksRoot = join(cliRoot, "..", "tasks");
       const result = spawnSync(
         "pnpm",
@@ -43,7 +47,9 @@ export function register(program: Command) {
     });
 
   db.command("reset")
-    .description("Reset the local database and attachments for a fresh Gmail sync")
+    .description(
+      "Reset the local database and attachments for a fresh Gmail sync",
+    )
     .option("-y, --yes", "Skip confirmation")
     .option(
       "--seed",

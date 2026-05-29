@@ -54,6 +54,8 @@ import {
   ReasoningContent,
   ReasoningTrigger,
 } from "@workspace/ui/components/ai-elements/reasoning";
+import { Loader } from "@workspace/ui/components/ai-elements/loader";
+import { Shimmer } from "@workspace/ui/components/ai-elements/shimmer";
 import {
   Source,
   Sources,
@@ -168,9 +170,7 @@ function syntheticModelRow(config: AssistantConfig): UiModelRow {
 }
 
 /** Single UI row for the assistant configured in ~/.slashcash (provider + chatModel). */
-function resolveAssistantUiModels(
-  config: AssistantConfig,
-): UiModelRow[] {
+function resolveAssistantUiModels(config: AssistantConfig): UiModelRow[] {
   if (config.provider === "none") {
     return [];
   }
@@ -322,6 +322,14 @@ function renderAssistantMessage(m: UIMessage) {
             </MessageContent>
           );
         }
+
+        // Tool parts are intentionally not rendered for users in v1.
+        // We still process them internally for the model to work.
+        // Loading states below will indicate when background work is happening.
+        if (part.type?.startsWith("tool-") || part.type === "dynamic-tool") {
+          return null;
+        }
+
         return null;
       })}
     </div>
@@ -463,9 +471,7 @@ function ChatBotInner({
 
   const visibleChefHeadings = useMemo(
     () =>
-      CHEF_ORDER.filter((chef) =>
-        availableModels.some((m) => m.chef === chef),
-      ),
+      CHEF_ORDER.filter((chef) => availableModels.some((m) => m.chef === chef)),
     [availableModels],
   );
 
@@ -560,6 +566,58 @@ function ChatBotInner({
               </MessageBranchContent>
             </MessageBranch>
           ))}
+
+          {/* Loading / Thinking state while the assistant works in the background.
+              Tool details are hidden for v1 — we only surface pleasant loading states. */}
+          {isBusy && (
+            <div className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
+              <Loader size={14} className="animate-spin" />
+              <Shimmer duration={1.8}>
+                {(() => {
+                  // We can still detect internally if tools are running to give better messages,
+                  // without ever showing the actual tool name or data to the user.
+                  // Check both historical visibleMessages *and* the in-flight last message
+                  // from useChat (the one carrying tool parts with state during active streaming).
+                  const lastAssistant = [...visibleMessages]
+                    .reverse()
+                    .find((m) => m.role === "assistant");
+                  const lastFromHook = messages.at(-1);
+                  const hasActiveTools =
+                    lastAssistant?.parts?.some(
+                      (p: any) =>
+                        (p.type?.startsWith("tool-") ||
+                          p.type === "dynamic-tool") &&
+                        [
+                          "input-streaming",
+                          "input-available",
+                          "running",
+                        ].includes(p.state),
+                    ) ||
+                    (lastFromHook?.role === "assistant" &&
+                      lastFromHook.parts?.some(
+                        (p: any) =>
+                          (p.type?.startsWith("tool-") ||
+                            p.type === "dynamic-tool") &&
+                          [
+                            "input-streaming",
+                            "input-available",
+                            "running",
+                          ].includes(p.state),
+                      ));
+
+                  if (status === "submitted") {
+                    return "Thinking...";
+                  }
+
+                  if (hasActiveTools) {
+                    return "Analyzing your spending data...";
+                  }
+
+                  return "Working on it...";
+                })()}
+              </Shimmer>
+            </div>
+          )}
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>

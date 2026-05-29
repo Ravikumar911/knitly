@@ -86,10 +86,13 @@ describe("db command", () => {
 
     await program.parseAsync(["db", "reset", "--yes"], { from: "user" });
 
-    expect(mocks.rmSync).toHaveBeenCalledWith("/tmp/slashcash-home/attachments", {
-      recursive: true,
-      force: true,
-    });
+    expect(mocks.rmSync).toHaveBeenCalledWith(
+      "/tmp/slashcash-home/attachments",
+      {
+        recursive: true,
+        force: true,
+      },
+    );
     expect(mocks.clearLocalSeedData).toHaveBeenCalled();
     expect(mocks.ensureLocalDatabase).toHaveBeenCalled();
     expect(mocks.seedLocalDatabase).not.toHaveBeenCalled();
@@ -104,7 +107,9 @@ describe("db command", () => {
     const program = new Command();
     register(program);
 
-    await program.parseAsync(["db", "reset", "--yes", "--seed"], { from: "user" });
+    await program.parseAsync(["db", "reset", "--yes", "--seed"], {
+      from: "user",
+    });
 
     expect(mocks.seedLocalDatabase).toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalledWith("Reset and seeded local demo data.");

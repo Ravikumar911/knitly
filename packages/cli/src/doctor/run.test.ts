@@ -61,15 +61,17 @@ describe("doctor runner", () => {
   });
 
   it("prints JSON when requested", async () => {
-    const checks = [{
-      id: "node",
-      name: "Node",
-      label: "Node",
-      category: "binary" as const,
-      status: "ok" as const,
-      message: "v22.0.0",
-      durationMs: 1,
-    }];
+    const checks = [
+      {
+        id: "node",
+        name: "Node",
+        label: "Node",
+        category: "binary" as const,
+        status: "ok" as const,
+        message: "v22.0.0",
+        durationMs: 1,
+      },
+    ];
     mocks.runChecks.mockResolvedValue(checks);
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 

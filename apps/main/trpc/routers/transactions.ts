@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { baseProcedure, protectedProcedure, createTRPCRouter } from "../init";
-import { 
-  getTransactionsWithEmails, 
-  getTransactionsCount, 
+import {
+  getTransactionsWithEmails,
+  getTransactionsCount,
   getUserMerchants,
   getTransactionWithEmail,
-  type TransactionFilters 
+  type TransactionFilters,
 } from "@workspace/database";
 
 const transactionFiltersSchema = z.object({
@@ -18,8 +18,8 @@ const transactionFiltersSchema = z.object({
   startDate: z.date().optional(),
   endDate: z.date().optional(),
   searchQuery: z.string().optional(),
-  sortBy: z.enum(['date', 'amount', 'merchant']).optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional(),
+  sortBy: z.enum(["date", "amount", "merchant"]).optional(),
+  sortOrder: z.enum(["asc", "desc"]).optional(),
 });
 
 export const transactionsRouter = createTRPCRouter({
@@ -30,7 +30,7 @@ export const transactionsRouter = createTRPCRouter({
         page: z.number().min(1).default(1),
         pageSize: z.number().min(1).max(100).default(20),
         filters: transactionFiltersSchema.optional(),
-      })
+      }),
     )
     .query(async ({ input, ctx }) => {
       const { page, pageSize, filters } = input;
@@ -41,7 +41,7 @@ export const transactionsRouter = createTRPCRouter({
           ctx.userId!,
           filters as TransactionFilters,
           pageSize,
-          offset
+          offset,
         ),
         getTransactionsCount(ctx.userId!, filters as TransactionFilters),
       ]);
@@ -100,4 +100,4 @@ export const transactionsRouter = createTRPCRouter({
       { value: "CREDIT", label: "Credit" },
     ];
   }),
-}); 
+});

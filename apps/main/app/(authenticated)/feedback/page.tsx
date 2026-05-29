@@ -3,23 +3,38 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
-import { RadioGroup, RadioGroupItem } from "@workspace/ui/components/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select";
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@workspace/ui/components/radio-group";
 import { Alert, AlertDescription } from "@workspace/ui/components/alert";
 import { Separator } from "@workspace/ui/components/separator";
-import { 
-  Send, 
-  Bug, 
-  Lightbulb, 
-  MessageSquare, 
+import {
+  Send,
+  Bug,
+  Lightbulb,
+  MessageSquare,
   Zap,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
 } from "lucide-react";
 import { useTRPC } from "@/trpc/client";
 
@@ -29,29 +44,29 @@ const feedbackTypes = [
     label: "Bug Report",
     description: "Report a problem or error",
     icon: Bug,
-    color: "text-red-500"
+    color: "text-red-500",
   },
   {
     value: "feature",
-    label: "Feature Request", 
+    label: "Feature Request",
     description: "Suggest a new feature",
     icon: Lightbulb,
-    color: "text-yellow-500"
+    color: "text-yellow-500",
   },
   {
     value: "improvement",
     label: "Improvement",
     description: "Suggest an enhancement",
     icon: Zap,
-    color: "text-blue-500"
+    color: "text-blue-500",
   },
   {
     value: "general",
     label: "General Feedback",
     description: "Share your thoughts",
     icon: MessageSquare,
-    color: "text-green-500"
-  }
+    color: "text-green-500",
+  },
 ];
 
 export default function FeedbackPage() {
@@ -65,37 +80,45 @@ export default function FeedbackPage() {
     userEmail: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
+  const [submitStatus, setSubmitStatus] = useState<
+    "idle" | "success" | "error"
+  >("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const createFeedbackMutation = useMutation(trpc.feedback.create.mutationOptions({
-    onSuccess: () => {
-      setSubmitStatus("success");
-      setIsSubmitting(false);
-      // Reset form
-      setFormData({
-        subject: "",
-        message: "",
-        type: "",
-        priority: "medium",
-        userEmail: "",
-      });
-      // Redirect after a delay
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 2000);
-    },
-    onError: (error: any) => {
-      setSubmitStatus("error");
-      setErrorMessage(error.message || "An error occurred");
-      setIsSubmitting(false);
-    },
-  }));
+  const createFeedbackMutation = useMutation(
+    trpc.feedback.create.mutationOptions({
+      onSuccess: () => {
+        setSubmitStatus("success");
+        setIsSubmitting(false);
+        // Reset form
+        setFormData({
+          subject: "",
+          message: "",
+          type: "",
+          priority: "medium",
+          userEmail: "",
+        });
+        // Redirect after a delay
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 2000);
+      },
+      onError: (error: any) => {
+        setSubmitStatus("error");
+        setErrorMessage(error.message || "An error occurred");
+        setIsSubmitting(false);
+      },
+    }),
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.subject.trim() || !formData.message.trim() || !formData.type) {
+
+    if (
+      !formData.subject.trim() ||
+      !formData.message.trim() ||
+      !formData.type
+    ) {
       setSubmitStatus("error");
       setErrorMessage("Please fill in all required fields");
       return;
@@ -103,7 +126,7 @@ export default function FeedbackPage() {
 
     setIsSubmitting(true);
     setSubmitStatus("idle");
-    
+
     createFeedbackMutation.mutate({
       subject: formData.subject,
       message: formData.message,
@@ -115,7 +138,7 @@ export default function FeedbackPage() {
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (submitStatus === "error") {
       setSubmitStatus("idle");
     }
@@ -129,7 +152,8 @@ export default function FeedbackPage() {
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold mb-2">Thank You!</h2>
             <p className="text-muted-foreground mb-4">
-              Your feedback has been submitted successfully. We appreciate you taking the time to help us improve.
+              Your feedback has been submitted successfully. We appreciate you
+              taking the time to help us improve.
             </p>
             <p className="text-sm text-muted-foreground">
               Redirecting to dashboard...
@@ -145,7 +169,8 @@ export default function FeedbackPage() {
       <div className="text-center">
         <h1 className="text-3xl font-bold tracking-tight">Send Feedback</h1>
         <p className="text-muted-foreground mt-2">
-          Help us improve by sharing your thoughts, reporting bugs, or suggesting new features
+          Help us improve by sharing your thoughts, reporting bugs, or
+          suggesting new features
         </p>
       </div>
 
@@ -153,28 +178,32 @@ export default function FeedbackPage() {
         {/* Feedback Type Selection */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">What type of feedback do you have?</CardTitle>
+            <CardTitle className="text-lg">
+              What type of feedback do you have?
+            </CardTitle>
             <CardDescription>
               Select the category that best describes your feedback
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <RadioGroup 
-              value={formData.type} 
+            <RadioGroup
+              value={formData.type}
               onValueChange={(value) => handleInputChange("type", value)}
               className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
               {feedbackTypes.map((type) => (
                 <div key={type.value} className="flex items-center space-x-2">
                   <RadioGroupItem value={type.value} id={type.value} />
-                  <Label 
-                    htmlFor={type.value} 
+                  <Label
+                    htmlFor={type.value}
                     className="flex items-center space-x-3 cursor-pointer flex-1 p-3 rounded-lg border hover:bg-accent"
                   >
                     <type.icon className={`h-5 w-5 ${type.color}`} />
                     <div>
                       <div className="font-medium">{type.label}</div>
-                      <div className="text-sm text-muted-foreground">{type.description}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {type.description}
+                      </div>
                     </div>
                   </Label>
                 </div>
@@ -202,7 +231,12 @@ export default function FeedbackPage() {
               </div>
               <div>
                 <Label htmlFor="priority">Priority</Label>
-                <Select value={formData.priority} onValueChange={(value) => handleInputChange("priority", value)}>
+                <Select
+                  value={formData.priority}
+                  onValueChange={(value) =>
+                    handleInputChange("priority", value)
+                  }
+                >
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -253,17 +287,22 @@ export default function FeedbackPage() {
 
         {/* Submit Button */}
         <div className="flex justify-end space-x-4">
-          <Button 
-            type="button" 
-            variant="outline" 
+          <Button
+            type="button"
+            variant="outline"
             onClick={() => router.back()}
             disabled={isSubmitting}
           >
             Cancel
           </Button>
-          <Button 
-            type="submit" 
-            disabled={isSubmitting || !formData.subject.trim() || !formData.message.trim() || !formData.type}
+          <Button
+            type="submit"
+            disabled={
+              isSubmitting ||
+              !formData.subject.trim() ||
+              !formData.message.trim() ||
+              !formData.type
+            }
           >
             {isSubmitting ? (
               <>
@@ -305,4 +344,4 @@ export default function FeedbackPage() {
       </Card>
     </div>
   );
-} 
+}

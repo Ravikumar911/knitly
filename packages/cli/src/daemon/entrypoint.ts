@@ -21,11 +21,15 @@ export function resolveCliEntrypoint(): string {
     accessSync(normalized);
     return normalized;
   } catch {
-    throw new Error(`Unable to resolve slashcash CLI entrypoint at ${normalized}.`);
+    throw new Error(
+      `Unable to resolve slashcash CLI entrypoint at ${normalized}.`,
+    );
   }
 }
 
-export function resolveCliProgramArguments(args: string[]): [string, ...string[]] {
+export function resolveCliProgramArguments(
+  args: string[],
+): [string, ...string[]] {
   return [process.execPath, resolveCliEntrypoint(), ...args];
 }
 

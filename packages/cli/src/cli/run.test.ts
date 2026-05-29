@@ -39,7 +39,9 @@ describe("runCli", () => {
     const { runCli } = await import("./run.js");
     await runCli(["explode"], { version: "1.2.3" });
 
-    expect(mocks.registerCommands).toHaveBeenCalledWith(expect.anything(), ["explode"]);
+    expect(mocks.registerCommands).toHaveBeenCalledWith(expect.anything(), [
+      "explode",
+    ]);
     expect(mocks.normalizeCliError).toHaveBeenCalledWith(error);
     expect(mocks.formatCliError).toHaveBeenCalledWith({
       area: "runtime",

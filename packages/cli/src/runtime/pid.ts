@@ -20,7 +20,9 @@ export function readPidFile(): PidFile | null {
 export function writePidFile(pid: PidFile) {
   const paths = resolvePaths();
   ensureStateDirs(paths);
-  writeFileSync(paths.pidFile, `${JSON.stringify(pid, null, 2)}\n`, { mode: 0o600 });
+  writeFileSync(paths.pidFile, `${JSON.stringify(pid, null, 2)}\n`, {
+    mode: 0o600,
+  });
 }
 
 export function clearPidFile() {

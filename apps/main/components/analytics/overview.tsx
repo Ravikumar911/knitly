@@ -2,18 +2,32 @@
 
 import { useTRPC } from "@/trpc/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card";
 import { Badge } from "@workspace/ui/components/badge";
 import { IndianRupee, ShoppingCart, TrendingUp, Utensils } from "lucide-react";
 import { useTransactionFilters } from "@/store/transaction-filters";
 import { useMemo } from "react";
 import { DateRangePicker } from "./date-range-picker";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@workspace/ui/components/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@workspace/ui/components/chart";
 import { PieChart, Pie, Cell } from "recharts";
 
 // Stable fallback dates to prevent cache invalidation
 const FALLBACK_END_DATE = new Date();
-const FALLBACK_START_DATE = new Date(FALLBACK_END_DATE.getTime() - 30 * 24 * 60 * 60 * 1000);
+const FALLBACK_START_DATE = new Date(
+  FALLBACK_END_DATE.getTime() - 30 * 24 * 60 * 60 * 1000,
+);
 
 // Chart configuration
 const ORDER_BREAKDOWN_CHART_CONFIG = {
@@ -58,9 +72,9 @@ export function AnalyticsOverview() {
 
   // Format currency
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
@@ -86,10 +100,10 @@ export function AnalyticsOverview() {
             <IndianRupee className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(overview.totalSpend)}</div>
-            <p className="text-xs text-muted-foreground">
-              Across all services
-            </p>
+            <div className="text-2xl font-bold">
+              {formatCurrency(overview.totalSpend)}
+            </div>
+            <p className="text-xs text-muted-foreground">Across all services</p>
           </CardContent>
         </Card>
 
@@ -100,22 +114,22 @@ export function AnalyticsOverview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{overview.orderCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Orders placed
-            </p>
+            <p className="text-xs text-muted-foreground">Orders placed</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Order Value</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Avg Order Value
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(overview.avgOrderValue)}</div>
-            <p className="text-xs text-muted-foreground">
-              Per order
-            </p>
+            <div className="text-2xl font-bold">
+              {formatCurrency(overview.avgOrderValue)}
+            </div>
+            <p className="text-xs text-muted-foreground">Per order</p>
           </CardContent>
         </Card>
 
@@ -128,15 +142,21 @@ export function AnalyticsOverview() {
             <div className="space-y-1">
               <div className="flex items-center justify-between text-sm">
                 <span>Food</span>
-                <span className="font-medium">{formatCurrency(overview.serviceBreakdown.food)}</span>
+                <span className="font-medium">
+                  {formatCurrency(overview.serviceBreakdown.food)}
+                </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span>Instamart</span>
-                <span className="font-medium">{formatCurrency(overview.serviceBreakdown.instamart)}</span>
+                <span className="font-medium">
+                  {formatCurrency(overview.serviceBreakdown.instamart)}
+                </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span>Dineout</span>
-                <span className="font-medium">{formatCurrency(overview.serviceBreakdown.dineout)}</span>
+                <span className="font-medium">
+                  {formatCurrency(overview.serviceBreakdown.dineout)}
+                </span>
               </div>
             </div>
           </CardContent>
@@ -155,24 +175,35 @@ export function AnalyticsOverview() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {overview.topRestaurants.map((restaurant: { name: string; orders: number; spend: number }, index: number) => (
-                <div key={restaurant.name} className="flex items-center space-x-4">
-                  <Badge variant="secondary" className="min-w-[24px] h-6 flex items-center justify-center">
-                    {index + 1}
-                  </Badge>
-                  <div className="flex-1 space-y-1">
-                    <p className="text-sm font-medium leading-none">
-                      {restaurant.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {restaurant.orders} orders
-                    </p>
+              {overview.topRestaurants.map(
+                (
+                  restaurant: { name: string; orders: number; spend: number },
+                  index: number,
+                ) => (
+                  <div
+                    key={restaurant.name}
+                    className="flex items-center space-x-4"
+                  >
+                    <Badge
+                      variant="secondary"
+                      className="min-w-[24px] h-6 flex items-center justify-center"
+                    >
+                      {index + 1}
+                    </Badge>
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {restaurant.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {restaurant.orders} orders
+                      </p>
+                    </div>
+                    <div className="text-sm font-medium">
+                      {formatCurrency(restaurant.spend)}
+                    </div>
                   </div>
-                  <div className="text-sm font-medium">
-                    {formatCurrency(restaurant.spend)}
-                  </div>
-                </div>
-              ))}
+                ),
+              )}
             </div>
           </CardContent>
         </Card>
@@ -186,55 +217,69 @@ export function AnalyticsOverview() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-              <div className="w-full">
-                <ChartContainer
-                  config={ORDER_BREAKDOWN_CHART_CONFIG}
-                  className="h-[200px] w-full"
-                >
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { name: "food", value: overview.orderBreakdown.food },
-                        { name: "instamart", value: overview.orderBreakdown.instamart },
-                        { name: "dineout", value: overview.orderBreakdown.dineout },
-                      ]}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      <Cell fill="var(--color-food)" />
-                      <Cell fill="var(--color-instamart)" />
-                      <Cell fill="var(--color-dineout)" />
-                    </Pie>
-                    <ChartTooltip
-                      content={
-                        <ChartTooltipContent
-                          formatter={(value, name) => [
-                            `${value} orders `,
-                            typeof name === "string" 
-                              ? (name === "food" ? "Food Delivery" : name.charAt(0).toUpperCase() + name.slice(1))
-                              : String(name)
-                          ]}
-                        />
-                      }
-                    />
-                    <ChartLegend
-                      content={
-                        <ChartLegendContent
-                          payload={[
-                            { value: "Food Delivery", color: "var(--color-food)" },
-                            { value: "Instamart", color: "var(--color-instamart)" },
-                            { value: "Dineout", color: "var(--color-dineout)" },
-                          ]}
-                        />
-                      }
-                    />
-                  </PieChart>
-                </ChartContainer>
-              </div>
+            <div className="w-full">
+              <ChartContainer
+                config={ORDER_BREAKDOWN_CHART_CONFIG}
+                className="h-[200px] w-full"
+              >
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "food", value: overview.orderBreakdown.food },
+                      {
+                        name: "instamart",
+                        value: overview.orderBreakdown.instamart,
+                      },
+                      {
+                        name: "dineout",
+                        value: overview.orderBreakdown.dineout,
+                      },
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    <Cell fill="var(--color-food)" />
+                    <Cell fill="var(--color-instamart)" />
+                    <Cell fill="var(--color-dineout)" />
+                  </Pie>
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        formatter={(value, name) => [
+                          `${value} orders `,
+                          typeof name === "string"
+                            ? name === "food"
+                              ? "Food Delivery"
+                              : name.charAt(0).toUpperCase() + name.slice(1)
+                            : String(name),
+                        ]}
+                      />
+                    }
+                  />
+                  <ChartLegend
+                    content={
+                      <ChartLegendContent
+                        payload={[
+                          {
+                            value: "Food Delivery",
+                            color: "var(--color-food)",
+                          },
+                          {
+                            value: "Instamart",
+                            color: "var(--color-instamart)",
+                          },
+                          { value: "Dineout", color: "var(--color-dineout)" },
+                        ]}
+                      />
+                    }
+                  />
+                </PieChart>
+              </ChartContainer>
+            </div>
           </CardContent>
         </Card>
 
@@ -249,24 +294,35 @@ export function AnalyticsOverview() {
           <CardContent>
             {overview.topInstamartItems.length > 0 ? (
               <div className="space-y-4">
-                {overview.topInstamartItems.map((item: { name: string; count: number; amount: number }, index: number) => (
-                  <div key={item.name} className="flex items-center space-x-4">
-                    <Badge variant="secondary" className="min-w-[24px] h-6 flex items-center justify-center">
-                      {index + 1}
-                    </Badge>
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {item.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.count} items
-                      </p>
+                {overview.topInstamartItems.map(
+                  (
+                    item: { name: string; count: number; amount: number },
+                    index: number,
+                  ) => (
+                    <div
+                      key={item.name}
+                      className="flex items-center space-x-4"
+                    >
+                      <Badge
+                        variant="secondary"
+                        className="min-w-[24px] h-6 flex items-center justify-center"
+                      >
+                        {index + 1}
+                      </Badge>
+                      <div className="flex-1 space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {item.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.count} items
+                        </p>
+                      </div>
+                      <div className="text-sm font-medium">
+                        {formatCurrency(item.amount)}
+                      </div>
                     </div>
-                    <div className="text-sm font-medium">
-                      {formatCurrency(item.amount)}
-                    </div>
-                  </div>
-                ))}
+                  ),
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -284,4 +340,4 @@ export function AnalyticsOverview() {
       </div>
     </div>
   );
-} 
+}

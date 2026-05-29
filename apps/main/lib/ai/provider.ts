@@ -204,6 +204,7 @@ export function resolveAiRuntimeConfig() {
   return {
     baseURL: config.baseUrl,
     chatModel: config.chatModel,
+    provider: config.provider,
   };
 }
 

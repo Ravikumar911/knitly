@@ -1,8 +1,11 @@
-'use client';
+"use client";
 
-import { Loader } from '@workspace/ui/components/ai-elements/loader';
-import { Shimmer } from '@workspace/ui/components/ai-elements/shimmer';
-import { Message, MessageContent } from '@workspace/ui/components/ai-elements/message';
+import { Loader } from "@workspace/ui/components/ai-elements/loader";
+import { Shimmer } from "@workspace/ui/components/ai-elements/shimmer";
+import {
+  Message,
+  MessageContent,
+} from "@workspace/ui/components/ai-elements/message";
 
 export function ThinkingMessage() {
   return (
@@ -16,4 +19,3 @@ export function ThinkingMessage() {
     </Message>
   );
 }
-

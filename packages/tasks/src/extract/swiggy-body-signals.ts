@@ -20,7 +20,7 @@ export function extractSwiggyBodySignals(input: {
     orderId: extractSwiggyOrderId(text, input.threadId),
     amount: paidVia
       ? Number(paidVia[2])
-      : extractSwiggyPaidAmount(text) ?? null,
+      : (extractSwiggyPaidAmount(text) ?? null),
     paymentMethod: cleanPaymentMethod(paidVia?.[1] ?? null),
     restaurant: extractSwiggyRestaurant(rawText, text),
   };
@@ -84,7 +84,10 @@ export function extractSwiggyPaidAmount(text: string) {
   return candidates.at(-1)?.amount ?? null;
 }
 
-export function extractSwiggyRestaurant(rawText: string, normalizedText: string) {
+export function extractSwiggyRestaurant(
+  rawText: string,
+  normalizedText: string,
+) {
   const invoiceName = cleanRestaurant(
     rawText.match(/\bRestaurant\s+Name\s*:?\s*([^\n|]+)/i)?.[1] ?? null,
   );
@@ -113,14 +116,21 @@ export function extractSwiggyRestaurant(rawText: string, normalizedText: string)
 function cleanRestaurant(value: string | null) {
   const restaurant = value?.replace(/\s+/g, " ").trim();
   if (!restaurant) return null;
-  if (/provided by the outlet|attached invoice|swiggy limited|discount/i.test(restaurant)) {
+  if (
+    /provided by the outlet|attached invoice|swiggy limited|discount/i.test(
+      restaurant,
+    )
+  ) {
     return null;
   }
   return restaurant.slice(0, 120);
 }
 
 function cleanPaymentMethod(value: string | null) {
-  const method = value?.replace(/\s+/g, " ").replace(/[:|-]+$/g, "").trim();
+  const method = value
+    ?.replace(/\s+/g, " ")
+    .replace(/[:|-]+$/g, "")
+    .trim();
   return method || null;
 }
 

@@ -1,89 +1,73 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import type { UIMessage } from 'ai';
+import { useState } from "react";
+import type { UIMessage } from "ai";
 import {
   Message,
   MessageContent,
   MessageResponse,
-} from '@workspace/ui/components/ai-elements/message';
-import { Loader } from '@workspace/ui/components/ai-elements/loader';
-import { Shimmer } from '@workspace/ui/components/ai-elements/shimmer';
-import {
-  Alert,
-  AlertDescription,
-} from '@workspace/ui/components/alert';
-import { AlertCircle } from 'lucide-react';
+} from "@workspace/ui/components/ai-elements/message";
+import { Loader } from "@workspace/ui/components/ai-elements/loader";
+import { Shimmer } from "@workspace/ui/components/ai-elements/shimmer";
+import { Alert, AlertDescription } from "@workspace/ui/components/alert";
+import { AlertCircle } from "lucide-react";
 
 interface MessageBubbleProps {
   message: UIMessage;
 }
 
-const analyticsMessages = [
-  'Analyzing your Swiggy orders...',
-  'Crunching through your transactions...',
-  'Digging into your spending data...',
-  'Almost there, finding insights...',
-];
-
 export function MessageBubble({ message }: MessageBubbleProps) {
-  const isUser = message.role === 'user';
+  const isUser = message.role === "user";
   const allParts = message.parts || [];
-  const textParts = allParts.filter((p: any) => p.type === 'text');
-  
-  // Extract tool results silently (for data extraction, not display)
-  const toolParts = allParts.filter((p: any) => p.type.startsWith('tool-')) as any[];
+  const textParts = allParts.filter((p: any) => p.type === "text");
 
-  // Check for errors
-  const hasError = toolParts.some((p: any) => (p as any).error || ((p as any).result && (p as any).result.success === false));
-  const errorMessage = toolParts.find((p: any) => (p as any).error || ((p as any).result && (p as any).result.success === false));
-  const error = errorMessage ? ((errorMessage as any).error || (errorMessage as any).result?.error) : undefined;
+  // Extract tool parts using modern AI SDK state model (ToolUIPart)
+  const toolParts = allParts.filter((p: any) =>
+    p.type.startsWith("tool-"),
+  ) as any[];
 
-  // Check if tools are still executing and determine which tool
-  const toolsExecuting = toolParts.some((p: any) => 
-    p.type.startsWith('tool-') && 
-    !(p as any).result && 
-    !(p as any).error && 
-    ((p as any).state === 'input-available' || (p as any).state === 'input-streaming')
+  // Check for errors using the current state model
+  const hasError = toolParts.some(
+    (p: any) => p.error || p.state === "output-error",
+  );
+  const errorMessage = toolParts.find(
+    (p: any) => p.error || p.state === "output-error",
+  );
+  const error = errorMessage
+    ? errorMessage.error || errorMessage.errorText
+    : undefined;
+
+  // Tools are executing when they are in input-available or input-streaming state
+  const toolsExecuting = toolParts.some(
+    (p: any) => p.state === "input-available" || p.state === "input-streaming",
   );
 
-  // Get the current executing tool to show specific status
-  const currentTool = toolParts.find((p: any) => 
-    p.type.startsWith('tool-') && 
-    !(p as any).result && 
-    !(p as any).error && 
-    ((p as any).state === 'input-available' || (p as any).state === 'input-streaming')
+  // Current tool being executed (for rotating loading messages)
+  const currentTool = toolParts.find(
+    (p: any) => p.state === "input-available" || p.state === "input-streaming",
   );
   const currentToolType = currentTool?.type;
 
-  // Rotating messages to keep users engaged during 7-20s wait
-  const [messageIndex, setMessageIndex] = useState(0);
-
-  useEffect(() => {
-    if (currentToolType) {
-      const interval = setInterval(() => {
-        setMessageIndex((prev) => (prev + 1) % analyticsMessages.length);
-      }, 3500); // Change message every 3.5s to keep it engaging
-      return () => clearInterval(interval);
-    }
-  }, [currentToolType]);
-
   // Determine loading text based on tool type.
+  // (Rotating analyticsMessages + messageIndex/useEffect removed — tool details are hidden from users;
+  // we only surface a simple, stable loading indicator.)
   const getLoadingText = (): string => {
-    if (currentToolType) {
-      if (currentToolType.startsWith('tool-swiggy')) return analyticsMessages[messageIndex] ?? analyticsMessages[0] ?? 'Processing...';
-      return 'Processing...';
+    if (currentToolType?.startsWith("tool-")) {
+      return "Analyzing your spending data...";
     }
-    return 'Thinking...';
+    return "Thinking...";
   };
 
   return (
     <Message from={message.role}>
       <MessageContent>
         {/* User message - simple text display */}
-        {isUser && textParts.length > 0 && textParts[0] && 'text' in textParts[0] && (
-          <MessageResponse>{textParts[0].text}</MessageResponse>
-        )}
+        {isUser &&
+          textParts.length > 0 &&
+          textParts[0] &&
+          "text" in textParts[0] && (
+            <MessageResponse>{textParts[0].text}</MessageResponse>
+          )}
 
         {/* Assistant message - simplified, hide backend complexity */}
         {!isUser && (
@@ -101,18 +85,20 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  {typeof error === 'string' 
-                    ? error 
-                    : 'Sorry, I encountered an error while processing your request. Please try rephrasing your question.'}
+                  {typeof error === "string"
+                    ? error
+                    : "Sorry, I encountered an error while processing your request. Please try rephrasing your question."}
                 </AlertDescription>
               </Alert>
             )}
 
             {/* Final Response with Markdown - this comes first for natural flow */}
             {textParts.map((part: any, i: number) => {
-              if (!('text' in part)) return null;
+              if (!("text" in part)) return null;
               return (
-                <MessageResponse key={i} className="prose prose-sm dark:prose-invert max-w-none
+                <MessageResponse
+                  key={i}
+                  className="prose prose-sm dark:prose-invert max-w-none
                   prose-headings:font-semibold prose-headings:text-foreground
                   prose-p:text-foreground prose-p:leading-relaxed
                   prose-strong:text-foreground prose-strong:font-semibold
@@ -123,11 +109,15 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                   prose-td:border prose-td:border-border prose-td:px-3 prose-td:py-2
                   prose-ul:list-disc prose-ul:ml-4
                   prose-ol:list-decimal prose-ol:ml-4
-                  prose-li:text-foreground">
+                  prose-li:text-foreground"
+                >
                   {part.text}
                 </MessageResponse>
               );
             })}
+
+            {/* Tool activity is intentionally hidden from users in the first release.
+                We only use it internally to drive better loading states below. */}
 
             {/* Show subtle processing state if no content yet */}
             {!toolsExecuting && !hasError && textParts.length === 0 && (

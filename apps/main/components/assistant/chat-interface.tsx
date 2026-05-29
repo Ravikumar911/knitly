@@ -178,14 +178,14 @@ export function ChatInterface({ chatId, initialMessages }: ChatInterfaceProps) {
     messages: initialMessages,
     experimental_throttle: 100,
     transport: new DefaultChatTransport({
-      api: "/api/assistant",
-      prepareSendMessagesRequest(request) {
+      api: "/api/assistant/stream",
+      prepareSendMessagesRequest({ id, messages, body }) {
         return {
           body: {
-            id: request.id,
+            id,
+            messages,
             chatId,
-            message: request.messages.at(-1),
-            ...request.body,
+            ...body,
           },
         };
       },

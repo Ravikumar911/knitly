@@ -1,4 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -13,7 +19,10 @@ import {
 
 function writeSkillManifest(dir: string, manifest: Record<string, unknown>) {
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFileSync(
+    join(dir, "manifest.json"),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+  );
 }
 
 describe("skill registry", () => {
@@ -48,8 +57,12 @@ describe("skill registry", () => {
     const paths = resolvePaths();
     const installed = listInstalledSkills();
 
-    expect(existsSync(join(paths.skills, BUNDLED_GMAIL_SWIGGY_SKILL))).toBe(true);
-    expect(installed.map((skill) => skill.id)).toContain(BUNDLED_GMAIL_SWIGGY_SKILL);
+    expect(existsSync(join(paths.skills, BUNDLED_GMAIL_SWIGGY_SKILL))).toBe(
+      true,
+    );
+    expect(installed.map((skill) => skill.id)).toContain(
+      BUNDLED_GMAIL_SWIGGY_SKILL,
+    );
     expect(isSkillEnabled(BUNDLED_GMAIL_SWIGGY_SKILL)).toBe(true);
   });
 
@@ -70,10 +83,9 @@ describe("skill registry", () => {
 
     const installed = listInstalledSkills();
 
-    expect(installed.map((skill) => `${skill.id}:${String(skill.enabled)}`)).toEqual([
-      "alpha-skill:false",
-      "gmail-swiggy:false",
-    ]);
+    expect(
+      installed.map((skill) => `${skill.id}:${String(skill.enabled)}`),
+    ).toEqual(["alpha-skill:false", "gmail-swiggy:false"]);
   });
 
   it("updates the enabled flag for installed skills and rejects unknown skills", () => {
@@ -82,6 +94,8 @@ describe("skill registry", () => {
     setSkillEnabled(BUNDLED_GMAIL_SWIGGY_SKILL, false);
     expect(isSkillEnabled(BUNDLED_GMAIL_SWIGGY_SKILL)).toBe(false);
 
-    expect(() => setSkillEnabled("missing-skill", true)).toThrow("Unknown skill: missing-skill");
+    expect(() => setSkillEnabled("missing-skill", true)).toThrow(
+      "Unknown skill: missing-skill",
+    );
   });
 });

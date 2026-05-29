@@ -16,7 +16,7 @@ class InMemoryRateLimiter {
   constructor(windowMs: number = 15 * 60 * 1000, maxRequests: number = 5) {
     this.defaultWindowMs = windowMs; // 15 minutes default
     this.defaultMaxRequests = maxRequests; // 5 requests per window
-    
+
     // Clean up expired entries every 5 minutes
     setInterval(() => this.cleanup(), 5 * 60 * 1000);
   }
@@ -29,9 +29,9 @@ class InMemoryRateLimiter {
    * @returns { blocked: boolean, remainingTime?: number }
    */
   check(
-    identifier: string, 
-    windowMs?: number, 
-    maxRequests?: number
+    identifier: string,
+    windowMs?: number,
+    maxRequests?: number,
   ): { blocked: boolean; remainingTime?: number; requestsRemaining?: number } {
     const window = windowMs ?? this.defaultWindowMs;
     const max = maxRequests ?? this.defaultMaxRequests;
@@ -43,28 +43,28 @@ class InMemoryRateLimiter {
     if (!entry || now > entry.resetTime) {
       // No entry or window has expired, create new entry
       this.cache.set(identifier, { count: 1, resetTime });
-      return { 
-        blocked: false, 
-        requestsRemaining: max - 1 
+      return {
+        blocked: false,
+        requestsRemaining: max - 1,
       };
     }
 
     if (entry.count >= max) {
       // Rate limit exceeded
-      return { 
-        blocked: true, 
+      return {
+        blocked: true,
         remainingTime: entry.resetTime - now,
-        requestsRemaining: 0
+        requestsRemaining: 0,
       };
     }
 
     // Increment counter
     entry.count++;
     this.cache.set(identifier, entry);
-    
-    return { 
-      blocked: false, 
-      requestsRemaining: max - entry.count 
+
+    return {
+      blocked: false,
+      requestsRemaining: max - entry.count,
     };
   }
 
@@ -112,7 +112,7 @@ class InMemoryRateLimiter {
 // Create singleton instance
 export const rateLimiter = new InMemoryRateLimiter(
   15 * 60 * 1000, // 15 minutes window
-  3 // Max 3 beta requests per 15 minutes per IP
+  3, // Max 3 beta requests per 15 minutes per IP
 );
 
 /**
@@ -120,23 +120,23 @@ export const rateLimiter = new InMemoryRateLimiter(
  */
 export function getClientIP(request: Request): string {
   // Check common headers for real IP
-  const xForwardedFor = request.headers.get('x-forwarded-for');
-  const xRealIP = request.headers.get('x-real-ip');
-  const cfConnectingIP = request.headers.get('cf-connecting-ip');
-  
+  const xForwardedFor = request.headers.get("x-forwarded-for");
+  const xRealIP = request.headers.get("x-real-ip");
+  const cfConnectingIP = request.headers.get("cf-connecting-ip");
+
   // Return first valid IP from x-forwarded-for chain
   if (xForwardedFor) {
-    const ips = xForwardedFor.split(',').map(ip => ip.trim());
-    return ips[0] || 'unknown';
+    const ips = xForwardedFor.split(",").map((ip) => ip.trim());
+    return ips[0] || "unknown";
   }
-  
-  return xRealIP || cfConnectingIP || 'unknown';
+
+  return xRealIP || cfConnectingIP || "unknown";
 }
 
 /**
  * Email-based rate limiting with stricter limits
  */
 export const emailRateLimiter = new InMemoryRateLimiter(
-  60 * 60 * 1000, // 1 hour window  
-  1 // Max 1 request per email per hour
+  60 * 60 * 1000, // 1 hour window
+  1, // Max 1 request per email per hour
 );

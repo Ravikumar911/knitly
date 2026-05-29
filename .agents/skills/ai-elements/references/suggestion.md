@@ -111,14 +111,14 @@ See `scripts/suggestion-input.tsx` for this example.
 
 ### `<Suggestions />`
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `...props` | `React.ComponentProps<typeof ScrollArea>` | - | Any other props are spread to the underlying ScrollArea component. |
+| Prop       | Type                                      | Default | Description                                                        |
+| ---------- | ----------------------------------------- | ------- | ------------------------------------------------------------------ |
+| `...props` | `React.ComponentProps<typeof ScrollArea>` | -       | Any other props are spread to the underlying ScrollArea component. |
 
 ### `<Suggestion />`
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `suggestion` | `string` | Required | The suggestion string to display and emit on click. |
-| `onClick` | `(suggestion: string) => void` | - | Callback fired when the suggestion is clicked. |
-| `...props` | `Omit<React.ComponentProps<typeof Button>, ` | - | Any other props are spread to the underlying shadcn/ui Button component. |
+| Prop         | Type                                         | Default  | Description                                                              |
+| ------------ | -------------------------------------------- | -------- | ------------------------------------------------------------------------ |
+| `suggestion` | `string`                                     | Required | The suggestion string to display and emit on click.                      |
+| `onClick`    | `(suggestion: string) => void`               | -        | Callback fired when the suggestion is clicked.                           |
+| `...props`   | `Omit<React.ComponentProps<typeof Button>, ` | -        | Any other props are spread to the underlying shadcn/ui Button component. |

@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEmailSync } from '@/hooks/useEmailSync';
-import { SyncInitiator } from './SyncInitiator';
+import { useEmailSync } from "@/hooks/useEmailSync";
+import { SyncInitiator } from "./SyncInitiator";
 
 interface DataStatusRouterProps {
   children: React.ReactNode; // Dashboard content for users with data
@@ -13,16 +13,16 @@ interface DataStatusRouterProps {
  */
 export function DataStatusRouter({ children }: DataStatusRouterProps) {
   const { state } = useEmailSync();
-  
+
   // If user has data, show dashboard
-  if (state?.state === 'has_data') {
+  if (state?.state === "has_data") {
     return <>{children}</>;
   }
-  
+
   // Otherwise, show sync component
   return (
     <div className="container mx-auto px-4 py-8">
       <SyncInitiator />
     </div>
   );
-} 
+}

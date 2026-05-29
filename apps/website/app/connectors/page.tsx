@@ -22,7 +22,10 @@ const connectors: { name: string; state: "Stable" | "Featured" | "Beta" }[] = [
   { name: "Bank statements (HDFC, ICICI, SBI, Axis, Kotak…)", state: "Stable" },
   { name: "Credit cards (Amex, Axis, HDFC, ICICI…)", state: "Stable" },
   { name: "UPI (PhonePe, GPay, Paytm, BHIM)", state: "Stable" },
-  { name: "Subscriptions (Netflix, Spotify, iCloud, JioSaavn)", state: "Stable" },
+  {
+    name: "Subscriptions (Netflix, Spotify, iCloud, JioSaavn)",
+    state: "Stable",
+  },
   { name: "Food delivery — Swiggy", state: "Featured" },
   { name: "Food delivery — Zomato", state: "Beta" },
   { name: "E-commerce (Amazon, Flipkart, Myntra, Meesho)", state: "Beta" },

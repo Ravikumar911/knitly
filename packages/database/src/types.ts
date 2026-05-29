@@ -5,7 +5,7 @@ import { transactionsV2 } from "./schema/transactionsV2";
 
 // Export types for better type safety
 export type User = typeof profiles.$inferSelect;
-export type NewUser = typeof profiles.$inferInsert; 
+export type NewUser = typeof profiles.$inferInsert;
 
 export type EmailSyncStatus = typeof emailSyncStatus.$inferSelect;
 export type NewEmailSyncStatus = typeof emailSyncStatus.$inferInsert;

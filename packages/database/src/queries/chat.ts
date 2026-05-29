@@ -26,7 +26,11 @@ export interface ChatWithMessages extends Chat {
 /**
  * Create a new chat session
  */
-export async function createChat(userId: string, title: string, id?: string): Promise<Chat> {
+export async function createChat(
+  userId: string,
+  title: string,
+  id?: string,
+): Promise<Chat> {
   const result = await db
     .insert(chats)
     .values({
@@ -42,7 +46,10 @@ export async function createChat(userId: string, title: string, id?: string): Pr
 /**
  * Get chat by ID with auth check
  */
-export async function getChatById(chatId: string, userId: string): Promise<ChatWithMessages | null> {
+export async function getChatById(
+  chatId: string,
+  userId: string,
+): Promise<ChatWithMessages | null> {
   const chatResult = await db
     .select()
     .from(chats)
@@ -71,7 +78,7 @@ export async function getChatById(chatId: string, userId: string): Promise<ChatW
 export async function getUserChats(
   userId: string,
   limit: number = 50,
-  offset: number = 0
+  offset: number = 0,
 ): Promise<Chat[]> {
   const result = await db
     .select()
@@ -87,7 +94,10 @@ export async function getUserChats(
 /**
  * Delete chat (messages cascade automatically)
  */
-export async function deleteChat(chatId: string, userId: string): Promise<boolean> {
+export async function deleteChat(
+  chatId: string,
+  userId: string,
+): Promise<boolean> {
   const result = await db
     .delete(chats)
     .where(and(eq(chats.id, chatId), eq(chats.userId, userId)))
@@ -102,7 +112,7 @@ export async function deleteChat(chatId: string, userId: string): Promise<boolea
 export async function saveMessage(
   chatId: string,
   role: string,
-  parts: any
+  parts: any,
 ): Promise<ChatMessage> {
   const result = await db
     .insert(chatMessages)
@@ -125,7 +135,10 @@ export async function saveMessage(
 /**
  * Get all messages for a chat
  */
-export async function getChatMessages(chatId: string, userId: string): Promise<ChatMessage[]> {
+export async function getChatMessages(
+  chatId: string,
+  userId: string,
+): Promise<ChatMessage[]> {
   // First verify user owns this chat
   const chatResult = await db
     .select()
@@ -152,11 +165,11 @@ export async function getChatMessages(chatId: string, userId: string): Promise<C
 export async function updateChatTitle(
   chatId: string,
   userId: string,
-  title: string
+  title: string,
 ): Promise<boolean> {
   const result = await db
     .update(chats)
-    .set({ 
+    .set({
       title,
       updatedAt: new Date(),
     })
@@ -165,4 +178,3 @@ export async function updateChatTitle(
 
   return result.length > 0;
 }
-
