@@ -55,3 +55,25 @@ jobs:
       - run: pnpm --filter @workspace/tasks test
       - run: pnpm --filter @workspace/database test
       - run: pnpm --filter @workspace/evals eval:gate
+
+  assistant-regression:
+    name: Assistant Regression (Golden Traces)
+    runs-on: ubuntu-latest
+    # This job requires a configured assistant provider.
+    # It will be skipped or fail gracefully if no model is available.
+    env:
+      SLASHCASH_ASSISTANT_PROVIDER: ${{ secrets.SLASHCASH_ASSISTANT_PROVIDER || 'none' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run assistant trajectory regression tests
+        run: pnpm --filter @knitly/main test -- lib/ai/evals/assistant-regression.test.ts
+        continue-on-error: true  # Don't block PRs until provider is stable in CI
+      - name: Run full assistant evaluation (with scoring)
+        run: pnpm --filter @knitly/main eval:assistant || echo "Assistant eval skipped or completed with warnings"
+        continue-on-error: true

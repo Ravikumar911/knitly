@@ -2,7 +2,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
 
 export function attachmentsRoot() {
-  return resolve(process.env.SLASHCASH_ATTACHMENTS_DIR || join(process.env.SLASHCASH_HOME || defaultHome(), "attachments"));
+  return resolve(
+    process.env.SLASHCASH_ATTACHMENTS_DIR ||
+      join(process.env.SLASHCASH_HOME || defaultHome(), "attachments"),
+  );
 }
 
 export function writeAttachmentFile(input: {

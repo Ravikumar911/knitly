@@ -1,4 +1,4 @@
-export * from './gmail'; 
+export * from "./gmail";
 
 export interface GmailAttachment {
   filename: string;
@@ -11,4 +11,4 @@ export interface GmailAttachment {
 export interface GmailAttachmentData {
   data: string; // Base64 encoded attachment data
   size: number;
-} 
+}

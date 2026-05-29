@@ -9,8 +9,14 @@ import {
 
 // Input validation schema for date range queries
 const DateRangeSchema = z.object({
-  startDate: z.string().datetime().transform((str) => new Date(str)),
-  endDate: z.string().datetime().transform((str) => new Date(str)),
+  startDate: z
+    .string()
+    .datetime()
+    .transform((str) => new Date(str)),
+  endDate: z
+    .string()
+    .datetime()
+    .transform((str) => new Date(str)),
 });
 
 // Default date range helper (last 30 days)
@@ -31,13 +37,13 @@ export const analyticsRouter = createTRPCRouter({
       .query(async ({ ctx, input }) => {
         try {
           const { startDate, endDate } = input || getDefaultDateRange();
-          
+
           const overview = await getSwiggySpendingOverview(
             ctx.userId!,
             startDate,
-            endDate
+            endDate,
           );
-          
+
           return {
             success: true,
             data: overview,
@@ -45,14 +51,17 @@ export const analyticsRouter = createTRPCRouter({
           };
         } catch (error) {
           console.error("Error getting Swiggy spending overview:", error);
-          
+
           if (error instanceof TRPCError) {
             throw error;
           }
-          
+
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: error instanceof Error ? error.message : "Unknown error getting spending overview",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Unknown error getting spending overview",
           });
         }
       }),
@@ -63,13 +72,13 @@ export const analyticsRouter = createTRPCRouter({
       .query(async ({ ctx, input }) => {
         try {
           const { startDate, endDate } = input || getDefaultDateRange();
-          
+
           const insights = await getSwiggyBehaviorInsights(
             ctx.userId!,
             startDate,
-            endDate
+            endDate,
           );
-          
+
           return {
             success: true,
             data: insights,
@@ -77,14 +86,17 @@ export const analyticsRouter = createTRPCRouter({
           };
         } catch (error) {
           console.error("Error getting Swiggy behavior insights:", error);
-          
+
           if (error instanceof TRPCError) {
             throw error;
           }
-          
+
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: error instanceof Error ? error.message : "Unknown error getting behavior insights",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Unknown error getting behavior insights",
           });
         }
       }),
@@ -95,13 +107,13 @@ export const analyticsRouter = createTRPCRouter({
       .query(async ({ ctx, input }) => {
         try {
           const { startDate, endDate } = input || getDefaultDateRange();
-          
+
           const smartInsights = await getSwiggySmartInsights(
             ctx.userId!,
             startDate,
-            endDate
+            endDate,
           );
-          
+
           return {
             success: true,
             data: smartInsights,
@@ -109,14 +121,17 @@ export const analyticsRouter = createTRPCRouter({
           };
         } catch (error) {
           console.error("Error getting Swiggy smart insights:", error);
-          
+
           if (error instanceof TRPCError) {
             throw error;
           }
-          
+
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: error instanceof Error ? error.message : "Unknown error getting smart insights",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Unknown error getting smart insights",
           });
         }
       }),
@@ -128,14 +143,14 @@ export const analyticsRouter = createTRPCRouter({
         try {
           const { startDate, endDate } = input || getDefaultDateRange();
           const userId = ctx.userId!;
-          
+
           // Fetch all analytics data in parallel for better performance
           const [overview, behavior, insights] = await Promise.all([
             getSwiggySpendingOverview(userId, startDate, endDate),
             getSwiggyBehaviorInsights(userId, startDate, endDate),
             getSwiggySmartInsights(userId, startDate, endDate),
           ]);
-          
+
           return {
             success: true,
             data: {
@@ -147,16 +162,19 @@ export const analyticsRouter = createTRPCRouter({
           };
         } catch (error) {
           console.error("Error getting Swiggy dashboard data:", error);
-          
+
           if (error instanceof TRPCError) {
             throw error;
           }
-          
+
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
-            message: error instanceof Error ? error.message : "Unknown error getting dashboard data",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Unknown error getting dashboard data",
           });
         }
       }),
   }),
-}); 
+});

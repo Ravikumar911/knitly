@@ -1,11 +1,5 @@
 import type { Metadata } from "next";
-import {
-  Brain,
-  CreditCard,
-  PiggyBank,
-  Repeat,
-  TrendingUp,
-} from "lucide-react";
+import { Brain, CreditCard, PiggyBank, Repeat, TrendingUp } from "lucide-react";
 
 import { AuroraText } from "@workspace/ui/components/aurora-text";
 import { BlurFade } from "@workspace/ui/components/magicui/blur-fade";
@@ -136,7 +130,8 @@ export default function SpendingPsychologyPage() {
             <span className="font-semibold text-neutral-900">
               one clear, well-explained action
             </span>{" "}
-            in front of you each week — on your machine, without a hosted ledger.
+            in front of you each week — on your machine, without a hosted
+            ledger.
           </p>
           <div className="mt-8 flex justify-center">
             <InstallCta />

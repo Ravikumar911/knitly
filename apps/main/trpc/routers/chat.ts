@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { createTRPCRouter, protectedProcedure } from '../init';
+import { z } from "zod";
+import { createTRPCRouter, protectedProcedure } from "../init";
 import {
   createChat,
   getChatById,
@@ -7,8 +7,8 @@ import {
   deleteChat,
   saveMessage,
   updateChatTitle,
-} from '@workspace/database';
-import { TRPCError } from '@trpc/server';
+} from "@workspace/database";
+import { TRPCError } from "@trpc/server";
 
 export const chatRouter = createTRPCRouter({
   // Get chat by ID with messages
@@ -19,8 +19,8 @@ export const chatRouter = createTRPCRouter({
 
       if (!chat) {
         throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Chat not found',
+          code: "NOT_FOUND",
+          message: "Chat not found",
         });
       }
 
@@ -33,7 +33,7 @@ export const chatRouter = createTRPCRouter({
       z.object({
         limit: z.number().min(1).max(100).default(50),
         offset: z.number().min(0).default(0),
-      })
+      }),
     )
     .query(async ({ input, ctx }) => {
       const chats = await getUserChats(ctx.userId!, input.limit, input.offset);
@@ -60,8 +60,8 @@ export const chatRouter = createTRPCRouter({
 
       if (!success) {
         throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Chat not found or already deleted',
+          code: "NOT_FOUND",
+          message: "Chat not found or already deleted",
         });
       }
 
@@ -74,15 +74,19 @@ export const chatRouter = createTRPCRouter({
       z.object({
         chatId: z.string(),
         title: z.string().min(1).max(255),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
-      const success = await updateChatTitle(input.chatId, ctx.userId!, input.title);
+      const success = await updateChatTitle(
+        input.chatId,
+        ctx.userId!,
+        input.title,
+      );
 
       if (!success) {
         throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Chat not found',
+          code: "NOT_FOUND",
+          message: "Chat not found",
         });
       }
 
@@ -94,9 +98,9 @@ export const chatRouter = createTRPCRouter({
     .input(
       z.object({
         chatId: z.string(),
-        role: z.enum(['user', 'assistant', 'system']),
+        role: z.enum(["user", "assistant", "system"]),
         parts: z.any(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       // Verify user owns this chat
@@ -104,8 +108,8 @@ export const chatRouter = createTRPCRouter({
 
       if (!chat) {
         throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Chat not found',
+          code: "NOT_FOUND",
+          message: "Chat not found",
         });
       }
 
@@ -113,4 +117,3 @@ export const chatRouter = createTRPCRouter({
       return message;
     }),
 });
-

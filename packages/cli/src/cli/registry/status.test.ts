@@ -94,7 +94,9 @@ describe("status command", () => {
 
   it("falls back to default paths when the app is not running", async () => {
     mocks.readPidFile.mockReturnValue(null);
-    globalThis.fetch = vi.fn().mockRejectedValue(new Error("connection refused"));
+    globalThis.fetch = vi
+      .fn()
+      .mockRejectedValue(new Error("connection refused"));
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
     const { register } = await import("./status.js");

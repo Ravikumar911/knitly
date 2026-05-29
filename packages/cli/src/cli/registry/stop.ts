@@ -1,7 +1,11 @@
 import type { Command } from "commander";
 import pc from "picocolors";
 import { stopDashboardService } from "../../daemon/service.js";
-import { clearPidFile, isProcessAlive, readPidFile } from "../../runtime/pid.js";
+import {
+  clearPidFile,
+  isProcessAlive,
+  readPidFile,
+} from "../../runtime/pid.js";
 
 export function register(program: Command) {
   program

@@ -29,7 +29,10 @@ const innerAgents = [
 
 const outerAgents = [
   { icon: <Plug className="h-5 w-5 text-indigo-500" />, title: "Connector" },
-  { icon: <CircleDollarSign className="h-5 w-5 text-cyan-500" />, title: "Investor" },
+  {
+    icon: <CircleDollarSign className="h-5 w-5 text-cyan-500" />,
+    title: "Investor",
+  },
   { icon: <Brain className="h-5 w-5 text-[#635bff]" />, title: "Review" },
   {
     icon: <FilePieChart className="h-5 w-5 text-amber-500" />,
@@ -77,12 +80,7 @@ export function AgentsOrbit() {
         <span className="relative text-3xl font-bold text-white">/</span>
       </div>
 
-      <OrbitingCircles
-        radius={120}
-        duration={28}
-        iconSize={44}
-        path={false}
-      >
+      <OrbitingCircles radius={120} duration={28} iconSize={44} path={false}>
         {innerAgents.map((agent) => (
           <AgentChip key={agent.title} {...agent} />
         ))}

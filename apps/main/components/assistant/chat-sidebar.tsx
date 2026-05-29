@@ -22,11 +22,7 @@ import {
 import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { TRPCClientError } from "@trpc/client";
 
-export function AssistantNewChatButton({
-  className,
-}: {
-  className?: string;
-}) {
+export function AssistantNewChatButton({ className }: { className?: string }) {
   return (
     <Button
       asChild
@@ -54,7 +50,11 @@ export function AssistantChatSidebarToolbar() {
   );
 }
 
-export function ChatSidebar({ hideTitleRow = false }: { hideTitleRow?: boolean }) {
+export function ChatSidebar({
+  hideTitleRow = false,
+}: {
+  hideTitleRow?: boolean;
+}) {
   const trpc = useTRPC();
   const pathname = useResolvedPathname();
   const router = useRouter();

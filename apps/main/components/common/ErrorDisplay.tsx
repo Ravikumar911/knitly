@@ -1,9 +1,19 @@
-'use client';
+"use client";
 
-import { useSyncStore } from '@/hooks/useSyncStore';
-import { Alert, AlertDescription, AlertTitle } from '@workspace/ui/components/alert';
-import { Button } from '@workspace/ui/components/button';
-import { AlertCircle, Lock, RefreshCw, Wifi, MessageCircle } from 'lucide-react';
+import { useSyncStore } from "@/hooks/useSyncStore";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@workspace/ui/components/alert";
+import { Button } from "@workspace/ui/components/button";
+import {
+  AlertCircle,
+  Lock,
+  RefreshCw,
+  Wifi,
+  MessageCircle,
+} from "lucide-react";
 
 interface ErrorDisplayProps {
   onRetry?: () => void;
@@ -12,11 +22,11 @@ interface ErrorDisplayProps {
   className?: string;
 }
 
-export function ErrorDisplay({ 
-  onRetry, 
-  onReauth, 
+export function ErrorDisplay({
+  onRetry,
+  onReauth,
   onContactSupport,
-  className 
+  className,
 }: ErrorDisplayProps) {
   const syncStore = useSyncStore();
   const { currentError, clearError, getErrorActions } = syncStore;
@@ -32,11 +42,11 @@ export function ErrorDisplay({
   // Get appropriate icon for error type
   const getErrorIcon = () => {
     switch (currentError.type) {
-      case 'oauth':
+      case "oauth":
         return <Lock className="h-4 w-4" />;
-      case 'network':
+      case "network":
         return <Wifi className="h-4 w-4" />;
-      case 'sync':
+      case "sync":
         return <RefreshCw className="h-4 w-4" />;
       default:
         return <AlertCircle className="h-4 w-4" />;
@@ -46,12 +56,12 @@ export function ErrorDisplay({
   // Get appropriate alert variant
   const getAlertVariant = () => {
     switch (currentError.severity) {
-      case 'critical':
-        return 'destructive';
-      case 'high':
-        return 'default';
+      case "critical":
+        return "destructive";
+      case "high":
+        return "default";
       default:
-        return 'default';
+        return "default";
     }
   };
 
@@ -77,40 +87,38 @@ export function ErrorDisplay({
     <Alert variant={getAlertVariant()} className={className}>
       {getErrorIcon()}
       <AlertTitle>
-        {currentError.type === 'oauth' ? 'Authentication Issue' :
-         currentError.type === 'network' ? 'Connection Problem' :
-         currentError.type === 'sync' ? 'Sync Error' : 'Error'}
+        {currentError.type === "oauth"
+          ? "Authentication Issue"
+          : currentError.type === "network"
+            ? "Connection Problem"
+            : currentError.type === "sync"
+              ? "Sync Error"
+              : "Error"}
       </AlertTitle>
       <AlertDescription className="mt-2">
         <p className="mb-4">{currentError.message}</p>
-        
+
         <div className="flex gap-2 flex-wrap">
-          <Button 
+          <Button
             onClick={handlePrimaryAction}
-            variant={currentError.severity === 'critical' ? 'default' : 'outline'}
+            variant={
+              currentError.severity === "critical" ? "default" : "outline"
+            }
             size="sm"
           >
             {errorActions.primaryAction}
           </Button>
-          
+
           {errorActions.secondaryAction && (
-            <Button 
-              onClick={handleSecondaryAction}
-              variant="outline"
-              size="sm"
-            >
+            <Button onClick={handleSecondaryAction} variant="outline" size="sm">
               <MessageCircle className="h-3 w-3 mr-1" />
               {errorActions.secondaryAction}
             </Button>
           )}
-          
+
           {/* Show dismiss option for non-critical errors */}
-          {currentError.severity !== 'critical' && (
-            <Button 
-              onClick={clearError}
-              variant="ghost"
-              size="sm"
-            >
+          {currentError.severity !== "critical" && (
+            <Button onClick={clearError} variant="ghost" size="sm">
               Dismiss
             </Button>
           )}
@@ -121,32 +129,24 @@ export function ErrorDisplay({
 }
 
 // Specific error displays for common scenarios
-export function SyncErrorDisplay({ 
+export function SyncErrorDisplay({
   onRetry,
-  onContactSupport 
-}: { 
+  onContactSupport,
+}: {
   onRetry?: () => void;
   onContactSupport?: () => void;
 }) {
-  return (
-    <ErrorDisplay 
-      onRetry={onRetry}
-      onContactSupport={onContactSupport}
-    />
-  );
+  return <ErrorDisplay onRetry={onRetry} onContactSupport={onContactSupport} />;
 }
 
-export function OAuthErrorDisplay({ 
+export function OAuthErrorDisplay({
   onReauth,
-  onContactSupport 
-}: { 
+  onContactSupport,
+}: {
   onReauth?: () => void;
   onContactSupport?: () => void;
 }) {
   return (
-    <ErrorDisplay 
-      onReauth={onReauth}
-      onContactSupport={onContactSupport}
-    />
+    <ErrorDisplay onReauth={onReauth} onContactSupport={onContactSupport} />
   );
-} 
+}

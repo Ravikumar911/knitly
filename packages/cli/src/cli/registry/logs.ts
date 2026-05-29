@@ -24,10 +24,7 @@ export function register(program: Command) {
       "--service",
       "Show LaunchAgent dashboard stdout/stderr instead of structured logs",
     )
-    .option(
-      "--stderr",
-      "With --service, show stderr only",
-    )
+    .option("--stderr", "With --service, show stderr only")
     .option(
       "--filter <areas>",
       "Comma-separated areas, for example cron,ingest",

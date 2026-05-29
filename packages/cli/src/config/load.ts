@@ -2,7 +2,9 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { ensureStateDirs, resolvePaths } from "./paths.js";
 import { configSchema, defaultConfig, type SlashcashConfig } from "./schema.js";
 
-export function loadConfig(options: { createIfMissing?: boolean } = {}): SlashcashConfig {
+export function loadConfig(
+  options: { createIfMissing?: boolean } = {},
+): SlashcashConfig {
   const paths = resolvePaths();
   ensureStateDirs(paths);
 
@@ -34,11 +36,16 @@ export function writeConfig(config: SlashcashConfig) {
   const paths = resolvePaths();
   ensureStateDirs(paths);
   const parsed = configSchema.parse(config);
-  writeFileSync(paths.config, `${JSON.stringify(parsed, null, 2)}\n`, { mode: 0o600 });
+  writeFileSync(paths.config, `${JSON.stringify(parsed, null, 2)}\n`, {
+    mode: 0o600,
+  });
 }
 
 export function setConfigValue(path: string, value: string) {
-  const config = loadConfig({ createIfMissing: true }) as Record<string, unknown>;
+  const config = loadConfig({ createIfMissing: true }) as Record<
+    string,
+    unknown
+  >;
   const segments = path.split(".").filter(Boolean);
   if (segments.length === 0) {
     throw new Error("Config path is required.");
@@ -58,11 +65,17 @@ export function setConfigValue(path: string, value: string) {
 }
 
 export function getConfigValue(path: string) {
-  const config = loadConfig({ createIfMissing: true }) as Record<string, unknown>;
-  return path.split(".").filter(Boolean).reduce<unknown>((value, segment) => {
-    if (!value || typeof value !== "object") return undefined;
-    return (value as Record<string, unknown>)[segment];
-  }, config);
+  const config = loadConfig({ createIfMissing: true }) as Record<
+    string,
+    unknown
+  >;
+  return path
+    .split(".")
+    .filter(Boolean)
+    .reduce<unknown>((value, segment) => {
+      if (!value || typeof value !== "object") return undefined;
+      return (value as Record<string, unknown>)[segment];
+    }, config);
 }
 
 function coerceValue(value: string): unknown {

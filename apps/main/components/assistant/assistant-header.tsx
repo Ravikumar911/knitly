@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Button } from '@workspace/ui/components/button';
-import { MessageSquarePlus, Sparkles } from 'lucide-react';
-import { SidebarTrigger } from '@workspace/ui/components/sidebar';
-import { Separator } from '@workspace/ui/components/separator';
+import Link from "next/link";
+import { Button } from "@workspace/ui/components/button";
+import { MessageSquarePlus, Sparkles } from "lucide-react";
+import { SidebarTrigger } from "@workspace/ui/components/sidebar";
+import { Separator } from "@workspace/ui/components/separator";
 
 export function AssistantHeader() {
   return (
@@ -25,7 +25,11 @@ export function AssistantHeader() {
             </div>
           </div>
           <Link href="/assistant" className="shrink-0">
-            <Button variant="default" size="sm" className="hidden sm:inline-flex">
+            <Button
+              variant="default"
+              size="sm"
+              className="hidden sm:inline-flex"
+            >
               <MessageSquarePlus className="h-4 w-4 mr-2" />
               New Chat
             </Button>
@@ -39,4 +43,3 @@ export function AssistantHeader() {
     </header>
   );
 }
-

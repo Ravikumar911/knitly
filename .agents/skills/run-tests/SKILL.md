@@ -57,12 +57,12 @@ pnpm bench
 
 ## What to run by surface
 
-| Change area | Prefer |
-|-------------|--------|
-| Shared types / packages | `pnpm typecheck` + affected package tests |
-| `apps/main` UI / tRPC | `pnpm typecheck`, `pnpm test`, then `pnpm e2e:journeys` as needed |
-| `packages/database` | `pnpm typecheck`, `pnpm test`, DB migrations sanity |
-| Assistant / extraction | `pnpm eval:gate` when touching eval pipelines |
-| Performance-sensitive paths | `pnpm bench` if applicable |
+| Change area                 | Prefer                                                            |
+| --------------------------- | ----------------------------------------------------------------- |
+| Shared types / packages     | `pnpm typecheck` + affected package tests                         |
+| `apps/main` UI / tRPC       | `pnpm typecheck`, `pnpm test`, then `pnpm e2e:journeys` as needed |
+| `packages/database`         | `pnpm typecheck`, `pnpm test`, DB migrations sanity               |
+| Assistant / extraction      | `pnpm eval:gate` when touching eval pipelines                     |
+| Performance-sensitive paths | `pnpm bench` if applicable                                        |
 
 If a command fails with missing binaries, run `pnpm install` once and retry.

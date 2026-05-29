@@ -2,9 +2,19 @@
 
 import { useTRPC } from "@/trpc/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card";
 import { Badge } from "@workspace/ui/components/badge";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@workspace/ui/components/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@workspace/ui/components/chart";
 import { Calendar, Clock, Truck } from "lucide-react";
 import { useTransactionFilters } from "@/store/transaction-filters";
 import { useMemo } from "react";
@@ -12,7 +22,9 @@ import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
 // Stable fallback dates to prevent cache invalidation
 const FALLBACK_END_DATE = new Date();
-const FALLBACK_START_DATE = new Date(FALLBACK_END_DATE.getTime() - 30 * 24 * 60 * 60 * 1000);
+const FALLBACK_START_DATE = new Date(
+  FALLBACK_END_DATE.getTime() - 30 * 24 * 60 * 60 * 1000,
+);
 
 export function AnalyticsBehavior() {
   const trpc = useTRPC();
@@ -26,7 +38,7 @@ export function AnalyticsBehavior() {
         endDate: endDate.toISOString(),
       });
     }
-    
+
     // Use stable fallback dates
     return trpc.analytics.swiggy.behavior.queryOptions({
       startDate: FALLBACK_START_DATE.toISOString(),
@@ -41,9 +53,9 @@ export function AnalyticsBehavior() {
 
   // Format currency
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
@@ -58,12 +70,13 @@ export function AnalyticsBehavior() {
   };
 
   // Prepare chart data with short day names - add safety check
-  const chartData = behavior.dayWiseSpending?.map(day => ({
-    day: day.day.substring(0, 3), // Convert to Mon, Tue, Wed format
-    spend: day.spend,
-    fullDay: day.day,
-    orders: day.orders,
-  })) || [];
+  const chartData =
+    behavior.dayWiseSpending?.map((day) => ({
+      day: day.day.substring(0, 3), // Convert to Mon, Tue, Wed format
+      spend: day.spend,
+      fullDay: day.day,
+      orders: day.orders,
+    })) || [];
 
   return (
     <Card>
@@ -84,8 +97,8 @@ export function AnalyticsBehavior() {
             <>
               <ChartContainer config={chartConfig} className="h-[200px] w-full">
                 <BarChart data={chartData}>
-                  <XAxis 
-                    dataKey="day" 
+                  <XAxis
+                    dataKey="day"
                     tickLine={false}
                     axisLine={false}
                     className="text-[10px] sm:text-xs"
@@ -97,18 +110,20 @@ export function AnalyticsBehavior() {
                       <ChartTooltipContent
                         formatter={(value) => [
                           formatCurrency(Number(value)),
-                          "Spending"
+                          "Spending",
                         ]}
                         labelFormatter={(label) => {
-                          const dayData = chartData.find(d => d.day === label);
+                          const dayData = chartData.find(
+                            (d) => d.day === label,
+                          );
                           return `${dayData?.fullDay} • ${dayData?.orders} orders`;
                         }}
                       />
                     }
                   />
-                  <Bar 
-                    dataKey="spend" 
-                    fill="var(--color-spend)" 
+                  <Bar
+                    dataKey="spend"
+                    fill="var(--color-spend)"
                     radius={[4, 4, 0, 0]}
                   />
                 </BarChart>
@@ -150,7 +165,9 @@ export function AnalyticsBehavior() {
             <Truck className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">Average Delivery Fee</span>
           </div>
-          <div className="text-2xl font-bold">{formatCurrency(behavior.avgDeliveryFee)}</div>
+          <div className="text-2xl font-bold">
+            {formatCurrency(behavior.avgDeliveryFee)}
+          </div>
           <p className="text-xs text-muted-foreground">
             Per order delivery cost
           </p>
@@ -162,23 +179,32 @@ export function AnalyticsBehavior() {
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Monthly Trend (Last 6 Months)</span>
+            <span className="text-sm font-medium">
+              Monthly Trend (Last 6 Months)
+            </span>
           </div>
           <div className="space-y-2">
-            {behavior.monthlyTrend.slice(-6).map((month: { month: string; spend: number }) => (
-              <div key={month.month} className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {new Date(month.month + '-01').toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    year: 'numeric' 
-                  })}
-                </span>
-                <span className="font-medium">{formatCurrency(month.spend)}</span>
-              </div>
-            ))}
+            {behavior.monthlyTrend
+              .slice(-6)
+              .map((month: { month: string; spend: number }) => (
+                <div
+                  key={month.month}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <span className="text-muted-foreground">
+                    {new Date(month.month + "-01").toLocaleDateString("en-US", {
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <span className="font-medium">
+                    {formatCurrency(month.spend)}
+                  </span>
+                </div>
+              ))}
           </div>
         </div>
       </CardContent>
     </Card>
   );
-} 
+}

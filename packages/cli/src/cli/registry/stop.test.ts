@@ -47,9 +47,7 @@ describe("stop command", () => {
 
   it("terminates a running dashboard and clears the pid file", async () => {
     mocks.readPidFile.mockReturnValue({ pid: 4321 });
-    mocks.isProcessAlive
-      .mockReturnValueOnce(true)
-      .mockReturnValueOnce(false);
+    mocks.isProcessAlive.mockReturnValueOnce(true).mockReturnValueOnce(false);
     const killSpy = vi.spyOn(process, "kill").mockImplementation(() => true);
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 

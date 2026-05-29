@@ -2,7 +2,13 @@
 
 import { useTRPC } from "@/trpc/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card";
 import { Badge } from "@workspace/ui/components/badge";
 import { TrendingUp, Clock, MapPin } from "lucide-react";
 import { useTransactionFilters } from "@/store/transaction-filters";
@@ -10,7 +16,9 @@ import { useMemo } from "react";
 
 // Stable fallback dates to prevent cache invalidation
 const FALLBACK_END_DATE = new Date();
-const FALLBACK_START_DATE = new Date(FALLBACK_END_DATE.getTime() - 30 * 24 * 60 * 60 * 1000);
+const FALLBACK_START_DATE = new Date(
+  FALLBACK_END_DATE.getTime() - 30 * 24 * 60 * 60 * 1000,
+);
 
 export function AnalyticsInsights() {
   const trpc = useTRPC();
@@ -24,7 +32,7 @@ export function AnalyticsInsights() {
         endDate: endDate.toISOString(),
       });
     }
-    
+
     // Use stable fallback dates
     return trpc.analytics.swiggy.insights.queryOptions({
       startDate: FALLBACK_START_DATE.toISOString(),
@@ -39,29 +47,29 @@ export function AnalyticsInsights() {
 
   // Format currency
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
   };
 
-  // Format time 
+  // Format time
   const formatHour = (hour: number) => {
-    if (hour === 0) return '12:00 AM';
+    if (hour === 0) return "12:00 AM";
     if (hour < 12) return `${hour}:00 AM`;
-    if (hour === 12) return '12:00 PM';
+    if (hour === 12) return "12:00 PM";
     return `${hour - 12}:00 PM`;
   };
 
   // Format date
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'Unknown Date';
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
+    if (!dateString) return "Unknown Date";
+    return new Date(dateString).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
     });
   };
 
@@ -99,7 +107,9 @@ export function AnalyticsInsights() {
             <span className="text-sm font-medium">Most Expensive Order</span>
           </div>
           <div className="space-y-1">
-            <div className="text-2xl font-bold">{formatCurrency(insights.mostExpensiveOrder.amount)}</div>
+            <div className="text-2xl font-bold">
+              {formatCurrency(insights.mostExpensiveOrder.amount)}
+            </div>
             <div className="text-sm text-muted-foreground">
               {insights.mostExpensiveOrder.restaurant}
             </div>
@@ -118,13 +128,16 @@ export function AnalyticsInsights() {
             <span className="text-sm font-medium">Top Delivery Area</span>
           </div>
           <div className="space-y-1">
-            <div className="text-lg font-semibold">{insights.topDeliveryArea.area}</div>
+            <div className="text-lg font-semibold">
+              {insights.topDeliveryArea.area}
+            </div>
             <div className="text-sm text-muted-foreground">
-              {insights.topDeliveryArea.pincode} • {insights.topDeliveryArea.orderCount} orders
+              {insights.topDeliveryArea.pincode} •{" "}
+              {insights.topDeliveryArea.orderCount} orders
             </div>
           </div>
         </div>
       </CardContent>
     </Card>
   );
-} 
+}

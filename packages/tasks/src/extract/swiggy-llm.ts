@@ -189,7 +189,10 @@ function compactPdfText(text: string) {
     return trimmed.slice(0, secondMatch).trim();
   }
 
-  const blocks = trimmed.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+  const blocks = trimmed
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
   const seen = new Set<string>();
   const uniqueBlocks: string[] = [];
   for (const block of blocks) {
@@ -307,9 +310,13 @@ function normalizeExtraction(
   const amount =
     positiveOrUndefined(generated.amount) ?? bodySignals.amount ?? undefined;
   const paymentMethod =
-    cleanString(generated.paymentMethod) ?? bodySignals.paymentMethod ?? undefined;
+    cleanString(generated.paymentMethod) ??
+    bodySignals.paymentMethod ??
+    undefined;
   const restaurantName =
-    cleanString(generated.restaurantName) ?? bodySignals.restaurant ?? undefined;
+    cleanString(generated.restaurantName) ??
+    bodySignals.restaurant ??
+    undefined;
 
   const referenceIds: Record<string, string> = {};
   if (orderId) {
@@ -422,7 +429,10 @@ function reconcileConfidence(input: {
   llmParseSuccess: boolean;
 }) {
   let confidence = Math.max(input.llmConfidence, 0.85);
-  if (input.bodyAmount != null && Math.abs(input.bodyAmount - input.amount) < 0.01) {
+  if (
+    input.bodyAmount != null &&
+    Math.abs(input.bodyAmount - input.amount) < 0.01
+  ) {
     confidence = Math.max(confidence, 0.95);
   }
   if (input.bodyOrderId && input.bodyOrderId === input.orderId) {

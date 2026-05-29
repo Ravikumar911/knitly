@@ -82,7 +82,11 @@ export async function runDashboardServer(options: {
   const url = `http://127.0.0.1:${options.port}`;
   console.log(pc.green(`slash.cash is running at ${url}`));
 
-  if (!options.noOpen && process.env.SLASHCASH_NO_OPEN !== "1" && process.env.SLASHCASH_SERVICE !== "1") {
+  if (
+    !options.noOpen &&
+    process.env.SLASHCASH_NO_OPEN !== "1" &&
+    process.env.SLASHCASH_SERVICE !== "1"
+  ) {
     openBrowser(url);
   }
 

@@ -8,13 +8,13 @@ Swiggy ingestion should not depend on Gemma, Ollama, OpenAI, or any other genera
 
 ## Phase files (read in order)
 
-| #   | File                       | Goal                                                                   |
-| --- | -------------------------- | ---------------------------------------------------------------------- |
-| 1   | [`phase-1.md`](./phase-1.md) | Lock the deterministic Python extractor (Docling + PyMuPDF + pdfplumber, no LLM) |
-| 2   | [`phase-2.md`](./phase-2.md) | Remove AI from ingestion; assistant code is the only consumer of chat models |
-| 3   | [`phase-3.md`](./phase-3.md) | Parallelize IMAP fetch, PDF subprocess extraction, and SQLite writes; target `< 20s` for 1-year Swiggy sync |
+| #   | File                         | Goal                                                                                                                                                   |
+| --- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | [`phase-1.md`](./phase-1.md) | Lock the deterministic Python extractor (Docling + PyMuPDF + pdfplumber, no LLM)                                                                       |
+| 2   | [`phase-2.md`](./phase-2.md) | Remove AI from ingestion; assistant code is the only consumer of chat models                                                                           |
+| 3   | [`phase-3.md`](./phase-3.md) | Parallelize IMAP fetch, PDF subprocess extraction, and SQLite writes; target `< 20s` for 1-year Swiggy sync                                            |
 | 4   | [`phase-4.md`](./phase-4.md) | Fast onboarding (Gmail + app password only); assistant provider setup happens after the dashboard opens (Local Ollama / OpenAI-compatible / Anthropic) |
-| 5   | [`phase-5.md`](./phase-5.md) | Fixtures, golden tests, real-account dogfood, and cleanup of legacy names |
+| 5   | [`phase-5.md`](./phase-5.md) | Fixtures, golden tests, real-account dogfood, and cleanup of legacy names                                                                              |
 
 Each phase file is self-contained: goals, work items, files touched, verification commands, acceptance criteria, and explicit out-of-scope items.
 
@@ -31,13 +31,13 @@ These pieces already exist in the repo and should be treated as inputs, not as f
 
 ## Research summary (library decision)
 
-| Layer                          | Library                          | Notes                                                                 |
-| ------------------------------ | -------------------------------- | --------------------------------------------------------------------- |
-| Primary PDF conversion         | Docling                          | Layout-aware markdown + tables; already pinned                       |
-| Fast PDF probe                 | PyMuPDF                          | Detects text-vs-image, encryption, page count, empty pages           |
-| Deterministic table fallback   | pdfplumber                       | No Java dep; char/table coordinates; great for invoice text          |
-| OCR fallback (gated, off by default) | pytesseract / OCRmyPDF      | Only for scanned PDFs; off until fixtures justify it                 |
-| Email body parsing             | Python regex inside the extractor | Removes the TypeScript-side regex duplication                        |
+| Layer                                | Library                           | Notes                                                       |
+| ------------------------------------ | --------------------------------- | ----------------------------------------------------------- |
+| Primary PDF conversion               | Docling                           | Layout-aware markdown + tables; already pinned              |
+| Fast PDF probe                       | PyMuPDF                           | Detects text-vs-image, encryption, page count, empty pages  |
+| Deterministic table fallback         | pdfplumber                        | No Java dep; char/table coordinates; great for invoice text |
+| OCR fallback (gated, off by default) | pytesseract / OCRmyPDF            | Only for scanned PDFs; off until fixtures justify it        |
+| Email body parsing                   | Python regex inside the extractor | Removes the TypeScript-side regex duplication               |
 
 LLM/VLM extractors (Qwen, Gemma, OpenAI, Claude, …) are explicitly **not** part of the ingest path. They remain available to the assistant.
 

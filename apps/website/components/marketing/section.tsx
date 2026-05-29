@@ -26,17 +26,9 @@ export function Section({
   return (
     <section
       id={id}
-      className={cn(
-        "relative mx-auto w-full px-6 py-20 md:py-28",
-        className,
-      )}
+      className={cn("relative mx-auto w-full px-6 py-20 md:py-28", className)}
     >
-      <div
-        className={cn(
-          "mx-auto max-w-[1180px]",
-          containerClassName,
-        )}
-      >
+      <div className={cn("mx-auto max-w-[1180px]", containerClassName)}>
         {(eyebrow || title || description) && (
           <div
             className={cn(

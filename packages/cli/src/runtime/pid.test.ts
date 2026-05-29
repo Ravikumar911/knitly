@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resolvePaths } from "../config/paths.js";
-import { clearPidFile, isProcessAlive, readPidFile, writePidFile } from "./pid.js";
+import {
+  clearPidFile,
+  isProcessAlive,
+  readPidFile,
+  writePidFile,
+} from "./pid.js";
 
 describe("pid file helpers", () => {
   const previousHome = process.env.SLASHCASH_HOME;

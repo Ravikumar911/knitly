@@ -75,7 +75,7 @@ const SourceDemo = () => {
                       <SourcesTrigger
                         count={
                           message.parts.filter(
-                            (part) => part.type === "source-url"
+                            (part) => part.type === "source-url",
                           ).length
                         }
                       />
@@ -185,25 +185,25 @@ See `scripts/sources-custom.tsx` for this example.
 
 ### `<Sources />`
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `...props` | `React.HTMLAttributes<HTMLDivElement>` | - | Any other props are spread to the root div. |
+| Prop       | Type                                   | Default | Description                                 |
+| ---------- | -------------------------------------- | ------- | ------------------------------------------- |
+| `...props` | `React.HTMLAttributes<HTMLDivElement>` | -       | Any other props are spread to the root div. |
 
 ### `<SourcesTrigger />`
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `count` | `number` | Required | The number of sources to display in the trigger. |
-| `...props` | `React.ComponentProps<typeof CollapsibleTrigger>` | - | Any other props are spread to the CollapsibleTrigger component. |
+| Prop       | Type                                              | Default  | Description                                                     |
+| ---------- | ------------------------------------------------- | -------- | --------------------------------------------------------------- |
+| `count`    | `number`                                          | Required | The number of sources to display in the trigger.                |
+| `...props` | `React.ComponentProps<typeof CollapsibleTrigger>` | -        | Any other props are spread to the CollapsibleTrigger component. |
 
 ### `<SourcesContent />`
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `...props` | `React.HTMLAttributes<HTMLDivElement>` | - | Any other props are spread to the content container. |
+| Prop       | Type                                   | Default | Description                                          |
+| ---------- | -------------------------------------- | ------- | ---------------------------------------------------- |
+| `...props` | `React.HTMLAttributes<HTMLDivElement>` | -       | Any other props are spread to the content container. |
 
 ### `<Source />`
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `...props` | `React.AnchorHTMLAttributes<HTMLAnchorElement>` | - | Any other props are spread to the anchor element. |
+| Prop       | Type                                            | Default | Description                                       |
+| ---------- | ----------------------------------------------- | ------- | ------------------------------------------------- |
+| `...props` | `React.AnchorHTMLAttributes<HTMLAnchorElement>` | -       | Any other props are spread to the anchor element. |

@@ -14,10 +14,10 @@ description: Maintain repo agent instructions in AGENTS.md and .agents/skills wi
 
 ## When to update what
 
-| Change | Update |
-|--------|--------|
-| New package or boundary | `AGENTS.md` architecture section |
-| App-only Next/tRPC/AI pattern | `apps/main/AGENTS.md` |
+| Change                                        | Update                                        |
+| --------------------------------------------- | --------------------------------------------- |
+| New package or boundary                       | `AGENTS.md` architecture section              |
+| App-only Next/tRPC/AI pattern                 | `apps/main/AGENTS.md`                         |
 | Repeatable workflow (PR checklist, migration) | New or existing skill under `.agents/skills/` |
 
 ## Conventions for skills

@@ -70,9 +70,9 @@ Fields are case-sensitive. npm does not validate the configuration when you save
 
 ### Troubleshooting misleading publish errors
 
-| Symptom | Likely cause |
-| --- | --- |
-| `404 ... is not in this registry` after provenance is signed | Private repo + provenance enabled |
-| `404` or `ENEEDAUTH` with OIDC configured | `registry-url` on `setup-node` plus empty/missing `NODE_AUTH_TOKEN`, or `NPM_TOKEN` still set on the publish step |
-| `404` with otherwise correct OIDC setup | npm CLI too old — upgrade to npm 11.5.1+ on Node 24 |
-| Auth works but publish denied | Trusted Publisher workflow filename, environment, or repository mismatch on npmjs.com |
+| Symptom                                                      | Likely cause                                                                                                      |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `404 ... is not in this registry` after provenance is signed | Private repo + provenance enabled                                                                                 |
+| `404` or `ENEEDAUTH` with OIDC configured                    | `registry-url` on `setup-node` plus empty/missing `NODE_AUTH_TOKEN`, or `NPM_TOKEN` still set on the publish step |
+| `404` with otherwise correct OIDC setup                      | npm CLI too old — upgrade to npm 11.5.1+ on Node 24                                                               |
+| Auth works but publish denied                                | Trusted Publisher workflow filename, environment, or repository mismatch on npmjs.com                             |

@@ -6,7 +6,9 @@ export const chats = sqliteTable("chats", {
   id: text("id")
     .$defaultFn(() => randomUUID())
     .primaryKey(),
-  userId: text("user_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => profiles.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .$defaultFn(() => new Date())

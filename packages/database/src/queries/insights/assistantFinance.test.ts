@@ -152,6 +152,46 @@ describe("assistant finance snapshot", () => {
     expect(snapshot.totals.count).toBe(1);
     expect(snapshot.recentOrders[0]?.merchantId).toBe("merchantalpha");
   });
+
+  it("recentOnly returns the latest N orders without a date window", async () => {
+    const userId = `assistant-finance-recent-${randomUUID()}`;
+    ensureLocalDatabase();
+    await db.insert(profiles).values({
+      id: userId,
+      email: null,
+      first_name: "Recent",
+      last_name: "Finance",
+      updated_at: new Date(),
+    });
+
+    const rows = Array.from({ length: 12 }, (_, index) =>
+      fixtureTransaction({
+        userId,
+        merchantId: "merchant-alpha",
+        merchantName: "Merchant Alpha",
+        amount: 100 + index,
+        date: new Date(
+          `2026-04-${String(index + 1).padStart(2, "0")}T12:00:00`,
+        ),
+        serviceType: "FOOD_DELIVERY",
+        counterparty: `Order ${index + 1}`,
+        orderId: `recent-${index + 1}`,
+      }),
+    );
+    await db.insert(transactionsV2).values(rows);
+
+    const snapshot = await getAssistantFinanceSnapshot(userId, {
+      recentOnly: true,
+      recentOrderLimit: 10,
+      includeOrders: true,
+      limit: 10,
+    });
+
+    expect(snapshot.totals.count).toBe(10);
+    expect(snapshot.recentOrders).toHaveLength(10);
+    expect(snapshot.recentOrders[0]?.orderId).toBe("recent-12");
+    expect(snapshot.recentOrders[9]?.orderId).toBe("recent-3");
+  });
 });
 
 function fixtureTransaction(input: {

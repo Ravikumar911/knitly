@@ -18,8 +18,7 @@ type SlashcashVitestConfigOptions = {
 };
 
 const configRoot = dirname(fileURLToPath(import.meta.url));
-const isCi =
-  process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
+const isCi = process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
 const includeIntegration = process.env.VITEST_INTEGRATION === "1";
 
 export const slashcashVitestGlobalSetup = join(
@@ -57,7 +56,13 @@ export function createSlashcashVitestConfig(
       unstubGlobals: true,
       reporters: [...reporters],
       outputFile: isCi
-        ? { junit: join(options.packageRoot, "test-results", "vitest.junit.xml") }
+        ? {
+            junit: join(
+              options.packageRoot,
+              "test-results",
+              "vitest.junit.xml",
+            ),
+          }
         : undefined,
       coverage: {
         provider: "v8",

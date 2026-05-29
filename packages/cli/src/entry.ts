@@ -1,9 +1,4 @@
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,7 +26,9 @@ const { runCli } = await import("./cli/run.js");
 await runCli(args, { version: readPackageVersion() });
 
 async function maybePrintUpdateHint(currentVersion: string) {
-  const home = resolve(process.env.SLASHCASH_HOME || join(homedir(), ".slashcash"));
+  const home = resolve(
+    process.env.SLASHCASH_HOME || join(homedir(), ".slashcash"),
+  );
   const configPath = join(home, "config.json");
   if (!existsSync(configPath)) return;
 
@@ -88,7 +85,8 @@ function readUpdateCache(path: string): UpdateCache | null {
       checkedAt?: number;
       latest?: string;
     };
-    return typeof cache.checkedAt === "number" && typeof cache.latest === "string"
+    return typeof cache.checkedAt === "number" &&
+      typeof cache.latest === "string"
       ? { checkedAt: cache.checkedAt, latest: cache.latest }
       : null;
   } catch {

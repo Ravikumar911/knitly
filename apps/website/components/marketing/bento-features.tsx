@@ -296,7 +296,10 @@ export function BentoFeaturesSecondary() {
                   "linear-gradient(135deg, rgba(16,185,129,0.15), rgba(47,108,235,0.15))",
               }}
             >
-              <ShieldCheck className="h-10 w-10 text-emerald-600" strokeWidth={1.5} />
+              <ShieldCheck
+                className="h-10 w-10 text-emerald-600"
+                strokeWidth={1.5}
+              />
             </div>
           </div>
         }
@@ -340,7 +343,10 @@ export function AgentsBento() {
                 }}
               />
               <div className="relative grid h-24 w-24 place-items-center rounded-full bg-white shadow-[0_12px_32px_-8px_rgba(47,108,235,0.28)]">
-                <ScanSearch className="h-8 w-8 text-[#635bff]" strokeWidth={1.5} />
+                <ScanSearch
+                  className="h-8 w-8 text-[#635bff]"
+                  strokeWidth={1.5}
+                />
               </div>
             </div>
           </div>

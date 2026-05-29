@@ -61,8 +61,8 @@ Positioning line: not another finance dashboard — a private finance team runni
 -->
 
 ---
-layout: default
----
+
+## layout: default
 
 <div class="pitch-slide-head">
   Problem
@@ -97,8 +97,8 @@ Problem is fragmentation + manual reconciliation, not ‘lack of banking apps’
 -->
 
 ---
-layout: default
----
+
+## layout: default
 
 <div class="pitch-slide-head">
   Gap
@@ -127,8 +127,8 @@ Keep this blunt — charts without decisions are shelf-ware.
 -->
 
 ---
-layout: default
----
+
+## layout: default
 
 <div class="pitch-slide-head">
   Product
@@ -158,8 +158,10 @@ Trust model is local execution + inspectable workflows, not a pitch deck promise
 -->
 
 ---
+
 layout: default
 class: pitch-slide--full
+
 ---
 
 <div class="pitch-slide-head">
@@ -181,9 +183,11 @@ Five-second read: pipeline from messy inputs to concrete actions.
 -->
 
 ---
+
 layout: default
 class: pitch-slide--dense
 zoom: 0.9
+
 ---
 
 <div class="pitch-slide-head">
@@ -215,9 +219,11 @@ Small, inspectable units — same discipline as design-system primitives.
 -->
 
 ---
+
 layout: two-cols
 zoom: 0.93
 class: pitch-slide--split
+
 ---
 
 <div class="pitch-slide-head">
@@ -260,8 +266,10 @@ This slide should prompt: what changed, why, what do I do this week?
 -->
 
 ---
+
 layout: default
 class: pitch-slide--dense
+
 ---
 
 <div class="pitch-slide-head">
@@ -293,8 +301,8 @@ Timing = volume + fragmentation + privacy + tooling maturity.
 -->
 
 ---
-layout: default
----
+
+## layout: default
 
 <div class="pitch-slide-head">
   Beachhead
@@ -323,8 +331,10 @@ First users fund clarity — not ‘every smartphone owner’.
 -->
 
 ---
+
 layout: default
 class: pitch-slide--dense
+
 ---
 
 <div class="pitch-slide-head">
@@ -378,8 +388,8 @@ Practical framing beats invented precision.
 -->
 
 ---
-layout: default
----
+
+## layout: default
 
 <div class="pitch-slide-head">
   Differentiation
@@ -400,9 +410,11 @@ Positioning should scan in ~5 seconds — table does the heavy lifting.
 -->
 
 ---
+
 layout: default
 class: pitch-slide--dense
 zoom: 0.92
+
 ---
 
 <div class="pitch-slide-head">

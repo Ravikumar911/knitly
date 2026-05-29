@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "../../client";
 import { transactionsV2 } from "../../schema/transactionsV2";
 
@@ -163,6 +163,15 @@ const dayNames = [
 
 const serviceOrder = ["foodDelivery", "grocery", "dineout", "unknown"];
 
+/**
+ * Hard cap on full-history (!recentOnly) row fetches.
+ * The "call spendingOverview first" contract (enforced by the system prompt) plus broad
+ * summary/trend calls would otherwise load the user's entire DEBIT history into JS.
+ * 8000 rows is generous for typical long-term personal finance use (~10-15+ years of heavy daily
+ * transactions) while remaining safe even on modest hardware / local SQLite.
+ */
+const FULL_HISTORY_CAP = 8000;
+
 export async function getAssistantFinanceSnapshot(
   userId: string,
   input: AssistantFinanceSnapshotInput = {},
@@ -173,7 +182,13 @@ export async function getAssistantFinanceSnapshot(
     10,
     50,
   );
-  const allRows = await getAssistantFinanceRows(userId);
+  const rowFetchLimit = input.recentOnly
+    ? clampLimit((input.recentOrderLimit ?? input.limit ?? 10) * 5, 25, 200)
+    : FULL_HISTORY_CAP;
+  const allRows = await getAssistantFinanceRows(userId, {
+    recentFirst: Boolean(input.recentOnly),
+    limit: rowFetchLimit,
+  });
   const merchantScopedRows = allRows.filter((row) =>
     merchantIdMatches(row, input.merchantIds),
   );
@@ -298,6 +313,15 @@ export async function getAssistantFinanceSnapshot(
     );
   }
 
+  // Surface truncation for the full-history path (triggered by the mandatory spendingOverview
+  // and other !recentOnly calls). The model prompt already teaches it to cite dataRange and
+  // dataQualityNotes, so this keeps answers honest for power users.
+  if (!input.recentOnly && allRows.length >= FULL_HISTORY_CAP) {
+    dataQualityNotes.add(
+      `Data truncated to the most recent ${FULL_HISTORY_CAP} transactions for performance. Older history is not reflected in these numbers.`,
+    );
+  }
+
   return {
     dataRange: {
       startDate: dataRange.startDate,
@@ -359,8 +383,9 @@ export async function getAssistantFinanceSnapshot(
 
 async function getAssistantFinanceRows(
   userId: string,
+  options: { recentFirst?: boolean; limit?: number } = {},
 ): Promise<AssistantFinanceRow[]> {
-  const rows = await db
+  const base = db
     .select({
       id: transactionsV2.id,
       merchantId: transactionsV2.merchantId,
@@ -379,8 +404,15 @@ async function getAssistantFinanceRows(
         eq(transactionsV2.type, "DEBIT"),
         eq(transactionsV2.status, "COMPLETED"),
       ),
-    )
-    .orderBy(asc(transactionsV2.transactionDate));
+    );
+
+  const rows = await (options.recentFirst
+    ? base
+        .orderBy(desc(transactionsV2.transactionDate))
+        .limit(options.limit ?? 200)
+    : base
+        .orderBy(asc(transactionsV2.transactionDate))
+        .limit(options.limit ?? FULL_HISTORY_CAP));
 
   return rows.map((row) => ({
     ...row,
@@ -776,4 +808,266 @@ function formatMonth(date: Date) {
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
+}
+
+// =============================================================================
+// New narrow, tool-oriented query helpers (2026 refactor)
+// Goal: Give the AI SDK the finance tool suite (6 focused tools: listOrders,
+// spendingSummary, spendingTrends, topMerchants, orderDetail, spendingOverview)
+// with clean arg schemas that the model can call naturally.
+// model can call with parameters it decides. These are thin projections over
+// the existing snapshot for a safe incremental rollout.
+// =============================================================================
+
+export interface AssistantToolFilters {
+  startDate?: Date;
+  endDate?: Date;
+  merchantIds?: string[];
+  serviceTypes?: string[];
+  merchantQuery?: string;
+  itemQuery?: string;
+  limit?: number;
+  recentOnly?: boolean;
+}
+
+/**
+ * Tool 1: List individual completed orders with line items.
+ * Best for: "show my last 10 orders", "find the Swiggy order from yesterday", etc.
+ */
+export async function listAssistantOrders(
+  userId: string,
+  filters: AssistantToolFilters = {},
+): Promise<{
+  orders: AssistantFinanceOrder[];
+  dataRange: { startDate: string | null; endDate: string | null };
+  count: number;
+}> {
+  const snapshot = await getAssistantFinanceSnapshot(userId, {
+    ...filters,
+    includeOrders: true,
+    recentOrderLimit: filters.limit ?? (filters.recentOnly ? 15 : 30),
+    limit: filters.limit ?? 30,
+    topLimit: 5,
+  });
+
+  return {
+    // For the "list orders" tool intent we strongly prefer a recent slice (the model
+    // usually wants to see actual recent transactions). topOrdersBySpend is only a
+    // fallback for the (rare) case where recentOrders is empty.
+    orders: snapshot.recentOrders ?? snapshot.topOrdersBySpend ?? [],
+    dataRange: snapshot.dataRange,
+    count: snapshot.totals.count,
+  };
+}
+
+/**
+ * Tool 2: High-level spending totals + the most useful breakdowns.
+ * Best for: "how much did I spend last month on grocery?", "breakdown by platform".
+ */
+export async function getAssistantSpendingSummary(
+  userId: string,
+  filters: AssistantToolFilters = {},
+): Promise<{
+  totals: { spend: number; count: number; averageOrderValue: number };
+  dataRange: { startDate: string | null; endDate: string | null };
+  serviceBreakdown: AssistantFinanceSnapshot["serviceBreakdown"];
+  merchantBreakdown: AssistantFinanceSnapshot["merchantBreakdown"];
+  paymentBreakdown: AssistantFinanceSnapshot["paymentBreakdown"];
+  feeSummary: AssistantFinanceSnapshot["feeSummary"];
+  dataQualityNotes: string[];
+}> {
+  const snapshot = await getAssistantFinanceSnapshot(userId, {
+    ...filters,
+    limit: filters.limit ?? 20,
+    topLimit: 8,
+  });
+
+  return {
+    totals: snapshot.totals,
+    dataRange: snapshot.dataRange,
+    serviceBreakdown: snapshot.serviceBreakdown,
+    merchantBreakdown: snapshot.merchantBreakdown,
+    paymentBreakdown: snapshot.paymentBreakdown,
+    feeSummary: snapshot.feeSummary,
+    dataQualityNotes: snapshot.dataQualityNotes,
+  };
+}
+
+/**
+ * Tool 3: Temporal patterns (monthly trend + day-of-week + hour-of-day).
+ * Best for: "when do I spend the most?", "am I ordering more on weekends?".
+ */
+export async function getAssistantSpendingTrends(
+  userId: string,
+  filters: AssistantToolFilters = {},
+): Promise<{
+  dataRange: { startDate: string | null; endDate: string | null };
+  monthlyTrend: AssistantFinanceSnapshot["monthlyTrend"];
+  dayOfWeekBreakdown: AssistantFinanceSnapshot["dayOfWeekBreakdown"];
+  hourBreakdown: AssistantFinanceSnapshot["hourBreakdown"];
+  totals: { spend: number; count: number };
+}> {
+  const snapshot = await getAssistantFinanceSnapshot(userId, {
+    ...filters,
+    limit: filters.limit ?? 50,
+  });
+
+  return {
+    dataRange: snapshot.dataRange,
+    monthlyTrend: snapshot.monthlyTrend,
+    dayOfWeekBreakdown: snapshot.dayOfWeekBreakdown,
+    hourBreakdown: snapshot.hourBreakdown,
+    totals: { spend: snapshot.totals.spend, count: snapshot.totals.count },
+  };
+}
+
+/**
+ * Tool 4: Top merchants by spend or frequency (with optional search).
+ * Best for: "which restaurants do I order from most?", "my biggest Swiggy merchants".
+ */
+export async function getAssistantTopMerchants(
+  userId: string,
+  filters: AssistantToolFilters = {},
+): Promise<{
+  merchants: AssistantFinanceSnapshot["merchantBreakdown"];
+  dataRange: { startDate: string | null; endDate: string | null };
+  totalMerchants: number;
+}> {
+  const snapshot = await getAssistantFinanceSnapshot(userId, {
+    ...filters,
+    topLimit: filters.limit ?? 12,
+    limit: filters.limit ?? 20,
+  });
+
+  return {
+    merchants: snapshot.merchantBreakdown,
+    dataRange: snapshot.dataRange,
+    totalMerchants: snapshot.merchantBreakdown.length,
+  };
+}
+
+/**
+ * Tool 5: Retrieve the full details (including line items + raw context) for one specific order.
+ * Best for follow-ups after the model has seen a transactionId from listAssistantOrders.
+ *
+ * This now uses a direct point query by primary key so it works for historical
+ * transactions (not just the recent window). This fixes the previous broken
+ * implementation that could only find orders inside a forced recentOnly slice.
+ */
+export async function getAssistantOrderDetail(
+  userId: string,
+  transactionId: string,
+): Promise<{
+  order: AssistantFinanceOrder | null;
+  found: boolean;
+}> {
+  const rows = await db
+    .select({
+      id: transactionsV2.id,
+      merchantId: transactionsV2.merchantId,
+      merchantName: transactionsV2.merchantName,
+      amount: transactionsV2.amount,
+      transactionDate: transactionsV2.transactionDate,
+      description: transactionsV2.description,
+      paymentMethod: transactionsV2.paymentMethod,
+      merchantData: transactionsV2.merchantData,
+      extractionConfidence: transactionsV2.extractionConfidence,
+    })
+    .from(transactionsV2)
+    .where(
+      and(
+        eq(transactionsV2.userId, userId),
+        eq(transactionsV2.id, transactionId),
+        eq(transactionsV2.type, "DEBIT"),
+        eq(transactionsV2.status, "COMPLETED"),
+      ),
+    )
+    .limit(1);
+
+  if (rows.length === 0) {
+    return { order: null, found: false };
+  }
+
+  const first = rows[0]!;
+  const row: AssistantFinanceRow = {
+    ...first,
+    amount: numeric(first.amount),
+    merchantData: asMerchantData(first.merchantData),
+  };
+
+  const order = orderDetailForRow(row);
+  return { order, found: true };
+}
+
+/**
+ * Lightweight overview tool — gives the model a high-level picture of the user's
+ * entire spending history before answering specific questions.
+ *
+ * This is the single highest-leverage addition for handling "last month",
+ * low-data scenarios, Instamart-style questions, and giving good advice.
+ */
+export async function getUserSpendingOverview(userId: string): Promise<{
+  dateRange: { startDate: string | null; endDate: string | null };
+  totals: { count: number; spend: number; averageOrderValue: number };
+  serviceBreakdown: Array<{
+    serviceType: string;
+    label: string;
+    count: number;
+    spend: number;
+  }>;
+  topMerchantsByOrders: Array<{ name: string; count: number; spend: number }>;
+  topMerchantsBySpend: Array<{ name: string; count: number; spend: number }>;
+  monthlyActivity: Array<{ month: string; count: number; spend: number }>;
+  notes: string[];
+}> {
+  // Use a broad snapshot to get overall shape (this is acceptable for overview)
+  const snapshot = await getAssistantFinanceSnapshot(userId, {
+    recentOnly: false,
+    limit: 1000,
+    topLimit: 8,
+  });
+
+  const monthly = snapshot.monthlyTrend.slice(-8); // last 8 months for overview
+
+  const notes: string[] = [];
+
+  if (snapshot.totals.count < 15) {
+    notes.push("Your transaction history is relatively limited.");
+  }
+
+  const monthsWithData = snapshot.monthlyTrend.length;
+  if (monthsWithData > 0) {
+    const avgPerMonth = Math.round(snapshot.totals.count / monthsWithData);
+    if (avgPerMonth < 3) {
+      notes.push("Spending is quite sparse across months.");
+    }
+  }
+
+  return {
+    dateRange: snapshot.dataRange,
+    totals: snapshot.totals,
+    serviceBreakdown: snapshot.serviceBreakdown,
+    topMerchantsByOrders: snapshot.merchantBreakdown
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6)
+      .map((m) => ({
+        name: m.name,
+        count: m.count,
+        spend: Math.round(m.spend),
+      })),
+    topMerchantsBySpend: [...snapshot.merchantBreakdown]
+      .sort((a, b) => b.spend - a.spend)
+      .slice(0, 6)
+      .map((m) => ({
+        name: m.name,
+        count: m.count,
+        spend: Math.round(m.spend),
+      })),
+    monthlyActivity: monthly.map((m) => ({
+      month: m.month,
+      count: m.count,
+      spend: Math.round(m.spend),
+    })),
+    notes,
+  };
 }

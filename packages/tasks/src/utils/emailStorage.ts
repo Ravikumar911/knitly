@@ -1,4 +1,9 @@
-import { storeEmailData as dbStoreEmail, storeTransactionV2 as dbStoreTransaction, ParsedEmail, Transaction } from "@workspace/database";
+import {
+  storeEmailData as dbStoreEmail,
+  storeTransactionV2 as dbStoreTransaction,
+  ParsedEmail,
+  Transaction,
+} from "@workspace/database";
 
 const logger = {
   log: console.log,
@@ -10,9 +15,9 @@ const logger = {
  */
 export const storeEmailData = async (emailData: ParsedEmail) => {
   try {
-    logger.log("Storing email data", { 
+    logger.log("Storing email data", {
       threadId: emailData.threadId,
-      subject: emailData.subject
+      subject: emailData.subject,
     });
 
     const stored = await dbStoreEmail(emailData);
@@ -21,14 +26,14 @@ export const storeEmailData = async (emailData: ParsedEmail) => {
       throw new Error("Failed to store email data");
     }
 
-    logger.log("Email data stored successfully", { 
-      id: stored[0]?.id
+    logger.log("Email data stored successfully", {
+      id: stored[0]?.id,
     });
-    
+
     return stored[0];
   } catch (error) {
-    logger.error("Error storing email data", { 
-      error: error instanceof Error ? error.message : String(error)
+    logger.error("Error storing email data", {
+      error: error instanceof Error ? error.message : String(error),
     });
     return null;
   }
@@ -46,7 +51,7 @@ export const storeTransactionData = async (data: Transaction) => {
 
     const stored = await dbStoreTransaction(data);
     logger.log("Transaction stored", {
-      stored
+      stored,
     });
 
     if (!stored) {
@@ -74,7 +79,7 @@ export const processAttachments = async (
     filename: string;
     attachmentId: string;
     mimeType: string;
-  }>
+  }>,
 ): Promise<{
   storagePaths: string[];
   processedAttachments: Array<{
@@ -92,4 +97,4 @@ export const processAttachments = async (
     storagePaths: [],
     processedAttachments: [],
   };
-}; 
+};

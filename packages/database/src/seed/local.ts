@@ -275,21 +275,24 @@ export async function seedLocalDatabase() {
   await clearLocalSeedData();
 
   const now = new Date();
-  await db.insert(profiles).values({
-    id: LOCAL_USER_ID,
-    email: null,
-    first_name: "Local",
-    last_name: "User",
-    updated_at: now,
-  }).onConflictDoUpdate({
-    target: profiles.id,
-    set: {
+  await db
+    .insert(profiles)
+    .values({
+      id: LOCAL_USER_ID,
       email: null,
       first_name: "Local",
       last_name: "User",
       updated_at: now,
-    },
-  });
+    })
+    .onConflictDoUpdate({
+      target: profiles.id,
+      set: {
+        email: null,
+        first_name: "Local",
+        last_name: "User",
+        updated_at: now,
+      },
+    });
 
   await db.insert(emailSyncStatus).values({
     userId: LOCAL_USER_ID,

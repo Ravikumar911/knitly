@@ -20,7 +20,9 @@ export default function TermsOfServicePage() {
       <h1 className="mt-3 text-[2.4rem] font-bold tracking-tight text-neutral-900">
         Terms of Service
       </h1>
-      <p className="mt-2 text-sm text-neutral-500">Last updated: May 21, 2026</p>
+      <p className="mt-2 text-sm text-neutral-500">
+        Last updated: May 21, 2026
+      </p>
 
       <div className="mt-8 rounded-xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
         <strong>Not financial advice.</strong> Slash Cash helps you organize and
@@ -46,9 +48,9 @@ export default function TermsOfServicePage() {
         </p>
         <ul>
           <li>
-            <strong>Email ingestion:</strong> Read-only access to finance-related
-            messages you approve. Slash Cash cannot send email or modify your
-            inbox.
+            <strong>Email ingestion:</strong> Read-only access to
+            finance-related messages you approve. Slash Cash cannot send email
+            or modify your inbox.
           </li>
           <li>
             <strong>No money movement:</strong> The product does not execute
@@ -63,10 +65,17 @@ export default function TermsOfServicePage() {
 
         <h2>3. Your responsibilities</h2>
         <ul>
-          <li>Keep your device, database file, and connector credentials secure.</li>
-          <li>Use app passwords and read-only access patterns as documented.</li>
+          <li>
+            Keep your device, database file, and connector credentials secure.
+          </li>
+          <li>
+            Use app passwords and read-only access patterns as documented.
+          </li>
           <li>Verify categorization and suggestions before acting on them.</li>
-          <li>Comply with applicable law and third-party terms (Google, banks, etc.).</li>
+          <li>
+            Comply with applicable law and third-party terms (Google, banks,
+            etc.).
+          </li>
         </ul>
 
         <h2>4. Disclaimer of warranties</h2>
@@ -78,10 +87,10 @@ export default function TermsOfServicePage() {
 
         <h2>5. Limitation of liability</h2>
         <p>
-          To the maximum extent permitted by law, Slash Cash and its contributors
-          are not liable for indirect, incidental, or consequential damages
-          arising from use of the software, including financial decisions you
-          make based on dashboards or agent output.
+          To the maximum extent permitted by law, Slash Cash and its
+          contributors are not liable for indirect, incidental, or consequential
+          damages arising from use of the software, including financial
+          decisions you make based on dashboards or agent output.
         </p>
 
         <h2>6. Third-party services</h2>
@@ -105,7 +114,10 @@ export default function TermsOfServicePage() {
 
       <p className="mt-12 text-sm text-neutral-500">
         See also{" "}
-        <Link href="/privacy" className="font-medium text-sky-800 hover:underline">
+        <Link
+          href="/privacy"
+          className="font-medium text-sky-800 hover:underline"
+        >
           Privacy Policy
         </Link>
         {" · "}

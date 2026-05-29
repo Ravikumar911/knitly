@@ -1,0 +1,57 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Assistant Regression - Tool Trajectories > should produce stable tool trajectory for: no-results-specific > trajectory-no-results-specific 1`] = `
+[
+  {
+    "toolCalls": [
+      {
+        "argKeys": [],
+        "toolName": "spendingOverview",
+      },
+      {
+        "argKeys": [],
+        "toolName": "spendingSummary",
+      },
+    ],
+  },
+  {
+    "toolCalls": [],
+  },
+]
+`;
+
+exports[`Assistant Regression - Tool Trajectories > should produce stable tool trajectory for: relative-date-instamart > trajectory-relative-date-instamart 1`] = `
+[
+  {
+    "toolCalls": [
+      {
+        "argKeys": [],
+        "toolName": "spendingOverview",
+      },
+    ],
+  },
+  {
+    "toolCalls": [],
+  },
+]
+`;
+
+exports[`Assistant Regression - Tool Trajectories > should produce stable tool trajectory for: top-restaurant-vs-grocery > trajectory-top-restaurant-vs-grocery 1`] = `
+[
+  {
+    "toolCalls": [
+      {
+        "argKeys": [],
+        "toolName": "spendingOverview",
+      },
+      {
+        "argKeys": [],
+        "toolName": "topMerchants",
+      },
+    ],
+  },
+  {
+    "toolCalls": [],
+  },
+]
+`;

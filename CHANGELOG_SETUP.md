@@ -23,6 +23,7 @@ pnpm changeset
 ```
 
 This will:
+
 - Ask you which packages have changed
 - Ask for the type of change (major, minor, patch)
 - Ask for a description of the changes
@@ -33,10 +34,12 @@ This will:
 When changes are merged to `main`:
 
 1. **If there are pending changesets:**
+
    - A PR is created with version bumps and changelog updates
    - You can review and merge this PR to trigger a release
 
 2. **If there are no pending changesets:**
+
    - No release is created (working as intended)
 
 3. **When release PR is merged:**
@@ -49,7 +52,7 @@ When changes are merged to `main`:
 All packages are configured with consistent versioning:
 
 - `@knitly/main` (main app) - v0.1.0
-- `@knitly/website` (marketing site) - v0.1.0  
+- `@knitly/website` (marketing site) - v0.1.0
 - `@workspace/database` (database package) - v0.1.0
 - `@workspace/ui` (UI components) - v0.1.0
 - `@workspace/tasks` (background tasks) - v0.1.0
@@ -111,16 +114,19 @@ git push
 ## Troubleshooting
 
 ### No releases are being created
+
 - Check if you have pending changesets: `pnpm changeset:status`
 - Ensure changes are properly committed and pushed to main
 - Check GitHub Actions logs for any errors
 
 ### Release workflow fails
+
 - Ensure all packages build successfully: `pnpm build`
 - Check if all dependencies are properly installed
 - Verify GitHub token permissions
 
 ### Packages not getting versioned
+
 - Check `.changeset/config.json` configuration
 - Ensure packages are not in the `ignore` array
 - Verify package.json files have proper names and versions

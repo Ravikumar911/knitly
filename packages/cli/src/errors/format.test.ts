@@ -40,12 +40,14 @@ describe("CLI error formatting", () => {
     });
 
     expect(normalizeCliError(cliError)).toEqual(cliError.block);
-    expect(normalizeCliError({
-      area: "filesystem",
-      symptom: "State dir missing.",
-      cause: "The folder was deleted.",
-      fix: "Run `slashcash doctor --fix`.",
-    })).toEqual({
+    expect(
+      normalizeCliError({
+        area: "filesystem",
+        symptom: "State dir missing.",
+        cause: "The folder was deleted.",
+        fix: "Run `slashcash doctor --fix`.",
+      }),
+    ).toEqual({
       area: "filesystem",
       symptom: "State dir missing.",
       cause: "The folder was deleted.",

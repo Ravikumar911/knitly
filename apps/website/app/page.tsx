@@ -68,12 +68,7 @@ export default function HomePage() {
               <h1 className="mt-6 text-balance text-[3.1rem] font-bold leading-[1.02] tracking-tight md:text-[3.8rem]">
                 Your{" "}
                 <AuroraText
-                  colors={[
-                    "#635bff",
-                    "#2f6ceb",
-                    "#0ea5e9",
-                    "#14b8a6",
-                  ]}
+                  colors={["#635bff", "#2f6ceb", "#0ea5e9", "#14b8a6"]}
                   speed={1.2}
                 >
                   AI finance team
@@ -85,8 +80,8 @@ export default function HomePage() {
 
             <BlurFade delay={0.2} inView>
               <p className="mt-5 max-w-xl text-[1.05rem] leading-relaxed text-neutral-500 md:text-[1.12rem]">
-                Seven small agents categorize your spends, find leaks, score your
-                money health, and tell you{" "}
+                Seven small agents categorize your spends, find leaks, score
+                your money health, and tell you{" "}
                 <span className="font-semibold text-neutral-900">
                   one clear thing to fix
                 </span>{" "}
@@ -157,14 +152,15 @@ export default function HomePage() {
       {/* TRUST STRIP / SOCIAL PROOF */}
       <Section className="!py-10" align="center" title="" containerClassName="">
         <BlurFade inView>
-              <div className="rounded-2xl border border-black/5 bg-white/60 px-6 py-5 backdrop-blur-sm">
+          <div className="rounded-2xl border border-black/5 bg-white/60 px-6 py-5 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-4 text-center md:flex-row md:justify-between md:text-left">
               <span className="max-w-md text-[0.78rem] font-semibold uppercase tracking-[0.16em] text-neutral-500 md:max-w-none">
                 Personal finance without the surveillance business model
               </span>
               <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[0.85rem] font-medium text-neutral-700">
                 <span className="inline-flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-sky-600" /> Auditable agents
+                  <Sparkles className="h-3.5 w-3.5 text-sky-600" /> Auditable
+                  agents
                 </span>
                 <span>·</span>
                 <span>Open core on GitHub</span>
@@ -242,7 +238,9 @@ export default function HomePage() {
         title={
           <>
             Seven specialists.{" "}
-            <AuroraText colors={["#14b8a6", "#2f6ceb"]}>One job each.</AuroraText>
+            <AuroraText colors={["#14b8a6", "#2f6ceb"]}>
+              One job each.
+            </AuroraText>
           </>
         }
         description="No mega-model trying to do everything. Each agent is a small, inspectable program with one clear responsibility."
@@ -326,12 +324,7 @@ export default function HomePage() {
                   Stop watching dashboards.
                   <br />
                   <AuroraText
-                    colors={[
-                      "#635bff",
-                      "#2f6ceb",
-                      "#0ea5e9",
-                      "#14b8a6",
-                    ]}
+                    colors={["#635bff", "#2f6ceb", "#0ea5e9", "#14b8a6"]}
                   >
                     Start fixing money.
                   </AuroraText>

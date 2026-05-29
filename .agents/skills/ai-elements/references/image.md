@@ -139,8 +139,8 @@ export async function POST(req: Request) {
 
 ### `<Image />`
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `alt` | `string` | - | Alternative text for the image. |
-| `className` | `string` | - | Additional CSS classes to apply to the image. |
-| `...props` | `Experimental_GeneratedImage` | - | The image data to display, as returned by the AI SDK. |
+| Prop        | Type                          | Default | Description                                           |
+| ----------- | ----------------------------- | ------- | ----------------------------------------------------- |
+| `alt`       | `string`                      | -       | Alternative text for the image.                       |
+| `className` | `string`                      | -       | Additional CSS classes to apply to the image.         |
+| `...props`  | `Experimental_GeneratedImage` | -       | The image data to display, as returned by the AI SDK. |

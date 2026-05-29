@@ -1,19 +1,19 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
+import * as React from "react";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu"
-import { Button } from "@workspace/ui/components/button"
+} from "@workspace/ui/components/dropdown-menu";
+import { Button } from "@workspace/ui/components/button";
 
 export function ThemeSwitcher() {
-  const { setTheme } = useTheme()
+  const { setTheme } = useTheme();
 
   return (
     <DropdownMenu>
@@ -36,5 +36,5 @@ export function ThemeSwitcher() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
-} 
+  );
+}

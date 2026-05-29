@@ -10,6 +10,7 @@ export * from "./schema/emailSyncStatus";
 export * from "./queries/operations/transactionFellegiSunter";
 
 export * from "./schema/users";
+export { LOCAL_USER_ID } from "./schema/users";
 export * from "./schema/parsedEmails";
 export * from "./schema/emailSyncStatus";
 export * from "./schema/relations";

@@ -20,7 +20,9 @@ export default function PrivacyPolicyPage() {
       <h1 className="mt-3 text-[2.4rem] font-bold tracking-tight text-neutral-900">
         Privacy Policy
       </h1>
-      <p className="mt-2 text-sm text-neutral-500">Last updated: May 21, 2026</p>
+      <p className="mt-2 text-sm text-neutral-500">
+        Last updated: May 21, 2026
+      </p>
 
       <article className="prose prose-neutral mt-10 max-w-none prose-headings:tracking-tight prose-a:text-sky-800">
         <p>
@@ -69,13 +71,19 @@ export default function PrivacyPolicyPage() {
 
         <h2>2. How we use information</h2>
         <ul>
-          <li>Categorize spends, detect leaks, score money health, and prepare weekly review on your device.</li>
-          <li>Improve the open-source product when you choose to share feedback or issues publicly.</li>
+          <li>
+            Categorize spends, detect leaks, score money health, and prepare
+            weekly review on your device.
+          </li>
+          <li>
+            Improve the open-source product when you choose to share feedback or
+            issues publicly.
+          </li>
         </ul>
         <p>
           <strong>We do not:</strong> sell your financial data, run ads against
-          your transaction graph, move money on your behalf, or require uploading
-          your ledger to a Slash Cash cloud.
+          your transaction graph, move money on your behalf, or require
+          uploading your ledger to a Slash Cash cloud.
         </p>
 
         <h2>2.1 No Slash Cash cloud ledger</h2>
@@ -102,8 +110,12 @@ export default function PrivacyPolicyPage() {
         <h2>5. Your choices</h2>
         <ul>
           <li>Delete your local database file at any time.</li>
-          <li>Revoke or rotate your Gmail app password in Google Account settings.</li>
-          <li>Export or back up SQLite using standard tools — you own the file.</li>
+          <li>
+            Revoke or rotate your Gmail app password in Google Account settings.
+          </li>
+          <li>
+            Export or back up SQLite using standard tools — you own the file.
+          </li>
         </ul>
 
         <h2>6. Children</h2>
@@ -117,14 +129,16 @@ export default function PrivacyPolicyPage() {
 
         <h2>8. Contact</h2>
         <p>
-          Questions:{" "}
-          <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+          Questions: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
         </p>
       </article>
 
       <p className="mt-12 text-sm text-neutral-500">
         See also{" "}
-        <Link href="/terms" className="font-medium text-sky-800 hover:underline">
+        <Link
+          href="/terms"
+          className="font-medium text-sky-800 hover:underline"
+        >
           Terms of Service
         </Link>
         {" · "}

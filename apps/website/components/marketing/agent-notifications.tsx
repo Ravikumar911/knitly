@@ -51,7 +51,10 @@ const notifications: Notification[] = [
   },
 ];
 
-const toneStyles: Record<Notification["tone"], { bg: string; fg: string; ring: string }> = {
+const toneStyles: Record<
+  Notification["tone"],
+  { bg: string; fg: string; ring: string }
+> = {
   warn: {
     bg: "bg-amber-50",
     fg: "text-amber-700",

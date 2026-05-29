@@ -1,26 +1,31 @@
-import { eq, desc, gte, and } from 'drizzle-orm';
-import { db } from '../index';
-import { feedback, type NewFeedback, type Feedback } from '../schema/feedback';
+import { eq, desc, gte, and } from "drizzle-orm";
+import { db } from "../index";
+import { feedback, type NewFeedback, type Feedback } from "../schema/feedback";
 
-export async function createFeedback(data: Omit<NewFeedback, 'id' | 'createdAt' | 'updatedAt'>) {
-  console.log('🗄️ Database: Creating feedback with data:', data);
-  
+export async function createFeedback(
+  data: Omit<NewFeedback, "id" | "createdAt" | "updatedAt">,
+) {
+  console.log("🗄️ Database: Creating feedback with data:", data);
+
   try {
     const insertData = {
       ...data,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    
-    console.log('🗄️ Database: Insert data prepared:', insertData);
-    
-    const [newFeedback] = await db.insert(feedback).values(insertData).returning();
-    
-    console.log('✅ Database: Feedback created successfully:', newFeedback);
-    
+
+    console.log("🗄️ Database: Insert data prepared:", insertData);
+
+    const [newFeedback] = await db
+      .insert(feedback)
+      .values(insertData)
+      .returning();
+
+    console.log("✅ Database: Feedback created successfully:", newFeedback);
+
     return newFeedback;
   } catch (error) {
-    console.error('❌ Database: Error creating feedback:', error);
+    console.error("❌ Database: Error creating feedback:", error);
     throw error;
   }
 }
@@ -31,7 +36,11 @@ export async function getFeedbackById(id: string): Promise<Feedback | null> {
 }
 
 export async function getFeedbackByUserId(userId: string): Promise<Feedback[]> {
-  return await db.select().from(feedback).where(eq(feedback.userId, userId)).orderBy(desc(feedback.createdAt));
+  return await db
+    .select()
+    .from(feedback)
+    .where(eq(feedback.userId, userId))
+    .orderBy(desc(feedback.createdAt));
 }
 
 export async function getAllFeedback(): Promise<Feedback[]> {
@@ -39,42 +48,43 @@ export async function getAllFeedback(): Promise<Feedback[]> {
 }
 
 export async function updateFeedbackStatus(id: string, status: string) {
-  const [updatedFeedback] = await db.update(feedback)
-    .set({ 
+  const [updatedFeedback] = await db
+    .update(feedback)
+    .set({
       status,
       updatedAt: new Date(),
     })
     .where(eq(feedback.id, id))
     .returning();
-    
+
   return updatedFeedback;
 }
 
 // Beta access specific functions
-export async function checkExistingBetaRequest(email: string): Promise<Feedback | null> {
+export async function checkExistingBetaRequest(
+  email: string,
+): Promise<Feedback | null> {
   const [existingRequest] = await db
     .select()
     .from(feedback)
-    .where(and(
-      eq(feedback.userEmail, email),
-      eq(feedback.type, 'beta')
-    ))
+    .where(and(eq(feedback.userEmail, email), eq(feedback.type, "beta")))
     .orderBy(desc(feedback.createdAt))
     .limit(1);
-    
+
   return existingRequest || null;
 }
 
-export async function getRecentBetaRequestsCount(timeWindowHours: number = 24): Promise<number> {
+export async function getRecentBetaRequestsCount(
+  timeWindowHours: number = 24,
+): Promise<number> {
   const timeThreshold = new Date(Date.now() - timeWindowHours * 60 * 60 * 1000);
-  
+
   const result = await db
     .select()
     .from(feedback)
-    .where(and(
-      eq(feedback.type, 'beta'),
-      gte(feedback.createdAt, timeThreshold)
-    ));
-    
+    .where(
+      and(eq(feedback.type, "beta"), gte(feedback.createdAt, timeThreshold)),
+    );
+
   return result.length;
-} 
+}

@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   LayoutDashboard,
   Command,
   Send,
   Settings,
   MessageSquare,
-} from "lucide-react"
+} from "lucide-react";
 
-import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
+import { NavMain } from "@/components/nav-main";
+import { NavSecondary } from "@/components/nav-secondary";
+import { NavUser } from "@/components/nav-user";
 import {
   Sidebar,
   SidebarContent,
@@ -20,7 +20,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-} from "@workspace/ui/components/sidebar"
+} from "@workspace/ui/components/sidebar";
 
 const data = {
   navMain: [
@@ -58,15 +58,15 @@ const data = {
       icon: Send,
     },
   ],
-}
+};
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   user: {
-    name: string
-    email: string
-    avatar: string
-  }
-}
+    name: string;
+    email: string;
+    avatar: string;
+  };
+};
 
 export function AppSidebar({ user, ...props }: AppSidebarProps) {
   return (
@@ -96,5 +96,5 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
         <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }
