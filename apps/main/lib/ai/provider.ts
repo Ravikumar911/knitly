@@ -5,7 +5,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModel } from "ai";
 
 export const DEFAULT_LOCAL_ASSISTANT_BASE_URL = "http://127.0.0.1:11434/v1";
-export const DEFAULT_LOCAL_ASSISTANT_CHAT_MODEL = "gemma4:latest";
+export const DEFAULT_LOCAL_ASSISTANT_CHAT_MODEL = "qwen3:4b";
 
 export type AssistantProviderName =
   | "none"
@@ -24,7 +24,7 @@ export type AssistantConfig = {
  * Config/env may still store other strings for migration; runtime uses these.
  */
 export const ASSISTANT_CANONICAL_CHAT_MODEL = {
-  "ollama-local": "gemma4:latest",
+  "ollama-local": "qwen3:4b",
   "openai-compatible": "gpt-5.4-mini",
   anthropic: "claude-haiku-4-5",
 } as const satisfies Record<Exclude<AssistantProviderName, "none">, string>;

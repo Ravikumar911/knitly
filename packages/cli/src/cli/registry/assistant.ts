@@ -40,7 +40,7 @@ export function register(program: Command) {
               config.assistant.baseUrl ||
               "http://127.0.0.1:11434/v1",
             chatModel:
-              options.model || config.assistant.chatModel || "gemma4:latest",
+              options.model || config.assistant.chatModel || "qwen3:4b",
           };
           writeConfig(config);
           console.log(
