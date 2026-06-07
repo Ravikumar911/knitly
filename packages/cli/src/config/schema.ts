@@ -3,6 +3,11 @@ import { z } from "zod";
 export const DEFAULT_GMAIL_QUERY =
   "from:(swiggy.in OR swiggy.com OR uber.com OR ubereats.com OR doordash.com) newer_than:365d";
 
+// NOTE: The runtime in @workspace/tasks (buildMerchantBasedGmailSearchQuery)
+// builds the from:() clause dynamically from the merchant registry in
+// packages/tasks/src/merchants/*. Adding a new merchant there will affect
+// live sync queries (when user has not overridden gmailQuery in config).
+
 export const configSchema = z.object({
   server: z.object({
     host: z.literal("127.0.0.1").default("127.0.0.1"),

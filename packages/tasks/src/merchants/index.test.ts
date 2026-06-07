@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { identifyMerchant } from ".";
+import { buildMerchantBasedGmailSearchQuery } from "../utils";
 
 describe("identifyMerchant", () => {
   it("matches root domains for wildcard merchant patterns", async () => {
@@ -68,5 +69,22 @@ describe("identifyMerchant", () => {
     });
 
     expect(result).toBeNull();
+  });
+});
+
+describe("buildMerchantBasedGmailSearchQuery (dynamic from registry)", () => {
+  it("includes domains for all active merchants including newly added Uber Eats and DoorDash", () => {
+    const q = buildMerchantBasedGmailSearchQuery(365);
+    expect(q).toContain("swiggy.in");
+    expect(q).toContain("swiggy.com");
+    expect(q).toContain("uber.com");
+    expect(q).toContain("ubereats.com");
+    expect(q).toContain("doordash.com");
+    expect(q).toMatch(/newer_than:365d/);
+  });
+
+  it("does not contain wildcards in the final from clause", () => {
+    const q = buildMerchantBasedGmailSearchQuery(180);
+    expect(q).not.toContain("*.");
   });
 });

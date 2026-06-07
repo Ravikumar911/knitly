@@ -28,6 +28,7 @@ import { createWorkPool } from "../runtime/pool";
 import type { EmailData } from "../types/email-extraction";
 import { writeAttachmentFile } from "../utils/attachments-fs";
 import { errorSummary, syncDebug } from "../utils/sync-debug";
+import { buildMerchantBasedGmailSearchQuery } from "../utils";
 import {
   classifyImapError,
   isCredentialError,
@@ -99,7 +100,7 @@ async function runEmailSyncUnsafe(
   const query =
     payload.query ||
     process.env.SLASHCASH_GMAIL_QUERY ||
-    "from:(swiggy.in OR swiggy.com OR uber.com OR ubereats.com OR doordash.com) newer_than:365d";
+    buildMerchantBasedGmailSearchQuery(365);
   const maxMessages =
     payload.full && payload.maxMessages === undefined
       ? null

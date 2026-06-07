@@ -127,4 +127,72 @@ describe("fallbackFoodDelivery", () => {
       description: "DoorDash order - Taco Temple",
     });
   });
+
+  it("handles varied Uber Eats phrasing (subject restaurant + total in body)", () => {
+    const result = fallbackFoodDelivery(
+      {
+        threadId: "uber-var-1",
+        subject: "Your Uber Eats order from Chipotle",
+        body: "Thanks for ordering. Order total $18.75. Paid with Apple Pay.",
+      },
+      UberEatsMerchant,
+    );
+    expect(result?.amount).toBe(18.75);
+    expect(result?.restaurant).toBe("Chipotle");
+  });
+
+  it("extracts DoorDash with 'delivered with DoorDash from' and loose order #", () => {
+    const result = fallbackFoodDelivery(
+      {
+        threadId: "dd-var-2",
+        subject: "Your order has been delivered",
+        body: [
+          "Delivered with DoorDash from Shake Shack",
+          "Amount charged: $31.40",
+          "Order # 9KX-4421",
+        ].join("\n"),
+      },
+      DoorDashMerchant,
+    );
+    expect(result?.amount).toBe(31.4);
+    expect(result?.restaurant?.toLowerCase()).toContain("shake");
+    expect(result?.orderId).toBe("9KX-4421");
+  });
+
+  it("rejects marketing-ish DoorDash email without strong receipt signals", () => {
+    const result = fallbackFoodDelivery(
+      {
+        threadId: "dd-promo",
+        subject: "Save $5 on your next DoorDash order",
+        body: "Limited time offer - DashPass members only. Use code SAVE5.",
+      },
+      DoorDashMerchant,
+    );
+    expect(result).toBeNull();
+  });
+
+  it("still extracts when only 'checkout total' and $ is present for Uber", () => {
+    const result = fallbackFoodDelivery(
+      {
+        threadId: "uber-co",
+        subject: "Uber Eats receipt",
+        body: "Checkout total $14.20\nDelivered to 123 Main St",
+      },
+      UberEatsMerchant,
+    );
+    expect(result?.amount).toBe(14.2);
+  });
+
+  it("falls back to threadId for orderId when no explicit id found", () => {
+    const result = fallbackFoodDelivery(
+      {
+        threadId: "fallback-thread-xyz",
+        subject: "Your Uber Eats order from Local Pizza",
+        body: "Order total: $22.50",
+      },
+      UberEatsMerchant,
+    );
+    expect(result?.orderId).toBe("fallback-thread-xyz");
+    expect(result?.amount).toBe(22.5);
+  });
 });
