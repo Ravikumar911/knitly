@@ -45,7 +45,7 @@ All user state lives under `~/.slashcash/`. The config schema lives in `packages
 ### `sync`
 
 - `sync.schedule` — cron string. Default `*/15 * * * *`
-- `sync.gmailQuery` — default `from:(swiggy.in) newer_than:365d`
+- `sync.gmailQuery` — default `from:(swiggy.in OR swiggy.com OR uber.com OR ubereats.com OR doordash.com) newer_than:365d`
 - `sync.maxMessages` — default `50`
 - `sync.concurrency.fetch` — default `4`
 - `sync.concurrency.extract` — default `4`

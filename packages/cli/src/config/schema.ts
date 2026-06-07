@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+export const DEFAULT_GMAIL_QUERY =
+  "from:(swiggy.in OR swiggy.com OR uber.com OR ubereats.com OR doordash.com) newer_than:365d";
+
 export const configSchema = z.object({
   server: z.object({
     host: z.literal("127.0.0.1").default("127.0.0.1"),
@@ -36,7 +39,7 @@ export const configSchema = z.object({
     }),
   sync: z.object({
     schedule: z.string().default("*/15 * * * *"),
-    gmailQuery: z.string().min(1).default("from:(swiggy.in) newer_than:365d"),
+    gmailQuery: z.string().min(1).default(DEFAULT_GMAIL_QUERY),
     maxMessages: z.number().int().min(1).max(500).default(50),
     concurrency: z
       .object({
@@ -97,7 +100,7 @@ export const defaultConfig: SlashcashConfig = {
   },
   sync: {
     schedule: "*/15 * * * *",
-    gmailQuery: "from:(swiggy.in) newer_than:365d",
+    gmailQuery: DEFAULT_GMAIL_QUERY,
     maxMessages: 50,
     concurrency: {
       fetch: 4,

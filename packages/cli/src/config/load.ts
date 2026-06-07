@@ -1,6 +1,13 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { ensureStateDirs, resolvePaths } from "./paths.js";
-import { configSchema, defaultConfig, type SlashcashConfig } from "./schema.js";
+import {
+  configSchema,
+  DEFAULT_GMAIL_QUERY,
+  defaultConfig,
+  type SlashcashConfig,
+} from "./schema.js";
+
+const LEGACY_SWIGGY_GMAIL_QUERY = "from:(swiggy.in) newer_than:365d";
 
 export function loadConfig(
   options: { createIfMissing?: boolean } = {},
@@ -18,7 +25,7 @@ export function loadConfig(
 
   try {
     const raw = JSON.parse(readFileSync(paths.config, "utf8")) as unknown;
-    const parsed = configSchema.parse(raw);
+    const parsed = migrateConfig(configSchema.parse(raw));
     if (JSON.stringify(parsed) !== JSON.stringify(raw)) {
       writeConfig(parsed);
     }
@@ -39,6 +46,19 @@ export function writeConfig(config: SlashcashConfig) {
   writeFileSync(paths.config, `${JSON.stringify(parsed, null, 2)}\n`, {
     mode: 0o600,
   });
+}
+
+function migrateConfig(config: SlashcashConfig): SlashcashConfig {
+  if (config.sync.gmailQuery === LEGACY_SWIGGY_GMAIL_QUERY) {
+    return {
+      ...config,
+      sync: {
+        ...config.sync,
+        gmailQuery: DEFAULT_GMAIL_QUERY,
+      },
+    };
+  }
+  return config;
 }
 
 export function setConfigValue(path: string, value: string) {

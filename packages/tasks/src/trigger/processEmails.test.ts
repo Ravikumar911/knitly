@@ -39,6 +39,20 @@ vi.mock("../gmail/imap-client", () => ({
 
 vi.mock("../extract/pipeline", () => ({
   extractTransactionFromEmail: mocks.extractTransactionFromEmail,
+  getOrderId: (extractionData: { transaction?: { orderId?: string | null } }) =>
+    extractionData.transaction?.orderId ?? undefined,
+  getReferenceIds: (extractionData: {
+    transaction?: {
+      orderId?: string | null;
+      referenceIds?: Record<string, unknown>;
+    };
+  }) =>
+    extractionData.transaction?.orderId
+      ? {
+          ...(extractionData.transaction.referenceIds ?? {}),
+          orderId: extractionData.transaction.orderId,
+        }
+      : (extractionData.transaction?.referenceIds ?? {}),
 }));
 
 vi.mock("../runtime/mutex", () => ({

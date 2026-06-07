@@ -1,9 +1,9 @@
 {
   "id": "gmail-swiggy",
-  "name": "Gmail Swiggy",
+  "name": "Gmail Receipts",
   "version": "1.0.0",
   "category": "ingest",
-  "description": "Ingest Swiggy transaction emails from Gmail.",
+  "description": "Ingest supported transaction emails from Gmail.",
   "requires": {
     "bins": []
   },

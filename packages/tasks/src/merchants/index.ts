@@ -9,6 +9,8 @@ const logger = {
 
 // Import merchant configurations
 import SwiggyMerchant from "./swiggy";
+import UberEatsMerchant from "./uber-eats";
+import DoorDashMerchant from "./doordash";
 // Add more merchants here as they are created
 // import PhonePeMerchant from "./phonepe";
 // import AmazonMerchant from "./amazon";
@@ -16,6 +18,8 @@ import SwiggyMerchant from "./swiggy";
 // Merchant registry - add new merchants here
 export const MERCHANT_REGISTRY: MerchantConfig[] = [
   SwiggyMerchant,
+  UberEatsMerchant,
+  DoorDashMerchant,
   // PhonePeMerchant,
   // AmazonMerchant,
 ];
@@ -121,12 +125,35 @@ function matchPattern(text: string, pattern: string): boolean {
       return regex.test(text);
     }
 
+    if (lowerPattern.includes("*")) {
+      return wildcardPatternToRegex(lowerPattern).test(lowerText);
+    }
+
     // Simple string match
     return lowerText.includes(lowerPattern);
   } catch (error) {
     logger.warn("Pattern matching error", { pattern, error });
     return false;
   }
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function wildcardPatternToRegex(pattern: string) {
+  if (pattern.startsWith("*.")) {
+    const domain = escapeRegex(pattern.slice(2));
+    return new RegExp(`(?:^|@|\\.)${domain}(?![\\w.-])`, "i");
+  }
+
+  return new RegExp(
+    pattern
+      .split("*")
+      .map((part) => escapeRegex(part))
+      .join(".*"),
+    "i",
+  );
 }
 
 /**
@@ -136,6 +163,10 @@ function scoreMerchantMatch(
   emailData: EmailData,
   merchant: MerchantConfig,
 ): MerchantMatch | null {
+  if (merchant.id === "uber-eats" && !hasUberEatsSignals(emailData)) {
+    return null;
+  }
+
   let score = 0;
   const matchedPatterns: MerchantMatch["matchedPatterns"] = {};
 
@@ -186,6 +217,13 @@ function scoreMerchantMatch(
   };
 }
 
+function hasUberEatsSignals(emailData: Pick<EmailData, "subject" | "body">) {
+  const combined = `${emailData.subject}\n${emailData.body}`.toLowerCase();
+  return /\buber\s*eats\b|\border\s+from\b|\byour\s+order\s+from\b|\border\s+total\b|\bdelivered\s+to\b/i.test(
+    combined,
+  );
+}
+
 /**
  * Identify the best matching merchant for an email
  */
@@ -193,25 +231,29 @@ export async function identifyMerchant(
   emailData: EmailData,
 ): Promise<MerchantMatch | null> {
   try {
-    // Always return Swiggy as the merchant
-    const swiggyMerchant = MERCHANT_REGISTRY.find((m) => m.id === "swiggy");
+    const matches = MERCHANT_REGISTRY.filter((merchant) =>
+      Boolean(merchant.isActive),
+    )
+      .map((merchant) => scoreMerchantMatch(emailData, merchant))
+      .filter((match): match is MerchantMatch => Boolean(match))
+      .sort((a, b) => {
+        if (b.matchScore !== a.matchScore) {
+          return b.matchScore - a.matchScore;
+        }
+        return b.merchant.priority - a.merchant.priority;
+      });
 
-    if (!swiggyMerchant) {
-      logger.error("Swiggy merchant not found in registry");
+    const match = matches[0] ?? null;
+
+    if (!match) {
+      logger.warn("No merchant matched email", {
+        subject: emailData.subject,
+        from: emailData.from,
+      });
       return null;
     }
 
-    const match: MerchantMatch = {
-      merchant: swiggyMerchant,
-      matchScore: 100,
-      matchedPatterns: {
-        email: swiggyMerchant.emailPatterns,
-        subject: swiggyMerchant.subjectPatterns || [],
-        body: swiggyMerchant.bodyPatterns || [],
-      },
-    };
-
-    logger.log("Merchant identified as Swiggy", {
+    logger.log("Merchant identified", {
       merchantId: match.merchant.id,
       merchantCode: match.merchant.code,
       score: match.matchScore,
