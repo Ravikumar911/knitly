@@ -9,7 +9,11 @@ import {
   type PdfExtractionSource,
 } from "./extract-from-pdf";
 import { extractSwiggyWithLlm } from "./swiggy-llm";
-import { isSwiggyMarketingEmail } from "./swiggy-body-signals";
+import {
+  extractSwiggyBodySignals,
+  isSwiggyMarketingEmail,
+} from "./swiggy-body-signals";
+import { resolveAssistantRuntimeConfig } from "./llm-model";
 import type { ExtractionProvenance } from "./swiggy-deterministic";
 
 type SwiggyExtraction = z.infer<typeof SwiggyMerchant.schema>;
@@ -19,7 +23,11 @@ type PipelineCandidate = {
   extractionConfidence: number;
   parseErrors: string[];
   warnings: string[];
-  schemaUsed: "swiggy.llm.v1" | "swiggy.fallback.v1";
+  schemaUsed:
+    | "swiggy.deterministic.v1"
+    | "swiggy.body.v1"
+    | "swiggy.llm.v1"
+    | "swiggy.fallback.v1";
   dataSource: "EMAIL_BODY" | "PDF_ATTACHMENT" | "BOTH";
   contributedByPdf: boolean;
   attachmentPath?: string | null;
@@ -101,27 +109,15 @@ export async function extractTransactionFromEmail(
   });
 
   let finalCandidate: PipelineCandidate | null = null;
-  const llm = await extractSwiggyWithLlm(emailData, sources);
-  if (llm.parseSuccess && llm.extractionData.transaction?.amount) {
-    finalCandidate = {
-      extractionData: llm.extractionData,
-      extractionConfidence: llm.extractionConfidence,
-      parseErrors: llm.parseErrors,
-      warnings: [
-        ...sourceWarnings,
-        ...sources.flatMap((source) => source.warnings),
-      ],
-      schemaUsed: "swiggy.llm.v1",
-      dataSource: llm.dataSource,
-      contributedByPdf: llm.contributedByPdf,
-      attachmentPath:
-        sources.find((source) => source.attachmentPath)?.attachmentPath ?? null,
-      provenance: llm.provenance,
-    };
+  let classifiedNonTransaction = false;
+  let llm: Awaited<ReturnType<typeof extractSwiggyWithLlm>> | null = null;
+  const deterministic = buildDeterministicPdfCandidate(emailData, sources);
+  if (deterministic) {
+    finalCandidate = deterministic;
     logPipelineStep("merge", {
       step: 3,
       emailId: emailData.emailId ?? null,
-      decision: "llm",
+      decision: "deterministic-pdf",
       schemaUsed: finalCandidate.schemaUsed,
       dataSource: finalCandidate.dataSource,
       amount: finalCandidate.extractionData.transaction?.amount ?? null,
@@ -129,16 +125,11 @@ export async function extractTransactionFromEmail(
       confidence: finalCandidate.extractionConfidence,
       sourceCount: sources.length,
     });
-  } else {
-    syncDebug("llm-extraction-empty", {
-      emailId: emailData.emailId || null,
-      parseErrorCount: llm.parseErrors.length,
-      sourceCount: sources.length,
-    });
   }
 
   if (!finalCandidate) {
     if (isSwiggyMarketingEmail(emailData.subject, emailData.body)) {
+      classifiedNonTransaction = true;
       logPipelineStep("merge", {
         step: 3,
         emailId: emailData.emailId ?? null,
@@ -185,18 +176,17 @@ export async function extractTransactionFromEmail(
           warnings: [
             ...sourceWarnings,
             ...sources.flatMap((source) => source.warnings),
-            ...llm.parseErrors,
           ],
-          schemaUsed: "swiggy.fallback.v1",
+          schemaUsed: "swiggy.body.v1",
           dataSource: "EMAIL_BODY",
           contributedByPdf: false,
-          provenance: llm.provenance,
+          provenance: null,
         };
         logPipelineStep("merge", {
           step: 3,
           emailId: emailData.emailId ?? null,
           decision: "fallback",
-          schemaUsed: "swiggy.fallback.v1",
+          schemaUsed: "swiggy.body.v1",
           amount: finalCandidate.extractionData.transaction?.amount ?? null,
         });
       } else {
@@ -210,9 +200,52 @@ export async function extractTransactionFromEmail(
     }
   }
 
+  if (
+    !finalCandidate &&
+    !classifiedNonTransaction &&
+    shouldTryLlmExtraction()
+  ) {
+    llm = await extractSwiggyWithLlm(emailData, sources);
+    if (llm.parseSuccess && llm.extractionData.transaction?.amount) {
+      finalCandidate = {
+        extractionData: llm.extractionData,
+        extractionConfidence: llm.extractionConfidence,
+        parseErrors: llm.parseErrors,
+        warnings: [
+          ...sourceWarnings,
+          ...sources.flatMap((source) => source.warnings),
+        ],
+        schemaUsed: "swiggy.llm.v1",
+        dataSource: llm.dataSource,
+        contributedByPdf: llm.contributedByPdf,
+        attachmentPath:
+          sources.find((source) => source.attachmentPath)?.attachmentPath ??
+          null,
+        provenance: llm.provenance,
+      };
+      logPipelineStep("merge", {
+        step: 3,
+        emailId: emailData.emailId ?? null,
+        decision: "llm",
+        schemaUsed: finalCandidate.schemaUsed,
+        dataSource: finalCandidate.dataSource,
+        amount: finalCandidate.extractionData.transaction?.amount ?? null,
+        orderId: finalCandidate.extractionData.transaction?.orderId ?? null,
+        confidence: finalCandidate.extractionConfidence,
+        sourceCount: sources.length,
+      });
+    } else {
+      syncDebug("llm-extraction-empty", {
+        emailId: emailData.emailId || null,
+        parseErrorCount: llm.parseErrors.length,
+        sourceCount: sources.length,
+      });
+    }
+  }
+
   if (!finalCandidate || !finalCandidate.extractionData.transaction?.amount) {
     const failureErrors =
-      llm.parseErrors.length > 0
+      llm && llm.parseErrors.length > 0
         ? llm.parseErrors
         : sourceWarnings.length > 0
           ? sourceWarnings
@@ -242,7 +275,7 @@ export async function extractTransactionFromEmail(
       dataSource: "EMAIL_BODY",
       contributedByPdf: false,
       parseSuccess: false,
-      provenance: llm.provenance,
+      provenance: llm?.provenance ?? null,
     };
   }
 
@@ -304,4 +337,169 @@ export async function extractTransactionFromEmail(
     parseSuccess: finalCandidate.extractionData.parseSuccess,
     transactionId,
   };
+}
+
+function buildDeterministicPdfCandidate(
+  emailData: EmailData,
+  sources: PdfExtractionSource[],
+): PipelineCandidate | null {
+  const source = sources.find(
+    (candidate) =>
+      candidate.sourceQuality.kind === "text" &&
+      (candidate.text.trim() ||
+        Object.keys(candidate.extraction.fields).length),
+  );
+  if (!source) return null;
+
+  const pdfText = source.text;
+  const rawText = `${source.text}\n${emailData.body}\n${emailData.subject}`;
+  const fields = source.extraction.fields;
+  const amount = firstNumber(
+    fields.paid_amount,
+    fields.invoice_total,
+    fields.total,
+    extractAmount(pdfText),
+    extractAmount(rawText),
+  );
+  if (!amount || amount <= 0) return null;
+
+  const orderId =
+    firstString(fields.order_id, fields.orderId) ||
+    extractSwiggyBodySignals({
+      subject: "",
+      body: pdfText,
+    }).orderId ||
+    extractSwiggyBodySignals({
+      subject: emailData.subject,
+      body: emailData.body,
+      threadId: emailData.threadId,
+    }).orderId ||
+    emailData.threadId;
+  const restaurant =
+    firstString(fields.restaurant_name, fields.restaurantName) ||
+    extractRestaurant(rawText) ||
+    "Swiggy";
+  const paymentMethod =
+    firstString(fields.payment_method, fields.paymentMethod) ||
+    extractPaymentMethod(rawText);
+  const pincode = firstString(fields.pincode) || extractPincode(rawText);
+  const service = normalizeServiceType(firstString(fields.service_type));
+
+  return {
+    extractionData: SwiggyMerchant.schema.parse({
+      detectedProvider: "Swiggy",
+      emailType: "ORDER_CONFIRMATION",
+      emailSubject: emailData.subject,
+      parseSuccess: true,
+      parseErrors: [],
+      confidenceScore: source.extraction.confidence || 0.9,
+      dataSource: "BOTH",
+      merchantId: SwiggyMerchant.id,
+      merchantCode: SwiggyMerchant.code,
+      transaction: {
+        amount,
+        currency: "INR",
+        type: "DEBIT",
+        status: "COMPLETED",
+        transactionDate:
+          firstString(fields.invoice_date, fields.transaction_date) ||
+          emailData.date,
+        description: `Swiggy order - ${restaurant}`,
+        category: "Food",
+        paymentMethod: paymentMethod ?? undefined,
+        referenceIds: orderId ? { orderId } : {},
+        orderId: orderId ?? undefined,
+        restaurantName: restaurant,
+        deliveryAddress: pincode ? { pincode } : undefined,
+        deliveryFee: firstNumber(fields.delivery_fee) ?? undefined,
+        taxes: firstNumber(fields.tax_total) ?? undefined,
+        discount: firstNumber(fields.discount_total) ?? undefined,
+        packagingFee: firstNumber(fields.packaging_fee) ?? undefined,
+      } satisfies NonNullable<SwiggyExtraction["transaction"]>,
+      swiggyMetadata: {
+        service,
+        orderType: "DELIVERY",
+      },
+    }),
+    extractionConfidence: source.extraction.confidence || 0.9,
+    parseErrors: [],
+    warnings: source.warnings,
+    schemaUsed: "swiggy.deterministic.v1",
+    dataSource: "BOTH",
+    contributedByPdf: true,
+    attachmentPath: source.attachmentPath,
+    provenance: {
+      parser: source.extractor,
+      parserVersion: source.extractorVersion,
+      parsersUsed: source.sourceQuality.parsers_used,
+      sourceQuality: source.sourceQuality.kind,
+      warnings: source.warnings,
+      pdfAttachmentPath: source.attachmentPath,
+      extractedAt: new Date().toISOString(),
+    },
+  };
+}
+
+function firstString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function firstNumber(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === "string" && value.trim()) {
+      const numeric = Number(value.replace(/[,₹\s]/g, ""));
+      if (Number.isFinite(numeric)) return numeric;
+    }
+  }
+  return null;
+}
+
+function extractAmount(text: string) {
+  const match = text.match(
+    /\b(?:total|paid amount|amount paid|grand total)\b\s*:?\s*(?:₹|rs\.?|inr)?\s*([0-9]+(?:\.[0-9]{1,2})?)/i,
+  );
+  return match ? Number(match[1]) : null;
+}
+
+function extractRestaurant(text: string) {
+  return firstString(text.match(/\bRestaurant\s*:?\s*([^\n|]+)/i)?.[1]);
+}
+
+function extractPaymentMethod(text: string) {
+  return firstString(
+    text.match(/\bPayment Method\s*:?\s*([^\n|]+)/i)?.[1],
+    text.match(/\bPaid Via\s+(.{2,80}?)\s*(?:₹|rs\.?|inr)/i)?.[1],
+  );
+}
+
+function extractPincode(text: string) {
+  return firstString(text.match(/\bPincode\s*:?\s*([0-9]{6})/i)?.[1]);
+}
+
+function normalizeServiceType(value: string | null) {
+  if (
+    value === "FOOD_DELIVERY" ||
+    value === "INSTAMART" ||
+    value === "GENIE" ||
+    value === "DINEOUT"
+  ) {
+    return value;
+  }
+  return "FOOD_DELIVERY";
+}
+
+function shouldTryLlmExtraction() {
+  try {
+    return resolveAssistantRuntimeConfig().provider !== "none";
+  } catch {
+    return false;
+  }
 }

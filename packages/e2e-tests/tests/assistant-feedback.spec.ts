@@ -31,10 +31,9 @@ test.describe("Customer assistant and feedback journeys", () => {
       page.getByRole("link", { name: /New chat/i }).first(),
     ).toBeVisible();
 
-    await page
-      .getByPlaceholder(/Ask about your spending/)
-      .fill("Summarize my recent spending in one sentence.");
-    await page.getByRole("button", { name: "Submit" }).click();
+    const suggestion = "What are my recent Swiggy orders?";
+    await page.getByRole("button", { name: suggestion }).click();
+    await expect(page.getByRole("log").getByText(suggestion)).toBeVisible();
 
     // The mock always returns the same static sentence. We assert that *some*
     // assistant content appeared rather than hard-coding the old fallback string

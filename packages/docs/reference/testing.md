@@ -35,16 +35,15 @@ The harness owns setup details such as temporary `SLASHCASH_HOME`, seeded SQLite
 
 The ingest gate means fixture-backed IMAP ingest + PDF text extraction + Swiggy transaction storage.
 
-`packages/e2e-tests/scenarios/phase-2.ts` (aliased as `e2e:ingest` once the PDF-extractor pivot lands):
+For extraction work, this gate is also part of the root `AGENTS.md` ClawSweeper-Style Review Policy: cite the relevant evidence map, sibling analysis, and real behavior proof before landing. `packages/docs/roadmap/agentic-coding-adoption.md` now provides `.agents/skills/autoreview` and `.agents/skills/ingest-proof`; `qa/scenarios/` remains future Phase 5 work.
 
-- runs `slashcash onboard --dry-run`
-- verifies bundled skills
-- runs `slashcash doctor --quick`
-- runs `slashcash sync --full` against `.eml` IMAP fixtures
-- asserts at least one attachment file is written locally
-- with `SLASHCASH_PDF_EXTRACTOR_DISABLED` unset on nodes that have Python 3.11+: asserts PDF text extraction runs and transactions are written via `swiggy.llm.v1` when an assistant provider is available, or `swiggy.fallback.v1` when fixture CI is running without a model
+`pnpm e2e:ingest` runs `packages/e2e-tests/scripts/real-behavior-proof.ts` against committed IMAP fixtures and writes `.agents/skills/ingest-proof/reports/latest/real-behavior-proof.{json,md}`. It currently:
+
+- runs fixture-backed sync through the same IMAP fixture reader used by local ingest
+- captures local attachment paths when fixture messages contain PDFs
+- with `SLASHCASH_PDF_EXTRACTOR_DISABLED` unset on nodes that have Python 3.11+: asserts PDF text extraction runs and captures the observed transaction row, provenance, attachment path, warnings, and diffs against the fixture expectation
 - with `SLASHCASH_PDF_EXTRACTOR_DISABLED=1`: asserts ingest still succeeds via body-only extraction (`schemaUsed = swiggy.fallback.v1`)
-- verifies that disabling `gmail-swiggy` blocks sync
+- records skipped, failed, and processed outcomes for promotion/status/body/PDF fixtures
 
 The real-account version of this gate (real Gmail account + real app password + real Docling install + manual diff of transactions against actual receipts) is the PDF-extractor pivot's dogfood step and is intentionally not part of normal fixture CI.
 

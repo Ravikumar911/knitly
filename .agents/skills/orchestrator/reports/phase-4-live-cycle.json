@@ -1,0 +1,376 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-13T06:05:25.351Z",
+  "runId": "phase-4-live-cycle",
+  "mode": "ingest-edge-sweep",
+  "status": "done",
+  "noop": false,
+  "goal": "Sweep one food-delivery ingest edge",
+  "wake": {
+    "kind": "once",
+    "wakeMs": 0,
+    "ticks": 1,
+    "events": [
+      {
+        "tick": 1,
+        "wakeMs": 0,
+        "phase": "claim"
+      }
+    ]
+  },
+  "sourcesRead": [
+    {
+      "path": "AGENTS.md",
+      "lines": "103-123"
+    },
+    {
+      "path": "packages/docs/roadmap/agentic-coding-adoption.md",
+      "lines": "241-288"
+    },
+    {
+      "path": "packages/docs/roadmap/phase-5.md",
+      "lines": "15-25"
+    },
+    {
+      "path": ".agents/skills/autoreview/SKILL.md",
+      "lines": "14-100"
+    },
+    {
+      "path": ".agents/skills/ingest-proof/SKILL.md",
+      "lines": "8-25"
+    }
+  ],
+  "inventory": {
+    "files": [
+      {
+        "path": "AGENTS.md",
+        "exists": true
+      },
+      {
+        "path": ".agents/skills/orchestrator/SKILL.md",
+        "exists": true
+      },
+      {
+        "path": ".agents/skills/autoreview/SKILL.md",
+        "exists": true
+      },
+      {
+        "path": ".agents/skills/ingest-proof/SKILL.md",
+        "exists": true
+      },
+      {
+        "path": ".agents/skills/ingest-edge-sweep/SKILL.md",
+        "exists": true
+      },
+      {
+        "path": "packages/docs/roadmap/agentic-coding-adoption.md",
+        "exists": true
+      },
+      {
+        "path": "packages/docs/roadmap/phase-5.md",
+        "exists": true
+      },
+      {
+        "path": "packages/e2e-tests/scenarios/phase-2.ts",
+        "exists": false
+      },
+      {
+        "path": "packages/e2e-tests/scripts/fixtures-check.ts",
+        "exists": true
+      },
+      {
+        "path": "packages/tasks/src/extract/pipeline.ts",
+        "exists": true
+      },
+      {
+        "path": "packages/tasks/src/extract/body-fallback.ts",
+        "exists": true
+      },
+      {
+        "path": "packages/tasks/src/extract/swiggy-body-signals.ts",
+        "exists": true
+      },
+      {
+        "path": "packages/tasks/src/merchants/swiggy/schema.ts",
+        "exists": true
+      },
+      {
+        "path": "packages/pdf-extractor/tests/test_swiggy_golden.py",
+        "exists": false
+      },
+      {
+        "path": "qa/scenarios/ingest/food-delivery-edges.md",
+        "exists": false
+      }
+    ],
+    "fixtures": [
+      {
+        "id": "swiggy-order-with-pdf",
+        "fixture": "packages/e2e-tests/fixtures/imap/swiggy-order-with-pdf.eml",
+        "expected": "processed, schemaUsed = swiggy.deterministic.v1, exact amount, item count, order id",
+        "kind": "phase-5-fixture",
+        "path": "packages/e2e-tests/fixtures/imap/swiggy-order-with-pdf.eml",
+        "state": "covered",
+        "fixtureExists": true,
+        "expectedPath": "packages/e2e-tests/fixtures/imap/swiggy-order-with-pdf.expected.json",
+        "expectedExists": true,
+        "ownerBoundary": "packages/e2e-tests/fixtures/imap + packages/tasks/src/extract"
+      },
+      {
+        "id": "swiggy-instamart-with-pdf",
+        "fixture": "packages/e2e-tests/fixtures/imap/swiggy-instamart-with-pdf.eml",
+        "expected": "processed, serviceType = INSTAMART",
+        "kind": "phase-5-fixture",
+        "path": "packages/e2e-tests/fixtures/imap/swiggy-instamart-with-pdf.eml",
+        "state": "coverage_gap",
+        "fixtureExists": false,
+        "expectedPath": "packages/e2e-tests/fixtures/imap/swiggy-instamart-with-pdf.expected.json",
+        "expectedExists": false,
+        "ownerBoundary": "packages/e2e-tests/fixtures/imap + packages/tasks/src/extract"
+      },
+      {
+        "id": "swiggy-body-only",
+        "fixture": "packages/e2e-tests/fixtures/imap/swiggy-body-only.eml",
+        "expected": "processed, schemaUsed = swiggy.body.v1",
+        "kind": "phase-5-fixture",
+        "path": "packages/e2e-tests/fixtures/imap/swiggy-body-only.eml",
+        "state": "covered",
+        "fixtureExists": true,
+        "expectedPath": "packages/e2e-tests/fixtures/imap/swiggy-body-only.expected.json",
+        "expectedExists": true,
+        "ownerBoundary": "packages/e2e-tests/fixtures/imap + packages/tasks/src/extract"
+      },
+      {
+        "id": "swiggy-promotion",
+        "fixture": "packages/e2e-tests/fixtures/imap/swiggy-promotion.eml",
+        "expected": "skipped_non_transaction",
+        "kind": "phase-5-fixture",
+        "path": "packages/e2e-tests/fixtures/imap/swiggy-promotion.eml",
+        "state": "covered",
+        "fixtureExists": true,
+        "expectedPath": "packages/e2e-tests/fixtures/imap/swiggy-promotion.expected.json",
+        "expectedExists": true,
+        "ownerBoundary": "packages/e2e-tests/fixtures/imap + packages/tasks/src/extract"
+      },
+      {
+        "id": "swiggy-status-update",
+        "fixture": "packages/e2e-tests/fixtures/imap/swiggy-status-update.eml",
+        "expected": "skipped_non_transaction",
+        "kind": "phase-5-fixture",
+        "path": "packages/e2e-tests/fixtures/imap/swiggy-status-update.eml",
+        "state": "covered",
+        "fixtureExists": true,
+        "expectedPath": "packages/e2e-tests/fixtures/imap/swiggy-status-update.expected.json",
+        "expectedExists": true,
+        "ownerBoundary": "packages/e2e-tests/fixtures/imap + packages/tasks/src/extract"
+      },
+      {
+        "id": "swiggy-malformed-pdf",
+        "fixture": "packages/e2e-tests/fixtures/imap/swiggy-malformed-pdf.eml",
+        "expected": "processed via body if possible, else failed with classified error",
+        "kind": "phase-5-fixture",
+        "path": "packages/e2e-tests/fixtures/imap/swiggy-malformed-pdf.eml",
+        "state": "coverage_gap",
+        "fixtureExists": false,
+        "expectedPath": "packages/e2e-tests/fixtures/imap/swiggy-malformed-pdf.expected.json",
+        "expectedExists": false,
+        "ownerBoundary": "packages/e2e-tests/fixtures/imap + packages/tasks/src/extract"
+      },
+      {
+        "id": "swiggy-duplicate-order",
+        "fixture": "packages/e2e-tests/fixtures/imap/swiggy-duplicate-order.eml",
+        "expected": "skipped_existing on second run",
+        "kind": "phase-5-fixture",
+        "path": "packages/e2e-tests/fixtures/imap/swiggy-duplicate-order.eml",
+        "state": "coverage_gap",
+        "fixtureExists": false,
+        "expectedPath": "packages/e2e-tests/fixtures/imap/swiggy-duplicate-order.expected.json",
+        "expectedExists": false,
+        "ownerBoundary": "packages/e2e-tests/fixtures/imap + packages/tasks/src/extract"
+      },
+      {
+        "id": "swiggy-scanned-pdf",
+        "fixture": "packages/e2e-tests/fixtures/imap/swiggy-scanned-pdf.eml",
+        "expected": "skipped_non_transaction with sourceQuality.kind = \"scanned\"",
+        "kind": "phase-5-fixture",
+        "path": "packages/e2e-tests/fixtures/imap/swiggy-scanned-pdf.eml",
+        "state": "coverage_gap",
+        "fixtureExists": false,
+        "expectedPath": "packages/e2e-tests/fixtures/imap/swiggy-scanned-pdf.expected.json",
+        "expectedExists": false,
+        "ownerBoundary": "packages/e2e-tests/fixtures/imap + packages/tasks/src/extract"
+      },
+      {
+        "id": "swiggy-encrypted-pdf",
+        "fixture": "packages/e2e-tests/fixtures/imap/swiggy-encrypted-pdf.eml",
+        "expected": "failed with sourceQuality.kind = \"encrypted\"",
+        "kind": "phase-5-fixture",
+        "path": "packages/e2e-tests/fixtures/imap/swiggy-encrypted-pdf.eml",
+        "state": "coverage_gap",
+        "fixtureExists": false,
+        "expectedPath": "packages/e2e-tests/fixtures/imap/swiggy-encrypted-pdf.expected.json",
+        "expectedExists": false,
+        "ownerBoundary": "packages/e2e-tests/fixtures/imap + packages/tasks/src/extract"
+      }
+    ]
+  },
+  "inventorySummary": {
+    "filesSeen": 12,
+    "filesMissing": 3,
+    "fixtureRows": 9,
+    "coveredFixtures": 4,
+    "coverageGaps": 5,
+    "gapIds": [
+      "swiggy-instamart-with-pdf",
+      "swiggy-malformed-pdf",
+      "swiggy-duplicate-order",
+      "swiggy-scanned-pdf",
+      "swiggy-encrypted-pdf"
+    ]
+  },
+  "candidates": [
+    {
+      "id": "swiggy-order-with-pdf",
+      "state": "verified",
+      "noop": false,
+      "reason": "Committed fixture is already covered by strict proof.",
+      "expected": "processed, schemaUsed = swiggy.deterministic.v1, exact amount, item count, order id",
+      "fixture": "packages/e2e-tests/fixtures/imap/swiggy-order-with-pdf.eml",
+      "fixtureExists": true,
+      "expectedPath": "packages/e2e-tests/fixtures/imap/swiggy-order-with-pdf.expected.json",
+      "expectedExists": true,
+      "ownerBoundary": "packages/e2e-tests/fixtures/imap + packages/tasks/src/extract"
+    }
+  ],
+  "workers": [
+    {
+      "role": "explorer",
+      "id": "019ebf90-55e0-7c53-92b9-17c014ebd1c1",
+      "subagentId": "019ebf90-55e0-7c53-92b9-17c014ebd1c1",
+      "status": "completed-or-external"
+    },
+    {
+      "role": "implementer",
+      "id": "019ebf90-7382-7f22-8f8f-64dd19a127ef",
+      "subagentId": "019ebf90-7382-7f22-8f8f-64dd19a127ef",
+      "status": "completed-or-external"
+    },
+    {
+      "role": "docs",
+      "id": "019ebf90-8cc7-71f1-b52c-180e31ae491e",
+      "subagentId": "019ebf90-8cc7-71f1-b52c-180e31ae491e",
+      "status": "completed-or-external"
+    },
+    {
+      "role": "verifier",
+      "id": "019ebf94-101a-7b30-955f-fea440a9d689",
+      "subagentId": "019ebf94-101a-7b30-955f-fea440a9d689",
+      "status": "completed-or-external"
+    }
+  ],
+  "stateTransitions": [
+    {
+      "state": "idle",
+      "note": "start",
+      "at": "2026-06-13T06:05:23.275Z"
+    },
+    {
+      "state": "inventory",
+      "note": "read roadmap, policy, skills, fixtures",
+      "at": "2026-06-13T06:05:23.275Z"
+    },
+    {
+      "state": "candidate_selected",
+      "note": "swiggy-order-with-pdf",
+      "at": "2026-06-13T06:05:23.276Z"
+    },
+    {
+      "state": "claimed",
+      "note": "local one-shot claim",
+      "at": "2026-06-13T06:05:23.276Z"
+    },
+    {
+      "state": "delegated",
+      "note": "4 worker traces",
+      "at": "2026-06-13T06:05:23.276Z"
+    },
+    {
+      "state": "wake",
+      "note": "claim tick 1",
+      "at": "2026-06-13T06:05:23.276Z"
+    },
+    {
+      "state": "proof_running",
+      "note": "pnpm e2e:ingest",
+      "at": "2026-06-13T06:05:23.276Z"
+    },
+    {
+      "state": "autoreview_running",
+      "note": "autoreview + ingest proof",
+      "at": "2026-06-13T06:05:24.285Z"
+    },
+    {
+      "state": "verified",
+      "note": "proof clean",
+      "at": "2026-06-13T06:05:25.351Z"
+    },
+    {
+      "state": "ledgered",
+      "note": "reports written",
+      "at": "2026-06-13T06:05:25.351Z"
+    },
+    {
+      "state": "done",
+      "note": "cycle complete",
+      "at": "2026-06-13T06:05:25.351Z"
+    }
+  ],
+  "artifacts": {
+    "ingestProofJson": ".agents/skills/ingest-proof/reports/latest/real-behavior-proof.json",
+    "ingestProofMarkdown": ".agents/skills/ingest-proof/reports/latest/real-behavior-proof.md",
+    "autoreviewJson": ".agents/skills/autoreview/reports/phase-4-orchestrated-clean.json",
+    "autoreviewMarkdown": ".agents/skills/autoreview/reports/phase-4-orchestrated-clean.md"
+  },
+  "commands": [
+    {
+      "command": "pnpm e2e:ingest",
+      "exitCode": 0,
+      "durationMs": 1009,
+      "stdoutTail": "\n> slash-cash@0.1.6 e2e:ingest /Users/ravikumarr/github/knitly\n> pnpm --filter @workspace/e2e-tests e2e:ingest\n\n\n> @workspace/e2e-tests@0.1.0 e2e:ingest /Users/ravikumarr/github/knitly/packages/e2e-tests\n> tsx scripts/real-behavior-proof.ts --strict --output-dir ../../.agents/skills/ingest-proof/reports/latest\n\nWrote .agents/skills/ingest-proof/reports/latest/real-behavior-proof.json\nWrote .agents/skills/ingest-proof/reports/latest/real-behavior-proof.md\n",
+      "stderrTail": ""
+    },
+    {
+      "command": ".agents/skills/autoreview/scripts/autoreview --mode local --report-name phase-4-orchestrated-clean --gate \"pnpm e2e:ingest\"",
+      "exitCode": 0,
+      "durationMs": 1066,
+      "stdoutTail": "autoreview still running: phase=start elapsed=12ms\nautoreview still running: phase=collect-scope elapsed=13ms\nautoreview still running: phase=review elapsed=81ms\nautoreview still running: phase=run-gates elapsed=81ms\nautoreview gate start: pnpm e2e:ingest\n\n> slash-cash@0.1.6 e2e:ingest /Users/ravikumarr/github/knitly\n> pnpm --filter @workspace/e2e-tests e2e:ingest\n\n\n> @workspace/e2e-tests@0.1.0 e2e:ingest /Users/ravikumarr/github/knitly/packages/e2e-tests\n> tsx scripts/real-behavior-proof.ts --strict --output-dir ../../.agents/skills/ingest-proof/reports/latest\n\nWrote .agents/skills/ingest-proof/reports/latest/real-behavior-proof.json\nWrote .agents/skills/ingest-proof/reports/latest/real-behavior-proof.md\nautoreview gate pass: pnpm e2e:ingest elapsed=952ms\nautoreview report written: .agents/skills/autoreview/reports/phase-4-orchestrated-clean.json and .agents/skills/autoreview/reports/phase-4-orchestrated-clean.md\nautoreview result: clean (0 actionable findings)\n",
+      "stderrTail": ""
+    }
+  ],
+  "proofSummary": {
+    "fixtureCount": 8,
+    "modesRun": 2,
+    "diffCount": 0,
+    "processedCount": 4,
+    "skippedCount": 4,
+    "failedCount": 0
+  },
+  "evidenceMap": {
+    "changedSurface": ".agents/skills/orchestrator",
+    "runtimeEntryPoint": ".agents/skills/orchestrator/scripts/orchestrator.mjs",
+    "ownerBoundary": ".agents/skills/orchestrator workflow infrastructure; ingest proof remains packages/e2e-tests/scripts/real-behavior-proof.ts",
+    "caller": ".agents/skills/orchestrator/scripts/orchestrator",
+    "callees": [
+      "pnpm e2e:ingest",
+      ".agents/skills/autoreview/scripts/autoreview"
+    ],
+    "siblingsChecked": [
+      ".agents/skills/autoreview/SKILL.md",
+      ".agents/skills/ingest-proof/SKILL.md",
+      ".agents/skills/run-tests/SKILL.md",
+      "packages/docs/roadmap/phase-5.md"
+    ],
+    "bestFix": "Implement a bounded local orchestrator with explicit worker trace and proof gates instead of a persistent daemon."
+  },
+  "elapsedMs": 2076
+}

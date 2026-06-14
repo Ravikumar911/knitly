@@ -77,3 +77,36 @@ jobs:
       - name: Run full assistant evaluation (with scoring)
         run: pnpm --filter @knitly/main eval:assistant || echo "Assistant eval skipped or completed with warnings"
         continue-on-error: true
+
+  agentic-closeout-artifacts:
+    name: Agentic Closeout (autoreview + qa-ingest + proof artifacts)
+    runs-on: ubuntu-latest
+    # Dry-run / surface expectations per agentic-coding-adoption.md Phase 6.
+    # In a full protected branch setup this would be required or a reusable job
+    # that runs `.agents/skills/autoreview/scripts/autoreview --mode branch --base origin/main --gate "pnpm e2e:ingest"`
+    # (or the relevant ingest subset) and uploads reports + latest proof bundle as artifacts.
+    # For now: demonstrate the commands and artifact upload (non-blocking to unblock PRs during rollout).
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run autoreview closeout (ingest surface example)
+        run: .agents/skills/autoreview/scripts/autoreview --mode branch --base origin/main --report-name pr-agentic-closeout --gate "pnpm e2e:ingest" || echo "autoreview (with gate) completed with findings or infra note; see reports/"
+        continue-on-error: true
+      - name: Run e2e:ingest proof (or fixtures:check as fallback)
+        run: pnpm e2e:ingest || pnpm fixtures:check
+        continue-on-error: true
+      - name: Upload agentic proof artifacts (autoreview reports + ingest-proof bundle)
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentic-closeout-reports-${{ github.run_id }}
+          path: |
+            .agents/skills/autoreview/reports/*.json
+            .agents/skills/autoreview/reports/*.md
+            .agents/skills/ingest-proof/reports/latest/*
+          if-no-files-found: warn
+        continue-on-error: true

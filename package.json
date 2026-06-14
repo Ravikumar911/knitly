@@ -17,6 +17,7 @@
     "e2e:journeys": "pnpm --filter @workspace/e2e-tests test",
     "slashcash": "pnpm --filter slashcash dev",
     "e2e:onboarding": "pnpm --filter @workspace/e2e-tests e2e:onboarding",
+    "e2e:ingest": "pnpm --filter @workspace/e2e-tests e2e:ingest",
     "e2e:all": "pnpm --filter @workspace/e2e-tests e2e:all",
     "eval:gate": "pnpm --filter @workspace/evals eval:gate",
     "bundle:check": "pnpm --filter slashcash bundle:check",

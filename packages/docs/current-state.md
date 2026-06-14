@@ -4,6 +4,10 @@
 
 > The historical notes further down describe the pre-pivot monorepo that the now-retired phases were written against. They are kept only to explain _why_ each retired phase existed. Treat any claim here that conflicts with `roadmap/pdf-extractor.md` as already out of date.
 
+## Active agentic adoption plan
+
+In addition to the deterministic Python Swiggy ingest pivot (`roadmap/pdf-extractor.md` and its phase files), there is an active cross-cutting execution plan: [`roadmap/agentic-coding-adoption.md`](./roadmap/agentic-coding-adoption.md) (started 2026-06-12). It adopts reliable OpenClaw-style looped agentic development (hard policy in `AGENTS.md`, autoreview-style closeout loops, `qa/scenarios/` enforcement, orchestrators + persistent background workers, real behavior proof, and mandatory use of `spawn_subagent` + `todo_write` + plan mode for complex work). Phase 1 shipped on 2026-06-12 by adding the root ClawSweeper-Style Review Policy and proof log; Phase 2 shipped the `.agents/skills/autoreview` closeout skill and harness; Phase 3 shipped `.agents/skills/ingest-proof`, `pnpm e2e:ingest`, and a committed-fixture real behavior proof bundle. Scenario and orchestrator phases are still pending until their verification/proof criteria are met. The primary near-term target is dramatically reducing manual edge-case hunting in deterministic food-delivery ingestion/extraction. Phases are self-contained with verification gates and proof requirements; the implementing agent is explicitly required to use parallel subagents for research, coding, and verification (mirroring how the plan itself was created). See that document for the full phased plan, "How to use this plan" instructions, and subagent delegation rules.
+
 ## Retired phase docs — one-line shipped summaries
 
 The detail behind each entry lives in git history. For each deleted file, the PRs that closed its "Pending" checklist are reachable via `git log -- packages/docs/roadmap/<file>`.

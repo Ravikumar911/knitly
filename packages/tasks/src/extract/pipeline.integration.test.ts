@@ -17,8 +17,17 @@ describe.skipIf(!runIntegration)(
         throw new Error(`Missing fixture: ${pdfPath}`);
       }
 
+      const venvPython = resolve(
+        process.cwd(),
+        "../pdf-extractor/.venv/bin/python",
+      );
       process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON =
-        process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON || "python3.13";
+        !process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON ||
+        process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON === "python3"
+          ? existsSync(venvPython)
+            ? venvPython
+            : "python3"
+          : process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON;
       process.env.PYTHONPATH = resolve(process.cwd(), "../pdf-extractor/src");
 
       const result = await extractTransactionFromEmail({

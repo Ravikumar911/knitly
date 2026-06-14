@@ -301,3 +301,7 @@ After writing or modifying tests:
    - Re-run tests
 3. **Only proceed when all tests pass**
 4. **Run multiple times** for critical tests: `npx playwright test --repeat-each=5`
+
+## Agentic closeout (for changes in this area)
+
+Per root `AGENTS.md` (ClawSweeper-Style Review Policy, evidence map, best-fix, real behavior proof for user-visible, pre-land `.agents/skills/autoreview` until 0 actionable) and `packages/docs/roadmap/agentic-coding-adoption.md` (Phase 6), non-trivial Playwright/E2E/test changes require the autoreview closeout loop (`.agents/skills/autoreview/scripts/autoreview --mode auto`, with `--gate "pnpm e2e:journeys"` or `pnpm e2e:all` or `pnpm e2e:ingest` as relevant) + proof via `.agents/skills/ingest-proof/SKILL.md` / `pnpm e2e:ingest` for ingest-adjacent surfaces. Update this skill's validation loop + references once `qa/scenarios/` (Phase 5) is the canonical enforcement. Use repo-root relative paths; treat findings as advisory after reading real paths/callers/siblings per the policy. Subagent delegation (`spawn_subagent` + `todo_write` + plan mode) is first-class for complex test work.

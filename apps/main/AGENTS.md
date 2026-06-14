@@ -1,6 +1,6 @@
 # apps/main — Next.js dashboard
 
-Scoped rules for `@knitly/main` (local slash.cash dashboard). Repo-wide rules live in [`AGENTS.md`](../AGENTS.md).
+Scoped rules for `@knitly/main` (local slash.cash dashboard). Repo-wide rules live in [`AGENTS.md`](../../AGENTS.md), including the ClawSweeper-Style Review Policy for evidence maps, best-fix review, sibling analysis, and real behavior proof.
 
 ## Layout
 
@@ -21,6 +21,7 @@ Scoped rules for `@knitly/main` (local slash.cash dashboard). Repo-wide rules li
 
 - **Database**: No Drizzle in this app — delegate to tRPC procedures that call `@workspace/database`.
 - **AI**: Vercel AI SDK v5 (`ai` package) and `@ai-sdk/react` for client hooks; align with existing assistant/chat code under `components/assistant` and related routes.
+- **Agentic closeout**: tRPC, AI, and UI changes still follow the patterns above. Any cross-cutting work that touches or depends on deterministic ingest/extraction must also follow the root ClawSweeper-Style Review Policy and cite the relevant `packages/tasks`/`packages/pdf-extractor` evidence.
 
 ## Environment
 

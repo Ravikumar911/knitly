@@ -13,6 +13,8 @@ Read in order on your first pass:
 3. [`architecture.md`](./architecture.md) — _Target topology, process model, data flow, config layout — including deterministic Python-backed Swiggy extraction._
 4. [`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md) — **Active execution plan index** (2026-04-26). Splits the pivot into [`phase-1.md`](./roadmap/phase-1.md) (deterministic Python extractor), [`phase-2.md`](./roadmap/phase-2.md) (remove AI from ingest), [`phase-3.md`](./roadmap/phase-3.md) (parallel sync), [`phase-4.md`](./roadmap/phase-4.md) (fast onboarding + post-onboarding assistant setup), and [`phase-5.md`](./roadmap/phase-5.md) (fixtures, dogfood, cleanup).
 
+5. [`roadmap/agentic-coding-adoption.md`](./roadmap/agentic-coding-adoption.md) — **Active agentic coding adoption plan** (2026-06-12). Brings OpenClaw-style looped workflows (policy + autoreview closeout + qa/scenarios enforcement + orchestrators + real behavior proof + mandatory subagent delegation) to the monorepo, with special focus on closing deterministic ingest edge cases without manual toil.
+
 > **Retired on 2026-04-23.** The five roadmap files that drove the hosted → local-first migration (`phase-1.md` … `phase-4.md`, `pivot-imap.md`) shipped and were deleted on this date. Their one-line summaries live in the "Retired phase docs" section of [`current-state.md`](./current-state.md); their full history is reachable via `git log -- packages/docs/roadmap/<file>`. A fresh chat should pick up `roadmap/pdf-extractor.md` and work it top to bottom.
 
 Then dip into reference as needed:
