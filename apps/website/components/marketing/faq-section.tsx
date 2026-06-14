@@ -10,23 +10,23 @@ import {
 const items = [
   {
     q: "Does Slash Cash upload my bank data to your cloud?",
-    a: "No. The ledger lives in SQLite on your machine (by default under your home directory). Sync and agents run locally. There is no Slash Cash–hosted copy of your transactions to sell or leak.",
+    a: "No. The dashboard data lives on your machine. There is no Slash Cash cloud account holding your spending history.",
   },
   {
-    q: "How does Gmail import work?",
-    a: "Gmail is accessed over standard IMAP using a 16-character app password you generate in your Google account — the same pattern many mail clients use. Credentials stay on your device (for example macOS Keychain or a local credentials file when Keychain is unavailable).",
+    q: "How does it read Gmail receipts?",
+    a: "You generate a Gmail app password and paste it during setup. That password stays on your device, and slash.cash uses it to read matching receipt emails.",
   },
   {
     q: "Can Slash Cash move money, pay bills, or send email on my behalf?",
-    a: "No. Connectors are read-only by design. The product ingests and analyzes; it cannot execute payments, trades, or outbound messages.",
+    a: "No. It only reads receipt data. It cannot execute payments, trades, or outbound messages.",
   },
   {
-    q: "Do I need an AI subscription to use it?",
-    a: "No. Ingestion and categorization work without any model. Optional assistant features use providers you configure later — useful, but not a gate to getting a clear local dashboard.",
+    q: "Do I need an AI subscription?",
+    a: "No. Receipt import works without an AI subscription. The assistant is optional and can be configured later.",
   },
   {
-    q: "What do I actually install today?",
-    a: "The open-source `slashcash` CLI (`npm i -g slashcash`), then `slashcash onboard` and `slashcash start` for the local dashboard. A fully hosted SaaS dashboard is on the roadmap; the engine you can try now is the same one we ship in the repo.",
+    q: "What can I try today?",
+    a: "Install slash.cash from npm, run setup, and open the local dashboard. Today it is focused on Swiggy receipts from Gmail.",
   },
 ];
 

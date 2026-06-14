@@ -12,8 +12,8 @@ import { Globe } from "@workspace/ui/components/magicui/globe";
 import { NumberTicker } from "@workspace/ui/components/magicui/number-ticker";
 import { cn } from "@workspace/ui/lib/utils";
 
-import { AgentNotifications } from "./agent-notifications";
-import { AgentsOrbit } from "./agents-orbit";
+import { SyncNotifications } from "./agent-notifications";
+import { PipelineOrbit } from "./agents-orbit";
 
 interface BentoCellProps {
   className?: string;
@@ -35,9 +35,6 @@ function BentoCell({
 }: BentoCellProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
         "group slash-bento-card relative flex overflow-hidden",
@@ -115,9 +112,9 @@ export function BentoFeatures() {
       {/* CELL A — Globe / local-first (wide, 2 cols) */}
       <BentoCell
         className="md:col-span-2 min-h-[360px]"
-        eyebrow="Local-first"
-        title="Your money never leaves your laptop"
-        description="Slash Cash runs entirely on your machine. The dashboard is just a UI on top of a local SQLite database that you own and can move."
+        eyebrow="Private by default"
+        title="Your spending stays with you"
+        description="slash.cash runs on your laptop. Your receipts and spending history are not copied into a Slash Cash cloud account."
         layout="split"
         visual={
           <div className="relative h-full w-full">
@@ -133,16 +130,16 @@ export function BentoFeatures() {
         }
       />
 
-      {/* CELL B — Live agent notifications (1 col) */}
+      {/* CELL B — Live sync notifications (1 col) */}
       <BentoCell
         className="md:col-span-1 min-h-[360px]"
-        eyebrow="Always working"
-        title="A team of agents on a schedule"
-        description="Seven small agents wake up overnight and do one job each, so your week's most important moves are ready before you open the app."
+        eyebrow="Inbox receipts"
+        title="No bank login required"
+        description="Start with Gmail receipts. You approve the connection, slash.cash reads matching order emails, and your dashboard fills itself in."
         layout="stack"
         visual={
           <div className="absolute inset-0 px-5 pt-5">
-            <AgentNotifications className="h-full" />
+            <SyncNotifications className="h-full" />
           </div>
         }
       />
@@ -152,15 +149,15 @@ export function BentoFeatures() {
       {/* CELL C — Score gradient stat */}
       <BentoCell
         className="md:col-span-1 min-h-[380px]"
-        eyebrow="Behavior, not credit"
-        title="Your money health, scored monthly"
-        description="A behavior score across savings, leaks, debt pressure and emergency cover. Watch it move — and Slash Cash tells you how to nudge it."
+        eyebrow="Instant clarity"
+        title="Know what food delivery costs"
+        description="See total spend, favorite restaurants, fees, and monthly movement without maintaining a spreadsheet."
         layout="bg"
         visual={
           <div className="flex h-full flex-col items-center justify-start pt-10">
             <div
               className="text-[6rem] font-bold leading-none tabular-nums tracking-tight"
-              style={{ letterSpacing: "-0.06em" }}
+              style={{ letterSpacing: "0" }}
             >
               <span
                 className="bg-clip-text text-transparent"
@@ -169,11 +166,11 @@ export function BentoFeatures() {
                     "linear-gradient(135deg, #635bff 0%, #2f6ceb 50%, #0ea5e9 100%)",
                 }}
               >
-                <NumberTicker value={72} className="!text-transparent" />
+                <NumberTicker value={42} className="!text-transparent" />
               </span>
             </div>
             <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-[0.72rem] font-semibold text-emerald-700">
-              <Sparkles className="h-3 w-3" /> +4 this month
+              <Sparkles className="h-3 w-3" /> receipts parsed
             </div>
           </div>
         }
@@ -182,25 +179,25 @@ export function BentoFeatures() {
       {/* CELL D — Terminal (CLI demo) */}
       <BentoCell
         className="md:col-span-1 min-h-[380px]"
-        eyebrow="CLI-first"
-        title="A real product. With a real CLI."
-        description="Pipe your imports. Diff your rules. Run sync from cron. Slash Cash plays nice with how engineers already think about their tools."
+        eyebrow="Simple setup"
+        title="Install once, then open the app"
+        description="The command line handles setup and health checks. The day-to-day experience is the local dashboard."
         layout="bg"
         visual={
           <div className="absolute inset-x-5 top-5 h-[200px] overflow-hidden">
             <Terminal className="!h-full !max-w-full !rounded-lg !text-[0.72rem]">
               <TypingAnimation duration={45}>$ slashcash sync</TypingAnimation>
               <AnimatedSpan className="text-emerald-600">
-                <span>✓ Imported 218 transactions</span>
+                <span>✓ Gmail connected</span>
               </AnimatedSpan>
               <AnimatedSpan className="text-neutral-500">
-                <span>→ Spend Agent · 218/218</span>
+                <span>→ Finding Swiggy receipts</span>
               </AnimatedSpan>
               <AnimatedSpan className="text-amber-600">
-                <span>! Leak Agent · 3 flagged</span>
+                <span>→ Reading receipt details</span>
               </AnimatedSpan>
               <AnimatedSpan className="text-sky-700">
-                <span>✓ Score 72 (+4) ready</span>
+                <span>✓ Dashboard ready</span>
               </AnimatedSpan>
             </Terminal>
           </div>
@@ -210,26 +207,26 @@ export function BentoFeatures() {
       {/* CELL E — Connect any source */}
       <BentoCell
         className="md:col-span-1 min-h-[380px]"
-        eyebrow="Plug it in"
-        title="Connects to where money already lives"
-        description="Read-only · approval-based · you stay in control."
+        eyebrow="Honest scope"
+        title="Focused on Swiggy first"
+        description="The product does one useful thing today and does it carefully. More receipt sources can be added without changing the privacy model."
         layout="stack"
         visual={
           <div className="relative h-full w-full p-6">
             <div className="grid grid-cols-3 gap-2 text-[0.7rem] font-medium text-neutral-600">
               {[
-                "UPI",
-                "Cards",
-                "Banks",
-                "Email",
+                "Gmail",
                 "Swiggy",
-                "Netflix",
-                "Spotify",
-                "Amazon",
-                "Uber",
-                "iCloud",
-                "Bills",
-                "EMIs",
+                "Receipts",
+                "Trends",
+                "Fees",
+                "Private",
+                "Open",
+                "Local",
+                "Setup",
+                "Health",
+                "Source",
+                "Export",
               ].map((src) => (
                 <span
                   key={src}
@@ -253,8 +250,8 @@ export function BentoFeaturesSecondary() {
       <BentoCell
         className="md:col-span-2 min-h-[280px]"
         eyebrow="Open-source"
-        title="The whole engine is on GitHub"
-        description="Read every rule, every extractor, every prompt. Trust comes from inspectability — not a marketing line about “military-grade encryption.”"
+        title="You can inspect how it works"
+        description="The source is public. Privacy is not just a promise on the homepage; the important parts can be checked in code."
         layout="split"
         visual={
           <div className="relative h-full w-full">
@@ -285,7 +282,7 @@ export function BentoFeaturesSecondary() {
         className="md:col-span-1 min-h-[280px]"
         eyebrow="Privacy"
         title="Read-only · approval-based"
-        description="App passwords for IMAP. Read-only API tokens. Slash Cash can never move money, send messages, or delete from your inbox."
+        description="slash.cash reads receipts. It cannot move money, send emails, or change your inbox."
         layout="bg"
         visual={
           <div className="flex h-full flex-col items-center justify-start pt-10">
@@ -308,27 +305,27 @@ export function BentoFeaturesSecondary() {
   );
 }
 
-export function AgentsBento() {
+export function PipelineBento() {
   return (
     <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-3">
       <BentoCell
         className="md:col-span-2 min-h-[440px]"
-        eyebrow="The team"
-        title="Seven specialized agents. One job each."
-        description="Connector imports, Spend categorizes, Leak detects waste, Score quantifies, Alert warns, Investor proposes, Review summarizes — every Monday."
+        eyebrow="How it works"
+        title="A few clear steps, not a black box."
+        description="Find receipts, read the useful details, save them locally, and show the dashboard. Optional chat comes later if you want it."
         layout="split"
         visual={
           <div className="relative h-full w-full">
-            <AgentsOrbit />
+            <PipelineOrbit />
           </div>
         }
       />
 
       <BentoCell
         className="md:col-span-1 min-h-[440px]"
-        eyebrow="Always-on"
-        title="Schedules its own sync"
-        description="Slash Cash wakes up overnight, runs every agent in order, and has your week's brief ready before your first coffee."
+        eyebrow="Refresh"
+        title="Update when you want"
+        description="Run sync when you want the latest receipts, or let the local app check in the background while it is open."
         layout="bg"
         visual={
           <div className="flex h-full flex-col items-center justify-start pt-10">

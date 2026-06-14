@@ -7,29 +7,29 @@ const pillars = [
   {
     icon: Lock,
     iconClass: "h-5 w-5 text-[#635bff]",
-    headline: "Zero cloud ledger",
-    body: "Transactions live in SQLite on your machine. We do not operate a hosted copy of your money graph.",
+    headline: "No cloud copy",
+    body: "Your spending history stays on your machine. We do not run a hosted copy of your dashboard.",
     tint: "linear-gradient(135deg, #635bff, #2f6ceb)",
   },
   {
     icon: Database,
     iconClass: "h-5 w-5 text-[#2f6ceb]",
-    headline: "You own the file",
-    body: "Back it up, diff it, delete it. The database path is yours — the same contract as git for code.",
+    headline: "You can leave anytime",
+    body: "The data is stored locally. Back it up, move it, or delete it whenever you want.",
     tint: "linear-gradient(135deg, #2f6ceb, #0ea5e9)",
   },
   {
     icon: Eye,
     iconClass: "h-5 w-5 text-[#0ea5e9]",
     headline: "Read-only by design",
-    body: "Connectors ingest what you approve. Slash Cash cannot move money, send mail, or change your bank.",
+    body: "slash.cash reads receipts. It cannot move money, send mail, or change your bank.",
     tint: "linear-gradient(135deg, #0ea5e9, #14b8a6)",
   },
   {
     icon: FileSearch,
     iconClass: "h-5 w-5 text-[#14b8a6]",
-    headline: "Inspectable agents",
-    body: "Seven small programs with one job each — not a black-box “finance AI.” The core is open source on GitHub.",
+    headline: "Open to inspect",
+    body: "The core is open source, so the privacy story does not depend on vague promises.",
     tint: "linear-gradient(135deg, #14b8a6, #635bff)",
   },
 ];
@@ -49,9 +49,6 @@ export function PrinciplesBand() {
         {pillars.map((p, i) => (
           <motion.div
             key={p.headline}
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.5, delay: i * 0.06 }}
             className="flex flex-col gap-3"
           >

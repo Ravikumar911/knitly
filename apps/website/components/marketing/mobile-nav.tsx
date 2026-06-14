@@ -16,9 +16,8 @@ import { NPM_URL } from "@/lib/links";
 const links = [
   { href: "/#why", label: "Why us" },
   { href: "/#features", label: "Features" },
-  { href: "/#agents", label: "Agents" },
+  { href: "/#demo", label: "Demo" },
   { href: "/#how", label: "How it works" },
-  { href: "/#pricing", label: "Pricing" },
   { href: "/#faq", label: "FAQ" },
   { href: "/connectors", label: "Connectors" },
 ];
@@ -57,7 +56,7 @@ export function MobileNav() {
               "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-3))",
           }}
         >
-          Install CLI
+          Install free
         </a>
       </SheetContent>
     </Sheet>

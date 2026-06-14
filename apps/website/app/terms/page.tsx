@@ -58,8 +58,8 @@ export default function TermsOfServicePage() {
           </li>
           <li>
             <strong>Open source:</strong> Core code is published under the
-            license in the repository. Paid tiers described on the website are
-            roadmap items unless explicitly available at purchase.
+            license in the repository. Any paid service would need its own
+            explicit terms before purchase.
           </li>
         </ul>
 
@@ -90,7 +90,7 @@ export default function TermsOfServicePage() {
           To the maximum extent permitted by law, Slash Cash and its
           contributors are not liable for indirect, incidental, or consequential
           damages arising from use of the software, including financial
-          decisions you make based on dashboards or agent output.
+          decisions you make based on dashboards or assistant output.
         </p>
 
         <h2>6. Third-party services</h2>

@@ -72,8 +72,9 @@ export default function PrivacyPolicyPage() {
         <h2>2. How we use information</h2>
         <ul>
           <li>
-            Categorize spends, detect leaks, score money health, and prepare
-            weekly review on your device.
+            Import approved receipt emails, store structured transactions, show
+            local dashboard analytics, and answer optional assistant questions
+            when you configure a provider.
           </li>
           <li>
             Improve the open-source product when you choose to share feedback or

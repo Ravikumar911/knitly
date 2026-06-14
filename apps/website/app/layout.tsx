@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Github } from "lucide-react";
 
 import { MobileNav } from "@/components/marketing/mobile-nav";
-import { NPM_URL } from "@/lib/links";
+import { GITHUB_URL, NPM_URL } from "@/lib/links";
 
 import "./globals.css";
 
@@ -19,49 +19,69 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://slash.cash"),
+  applicationName: "Slash Cash",
   title: {
-    default: "Slash Cash — Your AI finance team that actually fixes things",
+    default: "Slash Cash — Private spending dashboard for your receipts",
     template: "%s · Slash Cash",
   },
   description:
-    "Local-first personal finance: open-source slashcash CLI, SQLite on your machine, read-only connectors, seven small agents for categorization and weekly review. Optional assistant; no hosted ledger.",
+    "A private spending dashboard that reads receipts from your inbox and runs on your laptop. Start with Swiggy receipts today. No bank login or cloud finance account.",
   keywords: [
-    "ai personal finance",
+    "private spending tracker",
     "expense tracker",
-    "money management app",
-    "subscription tracker",
-    "credit card tracker",
-    "upi tracker",
+    "receipt tracker",
+    "Swiggy expense tracker",
+    "Gmail receipt tracker",
+    "local personal finance",
     "open-source finance",
-    "private finance app",
+    "personal finance dashboard",
     "slash.cash",
   ],
+  category: "Finance",
+  classification: "Personal finance software",
   authors: [{ name: "Slash Cash", url: "https://slash.cash" }],
   creator: "Slash Cash",
-  robots: { index: true, follow: true },
+  publisher: "Slash Cash",
+  manifest: "/site.webmanifest",
+  formatDetection: {
+    telephone: false,
+    address: false,
+    email: false,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "en_US",
     siteName: "Slash Cash",
-    title: "Slash Cash — Your AI finance team that actually fixes things",
+    title: "Slash Cash — Private spending dashboard for your receipts",
     description:
-      "Open-source CLI and local dashboard: SQLite ledger on your device, read-only connectors, seven agents for spends and weekly review. Optional assistant.",
+      "Read receipts from your inbox, understand food-delivery spending, and keep the dashboard on your laptop.",
     url: "https://slash.cash",
     images: [
       {
         url: "/images/hero-illustration.jpg",
         width: 1200,
         height: 630,
-        alt: "Slash Cash — local-first AI finance team",
+        alt: "Slash Cash private spending dashboard",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Slash Cash — Your AI finance team that actually fixes things",
+    title: "Slash Cash — Private spending dashboard for your receipts",
     description:
-      "Open-source slashcash CLI: local SQLite ledger, read-only connectors, seven agents, optional assistant.",
+      "A private spending dashboard that reads receipts from your inbox and runs on your laptop.",
     site: "@slashcash",
     creator: "@slashcash",
     images: ["/images/hero-illustration.jpg"],
@@ -108,14 +128,11 @@ function Header() {
           <Link href="/#features" className="transition hover:text-neutral-900">
             Features
           </Link>
-          <Link href="/#agents" className="transition hover:text-neutral-900">
-            Agents
+          <Link href="/#demo" className="transition hover:text-neutral-900">
+            Demo
           </Link>
           <Link href="/#how" className="transition hover:text-neutral-900">
             How it works
-          </Link>
-          <Link href="/#pricing" className="transition hover:text-neutral-900">
-            Pricing
           </Link>
           <Link href="/#faq" className="transition hover:text-neutral-900">
             FAQ
@@ -125,7 +142,7 @@ function Header() {
         <div className="flex items-center gap-2">
           <MobileNav />
           <a
-            href="https://github.com/slashcash"
+            href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub"
@@ -140,7 +157,7 @@ function Header() {
             rel="noopener noreferrer"
             className="hidden sm:inline-flex h-9 items-center rounded-full border border-black/10 bg-white/90 px-3.5 text-[0.82rem] font-semibold text-neutral-800 shadow-sm transition hover:bg-white"
           >
-            Install CLI
+            Install free
           </a>
         </div>
       </div>
@@ -174,9 +191,8 @@ function Footer() {
               </span>
             </Link>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-neutral-500">
-              A local-first finance dashboard and CLI: SQLite on your disk,
-              read-only connectors, optional assistant. Open-source core; paid
-              tiers later for workflows — not rent on your own transactions.
+              A private spending dashboard that reads receipts from your inbox
+              and runs on your laptop. Start with Swiggy receipts today.
             </p>
             <div className="mt-5 flex flex-wrap gap-2 text-xs text-neutral-500">
               <span className="rounded-full bg-black/5 px-2.5 py-1">
@@ -195,7 +211,7 @@ function Footer() {
             <h3 className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-neutral-400">
               Product
             </h3>
-            <ul className="mt-4 space-y-2.5 text-sm text-neutral-600">
+            <ul className="mt-4 flex flex-col gap-2.5 text-sm text-neutral-600">
               <li>
                 <Link
                   href="/#why"
@@ -214,10 +230,10 @@ function Footer() {
               </li>
               <li>
                 <Link
-                  href="/#agents"
+                  href="/#demo"
                   className="transition hover:text-neutral-900"
                 >
-                  Agents
+                  Demo
                 </Link>
               </li>
               <li>
@@ -226,14 +242,6 @@ function Footer() {
                   className="transition hover:text-neutral-900"
                 >
                   How it works
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/#pricing"
-                  className="transition hover:text-neutral-900"
-                >
-                  Pricing
                 </Link>
               </li>
               <li>
@@ -251,10 +259,10 @@ function Footer() {
             <h3 className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-neutral-400">
               Resources
             </h3>
-            <ul className="mt-4 space-y-2.5 text-sm text-neutral-600">
+            <ul className="mt-4 flex flex-col gap-2.5 text-sm text-neutral-600">
               <li>
                 <a
-                  href="https://github.com/slashcash"
+                  href={GITHUB_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="transition hover:text-neutral-900"
@@ -264,7 +272,7 @@ function Footer() {
               </li>
               <li>
                 <a
-                  href="https://www.npmjs.com/package/slashcash"
+                  href={NPM_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="transition hover:text-neutral-900"
@@ -289,9 +297,7 @@ function Footer() {
                 </Link>
               </li>
               <li>
-                <span className="text-neutral-400">
-                  Local dashboard via CLI
-                </span>
+                <span className="text-neutral-400">Private dashboard</span>
               </li>
             </ul>
           </div>
@@ -300,7 +306,7 @@ function Footer() {
             <h3 className="text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-neutral-400">
               Legal
             </h3>
-            <ul className="mt-4 space-y-2.5 text-sm text-neutral-600">
+            <ul className="mt-4 flex flex-col gap-2.5 text-sm text-neutral-600">
               <li>
                 <Link
                   href="/privacy"
@@ -385,9 +391,9 @@ export default function RootLayout({
               name: "Slash Cash",
               url: "https://slash.cash/",
               applicationCategory: "FinanceApplication",
-              operatingSystem: "macOS, Linux, Windows",
+              operatingSystem: "macOS",
               description:
-                "Open-source local-first finance: slashcash CLI, SQLite on your machine, read-only connectors, optional assistant. No hosted transaction ledger.",
+                "Private spending dashboard for macOS that reads receipts from your inbox and runs on your laptop.",
               offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
               publisher: {
                 "@type": "Organization",

@@ -13,31 +13,29 @@ import { GITHUB_URL } from "@/lib/links";
 export const dynamic = "force-static";
 
 export const metadata: Metadata = {
-  title: "Email connectors",
+  title: "Receipt sources",
   description:
-    "Slash Cash imports financial activity from email — UPI receipts, card statements, food delivery, subscriptions — on your laptop via read-only IMAP. No cloud ledger.",
+    "Slash Cash reads Swiggy receipts from Gmail today and turns them into a private spending dashboard on your laptop.",
 };
 
-const connectors: { name: string; state: "Stable" | "Featured" | "Beta" }[] = [
-  { name: "Bank statements (HDFC, ICICI, SBI, Axis, Kotak…)", state: "Stable" },
-  { name: "Credit cards (Amex, Axis, HDFC, ICICI…)", state: "Stable" },
-  { name: "UPI (PhonePe, GPay, Paytm, BHIM)", state: "Stable" },
+const connectors: {
+  name: string;
+  state: "Available" | "Bundled" | "Authorable";
+}[] = [
+  { name: "Gmail receipt access", state: "Available" },
+  { name: "Swiggy order emails", state: "Bundled" },
+  { name: "Swiggy invoice attachments", state: "Bundled" },
+  { name: "Receipt details from email text", state: "Bundled" },
   {
-    name: "Subscriptions (Netflix, Spotify, iCloud, JioSaavn)",
-    state: "Stable",
+    name: "More receipt sources",
+    state: "Authorable",
   },
-  { name: "Food delivery — Swiggy", state: "Featured" },
-  { name: "Food delivery — Zomato", state: "Beta" },
-  { name: "E-commerce (Amazon, Flipkart, Myntra, Meesho)", state: "Beta" },
-  { name: "Travel (Uber, Ola, IRCTC, MakeMyTrip)", state: "Beta" },
-  { name: "Bills (electricity, telecom, broadband)", state: "Beta" },
 ];
 
 const stateStyle: Record<string, string> = {
-  Stable: "bg-emerald-50 text-emerald-700",
-  Featured:
-    "bg-gradient-to-r from-sky-100 via-blue-50 to-teal-100 text-sky-900",
-  Beta: "bg-neutral-100 text-neutral-500",
+  Available: "bg-emerald-50 text-emerald-700",
+  Bundled: "bg-gradient-to-r from-sky-100 via-blue-50 to-teal-100 text-sky-900",
+  Authorable: "bg-neutral-100 text-neutral-500",
 };
 
 export default function ConnectorsPage() {
@@ -66,27 +64,24 @@ export default function ConnectorsPage() {
                     "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-4))",
                 }}
               />
-              Connectors
+              Receipt sources
             </span>
           </BlurFade>
 
           <BlurFade delay={0.12} inView>
             <h1 className="mt-5 max-w-3xl text-[2.6rem] font-bold leading-[1.05] tracking-tight md:text-[3.2rem]">
-              Your financial life lives in email.
+              Your receipts already live in email.
               <br />
               <AuroraText colors={["#635bff", "#2f6ceb", "#0ea5e9", "#14b8a6"]}>
-                Slash Cash reads it on your laptop.
+                slash.cash turns them into a dashboard.
               </AuroraText>
             </h1>
           </BlurFade>
 
           <BlurFade delay={0.2} inView>
             <p className="mt-5 max-w-2xl text-[1.05rem] leading-relaxed text-neutral-500 md:text-[1.12rem]">
-              The Connector Agent uses IMAP with a user-generated Gmail app
-              password to scan finance-related messages — bank, card, UPI,
-              subscription, food delivery — and turns them into structured
-              transactions in local SQLite. Nothing is uploaded to Slash Cash
-              servers.
+              Start with Swiggy receipts from Gmail. slash.cash reads the order
+              details on your laptop and shows what you spent, where, and when.
             </p>
           </BlurFade>
 
@@ -98,27 +93,23 @@ export default function ConnectorsPage() {
         </div>
       </section>
 
-      <Section
-        eyebrow="How it stays private"
-        title="Three guarantees, baked in."
-        align="center"
-      >
+      <Section eyebrow="Privacy" title="Simple guarantees." align="center">
         <div className="grid gap-4 md:grid-cols-3">
           {[
             {
               icon: <Inbox className="h-5 w-5 text-indigo-500" />,
-              title: "Read-only IMAP",
-              body: "Use your provider's app-password feature. Slash Cash only reads finance-related threads. It cannot send, archive, or modify your inbox.",
+              title: "Read-only access",
+              body: "slash.cash reads matching receipt emails. It cannot send, archive, or modify your inbox.",
             },
             {
               icon: <Sparkles className="h-5 w-5 text-sky-600" />,
-              title: "Deterministic extractors",
-              body: "Per-source extractors with snapshot tests. The same Swiggy receipt yields the same transaction every time — auditable, versionable, open-source.",
+              title: "Predictable receipt reading",
+              body: "The same receipt should produce the same result every time. If something is wrong, the open-source code can be fixed.",
             },
             {
               icon: <ShieldCheck className="h-5 w-5 text-emerald-500" />,
               title: "Stays on your device",
-              body: "Email bodies are parsed locally. Only structured transactions land in your SQLite file. No Slash Cash–hosted copy of your finances.",
+              body: "Receipts are read locally. There is no Slash Cash-hosted copy of your spending dashboard.",
             },
           ].map((it) => (
             <div
@@ -140,14 +131,14 @@ export default function ConnectorsPage() {
       </Section>
 
       <Section
-        eyebrow="What we read"
+        eyebrow="Available now"
         title={
           <>
-            Sources Slash Cash recognizes{" "}
+            Receipt sources slash.cash recognizes{" "}
             <AuroraText colors={["#635bff", "#2f6ceb"]}>today.</AuroraText>
           </>
         }
-        description="Connectors graduate from Beta to Stable when deterministic snapshot tests cover real-world variants. Add your own — the extractor pattern is open."
+        description="The current product starts focused and honest: Swiggy receipts from Gmail today, with more local sources possible later."
       >
         <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_64px_-32px_rgba(47,108,235,0.14)]">
           {connectors.map((c, idx) => (
@@ -178,9 +169,9 @@ export default function ConnectorsPage() {
 
         <div className="mt-10 flex flex-wrap justify-center gap-3 text-[0.9rem]">
           {[
-            "Find your three biggest leaks",
-            "See what changed vs last month",
-            "Get one suggested action this week",
+            "Import Swiggy receipts",
+            "Read invoices and email text locally",
+            "Review monthly food-delivery spend",
           ].map((item) => (
             <div
               key={item}
@@ -193,7 +184,7 @@ export default function ConnectorsPage() {
         </div>
 
         <div className="mt-10 text-center text-[0.95rem] text-neutral-500">
-          Want a connector that is not here yet?{" "}
+          Want a receipt source that is not here yet?{" "}
           <a
             href={`${GITHUB_URL}/issues`}
             target="_blank"

@@ -1,12 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  CircleDollarSign,
-  Sparkles,
-} from "lucide-react";
+import { CheckCircle2, Inbox, LayoutDashboard, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AnimatePresence } from "motion/react";
 
@@ -22,30 +17,30 @@ interface Notification {
 
 const notifications: Notification[] = [
   {
-    name: "Leak Agent",
-    description: "Found 3 unused subscriptions · ₹4,260/yr",
-    icon: <AlertTriangle className="h-4 w-4" />,
-    tone: "warn",
+    name: "Gmail connected",
+    description: "Receipt access is ready",
+    icon: <Inbox className="h-4 w-4" />,
+    tone: "info",
     time: "2m",
   },
   {
-    name: "Score Agent",
-    description: "Money health score is 72 (+4)",
+    name: "Swiggy receipt read",
+    description: "Amount and restaurant found",
     icon: <Sparkles className="h-4 w-4" />,
-    tone: "info",
+    tone: "ok",
     time: "5m",
   },
   {
-    name: "Spend Agent",
-    description: "Categorized 218 new transactions",
+    name: "Invoice checked",
+    description: "Fees and taxes captured",
     icon: <CheckCircle2 className="h-4 w-4" />,
     tone: "ok",
     time: "9m",
   },
   {
-    name: "Investor Agent",
-    description: "Move ₹10,000 to SIP · stays in budget",
-    icon: <CircleDollarSign className="h-4 w-4" />,
+    name: "Dashboard updated",
+    description: "Private spending view ready",
+    icon: <LayoutDashboard className="h-4 w-4" />,
     tone: "save",
     time: "12m",
   },
@@ -115,7 +110,7 @@ function NotificationCard({ notification }: { notification: Notification }) {
   );
 }
 
-export function AgentNotifications({ className }: { className?: string }) {
+export function SyncNotifications({ className }: { className?: string }) {
   const [items, setItems] = useState<Notification[]>(notifications);
 
   useEffect(() => {

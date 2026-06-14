@@ -9,11 +9,10 @@ import {
 import {
   BadgeIndianRupee,
   Brain,
-  CreditCard,
+  ChartNoAxesCombined,
   FileSpreadsheet,
   Mail,
   Receipt,
-  Smartphone,
   TrendingUp,
 } from "lucide-react";
 
@@ -58,32 +57,35 @@ export function FlowBeams() {
   ];
 
   const sources = [
-    { icon: <Smartphone className="h-5 w-5 text-sky-500" />, label: "UPI" },
+    { icon: <Mail className="h-5 w-5 text-sky-500" />, label: "Gmail" },
     {
-      icon: <CreditCard className="h-5 w-5 text-indigo-500" />,
-      label: "Cards",
-    },
-    { icon: <Mail className="h-5 w-5 text-[#635bff]" />, label: "Email" },
-    {
-      icon: <Receipt className="h-5 w-5 text-teal-500" />,
-      label: "Statements",
+      icon: <Receipt className="h-5 w-5 text-indigo-500" />,
+      label: "Swiggy",
     },
     {
-      icon: <FileSpreadsheet className="h-5 w-5 text-[#2f6ceb]" />,
-      label: "PDF/CSV",
+      icon: <ChartNoAxesCombined className="h-5 w-5 text-[#635bff]" />,
+      label: "Orders",
+    },
+    {
+      icon: <FileSpreadsheet className="h-5 w-5 text-teal-500" />,
+      label: "Invoices",
+    },
+    {
+      icon: <BadgeIndianRupee className="h-5 w-5 text-[#2f6ceb]" />,
+      label: "Amounts",
     },
   ];
 
   const outputs = [
     {
       icon: <TrendingUp className="h-5 w-5 text-emerald-600" />,
-      label: "Score",
+      label: "Trends",
     },
     {
       icon: <BadgeIndianRupee className="h-5 w-5 text-emerald-600" />,
-      label: "Save",
+      label: "Spend",
     },
-    { icon: <Brain className="h-5 w-5 text-emerald-600" />, label: "Decide" },
+    { icon: <Brain className="h-5 w-5 text-emerald-600" />, label: "Ask" },
   ];
 
   return (
@@ -115,7 +117,7 @@ export function FlowBeams() {
           </span>
         </Circle>
         <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-neutral-700">
-          Local agents
+          Private app
         </span>
       </div>
 

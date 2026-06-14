@@ -14,24 +14,24 @@ export const dynamic = "force-static";
 export const metadata: Metadata = {
   title: "Spending psychology",
   description:
-    "Why we overspend, why dashboards don't help, and how Slash Cash's local agents turn money behavior into one clear weekly action.",
+    "Why spending is hard to review and how Slash Cash starts with private receipt tracking instead of another cloud finance account.",
 };
 
 const biases = [
   {
     icon: <Brain className="h-5 w-5 text-indigo-600" />,
     title: "Mental accounting",
-    body: "We treat ₹500 on food delivery as “lifestyle” and ₹500 of subscriptions as “invisible.” Slash Cash collapses every category into the same lens — money out, behavior pattern.",
+    body: "We treat ₹500 on food delivery as “lifestyle” and ₹500 of subscriptions as “invisible.” A good dashboard makes the pattern visible without guilt.",
   },
   {
     icon: <Repeat className="h-5 w-5 text-sky-600" />,
     title: "The compounding leak",
-    body: "Three forgotten subscriptions cost more than a missed SIP step-up. The Leak Agent surfaces these every Monday so you fix them before they recur.",
+    body: "Recurring spending is easy to ignore because it hides in receipts. The first step is reliable import: get the facts into a local dashboard without manual cleanup.",
   },
   {
     icon: <CreditCard className="h-5 w-5 text-teal-500" />,
     title: "Friction asymmetry",
-    body: "Spending is one tap. Reviewing is a workflow. Slash Cash inverts that — review is automatic, intervention is opt-in, the dashboard is ready before you open it.",
+    body: "Spending is one tap. Reviewing is a workflow. slash.cash reduces the review cost by reading approved receipts while keeping the dashboard local.",
   },
   {
     icon: <PiggyBank className="h-5 w-5 text-emerald-500" />,
@@ -41,7 +41,7 @@ const biases = [
   {
     icon: <TrendingUp className="h-5 w-5 text-[#2f6ceb]" />,
     title: "Decisions, not charts",
-    body: "Charts narrate the past. Agents make a recommendation: cut ₹X here, move ₹Y to SIP, cancel these three subscriptions. One action a week beats ten dashboards.",
+    body: "Charts narrate the past. A useful tracker starts with trustworthy data, then helps you understand what changed.",
   },
 ];
 
@@ -79,7 +79,7 @@ export default function SpendingPsychologyPage() {
             <h1 className="mt-5 max-w-3xl text-[2.6rem] font-bold leading-[1.05] tracking-tight md:text-[3.2rem]">
               Why we overspend —{" "}
               <AuroraText colors={["#635bff", "#2f6ceb", "#0ea5e9"]}>
-                and what an honest finance agent does about it.
+                and what a private finance tool should do first.
               </AuroraText>
             </h1>
           </BlurFade>
@@ -128,10 +128,10 @@ export default function SpendingPsychologyPage() {
             The point of Slash Cash is not to make you feel guilty about a
             coffee. It is to put{" "}
             <span className="font-semibold text-neutral-900">
-              one clear, well-explained action
+              one clear, well-explained picture
             </span>{" "}
-            in front of you each week — on your machine, without a hosted
-            ledger.
+            in front of you each week — on your machine, without a cloud finance
+            account.
           </p>
           <div className="mt-8 flex justify-center">
             <InstallCta />

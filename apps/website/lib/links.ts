@@ -1,5 +1,5 @@
 /** Shared outbound links for marketing pages */
-export const GITHUB_URL = "https://github.com/slashcash";
+export const GITHUB_URL = "https://github.com/Ravikumar911/knitly";
 export const NPM_URL = "https://www.npmjs.com/package/slashcash";
 export const CONTACT_EMAIL = "hi@slash.cash";
 

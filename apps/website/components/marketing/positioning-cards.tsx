@@ -1,20 +1,20 @@
-import { Landmark, Shield, Sparkles } from "lucide-react";
+import { Cloud, FileSpreadsheet, KeyRound } from "lucide-react";
 
 const cards = [
   {
-    icon: Shield,
-    title: "Versus cloud finance apps",
-    body: "Most PFMs monetize attention, ads, or upsells on your data. Slash Cash is local-first: the business model can align with power users because the sensitive graph never sits on our servers.",
+    icon: Cloud,
+    title: "Money data is too personal",
+    body: "Many finance apps ask for broad access before they show anything useful. slash.cash starts with receipts and keeps the dashboard on your laptop.",
   },
   {
-    icon: Landmark,
-    title: "Built for India-shaped money",
-    body: "UPI-first flows, rupee-native summaries, and deterministic ingestion for real Indian spend patterns (for example order-email extractors) — not a US credit-score app painted blue.",
+    icon: FileSpreadsheet,
+    title: "Spreadsheets do not stay current",
+    body: "Manual tracking works for a week, then receipts pile up. slash.cash handles the boring import step so you can review instead of clean up.",
   },
   {
-    icon: Sparkles,
-    title: "Versus “one giant model”",
-    body: "Seven small agents with narrow jobs are easier to audit, replay, and improve than a single chatbot that guesses your entire financial life in one prompt.",
+    icon: KeyRound,
+    title: "No new finance account",
+    body: "There is no Slash Cash cloud login for your spending history. You install it, connect receipts, and keep control of the data.",
   },
 ];
 

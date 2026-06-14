@@ -3,8 +3,8 @@
 import {
   AlertTriangle,
   Brain,
-  CircleDollarSign,
   FilePieChart,
+  HardDrive,
   Plug,
   ScanSearch,
   TrendingUp,
@@ -12,35 +12,41 @@ import {
 
 import { OrbitingCircles } from "@workspace/ui/components/orbiting-circles";
 
-const innerAgents = [
+const innerSteps = [
   {
     icon: <ScanSearch className="h-5 w-5 text-indigo-500" />,
-    title: "Spend",
+    title: "Scan",
   },
   {
     icon: <AlertTriangle className="h-5 w-5 text-sky-500" />,
-    title: "Leak",
+    title: "Validate",
   },
   {
     icon: <TrendingUp className="h-5 w-5 text-emerald-500" />,
-    title: "Score",
+    title: "Analyze",
   },
 ];
 
-const outerAgents = [
-  { icon: <Plug className="h-5 w-5 text-indigo-500" />, title: "Connector" },
+const outerSteps = [
+  { icon: <Plug className="h-5 w-5 text-indigo-500" />, title: "Gmail" },
   {
-    icon: <CircleDollarSign className="h-5 w-5 text-cyan-500" />,
-    title: "Investor",
+    icon: <HardDrive className="h-5 w-5 text-cyan-500" />,
+    title: "Local",
   },
-  { icon: <Brain className="h-5 w-5 text-[#635bff]" />, title: "Review" },
+  { icon: <Brain className="h-5 w-5 text-[#635bff]" />, title: "Ask" },
   {
     icon: <FilePieChart className="h-5 w-5 text-amber-500" />,
-    title: "Alert",
+    title: "Dashboard",
   },
 ];
 
-function AgentChip({ icon, title }: { icon: React.ReactNode; title: string }) {
+function PipelineChip({
+  icon,
+  title,
+}: {
+  icon: React.ReactNode;
+  title: string;
+}) {
   return (
     <div className="flex items-center gap-2 rounded-full border border-black/5 bg-white pl-1.5 pr-3 py-1 shadow-[0_4px_16px_-4px_rgba(47,108,235,0.14)]">
       <span className="grid h-7 w-7 flex-none place-items-center rounded-full bg-neutral-50 ring-1 ring-black/5">
@@ -53,7 +59,7 @@ function AgentChip({ icon, title }: { icon: React.ReactNode; title: string }) {
   );
 }
 
-export function AgentsOrbit() {
+export function PipelineOrbit() {
   return (
     <div className="relative flex h-[420px] w-full items-center justify-center overflow-hidden">
       {/* Background halo */}
@@ -81,8 +87,8 @@ export function AgentsOrbit() {
       </div>
 
       <OrbitingCircles radius={120} duration={28} iconSize={44} path={false}>
-        {innerAgents.map((agent) => (
-          <AgentChip key={agent.title} {...agent} />
+        {innerSteps.map((step) => (
+          <PipelineChip key={step.title} {...step} />
         ))}
       </OrbitingCircles>
 
@@ -93,8 +99,8 @@ export function AgentsOrbit() {
         reverse
         path={false}
       >
-        {outerAgents.map((agent) => (
-          <AgentChip key={agent.title} {...agent} />
+        {outerSteps.map((step) => (
+          <PipelineChip key={step.title} {...step} />
         ))}
       </OrbitingCircles>
     </div>

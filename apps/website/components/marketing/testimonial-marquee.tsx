@@ -15,56 +15,56 @@ const reviews: Review[] = [
   {
     name: "Aarav Sharma",
     username: "@aarav.dev",
-    body: "Finally, money tracking that doesn't ask me to upload my bank statements to a random cloud. Slash Cash runs entirely on my MacBook.",
+    body: "I wanted the dashboard without giving another company my whole money history. This feels much easier to trust.",
     initials: "AS",
     tint: "from-violet-200 to-fuchsia-200",
   },
   {
     name: "Meena Iyer",
     username: "@meena_iyer",
-    body: "The Leak Agent caught ₹4,800/yr of subscriptions I'd genuinely forgotten. That alone paid for the Pro license.",
+    body: "Seeing my Swiggy spend without building a spreadsheet was immediately useful. Narrow, but useful.",
     initials: "MI",
     tint: "from-cyan-200 to-violet-200",
   },
   {
     name: "Rahul Reddy",
     username: "@rdy.dev",
-    body: "Half the apps I used before were just charts. Slash Cash actually tells me what to do this week. Game changer.",
+    body: "The best part is that it does not pretend to connect everything. It solves one clear problem first.",
     initials: "RR",
     tint: "from-amber-200 to-rose-200",
   },
   {
     name: "Priya Nair",
     username: "@priyacodes",
-    body: "Open-source CLI + a beautiful local dashboard. This is what privacy-respecting fintech should look like.",
+    body: "The setup is guided, and the dashboard itself feels polished and calm.",
     initials: "PN",
     tint: "from-emerald-200 to-cyan-200",
   },
   {
     name: "Karthik Menon",
     username: "@kmenon",
-    body: "The score went from 58 to 71 in two months. Following the agents' weekly nudge actually compounds.",
+    body: "I like that setup tells me what is happening instead of hiding everything behind a spinner.",
     initials: "KM",
     tint: "from-rose-200 to-amber-200",
   },
   {
     name: "Sneha Joshi",
     username: "@snehaj",
-    body: "I love that I can `git diff` my own finance rules. No black box. No “trust us”. Just code I can read.",
+    body: "The privacy story feels real because the app runs here, not in someone else's account.",
     initials: "SJ",
     tint: "from-fuchsia-200 to-violet-200",
   },
   {
     name: "Tanay Gupta",
     username: "@tanaygupta",
-    body: "Switched from a popular tracker. The auto-categorization on UPI + cards is shockingly accurate.",
+    body: "The scope is honest. It does Swiggy from Gmail today, and that makes the roadmap more believable.",
     initials: "TG",
     tint: "from-indigo-200 to-cyan-200",
   },
   {
     name: "Rhea Kapoor",
     username: "@rhea.kp",
-    body: "The Monday-morning review is the best thing in my inbox. One paragraph, three actions. That's it.",
+    body: "I was wary of connecting finance email. Knowing it runs on my laptop made the difference.",
     initials: "RK",
     tint: "from-violet-200 to-pink-200",
   },
@@ -77,7 +77,7 @@ function ReviewCard({ name, username, body, initials, tint }: Review) {
   return (
     <figure
       className={cn(
-        "relative w-72 cursor-pointer overflow-hidden rounded-2xl border border-black/5 bg-white p-4",
+        "relative w-72 overflow-hidden rounded-2xl border border-black/5 bg-white p-4",
         "shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(47,108,235,0.1)]",
         "transition hover:-translate-y-0.5 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_16px_32px_-16px_rgba(47,108,235,0.18)]",
       )}

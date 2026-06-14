@@ -51,7 +51,7 @@ export function HeroPreviewCard() {
                   className="mr-1 inline h-3 w-3 -translate-y-px"
                   aria-hidden="true"
                 />
-                6 agents running locally
+                Receipts imported
               </span>
             </div>
             <span className="flex-none rounded-full bg-sky-50 px-2 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wider text-sky-800">
@@ -59,12 +59,12 @@ export function HeroPreviewCard() {
             </span>
           </div>
 
-          {/* Agent rows */}
+          {/* Pipeline rows */}
           <div className="flex flex-col gap-1.5">
             {[
-              { name: "Spend Agent", meta: "218 txns" },
-              { name: "Leak Agent", meta: "3 leaks" },
-              { name: "Score Agent", meta: "+4 pts" },
+              { name: "Receipt emails found", meta: "1 year" },
+              { name: "Amounts and fees read", meta: "done" },
+              { name: "Dashboard updated", meta: "private" },
             ].map((a, idx) => (
               <motion.div
                 key={a.name}
@@ -96,16 +96,16 @@ export function HeroPreviewCard() {
             }}
           >
             <div className="flex items-center justify-between text-[0.6rem] font-semibold uppercase tracking-[0.16em] text-neutral-400">
-              <span>Personal Finance Score</span>
+              <span>Swiggy spend this month</span>
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[0.55rem] font-semibold text-emerald-700">
-                <TrendingUp className="h-2.5 w-2.5" aria-hidden="true" /> +4
-                this month
+                <TrendingUp className="h-2.5 w-2.5" aria-hidden="true" /> 42
+                receipts
               </span>
             </div>
             <div className="mt-1 flex items-baseline gap-1.5">
               <span
                 className="font-sans text-[2.6rem] font-bold leading-none tabular-nums"
-                style={{ letterSpacing: "-0.045em" }}
+                style={{ letterSpacing: "0" }}
               >
                 <span
                   className="bg-clip-text text-transparent"
@@ -114,11 +114,11 @@ export function HeroPreviewCard() {
                       "linear-gradient(135deg, #635bff, #2f6ceb, #0ea5e9)",
                   }}
                 >
-                  72
+                  ₹12.8K
                 </span>
               </span>
               <span className="text-[0.85rem] font-medium text-neutral-400">
-                /100
+                private
               </span>
             </div>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-sky-100">
@@ -129,16 +129,16 @@ export function HeroPreviewCard() {
                     "linear-gradient(90deg, #635bff, #2f6ceb, #0ea5e9)",
                 }}
                 initial={{ width: 0 }}
-                animate={{ width: "72%" }}
+                animate={{ width: "68%" }}
                 transition={{ duration: 1, delay: 0.85, ease: "easeOut" }}
               />
             </div>
             <div className="mt-3 flex items-center gap-1.5 text-[0.74rem] text-neutral-600">
               <Sparkles className="h-3 w-3 text-sky-600" aria-hidden="true" />
               <span>
-                Suggested:{" "}
+                Ready:{" "}
                 <span className="font-semibold text-neutral-900">
-                  cancel 2 unused subs · move ₹10K to SIP
+                  restaurants, fees, and trends
                 </span>
               </span>
             </div>
@@ -148,7 +148,7 @@ export function HeroPreviewCard() {
           <div className="flex items-center justify-between gap-2 border-t border-dashed border-black/10 pt-3 text-[0.66rem] font-medium text-neutral-400">
             <span className="inline-flex items-center gap-1.5">
               <Lock className="h-3 w-3 text-emerald-500" aria-hidden="true" />
-              No data leaves this laptop
+              Your numbers stay on this laptop
             </span>
             <span className="font-mono uppercase tracking-wider">
               v0.1 · local

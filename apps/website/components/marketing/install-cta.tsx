@@ -25,7 +25,7 @@ export function InstallCta({
           }}
         >
           <Package className="h-3.5 w-3.5" />
-          Install the CLI
+          Install free
         </a>
         <a
           href={GITHUB_URL}
