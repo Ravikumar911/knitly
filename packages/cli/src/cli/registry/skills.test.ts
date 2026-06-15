@@ -39,7 +39,7 @@ describe("skills command", () => {
         enabled: true,
         manifest: {
           version: "1.0.0",
-          description: "Sync Swiggy receipts from Gmail",
+          description: "Sync supported receipts from Gmail",
         },
       },
       {
@@ -65,7 +65,7 @@ describe("skills command", () => {
     });
 
     expect(logSpy.mock.calls[0]?.[0]).toContain(
-      "gmail-swiggy 1.0.0 Sync Swiggy receipts from Gmail",
+      "gmail-swiggy 1.0.0 Sync supported receipts from Gmail",
     );
     expect(logSpy.mock.calls[1]?.[0]).toContain(
       "alpha-skill 0.2.0 Custom local automation",

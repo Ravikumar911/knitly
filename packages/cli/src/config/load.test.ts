@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { defaultConfig } from "./schema.js";
+import { DEFAULT_GMAIL_QUERY, defaultConfig } from "./schema.js";
 import { getConfigValue, loadConfig, setConfigValue } from "./load.js";
 import { ensureStateDirs, resolvePaths } from "./paths.js";
 
@@ -87,6 +87,32 @@ describe("config loader", () => {
       updates: { checkOnVersion: false },
     });
     expect(persisted).toEqual(config);
+  });
+
+  it("migrates the old generated Swiggy-only Gmail query", () => {
+    const paths = resolvePaths();
+    ensureStateDirs(paths);
+    writeFileSync(
+      paths.config,
+      `${JSON.stringify(
+        {
+          ...defaultConfig,
+          sync: {
+            ...defaultConfig.sync,
+            gmailQuery: "from:(swiggy.in) newer_than:365d",
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    const config = loadConfig();
+
+    expect(config.sync.gmailQuery).toBe(DEFAULT_GMAIL_QUERY);
+    expect(JSON.parse(readFileSync(paths.config, "utf8")).sync.gmailQuery).toBe(
+      DEFAULT_GMAIL_QUERY,
+    );
   });
 
   it("coerces nested values when setting config fields", () => {

@@ -192,6 +192,85 @@ describe("assistant finance snapshot", () => {
     expect(snapshot.recentOrders[0]?.orderId).toBe("recent-12");
     expect(snapshot.recentOrders[9]?.orderId).toBe("recent-3");
   });
+
+  it("classifies uber-eats and doordash style merchantData (from generic food delivery fallback) as foodDelivery", async () => {
+    const userId = `assistant-uber-flow-${randomUUID()}`;
+    ensureLocalDatabase();
+    await db.insert(profiles).values({
+      id: userId,
+      email: null,
+      first_name: "Test",
+      last_name: "UberFlow",
+      updated_at: new Date(),
+    });
+
+    await db.insert(transactionsV2).values([
+      // Shape produced by pipeline + fallbackFoodDelivery for uber-eats / doordash
+      {
+        userId,
+        merchantId: "uber-eats",
+        merchantCode: "UBER_EATS",
+        merchantName: "Uber Eats",
+        amount: 27.4,
+        currency: "USD",
+        type: "DEBIT",
+        status: "COMPLETED",
+        transactionDate: new Date("2026-04-10T12:00:00"),
+        description: "Uber Eats order - Sweetgreen",
+        category: "Food",
+        paymentMethod: "Visa",
+        referenceIds: { orderId: "uber-12345" },
+        merchantData: {
+          detectedProvider: "Uber Eats",
+          emailType: "ORDER_CONFIRMATION",
+          foodDeliveryMetadata: {
+            service: "FOOD_DELIVERY",
+            fulfillmentType: "DELIVERY",
+          },
+          transaction: {
+            amount: 27.4,
+            currency: "USD",
+            restaurantName: "Sweetgreen",
+            orderId: "uber-12345",
+            orderItems: [],
+          },
+        },
+      },
+      {
+        userId,
+        merchantId: "doordash",
+        merchantCode: "DOORDASH",
+        merchantName: "DoorDash",
+        amount: 15.9,
+        currency: "USD",
+        type: "DEBIT",
+        status: "COMPLETED",
+        transactionDate: new Date("2026-04-11T19:30:00"),
+        description: "DoorDash order - Taco Temple",
+        category: "Food",
+        merchantData: {
+          foodDeliveryMetadata: { service: "FOOD_DELIVERY" },
+          transaction: { restaurantName: "Taco Temple" },
+        },
+      },
+    ]);
+
+    const snap = await getAssistantFinanceSnapshot(userId, {
+      merchantIds: ["uber-eats", "doordash"],
+      includeOrders: true,
+    });
+
+    expect(snap.totals.count).toBe(2);
+    expect(snap.totals.spend).toBeCloseTo(43.3);
+    expect(snap.serviceBreakdown).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ serviceType: "foodDelivery", count: 2 }),
+      ]),
+    );
+    expect(snap.recentOrders[0]?.merchantId).toBe("doordash");
+    expect(snap.recentOrders[0]?.serviceType).toBe("foodDelivery");
+    expect(snap.recentOrders[1]?.merchantName).toBe("Sweetgreen");
+  });
 });
 
 function fixtureTransaction(input: {

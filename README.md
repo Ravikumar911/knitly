@@ -8,7 +8,7 @@ Local-first personal finance dashboard built with Next.js, SQLite, Drizzle ORM, 
 
 This repository is open source under the [ISC License](./LICENSE). Contributions are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md). To report a security issue, follow [`SECURITY.md`](./SECURITY.md).
 
-> Gmail sync uses IMAP + a user-generated Gmail app password. Swiggy extraction is deterministic Python-backed ingest; chat providers are configured later from the assistant tab or `slashcash assistant`.
+> Gmail sync uses IMAP + a user-generated Gmail app password. Receipt extraction is deterministic, with built-in Swiggy, Uber Eats, and DoorDash support; chat providers are configured later from the assistant tab or `slashcash assistant`.
 
 ## Project Structure
 
@@ -37,7 +37,7 @@ The current local app runs fully on the developer machine:
 - A `slashcash` CLI for onboarding, start, stop, status, doctor, reset, config, db, sync, assistant, skills, and logs commands.
 - Gmail ingestion over IMAP (`imap.gmail.com:993`) using a user-generated app password stored in the macOS Keychain or `~/.slashcash/credentials.json` when Keychain is unavailable.
 - Local PDF attachment storage under `~/.slashcash/attachments`.
-- Typed SQLite-backed Swiggy analytics tools for the assistant.
+- Typed SQLite-backed food-delivery transaction data, with Swiggy analytics tools for the assistant.
 
 ## Prerequisites
 

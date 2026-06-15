@@ -10,7 +10,7 @@ The npm package bundles the dashboard and CLI together. After onboarding, it can
 
 - Run a personal finance dashboard locally without hosted auth, a cloud database, or a remote job queue.
 - Keep app state under `~/.slashcash`, including SQLite data, attachments, config, logs, and installed skills.
-- Ingest supported Gmail receipts, with current built-in support focused on Swiggy receipts and local analytics.
+- Ingest supported Gmail receipts, with current built-in support for Swiggy, Uber Eats, and DoorDash.
 - Use optional assistant providers only after you configure them with `slashcash assistant`.
 - Inspect, reset, repair, and rehearse local data flows from the CLI.
 

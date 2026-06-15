@@ -12,7 +12,11 @@ import {
   storeTransactionV2Input,
   dbPath,
 } from "@workspace/database";
-import { extractTransactionFromEmail } from "../extract/pipeline";
+import {
+  extractTransactionFromEmail,
+  getOrderId,
+  getReferenceIds,
+} from "../extract/pipeline";
 import {
   fetchMessage,
   listMessages,
@@ -21,10 +25,10 @@ import {
 } from "../gmail/imap-client";
 import { runSingleFlight } from "../runtime/mutex";
 import { createWorkPool } from "../runtime/pool";
-import { SwiggyMerchant } from "../merchants/swiggy";
 import type { EmailData } from "../types/email-extraction";
 import { writeAttachmentFile } from "../utils/attachments-fs";
 import { errorSummary, syncDebug } from "../utils/sync-debug";
+import { buildMerchantBasedGmailSearchQuery } from "../utils";
 import {
   classifyImapError,
   isCredentialError,
@@ -96,7 +100,7 @@ async function runEmailSyncUnsafe(
   const query =
     payload.query ||
     process.env.SLASHCASH_GMAIL_QUERY ||
-    "from:(swiggy.in) newer_than:365d";
+    buildMerchantBasedGmailSearchQuery(365);
   const maxMessages =
     payload.full && payload.maxMessages === undefined
       ? null
@@ -248,7 +252,7 @@ async function writeExtractedMessage(
 
   if (!extracted.parseSuccess || !extracted.extractionData.transaction) {
     const reason =
-      extracted.parseErrors[0] || "No completed Swiggy transaction.";
+      extracted.parseErrors[0] || "No completed supported transaction.";
     const parseErrors =
       extracted.parseErrors.length > 0
         ? JSON.stringify(extracted.parseErrors)
@@ -281,18 +285,20 @@ async function writeExtractedMessage(
   const stored = await storeTransactionV2Input({
     userId: emailData.userId,
     parsedEmailId,
-    merchantId: SwiggyMerchant.id,
-    merchantCode: SwiggyMerchant.code,
-    merchantName: SwiggyMerchant.name,
+    merchantId: extracted.merchant?.id ?? extracted.extractionData.merchantId,
+    merchantCode:
+      extracted.merchant?.code ?? extracted.extractionData.merchantCode,
+    merchantName:
+      extracted.merchant?.name ?? extracted.extractionData.detectedProvider,
     amount: transaction.amount,
-    currency: transaction.currency || "INR",
+    currency: transaction.currency || "USD",
     type: "DEBIT",
     status: "COMPLETED",
     transactionDate: new Date(transaction.transactionDate || emailData.date),
     description: transaction.description || emailData.subject,
     category: "Food",
     paymentMethod: transaction.paymentMethod || undefined,
-    referenceIds: transaction.orderId ? transaction.referenceIds : {},
+    referenceIds: getReferenceIds(extracted.extractionData),
     merchantData: {
       ...extracted.extractionData,
       warnings: extracted.warnings,
@@ -321,7 +327,7 @@ async function writeExtractedMessage(
     contributedByPdf: extracted.contributedByPdf,
     confidence: extracted.extractionConfidence,
     amount: transaction.amount,
-    orderId: transaction.orderId ?? null,
+    orderId: getOrderId(extracted.extractionData) ?? null,
     warningCount: extracted.warnings.length,
     parseErrorCount: extracted.parseErrors.length,
   });

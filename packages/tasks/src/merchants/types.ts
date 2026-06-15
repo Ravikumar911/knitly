@@ -2,7 +2,12 @@ import { z } from "zod";
 import { EmailData } from "../types/email-extraction";
 
 // Schema type constraint
-export type MerchantSchemaType = "base" | "swiggy" | "phonepe";
+export type MerchantSchemaType =
+  | "base"
+  | "swiggy"
+  | "phonepe"
+  | "uber-eats"
+  | "doordash";
 
 // Merchant configuration interface with better typing
 export interface MerchantConfig {

@@ -1,6 +1,6 @@
 # Reference — Skills
 
-A skill is a folder under `~/.slashcash/skills/` that extends what the local app can do. In v1 we ship one bundled skill, `gmail-swiggy`, which registers the IMAP-backed Gmail ingest job with the cron worker. Users can author their own skills (for example, a Sheets exporter, a Calendar-to-spend cross-reference, or a bank-statement PDF ingester) by dropping a folder with the right files into the skills directory.
+A skill is a folder under `~/.slashcash/skills/` that extends what the local app can do. In v1 we ship one bundled skill, `gmail-swiggy`, which registers the IMAP-backed Gmail receipt ingest job with the cron worker. Users can author their own skills (for example, a Sheets exporter, a Calendar-to-spend cross-reference, or a bank-statement PDF ingester) by dropping a folder with the right files into the skills directory.
 
 This document describes the on-disk format, the manifest schema, the discovery rules, and the authoring guidelines. The registry implementation lives in `packages/cli/src/skills/`. The bundled `gmail-swiggy` skill ships from `packages/cli/bundled-skills/gmail-swiggy/` and is copied to `~/.slashcash/skills/` by `slashcash onboard`.
 
@@ -20,7 +20,7 @@ A manifest carries the skill id, a semantic version, a short description, a cate
 
 Binaries are enforced by `slashcash doctor`: if an enabled skill declares a binary that is not on `PATH`, doctor reports it and either repairs it when a known repair exists or surfaces a clear message. The bundled `gmail-swiggy` skill currently declares no extra binaries because the Gmail path is in-process IMAP.
 
-Jobs are registered with the cron worker at `slashcash start` from the installed skill manifests. Disabling a skill in config causes the cron tick and `slashcash sync` to skip that skill; enabling an installed skill takes effect on the next scheduled tick because the registered job re-reads the enabled flag before running. The bundled `gmail-swiggy` skill contributes a single job that runs the IMAP ingest function from `packages/tasks`.
+Jobs are registered with the cron worker at `slashcash start` from the installed skill manifests. Disabling a skill in config causes the cron tick and `slashcash sync` to skip that skill; enabling an installed skill takes effect on the next scheduled tick because the registered job re-reads the enabled flag before running. The bundled `gmail-swiggy` skill contributes a single job that runs the supported receipt IMAP ingest function from `packages/tasks`.
 
 ## Discovery rules
 

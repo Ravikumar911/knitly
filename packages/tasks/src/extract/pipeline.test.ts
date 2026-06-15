@@ -128,6 +128,106 @@ describe("extractTransactionFromEmail", () => {
     expect(mocks.extractTextFromPdf).not.toHaveBeenCalled();
   });
 
+  it("extracts and stores an Uber Eats receipt without the Swiggy LLM path", async () => {
+    const result = await extractTransactionFromEmail(
+      {
+        userId: "local-user-id",
+        emailId: "email-uber-1",
+        threadId: "uber-thread-1",
+        subject: "Your Uber Eats order from Sweetgreen",
+        body: [
+          "Your order from Sweetgreen has been delivered",
+          "Order total: $24.63",
+          "Paid with Visa ending in 4242",
+        ].join("\n"),
+        date: "2026-04-22T19:42:00-07:00",
+        from: "receipts@uber.com",
+        attachments: [],
+      },
+      { parsedEmailId: "email-uber-1", storeTransaction: true },
+    );
+
+    expect(result.parseSuccess).toBe(true);
+    expect(result.schemaUsed).toBe("uber-eats.body.v1");
+    expect(result.extractionData.transaction?.amount).toBe(24.63);
+    expect(mocks.extractSwiggyWithLlm).not.toHaveBeenCalled();
+    expect(mocks.storeTransactionV2Input).toHaveBeenCalledWith(
+      expect.objectContaining({
+        merchantId: "uber-eats",
+        merchantCode: "UBER_EATS",
+        merchantName: "Uber Eats",
+        amount: 24.63,
+        currency: "USD",
+        schemaUsed: "uber-eats.body.v1",
+        referenceIds: { orderId: "uber-thread-1" },
+      }),
+    );
+  });
+
+  it("skips generic Uber ride receipts instead of storing them as Uber Eats", async () => {
+    const result = await extractTransactionFromEmail(
+      {
+        userId: "local-user-id",
+        emailId: "email-uber-trip-1",
+        threadId: "uber-trip-thread-1",
+        subject: "Your trip with Uber",
+        body: [
+          "Thanks for riding, Ravi",
+          "Total $18.45",
+          "Charged to Visa ending in 4242",
+          "Pickup: Market St",
+          "Dropoff: Mission St",
+        ].join("\n"),
+        date: "2026-04-22T19:42:00-07:00",
+        from: "receipts@uber.com",
+        attachments: [],
+      },
+      { parsedEmailId: "email-uber-trip-1", storeTransaction: true },
+    );
+
+    expect(result.parseSuccess).toBe(false);
+    expect(result.schemaUsed).toBe("base.body.v1");
+    expect(mocks.extractSwiggyWithLlm).not.toHaveBeenCalled();
+    expect(mocks.storeTransactionV2Input).not.toHaveBeenCalled();
+  });
+
+  it("extracts and stores a DoorDash receipt via generic body fallback", async () => {
+    const result = await extractTransactionFromEmail(
+      {
+        userId: "local-user-id",
+        emailId: "email-dash-1",
+        threadId: "dash-thread-99",
+        subject: "Your DoorDash order has been delivered",
+        body: [
+          "Restaurant: Shake Shack",
+          "Amount charged: $19.87",
+          "Charged to Visa ending in 1234",
+          "Order #: DS-77221",
+          "Delivered to: 55 Mission St, SF",
+        ].join("\n"),
+        date: "2026-04-22T19:42:00-07:00",
+        from: "orders@doordash.com",
+        attachments: [],
+      },
+      { parsedEmailId: "email-dash-1", storeTransaction: true },
+    );
+
+    expect(result.parseSuccess).toBe(true);
+    expect(result.schemaUsed).toBe("doordash.body.v1");
+    expect(result.extractionData.transaction?.amount).toBe(19.87);
+    expect(result.extractionData.transaction?.restaurantName).toBe("Shake Shack");
+    expect(mocks.extractSwiggyWithLlm).not.toHaveBeenCalled();
+    expect(mocks.storeTransactionV2Input).toHaveBeenCalledWith(
+      expect.objectContaining({
+        merchantId: "doordash",
+        merchantCode: "DOORDASH",
+        amount: 19.87,
+        currency: "USD",
+        schemaUsed: "doordash.body.v1",
+      }),
+    );
+  });
+
   it("keeps recoverable PDF extraction failures as warnings when fallback succeeds", async () => {
     mocks.extractTextFromPdf.mockResolvedValue({
       ok: false,
