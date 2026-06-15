@@ -7,8 +7,8 @@ export const configSchema = z.object({
   }),
   ai: z.object({
     ollamaBaseUrl: z.string().url().default("http://127.0.0.1:11434/v1"),
-    chatModel: z.string().min(1).default("gemma4:latest"),
-    visionModel: z.string().min(1).default("gemma4:latest"),
+    chatModel: z.string().min(1).default("qwen3:4b"),
+    visionModel: z.string().min(1).default("qwen3:4b"),
   }),
   assistant: z
     .object({
@@ -16,7 +16,7 @@ export const configSchema = z.object({
         .enum(["none", "ollama-local", "openai-compatible", "anthropic"])
         .default("none"),
       baseUrl: z.string().url().default("http://127.0.0.1:11434/v1"),
-      chatModel: z.string().min(1).default("gemma4:latest"),
+      chatModel: z.string().min(1).default("qwen3:4b"),
     })
     .default({
       provider: "none",
@@ -82,13 +82,13 @@ export const defaultConfig: SlashcashConfig = {
   },
   ai: {
     ollamaBaseUrl: "http://127.0.0.1:11434/v1",
-    chatModel: "gemma4:latest",
-    visionModel: "gemma4:latest",
+    chatModel: "qwen3:4b",
+    visionModel: "qwen3:4b",
   },
   assistant: {
     provider: "none",
     baseUrl: "http://127.0.0.1:11434/v1",
-    chatModel: "gemma4:latest",
+    chatModel: "qwen3:4b",
   },
   pdfExtractor: {
     enabled: true,

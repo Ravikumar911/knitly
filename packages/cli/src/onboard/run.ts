@@ -47,7 +47,7 @@ const OLLAMA_FORMULA = "ollama";
 const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1";
 const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
 const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com/v1";
-const DEFAULT_OLLAMA_CHAT_MODEL = "gemma4:latest";
+const DEFAULT_OLLAMA_CHAT_MODEL = "qwen3:4b";
 const DEFAULT_OPENAI_CHAT_MODEL = "gpt-5.4-mini";
 const DEFAULT_ANTHROPIC_CHAT_MODEL = "claude-haiku-4-5";
 
@@ -394,7 +394,7 @@ const assistantProviderStep: Step = {
         {
           value: "ollama-local",
           label: "Ollama",
-          hint: "Runs locally with gemma4:latest.",
+          hint: "Runs locally with qwen3:4b (recommended for laptops).",
         },
         {
           value: "openai-compatible",
@@ -468,7 +468,7 @@ const modelQuestionStep: Step = {
         {
           value: DEFAULT_OLLAMA_CHAT_MODEL,
           label: DEFAULT_OLLAMA_CHAT_MODEL,
-          hint: "Local Gemma 4 (multimodal).",
+          hint: "Qwen3 4B - fast and strong at tool calling on laptops.",
         },
       ],
     });

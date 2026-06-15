@@ -93,14 +93,14 @@ import {
 } from "@/lib/assistant/assistant-url";
 import type { AssistantConfig } from "@/lib/ai/provider";
 
-const DEFAULT_LOCAL_TAG = "gemma4:latest";
+const DEFAULT_LOCAL_TAG = "qwen3:4b";
 
 const MODEL_CATALOG: UiModelRow[] = [
   {
     chef: "Ollama",
     chefSlug: "llama",
     id: DEFAULT_LOCAL_TAG,
-    name: "Gemma 4 (local)",
+    name: "Qwen3 4B (local)",
     providers: [],
   },
   {
