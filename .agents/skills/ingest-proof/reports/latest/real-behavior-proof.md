@@ -1,9 +1,9 @@
 # Ingest Real Behavior Proof
 
-Generated: 2026-06-14T03:58:37.390Z
+Generated: 2026-06-16T12:01:28.788Z
 Fixtures: packages/e2e-tests/fixtures/imap
-SQLite DB: /var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-I5ybI1/home/db.sqlite
-Attachments: /var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-I5ybI1/home/attachments
+SQLite DB: /var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-dNWFL7/home/db.sqlite
+Attachments: /var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-dNWFL7/home/attachments
 Strict: true
 
 ## Summary
@@ -25,7 +25,7 @@ Strict: true
 ## pdf-enabled
 
 - PDF extractor disabled: false
-- Elapsed: 260ms
+- Elapsed: 3045ms
 - Transaction rows: 0 -> 2
 - Counts: processed=2, skipped_existing=0, skipped_non_transaction=2, failed=0
 
@@ -49,7 +49,7 @@ Strict: true
   "actual": {
     "kind": "processed",
     "messageId": "swiggy-body-only",
-    "transactionId": "4828fba3-6c2c-4847-aeb9-7fd668bf1c11",
+    "transactionId": "03801f87-5a1e-4100-aa47-e907e96e9482",
     "amount": 482.5,
     "orderId": "SWG-BODY-1002",
     "schemaUsed": "swiggy.body.v1",
@@ -81,7 +81,7 @@ Strict: true
   "actual": {
     "kind": "processed",
     "messageId": "swiggy-order-with-pdf",
-    "transactionId": "1c2aacd9-76b2-48fc-85d7-34c37072e2ee",
+    "transactionId": "adbf8a70-8354-4ca3-9e5c-d1662fa1da20",
     "amount": 512.4,
     "orderId": "SWG-PDF-1001",
     "schemaUsed": "swiggy.deterministic.v1",
@@ -95,20 +95,20 @@ Strict: true
       ],
       "sourceQuality": "text",
       "warnings": [
-        "Docling is not installed."
+        "Docling is disabled by environment."
       ],
-      "pdfAttachmentPath": "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-I5ybI1/home/attachments/swiggy-order-with-pdf.pdf",
-      "extractedAt": "2026-06-14T03:58:37.352Z"
+      "pdfAttachmentPath": "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-dNWFL7/home/attachments/swiggy-order-with-pdf.pdf",
+      "extractedAt": "2026-06-16T12:01:28.755Z"
     },
     "warnings": [
-      "Docling is not installed."
+      "Docling is disabled by environment."
     ],
     "parseErrors": [],
     "paymentMethod": "UPI",
     "description": "Swiggy order - Millet Bowl Co",
     "itemNames": [],
     "attachmentStoragePath": [
-      "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-I5ybI1/home/attachments/swiggy-order-with-pdf.pdf"
+      "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-dNWFL7/home/attachments/swiggy-order-with-pdf.pdf"
     ],
     "reason": null
   },
@@ -177,7 +177,7 @@ Strict: true
 ## pdf-disabled
 
 - PDF extractor disabled: true
-- Elapsed: 25ms
+- Elapsed: 21ms
 - Transaction rows: 0 -> 2
 - Counts: processed=2, skipped_existing=0, skipped_non_transaction=2, failed=0
 
@@ -201,7 +201,7 @@ Strict: true
   "actual": {
     "kind": "processed",
     "messageId": "swiggy-body-only",
-    "transactionId": "244a61ce-65b7-4e5e-b8d5-302fd0776f84",
+    "transactionId": "78e29596-c6bf-4d9f-90b1-30481c949a40",
     "amount": 482.5,
     "orderId": "SWG-BODY-1002",
     "schemaUsed": "swiggy.body.v1",
@@ -233,7 +233,7 @@ Strict: true
   "actual": {
     "kind": "processed",
     "messageId": "swiggy-order-with-pdf",
-    "transactionId": "dc9cee73-b7ea-4a5a-92f6-90c6857855da",
+    "transactionId": "528fc8e1-7d0b-405a-884e-5fa1d4928a68",
     "amount": 348.5,
     "orderId": "SWG-TEST-12345",
     "schemaUsed": "swiggy.body.v1",
@@ -248,7 +248,7 @@ Strict: true
     "description": "Swiggy order - Millet Bowl Co",
     "itemNames": [],
     "attachmentStoragePath": [
-      "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-I5ybI1/home/attachments/swiggy-order-with-pdf.pdf"
+      "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-dNWFL7/home/attachments/swiggy-order-with-pdf.pdf"
     ],
     "reason": null
   },

@@ -5,15 +5,18 @@
 This index enumerates executable scenarios. Use for orchestrator handoff, coverage commands, and autoreview citations.
 
 ## Primary Scenario Files
-- `ingest/food-delivery-edges.md` — Full qa-flow for the 9 Phase 5 edges (committed 4 + placeholders for 5 gaps). Frontmatter + steps with clean DB, drive via proof harness or direct, asserts on `getTransactionsWithEmails` (exact schemaUsed etc.), reads-before-writes, jsonl replays.
-  - Covers: order-with-pdf (PDF+BOTH deterministic), body-only (EMAIL_BODY fallback), promotion/status (skipped_non_transaction via marketing signals).
-  - Placeholders: instamart (service=INSTAMART), malformed (error class), duplicate (skipped_existing), scanned (sourceQuality=scanned), encrypted (failed+encrypted).
+- `ingest/food-delivery-edges.md` — Full qa-flow for the 9 Phase 5 edges (4 committed fixture-backed edges, 2 detailed non-fixture contracts, 3 remaining fixture gaps). Frontmatter + steps with clean DB, drive via proof harness or direct, asserts on `getTransactionsWithEmails` (exact schemaUsed etc.), reads-before-writes, jsonl replays.
+  - Covers: `swiggy-order-with-pdf` (PDF+BOTH deterministic), `swiggy-body-only` (EMAIL_BODY fallback), `swiggy-promotion` and `swiggy-status-update` (skipped_non_transaction via marketing signals).
+  - Detailed qa contracts: `swiggy-duplicate-order` (skipped_existing) and `swiggy-scanned-pdf` (sourceQuality=scanned).
+  - Gaps/placeholders: `swiggy-instamart-with-pdf` (service=INSTAMART), `swiggy-malformed-pdf` (error class), and `swiggy-encrypted-pdf` (failed+encrypted).
 
 ## Supporting Replay Data
-- `ingest/replays/pdf-vs-body.jsonl` — 3 decision path examples:
+- `ingest/replays/pdf-vs-body.jsonl` — 5 decision path examples:
   1. deterministic-pdf branch (`pipeline.ts:114`).
   2. body-fallback (`pipeline.ts:140`).
   3. marketing skip (`pipeline.ts:131` + signals).
+  4. duplicate skip (`processEmails.ts:139-141`).
+  5. scanned classification (`extractor.py:90` + `pipeline.ts:348`).
 
 ## Coverage Inventory (9 edges, status)
 See `qa/scenarios.md` table (cross-ref to `packages/docs/roadmap/phase-5.md:15-26`).
@@ -40,11 +43,12 @@ const txs = await getTransactionsWithEmails(LOCAL_USER_ID, undefined, 500);
 ```
 See full in `food-delivery-edges.md` + `real-behavior-proof.ts:238-279` (clean + drive + read via exports only; no raw drizzle).
 
-## Integration points (future)
-- `fixtures:check` extension to walk qa/ inventory.
-- `packages/docs/reference/testing.md` update (currently notes "qa/scenarios/ remains future Phase 5 work").
-- e2e:ingest / run-tests to cite or exec scenarios.
-- phase-5.md crossref (add "qa/scenarios/ingest/food-delivery-edges.md" to files touched).
+## Integration points
+- `pnpm qa:ingest` checks this inventory, committed fixture coverage, detailed duplicate/scanned contracts, and replay JSONL shape.
+- `pnpm e2e:ingest` is the real behavior proof gate for committed fixture-backed scenarios and writes `.agents/skills/ingest-proof/reports/latest/real-behavior-proof.{json,md}`.
+- `.agents/skills/run-tests/SKILL.md`, `.agents/skills/autoreview`, and `.agents/skills/orchestrator` cite this scenario pack for ingest closeout and sweeps.
+- `packages/docs/reference/testing.md` treats `qa/scenarios/` as the canonical positive enforcement layer for ingest edges.
+- Future improvement: extend `qa:ingest` from inventory validation into direct scenario execution if the Markdown contract grows into a richer runner.
 
 **Evidence map for qa/scenarios creation** (ClawSweeper style):
 - Changed surface: `qa/` tree (new; this index + README + edges md + jsonl).
@@ -56,6 +60,6 @@ See full in `food-delivery-edges.md` + `real-behavior-proof.ts:238-279` (clean +
 - Tests/scenarios covering: `pnpm fixtures:check` (4/4), `pnpm e2e:ingest` (strict proof bundles with exact values + 0 diffs), pipeline.*.test.ts, architecture-smells.
 - Current shipped behavior (latest bundle 2026-06-13): 4 processed/skipped observations per mode, exact matches to committed expectations, no diffs. See `real-behavior-proof.md:34` (table with schemaUsed etc.).
 
-This creation is narrow (committed 4 + clear placeholders; no new .eml fixtures per instructions). Future verifier will "run" by invoking proof harness (which exercises the covered) + manual assert review on bundle vs scenario expects, or stub tsx.
+This creation is narrow (committed 4 + detailed duplicate/scanned contracts + clear remaining gaps; no new .eml fixtures per instructions). Verifiers run `pnpm qa:ingest` plus the proof harness, which exercises the committed fixture-backed edges and keeps contract/gap drift visible.
 
 See `qa/README.md` for full how-to + gates note. Repo-root paths only.

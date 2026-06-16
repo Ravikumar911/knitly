@@ -20,6 +20,7 @@ pnpm test
 ```bash
 pnpm architecture-smells
 pnpm fixtures:check
+pnpm qa:ingest
 ```
 
 ## Closeout loop
@@ -39,6 +40,8 @@ pnpm e2e:ingest
 ```
 
 `pnpm e2e:ingest` writes `.agents/skills/ingest-proof/reports/latest/real-behavior-proof.{json,md}` using committed IMAP fixtures, both PDF extractor modes, and exported `@workspace/database` helpers. It fails when fixture expectations drift; run the proof harness directly with `--no-strict` only to collect evidence for a consciously deferred mismatch.
+
+`pnpm qa:ingest` checks that the Phase 5 `qa/scenarios/` inventory, detailed ingest contracts, replay rows, and committed fixture coverage stay aligned. It is a fast documentation/contract gate; pair it with `pnpm e2e:ingest` for real behavior proof.
 
 ## Large ingest work
 
@@ -94,7 +97,8 @@ pnpm bench
 | Shared types / packages     | `pnpm typecheck` + affected package tests                         |
 | `apps/main` UI / tRPC       | `pnpm typecheck`, `pnpm test`, then `pnpm e2e:journeys` as needed |
 | `packages/database`         | `pnpm typecheck`, `pnpm test`, DB migrations sanity               |
-| Assistant / extraction      | `pnpm eval:gate` when touching eval pipelines                     |
+| Ingest / extraction         | `pnpm fixtures:check`, `pnpm qa:ingest`, `pnpm e2e:ingest`        |
+| Assistant / evals           | `pnpm eval:gate` when touching eval pipelines                     |
 | Performance-sensitive paths | `pnpm bench` if applicable                                        |
 
 If a command fails with missing binaries, run `pnpm install` once and retry.

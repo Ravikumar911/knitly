@@ -3,7 +3,7 @@ name: food-delivery-edges
 pack: ingest/food-delivery
 description: "Living qa contracts for the 9 Phase 5 Swiggy ingest edges (food-delivery + Instamart). Frontmatter + qa-flow style. Primary for deterministic pipeline regression + coverage."
 phase5_table_rows: [1,2,3,4,5,6,7,8,9]
-status: "initial (Phase 5 start; 4 committed covered, 5 placeholders)"
+status: "shipped (4 committed covered, 2 detailed non-fixture contracts, 3 fixture gaps)"
 last_verified_bundle: ".agents/skills/ingest-proof/reports/latest/real-behavior-proof.{json,md}"
 crossrefs:
   - packages/docs/roadmap/phase-5.md:15-26
@@ -34,7 +34,7 @@ crossrefs:
 - Bundle exact fields (from 2026-06-13 latest, post re-verify green):
   - metadata: generatedAt, fixtureDir, sqliteDbPath, modes, strict, python, notes (cite "Rows are written by packages/tasks/src/extract/pipeline.ts through exported @workspace/database helpers").
   - per mode: before/afterTransactionCount, syncCounts (processed/skipped_*/failed), fixtures[] with `expected` (from .expected.json), `actual` (kind, messageId, transactionId, amount, orderId, schemaUsed, dataSource, extractionConfidence, provenance, warnings[], parseErrors[], paymentMethod, description, itemNames[], attachmentStoragePath, reason).
-  - For order-with-pdf (pdf-enabled): actual.provenance = { "parser": "slashcash_pdf_extractor", "parserVersion": "0.2.0", "parsersUsed": ["pdfplumber"], "sourceQuality": "text", "warnings": ["Docling is not installed."], "pdfAttachmentPath": "...", "extractedAt": "..." }.
+  - For order-with-pdf (pdf-enabled): actual.provenance = { "parser": "slashcash_pdf_extractor", "parserVersion": "0.2.0", "parsersUsed": ["pdfplumber"], "sourceQuality": "text", "warnings": ["Docling is disabled by environment."], "pdfAttachmentPath": "...", "extractedAt": "..." }.
   - Summary: processedCount, skippedCount, diffCount==0 on green.
 - Goldens: pdf-extractor Python tests + `packages/e2e-tests/fixtures/pdfs/swiggy-order-with-pdf.pdf` feed into deterministic path (pipeline `buildDeterministicPdfCandidate`).
 - Always cite real fixture roundtrip values (not just unit tests).
@@ -108,10 +108,10 @@ expect(prov.parser).toBe("slashcash_pdf_extractor");
 expect(prov.parserVersion).toBe("0.2.0");
 expect(prov.parsersUsed).toEqual(["pdfplumber"]);
 expect(prov.sourceQuality).toBe("text");
-expect(prov.warnings).toContain("Docling is not installed.");
+expect(prov.warnings).toContain("Docling is disabled by environment.");
 expect(prov.pdfAttachmentPath).toMatch(/attachments.*\.pdf$/);
 // warnings surface at row + merchantData level
-expect((pdfRow.merchantData?.warnings || [])).toContain("Docling is not installed.");
+expect((pdfRow.merchantData?.warnings || [])).toContain("Docling is disabled by environment.");
 // attachmentStoragePath on email/row
 expect(pdfRow.attachmentStoragePath).toBeTruthy(); // array with path in actual
 ```
@@ -147,9 +147,9 @@ expect(afterCount).toBeGreaterThanOrEqual(beforeCount + 2); // at least the 2 pr
 
 **Expected bundle outcome on green**: diffCount=0 across 8 observations (2 modes x 4), processed=4 total, skipped=4 total. Exact values as in latest `real-behavior-proof.md:34` table and per-fixture ```json blocks.
 
-## Placeholders for 5 missing edges (so coverage command reports gaps)
+## Non-fixture contracts and remaining fixture gaps
 
-These have no committed `.eml` + `.expected.json` yet (per "narrow: ... no new fixtures unless minimal"). Include explicit placeholder sections + sample asserts. When fixtures land (e.g. via ingest-edge-sweep or dogfood), replace placeholder with real asserts + add to inventory + update expected.json + rerun proof.
+These have no committed `.eml` + `.expected.json` yet (per "narrow: ... no new fixtures unless minimal"). Duplicate-order and scanned-pdf now have detailed qa-flow contracts and replay rows; Instamart, malformed PDF, and encrypted PDF remain fixture gaps. When fixtures land (e.g. via ingest-edge-sweep or dogfood), replace sketches with real asserts + add to inventory + update expected.json + rerun proof.
 
 **Placeholder: swiggy-instamart-with-pdf** (phase-5.md:18)
 - Drive: (future .eml with Instamart PDF).
@@ -257,7 +257,7 @@ expect(scannedRow?.schemaUsed ?? null).not.toBe("swiggy.deterministic.v1"); // r
 - List phase-5 table 9.
 - Glob committed fixtures in `packages/e2e-tests/fixtures/imap/`.
 - Mark status covered/gap.
-- Flag the 5 placeholders + any drift in committed 4.
+- Flag the 3 remaining fixture gaps, the 2 detailed non-fixture contracts, and any drift in committed 4.
 Current (post Phase 6 handoff): 4 covered (fixture parity + pnpm e2e:ingest + 0 diffs); duplicate-order + scanned-pdf now have *detailed qa-flow + asserts + jsonl* (scenarios would catch regressed skip kind / schemaUsed / dataSource / provenance); 3 gaps remain sketches (instamart/malformed/encrypted). See updated `qa/scenarios/index.md` + `qa/scenarios.md`. Orchestrator/ingest-edge-sweep ledger gaps.
 
 ## Sample assert snippet (reusable pattern for all)
@@ -282,10 +282,10 @@ if (expectedProvenanceShape) expect(actualProv).toMatchObject(...);
 See `real-behavior-proof.ts:359` (diffExpected) + `toActualFixture:318` for canonical actual shape. Use this pattern in future qa driver.
 
 ## Later updates (see qa/README.md + phase-5.md)
-- Add real .eml + update placeholders when gaps close (must also update goldens/fixtures + rerun full proof + autoreview).
+- Add real .eml + update non-fixture contracts/sketches when gaps close (must also update goldens/fixtures + rerun full proof + autoreview).
 - Integrate coverage reporter.
 - Crossref updates in `packages/docs/reference/testing.md:38`, `phase-5.md` (files touched), e2e scenarios, architecture-smells.
-- Verifier: "run" by executing `pnpm e2e:ingest` (covers committed), inspecting latest bundle vs the asserts above, + stub tsx for placeholders (expect gap logs). Cite real values from bundle (e.g. 482.5, SWG-BODY-1002, BOTH, "slashcash_pdf_extractor").
+- Verifier: run `pnpm qa:ingest` plus `pnpm e2e:ingest` (covers committed), inspect latest bundle vs the asserts above, and keep non-fixture contracts/gaps visible. Cite real values from bundle (e.g. 482.5, SWG-BODY-1002, BOTH, "slashcash_pdf_extractor").
 - Expand for new edges from sweeps/dogfood.
 
 **Sibling analysis for this doc creation + Phase 6 expansion** (ClawSweeper AGENTS.md:118 + adoption plan:24; explicit full pipeline read before verdict; subagent parallel hunts for dup/scanned): pipeline.ts:42/114 (deterministic), :131 (marketing), :140 (fallback), :290 (store), :342/348/352 (build + text sourceQuality + return null), :431 (provenance); body-fallback.ts:16; swiggy-body-signals.ts:29; processEmails.ts:131 (reextract), :139-141 (getProcessed + skipped_existing push), :390 (counts); swiggy-deterministic.ts:1 (sourceQuality type); extract-from-pdf.ts:64; pdf-extractor.ts:41; pdf-extractor-schema.ts:13; merchants/swiggy/schema.ts:115 (INSTAMART etc) + index.ts:5; python extractor.py:83/89-90 (encrypted/scanned set; probe :126/:148), schema.py:19; real-behavior-proof.ts:238/258/267/318/359; DB index.ts:22/34 (exports only); fixtures (order-with-pdf.expected.json:9 etc); goldens; fixtures-check.ts; proof bundle .agents/skills/ingest-proof/reports/latest/real-behavior-proof.md:34 (exact 0-diff values); phase-5.md:15-26; adoption:408/450; AGENTS:118; prior reports. No raw queries; narrow (qa contracts only). Evidence map in final report.

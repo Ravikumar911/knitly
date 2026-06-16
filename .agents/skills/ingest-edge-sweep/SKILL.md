@@ -20,12 +20,12 @@ Use it when the user asks for a high-level ingest handoff, an edge sweep, or mai
 
 ## Sweep Contract
 
-- Keep ingest work inside approved deterministic surfaces: `packages/tasks`, `packages/pdf-extractor`, committed IMAP fixtures, goldens, and future `qa/scenarios/ingest`.
+- Keep ingest work inside approved deterministic surfaces: `packages/tasks`, `packages/pdf-extractor`, committed IMAP fixtures, goldens, and `qa/scenarios/ingest`.
 - Require sibling analysis across `pipeline.ts`, `body-fallback.ts`, `swiggy-body-signals.ts`, `merchants/*`, pdf-extractor schema/parity code, fixture expectations, goldens, and provenance handling.
 - Use `.agents/skills/autoreview` for every non-trivial candidate change; verify findings against real paths before accepting them.
 - Use `.agents/skills/ingest-proof` / `pnpm e2e:ingest` for real behavior proof; cite exact `schemaUsed`, `dataSource`, provenance, amounts, item names, order IDs, and warnings where relevant.
 - Prefer narrow fixes at the owner boundary. Do not add hosted services, non-deterministic ingest behavior, or database access outside exported `@workspace/database` helpers.
-- If Phase 5 `qa/scenarios/ingest` exists, update or cite the relevant scenarios. If it does not exist, cite the manual evidence map and proof artifact used instead.
+- Update or cite the relevant `qa/scenarios/ingest` contract. If a requested edge has only a placeholder scenario, keep that gap visible in the orchestrator ledger and cite the closest committed-fixture proof artifact.
 - Treat inventory-only or `--allow-noop` runs as discovery evidence, not as shipped edge closure.
 
 ## Closeout

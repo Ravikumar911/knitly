@@ -8,6 +8,7 @@
     "test:journeys": "playwright test",
     "architecture-smells": "tsx architecture-smells.test.ts",
     "fixtures:check": "tsx scripts/fixtures-check.ts",
+    "qa:ingest": "tsx scripts/qa-ingest-check.ts",
     "bench": "tsx bench/perf-budget.ts && tsx bench/sync-1y.ts",
     "e2e:onboarding": "tsx scenarios/onboarding-fast-path.ts",
     "e2e:ingest": "tsx scripts/real-behavior-proof.ts --strict --output-dir ../../.agents/skills/ingest-proof/reports/latest",

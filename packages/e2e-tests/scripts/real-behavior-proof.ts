@@ -541,7 +541,7 @@ function renderMarkdown(bundle: ProofBundle) {
     }
   }
 
-  return `${lines.join("\n")}\n`;
+  return `${lines.join("\n").trimEnd()}\n`;
 }
 
 function configurePdfExtractor() {
@@ -555,6 +555,7 @@ function configurePdfExtractor() {
       ? venvPython
       : "python3";
   }
+  process.env.SLASHCASH_PDF_EXTRACTOR_SKIP_DOCLING ??= "1";
   return {
     executable: process.env.SLASHCASH_PDF_EXTRACTOR_PYTHON ?? null,
     pythonPath: process.env.PYTHONPATH ?? null,

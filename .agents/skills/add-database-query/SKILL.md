@@ -28,6 +28,10 @@ description: Add or change SQLite data access via Drizzle only inside packages/d
 
 5. **Tests** — Add or extend tests under `packages/database` where behavior is non-trivial.
 
+## Agentic closeout
+
+For non-trivial query or schema work, follow the root ClawSweeper policy in `AGENTS.md`: build an evidence map, ask whether the query belongs in `packages/database`, inspect callers/callees and sibling queries, then run focused database tests plus `.agents/skills/autoreview/scripts/autoreview` until it reports 0 actionable findings. If the query supports ingest/extraction, also update or cite `qa/scenarios/ingest/**`, run `pnpm qa:ingest` and `pnpm e2e:ingest`, and record the proof bundle.
+
 ## Anti-patterns
 
 - Duplicating queries in tRPC routers or React components.

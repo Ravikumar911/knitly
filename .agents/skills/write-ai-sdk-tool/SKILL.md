@@ -27,3 +27,7 @@ description: Implement chat or tool-calling features using Vercel AI SDK v5 and 
 
 - `pnpm typecheck`
 - Manual: run dashboard and exercise the assistant path against local Ollama if applicable.
+
+## Agentic closeout
+
+For non-trivial assistant or tool-calling changes, follow `AGENTS.md` and `packages/docs/roadmap/agentic-coding-adoption.md`: delegate separate exploration/implementation/verification when the surface spans UI, route handlers, tRPC, and database tools; build an evidence map with callers, callees, prompts/tools, persistence helpers, and UI proof; then run `.agents/skills/autoreview/scripts/autoreview` with the relevant gate until it reports 0 actionable findings. Assistant eval changes should run `pnpm eval:gate`; user-visible chat changes should include a real dashboard journey or Playwright proof.

@@ -21,7 +21,7 @@ Scenarios encode:
   - Invokes `packages/e2e-tests/scripts/real-behavior-proof.ts --strict --output-dir ../../.agents/skills/ingest-proof/reports/latest`.
   - Produces bundle with exact per-fixture `actual` (schemaUsed/dataSource/provenance/amounts/orderIds/warnings/itemNames/reason + 0 diffs on green).
 - Targeted: `pnpm exec tsx packages/e2e-tests/scripts/real-behavior-proof.ts --mode pdf-enabled --fixture swiggy-body-only`.
-- Future: `pnpm qa:ingest` (or via `.agents/skills/run-tests`) once integrated (see integration notes below).
+- Scenario inventory gate: `pnpm qa:ingest` checks the Phase 5 inventory, committed fixture coverage, detailed duplicate/scanned contracts, and replay JSONL shape.
 - Verify coverage: the inventory in `qa/scenarios/index.md` + `qa/scenarios/ingest/food-delivery-edges.md` is the source of truth; a coverage stub would parse frontmatter/scenario files + fixture dir vs phase-5 table.
 
 **Parity tiers** (per plan):
@@ -33,7 +33,7 @@ Ties:
 - `.agents/skills/autoreview` (ingest-edge findings must cite qa scenarios + proof).
 - `.agents/skills/orchestrator` + `ingest-edge-sweep` (for sweeping gaps).
 - `pnpm fixtures:check` (validates .eml/.expected + canonical JSON; `packages/e2e-tests/scripts/fixtures-check.ts:61`).
-- `packages/docs/reference/testing.md` (will cross-ref qa/ as canonical positive enforcement).
+- `packages/docs/reference/testing.md` (cross-refs qa/ as canonical positive enforcement).
 - `AGENTS.md:113`: "Use scenarios as living contracts: once `qa/scenarios/` exists (Phase 5), changes must update or cite the relevant scenarios, especially for ingest edge cases."
 - `AGENTS.md:118`: sibling analysis required for any touch to `packages/tasks/src/extract/**`, `packages/e2e-tests/fixtures/imap/**`, or `qa/scenarios/ingest/**`.
 
@@ -41,17 +41,17 @@ Ties:
 - `qa/scenarios.md` + `qa/scenarios/index.md`: pack-style overview + coverage inventory (9 edges from phase-5.md table).
 - `qa/scenarios/ingest/food-delivery-edges.md`: primary scenario family (qa-flow + frontmatter).
 - `qa/scenarios/ingest/replays/*.jsonl`: decision path replays (e.g. pdf-vs-body.jsonl citing `packages/tasks/src/extract/pipeline.ts:114` deterministic, `:140` body-fallback).
-- Placeholders for the 5 gaps ensure "coverage would report gaps".
+- The 3 remaining fixture gaps stay explicit so coverage reports do not overclaim; duplicate/scanned are detailed non-fixture contracts until real fixtures land.
 
 All paths repo-root relative. Citations use exact lines from current shipped (post-Phase 4 re-verify green).
 
 ## Updates needed later (tracked in phase-5.md crossref + this README)
-- Wire a `qa:ingest` script / coverage reporter (e.g. extend `fixtures-check.ts` or new `qa-coverage.ts`; integrate with `run-tests/SKILL.md`).
-- Update `packages/docs/reference/testing.md` + `packages/e2e-tests/architecture-smells.test.ts` (or positive counterpart) to consume/reference qa scenarios.
+- Expand `pnpm qa:ingest` from inventory validation into a full scenario executor if/when the scenario format grows beyond Markdown + replay contracts.
+- Add a positive architecture/scenario inventory check if the scenario pack grows beyond manual review + proof harness coverage.
 - Refresh e2e driver (`real-behavior-proof.ts` or onboarding) to assert against qa/ contracts where possible.
 - Expand `phase-5.md` table + fixtures when gaps close (Instamart etc.); scenarios must stay in sync.
 - Add `qa/scenarios/ingest/` to `fixtures:check` walk or dedicated gate.
 - Verifier subagent (per "How to use this plan") runs scenarios (stub via tsx harness driving proof + direct asserts; or full on new fixtures).
-- Once `qa/scenarios/` ships, `AGENTS.md` + adoption plan mark Phase 5 enforcement complete.
+- Keep `AGENTS.md`, the adoption plan, and testing docs in sync whenever scenario execution changes.
 
 See `packages/docs/roadmap/phase-5.md:15-26` (table), `agentic-coding-adoption.md:334-361` (work items 294-306 + verification 326-338), `real-behavior-proof.ts:267` (getTransactionsWithEmails), `pipeline.ts:140` (body fallback branch), `packages/database/src/index.ts:22`, `packages/e2e-tests/fixtures/imap/swiggy-body-only.expected.json:5`, and latest proof bundle `.agents/skills/ingest-proof/reports/latest/real-behavior-proof.md:34`.

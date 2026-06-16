@@ -90,7 +90,7 @@ If commands fail from missing deps, run `pnpm install` once and retry.
 - App-specific Next.js + tRPC + AI client patterns: `apps/main/AGENTS.md`.
 - Reusable workflows: `.agents/skills/*/SKILL.md`.
 - Agentic closeout plan: `packages/docs/roadmap/agentic-coding-adoption.md`.
-- Closeout workflow: `.agents/skills/autoreview`; ingest proof workflow: `.agents/skills/ingest-proof`; high-level handoffs and ingest sweeps: `.agents/skills/orchestrator` plus `.agents/skills/ingest-edge-sweep`; future scenario workflows are tracked in that plan, including `qa/scenarios/` (Phase 5).
+- Closeout workflow: `.agents/skills/autoreview`; ingest proof workflow: `.agents/skills/ingest-proof`; high-level handoffs and ingest sweeps: `.agents/skills/orchestrator` plus `.agents/skills/ingest-edge-sweep`; living scenario contracts live under `qa/scenarios/` (Phase 5).
 
 ## Safety rails
 
@@ -98,7 +98,7 @@ If commands fail from missing deps, run `pnpm install` once and retry.
 - Do not add hosted auth, cloud DB, or Trigger.dev-style task platforms without an explicit product decision and dependency review.
 - **Active pivot (2026-04-22):** Gmail access now goes through IMAP + a user-generated app password (ADR-024), and onboarding runs through an interactive `@clack/prompts` wizard (ADR-025). See [`packages/docs/roadmap/pivot-imap.md`](./packages/docs/roadmap/pivot-imap.md) for the active execution plan. Do not add new retired Google mailbox tooling anywhere outside `packages/docs/` (where the superseded ADRs live).
 - When changing schema, use Drizzle generate/migrate flows from `packages/database` (`package.json` scripts: `generate`, `migrate`).
-- For non-trivial changes, especially ingest/extraction work, follow the agentic closeout plan in `packages/docs/roadmap/agentic-coding-adoption.md` and run `.agents/skills/autoreview` before landing. For ingest/extraction work, also run `.agents/skills/ingest-proof` / `pnpm e2e:ingest`; until Phase 5 `qa/scenarios/` exists, cite the manual evidence map, sibling analysis, and real behavior proof you used.
+- For non-trivial changes, especially ingest/extraction work, follow the agentic closeout plan in `packages/docs/roadmap/agentic-coding-adoption.md` and run `.agents/skills/autoreview` before landing. For ingest/extraction work, also run `.agents/skills/ingest-proof` / `pnpm e2e:ingest`, update or cite the relevant `qa/scenarios/` contract, and include the evidence map, sibling analysis, and real behavior proof you used.
 - For large ingest goals, ongoing maintenance, or "sweep/close/triage edge cases" requests, start from `.agents/skills/ingest-edge-sweep/SKILL.md` or `.agents/skills/orchestrator/SKILL.md` so work is decomposed into traceable candidates with worker reports, proof bundles, and autoreview closeout.
 
 ## ClawSweeper-Style Review Policy
@@ -115,7 +115,7 @@ This policy applies to PR reviews, closeout passes, and agent self-review before
 
 ### Ingest and Extraction Proof
 
-All changes touching `packages/tasks/src/extract/**`, `packages/pdf-extractor/**`, `packages/e2e-tests/fixtures/imap/**`, or future `qa/scenarios/ingest/**` require explicit sibling analysis across the full deterministic pipeline: `pipeline.ts`, `body-fallback.ts`, `swiggy-body-signals.ts`, `merchants/*`, pdf-extractor schema/parity code, goldens, fixture expectations, and provenance handling.
+All changes touching `packages/tasks/src/extract/**`, `packages/pdf-extractor/**`, `packages/e2e-tests/fixtures/imap/**`, or `qa/scenarios/ingest/**` require explicit sibling analysis across the full deterministic pipeline: `pipeline.ts`, `body-fallback.ts`, `swiggy-body-signals.ts`, `merchants/*`, pdf-extractor schema/parity code, goldens, fixture expectations, and provenance handling.
 
 The proof note must cite a real fixture roundtrip, dogfood run, or equivalent with exact values for the fields that matter, such as `schemaUsed`, `dataSource`, provenance, amounts, item names, order IDs, and warnings. If a full real-account dogfood run is maintainer-only, state the closest committed-fixture proof that was run and what remains manual.
 

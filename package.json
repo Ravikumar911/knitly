@@ -12,6 +12,7 @@
     "test": "turbo run test",
     "architecture-smells": "pnpm --filter @workspace/e2e-tests architecture-smells",
     "fixtures:check": "pnpm --filter @workspace/e2e-tests fixtures:check",
+    "qa:ingest": "pnpm --filter @workspace/e2e-tests qa:ingest",
     "bench": "pnpm --filter @workspace/e2e-tests bench",
     "test:e2e": "turbo run test --filter=@workspace/e2e-tests",
     "e2e:journeys": "pnpm --filter @workspace/e2e-tests test",

@@ -1,20 +1,20 @@
 {
   "metadata": {
-    "generatedAt": "2026-06-14T03:58:37.390Z",
-    "repoRoot": "/Users/ravikumarr/github/knitly",
+    "generatedAt": "2026-06-16T12:01:28.788Z",
+    "repoRoot": "/Users/ravikumarr/github/knitly-pr62",
     "fixtureDir": "packages/e2e-tests/fixtures/imap",
     "outputDir": ".agents/skills/ingest-proof/reports/latest",
-    "sqliteDbPath": "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-I5ybI1/home/db.sqlite",
-    "slashcashHome": "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-I5ybI1/home",
-    "attachmentsDir": "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-I5ybI1/home/attachments",
+    "sqliteDbPath": "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-dNWFL7/home/db.sqlite",
+    "slashcashHome": "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-dNWFL7/home",
+    "attachmentsDir": "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-dNWFL7/home/attachments",
     "modes": [
       "pdf-enabled",
       "pdf-disabled"
     ],
     "strict": true,
     "python": {
-      "executable": "/Users/ravikumarr/github/knitly/packages/pdf-extractor/.venv/bin/python",
-      "pythonPath": "/Users/ravikumarr/github/knitly/packages/pdf-extractor/src"
+      "executable": "/Users/ravikumarr/github/knitly-pr62/packages/pdf-extractor/.venv/bin/python",
+      "pythonPath": "/Users/ravikumarr/github/knitly-pr62/packages/pdf-extractor/src"
     },
     "notes": [
       "Fixture sync uses packages/tasks/src/gmail/imap-client.ts fixture mode and packages/tasks/src/trigger/processEmails.ts.",
@@ -27,9 +27,9 @@
     {
       "mode": "pdf-enabled",
       "pdfExtractorDisabled": false,
-      "startedAt": "2026-06-14T03:58:37.105Z",
-      "finishedAt": "2026-06-14T03:58:37.365Z",
-      "elapsedMs": 260,
+      "startedAt": "2026-06-16T12:01:25.722Z",
+      "finishedAt": "2026-06-16T12:01:28.767Z",
+      "elapsedMs": 3045,
       "beforeTransactionCount": 0,
       "afterTransactionCount": 2,
       "syncCounts": {
@@ -52,7 +52,7 @@
           "actual": {
             "kind": "processed",
             "messageId": "swiggy-body-only",
-            "transactionId": "4828fba3-6c2c-4847-aeb9-7fd668bf1c11",
+            "transactionId": "03801f87-5a1e-4100-aa47-e907e96e9482",
             "amount": 482.5,
             "orderId": "SWG-BODY-1002",
             "schemaUsed": "swiggy.body.v1",
@@ -82,7 +82,7 @@
           "actual": {
             "kind": "processed",
             "messageId": "swiggy-order-with-pdf",
-            "transactionId": "1c2aacd9-76b2-48fc-85d7-34c37072e2ee",
+            "transactionId": "adbf8a70-8354-4ca3-9e5c-d1662fa1da20",
             "amount": 512.4,
             "orderId": "SWG-PDF-1001",
             "schemaUsed": "swiggy.deterministic.v1",
@@ -96,20 +96,20 @@
               ],
               "sourceQuality": "text",
               "warnings": [
-                "Docling is not installed."
+                "Docling is disabled by environment."
               ],
-              "pdfAttachmentPath": "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-I5ybI1/home/attachments/swiggy-order-with-pdf.pdf",
-              "extractedAt": "2026-06-14T03:58:37.352Z"
+              "pdfAttachmentPath": "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-dNWFL7/home/attachments/swiggy-order-with-pdf.pdf",
+              "extractedAt": "2026-06-16T12:01:28.755Z"
             },
             "warnings": [
-              "Docling is not installed."
+              "Docling is disabled by environment."
             ],
             "parseErrors": [],
             "paymentMethod": "UPI",
             "description": "Swiggy order - Millet Bowl Co",
             "itemNames": [],
             "attachmentStoragePath": [
-              "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-I5ybI1/home/attachments/swiggy-order-with-pdf.pdf"
+              "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-dNWFL7/home/attachments/swiggy-order-with-pdf.pdf"
             ],
             "reason": null
           },
@@ -174,9 +174,9 @@
     {
       "mode": "pdf-disabled",
       "pdfExtractorDisabled": true,
-      "startedAt": "2026-06-14T03:58:37.365Z",
-      "finishedAt": "2026-06-14T03:58:37.390Z",
-      "elapsedMs": 25,
+      "startedAt": "2026-06-16T12:01:28.767Z",
+      "finishedAt": "2026-06-16T12:01:28.788Z",
+      "elapsedMs": 21,
       "beforeTransactionCount": 0,
       "afterTransactionCount": 2,
       "syncCounts": {
@@ -199,7 +199,7 @@
           "actual": {
             "kind": "processed",
             "messageId": "swiggy-body-only",
-            "transactionId": "244a61ce-65b7-4e5e-b8d5-302fd0776f84",
+            "transactionId": "78e29596-c6bf-4d9f-90b1-30481c949a40",
             "amount": 482.5,
             "orderId": "SWG-BODY-1002",
             "schemaUsed": "swiggy.body.v1",
@@ -229,7 +229,7 @@
           "actual": {
             "kind": "processed",
             "messageId": "swiggy-order-with-pdf",
-            "transactionId": "dc9cee73-b7ea-4a5a-92f6-90c6857855da",
+            "transactionId": "528fc8e1-7d0b-405a-884e-5fa1d4928a68",
             "amount": 348.5,
             "orderId": "SWG-TEST-12345",
             "schemaUsed": "swiggy.body.v1",
@@ -244,7 +244,7 @@
             "description": "Swiggy order - Millet Bowl Co",
             "itemNames": [],
             "attachmentStoragePath": [
-              "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-I5ybI1/home/attachments/swiggy-order-with-pdf.pdf"
+              "/var/folders/p_/v22kpmh52dx3ykf51mxfh6m40000gn/T/slashcash-ingest-proof-dNWFL7/home/attachments/swiggy-order-with-pdf.pdf"
             ],
             "reason": null
           },
