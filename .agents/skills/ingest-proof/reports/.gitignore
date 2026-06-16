@@ -1,0 +1,5 @@
+*
+!.gitignore
+!latest/
+!latest/real-behavior-proof.json
+!latest/real-behavior-proof.md

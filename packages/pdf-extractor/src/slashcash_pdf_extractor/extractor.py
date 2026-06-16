@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
 from typing import Any
 
@@ -202,6 +203,9 @@ def extract_text_backed_pdf(path: Path) -> TextExtractionResult:
 
 
 def extract_with_docling(path: Path) -> TextExtractionResult:
+    if os.environ.get("SLASHCASH_PDF_EXTRACTOR_SKIP_DOCLING") == "1":
+        return TextExtractionResult(warnings=["Docling is disabled by environment."])
+
     if docling_package is None or DocumentConverter is None:
         return TextExtractionResult(warnings=["Docling is not installed."])
 

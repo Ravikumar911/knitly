@@ -1,0 +1,636 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-16T12:01:28.806Z",
+  "command": "/opt/homebrew/Cellar/node/25.8.1_1/bin/node /Users/ravikumarr/github/knitly-pr62/.agents/skills/autoreview/scripts/autoreview --mode local --heartbeat-ms 1000 --report-name pr62-phase-doc-fix-closeout --gate 'pnpm qa:ingest' --gate 'pnpm e2e:ingest'",
+  "mode": "local",
+  "commit": null,
+  "repoRoot": "/Users/ravikumarr/github/knitly-pr62",
+  "baseRef": "origin/codex/agentic-adoption-ingest-proof",
+  "branch": "codex/pr62-phase-doc-fix",
+  "status": "clean",
+  "summary": {
+    "dirtyFileCount": 26,
+    "committedFileCount": 0,
+    "scopeFileCount": 26,
+    "ingestFileCount": 4,
+    "gateCount": 2,
+    "actionableFindingCount": 0
+  },
+  "dirtyScope": [
+    {
+      "status": " M",
+      "path": ".agents/skills/add-database-query/SKILL.md"
+    },
+    {
+      "status": " M",
+      "path": ".agents/skills/add-trpc-route/SKILL.md"
+    },
+    {
+      "status": " M",
+      "path": ".agents/skills/ingest-edge-sweep/SKILL.md"
+    },
+    {
+      "status": " M",
+      "path": ".agents/skills/ingest-proof/reports/latest/real-behavior-proof.json"
+    },
+    {
+      "status": " M",
+      "path": ".agents/skills/ingest-proof/reports/latest/real-behavior-proof.md"
+    },
+    {
+      "status": " M",
+      "path": ".agents/skills/playwright-best-practices/SKILL.md"
+    },
+    {
+      "status": " M",
+      "path": ".agents/skills/run-tests/SKILL.md"
+    },
+    {
+      "status": " M",
+      "path": ".agents/skills/write-ai-sdk-tool/SKILL.md"
+    },
+    {
+      "status": " M",
+      "path": "AGENTIC-ADOPTION-PROOF.md"
+    },
+    {
+      "status": " M",
+      "path": "AGENTS.md"
+    },
+    {
+      "status": " M",
+      "path": "package.json"
+    },
+    {
+      "status": " M",
+      "path": "packages/docs/current-state.md"
+    },
+    {
+      "status": " M",
+      "path": "packages/docs/reference/testing.md"
+    },
+    {
+      "status": " M",
+      "path": "packages/docs/roadmap/agentic-coding-adoption.md"
+    },
+    {
+      "status": " M",
+      "path": "packages/e2e-tests/package.json"
+    },
+    {
+      "status": " M",
+      "path": "packages/e2e-tests/scripts/real-behavior-proof.ts"
+    },
+    {
+      "status": " M",
+      "path": "packages/pdf-extractor/src/slashcash_pdf_extractor/extractor.py"
+    },
+    {
+      "status": " M",
+      "path": "packages/pdf-extractor/tests/test_extractor.py"
+    },
+    {
+      "status": " M",
+      "path": "qa/README.md"
+    },
+    {
+      "status": " M",
+      "path": "qa/scenarios.md"
+    },
+    {
+      "status": " M",
+      "path": "qa/scenarios/index.md"
+    },
+    {
+      "status": " M",
+      "path": "qa/scenarios/ingest/food-delivery-edges.md"
+    },
+    {
+      "status": " M",
+      "path": "qa/scenarios/ingest/replays/pdf-vs-body.jsonl"
+    },
+    {
+      "status": "??",
+      "path": ".agents/skills/autoreview/reports/pr62-phase-doc-fix-closeout.json"
+    },
+    {
+      "status": "??",
+      "path": ".agents/skills/autoreview/reports/pr62-phase-doc-fix-closeout.md"
+    },
+    {
+      "status": "??",
+      "path": "packages/e2e-tests/scripts/qa-ingest-check.ts"
+    }
+  ],
+  "committedScope": [],
+  "scopeFiles": [
+    ".agents/skills/add-database-query/SKILL.md",
+    ".agents/skills/add-trpc-route/SKILL.md",
+    ".agents/skills/ingest-edge-sweep/SKILL.md",
+    ".agents/skills/ingest-proof/reports/latest/real-behavior-proof.json",
+    ".agents/skills/ingest-proof/reports/latest/real-behavior-proof.md",
+    ".agents/skills/playwright-best-practices/SKILL.md",
+    ".agents/skills/run-tests/SKILL.md",
+    ".agents/skills/write-ai-sdk-tool/SKILL.md",
+    "AGENTIC-ADOPTION-PROOF.md",
+    "AGENTS.md",
+    "package.json",
+    "packages/docs/current-state.md",
+    "packages/docs/reference/testing.md",
+    "packages/docs/roadmap/agentic-coding-adoption.md",
+    "packages/e2e-tests/package.json",
+    "packages/e2e-tests/scripts/real-behavior-proof.ts",
+    "packages/pdf-extractor/src/slashcash_pdf_extractor/extractor.py",
+    "packages/pdf-extractor/tests/test_extractor.py",
+    "qa/README.md",
+    "qa/scenarios.md",
+    "qa/scenarios/index.md",
+    "qa/scenarios/ingest/food-delivery-edges.md",
+    "qa/scenarios/ingest/replays/pdf-vs-body.jsonl",
+    ".agents/skills/autoreview/reports/pr62-phase-doc-fix-closeout.json",
+    ".agents/skills/autoreview/reports/pr62-phase-doc-fix-closeout.md",
+    "packages/e2e-tests/scripts/qa-ingest-check.ts"
+  ],
+  "ingest": {
+    "changedFiles": [
+      "packages/pdf-extractor/src/slashcash_pdf_extractor/extractor.py",
+      "packages/pdf-extractor/tests/test_extractor.py",
+      "qa/scenarios/ingest/food-delivery-edges.md",
+      "qa/scenarios/ingest/replays/pdf-vs-body.jsonl"
+    ],
+    "surfaces": [
+      "packages/tasks/src/extract/",
+      "packages/tasks/src/merchants/swiggy/",
+      "packages/pdf-extractor/",
+      "packages/e2e-tests/fixtures/imap/",
+      "packages/e2e-tests/fixtures/pdfs/",
+      "qa/scenarios/ingest/"
+    ],
+    "siblingScans": [
+      {
+        "trigger": "packages/pdf-extractor/src/slashcash_pdf_extractor/extractor.py",
+        "siblings": [
+          {
+            "file_path": "packages/tasks/src/extract/pipeline.ts",
+            "line": 6,
+            "reason": "runtime merge point for PDF, LLM, fallback, schemaUsed, dataSource, and storage provenance"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/body-fallback.ts",
+            "line": 3,
+            "reason": "body-only fallback owner for deterministic Swiggy extraction"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-body-signals.ts",
+            "line": 8,
+            "reason": "shared order id, amount, restaurant, payment method, and marketing signal parser"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-llm.ts",
+            "line": 11,
+            "reason": "LLM-normalization sibling that reuses body signals and provenance decisions"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pdf-extractor.ts",
+            "line": 1,
+            "reason": "Python PDF extractor bridge and subprocess failure behavior"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pdf-extractor-schema.ts",
+            "line": 1,
+            "reason": "typed contract for parsed PDF fields and source quality"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-deterministic.ts",
+            "line": 1,
+            "reason": "provenance type shared by deterministic pipeline outputs"
+          },
+          {
+            "file_path": "packages/tasks/src/merchants/swiggy/schema.ts",
+            "line": 14,
+            "reason": "merchant schema used to validate transaction fields"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/body-fallback.test.ts",
+            "line": 2,
+            "reason": "focused fallback fixture coverage"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-body-signals.test.ts",
+            "line": 3,
+            "reason": "focused marketing and body signal coverage"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pipeline.test.ts",
+            "line": 21,
+            "reason": "pipeline behavior coverage for schemaUsed, dataSource, and provenance"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pipeline.integration.test.ts",
+            "line": 4,
+            "reason": "real extractor integration gate when VITEST_INTEGRATION is enabled"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-body-only.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-body-only.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-order-with-pdf.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-order-with-pdf.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-promotion.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-promotion.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-status-update.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-status-update.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/scripts/fixtures-check.ts",
+            "line": 1,
+            "reason": "fixture canonicalization and EML sanity gate"
+          }
+        ]
+      },
+      {
+        "trigger": "packages/pdf-extractor/tests/test_extractor.py",
+        "siblings": [
+          {
+            "file_path": "packages/tasks/src/extract/pipeline.ts",
+            "line": 6,
+            "reason": "runtime merge point for PDF, LLM, fallback, schemaUsed, dataSource, and storage provenance"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/body-fallback.ts",
+            "line": 3,
+            "reason": "body-only fallback owner for deterministic Swiggy extraction"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-body-signals.ts",
+            "line": 8,
+            "reason": "shared order id, amount, restaurant, payment method, and marketing signal parser"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-llm.ts",
+            "line": 11,
+            "reason": "LLM-normalization sibling that reuses body signals and provenance decisions"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pdf-extractor.ts",
+            "line": 1,
+            "reason": "Python PDF extractor bridge and subprocess failure behavior"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pdf-extractor-schema.ts",
+            "line": 1,
+            "reason": "typed contract for parsed PDF fields and source quality"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-deterministic.ts",
+            "line": 1,
+            "reason": "provenance type shared by deterministic pipeline outputs"
+          },
+          {
+            "file_path": "packages/tasks/src/merchants/swiggy/schema.ts",
+            "line": 14,
+            "reason": "merchant schema used to validate transaction fields"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/body-fallback.test.ts",
+            "line": 2,
+            "reason": "focused fallback fixture coverage"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-body-signals.test.ts",
+            "line": 3,
+            "reason": "focused marketing and body signal coverage"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pipeline.test.ts",
+            "line": 21,
+            "reason": "pipeline behavior coverage for schemaUsed, dataSource, and provenance"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pipeline.integration.test.ts",
+            "line": 4,
+            "reason": "real extractor integration gate when VITEST_INTEGRATION is enabled"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-body-only.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-body-only.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-order-with-pdf.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-order-with-pdf.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-promotion.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-promotion.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-status-update.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-status-update.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/scripts/fixtures-check.ts",
+            "line": 1,
+            "reason": "fixture canonicalization and EML sanity gate"
+          }
+        ]
+      },
+      {
+        "trigger": "qa/scenarios/ingest/food-delivery-edges.md",
+        "siblings": [
+          {
+            "file_path": "packages/tasks/src/extract/pipeline.ts",
+            "line": 6,
+            "reason": "runtime merge point for PDF, LLM, fallback, schemaUsed, dataSource, and storage provenance"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/body-fallback.ts",
+            "line": 3,
+            "reason": "body-only fallback owner for deterministic Swiggy extraction"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-body-signals.ts",
+            "line": 8,
+            "reason": "shared order id, amount, restaurant, payment method, and marketing signal parser"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-llm.ts",
+            "line": 11,
+            "reason": "LLM-normalization sibling that reuses body signals and provenance decisions"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pdf-extractor.ts",
+            "line": 1,
+            "reason": "Python PDF extractor bridge and subprocess failure behavior"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pdf-extractor-schema.ts",
+            "line": 1,
+            "reason": "typed contract for parsed PDF fields and source quality"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-deterministic.ts",
+            "line": 1,
+            "reason": "provenance type shared by deterministic pipeline outputs"
+          },
+          {
+            "file_path": "packages/tasks/src/merchants/swiggy/schema.ts",
+            "line": 14,
+            "reason": "merchant schema used to validate transaction fields"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/body-fallback.test.ts",
+            "line": 2,
+            "reason": "focused fallback fixture coverage"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-body-signals.test.ts",
+            "line": 3,
+            "reason": "focused marketing and body signal coverage"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pipeline.test.ts",
+            "line": 21,
+            "reason": "pipeline behavior coverage for schemaUsed, dataSource, and provenance"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pipeline.integration.test.ts",
+            "line": 4,
+            "reason": "real extractor integration gate when VITEST_INTEGRATION is enabled"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-body-only.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-body-only.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-order-with-pdf.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-order-with-pdf.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-promotion.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-promotion.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-status-update.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-status-update.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/scripts/fixtures-check.ts",
+            "line": 1,
+            "reason": "fixture canonicalization and EML sanity gate"
+          }
+        ]
+      },
+      {
+        "trigger": "qa/scenarios/ingest/replays/pdf-vs-body.jsonl",
+        "siblings": [
+          {
+            "file_path": "packages/tasks/src/extract/pipeline.ts",
+            "line": 6,
+            "reason": "runtime merge point for PDF, LLM, fallback, schemaUsed, dataSource, and storage provenance"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/body-fallback.ts",
+            "line": 3,
+            "reason": "body-only fallback owner for deterministic Swiggy extraction"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-body-signals.ts",
+            "line": 8,
+            "reason": "shared order id, amount, restaurant, payment method, and marketing signal parser"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-llm.ts",
+            "line": 11,
+            "reason": "LLM-normalization sibling that reuses body signals and provenance decisions"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pdf-extractor.ts",
+            "line": 1,
+            "reason": "Python PDF extractor bridge and subprocess failure behavior"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pdf-extractor-schema.ts",
+            "line": 1,
+            "reason": "typed contract for parsed PDF fields and source quality"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-deterministic.ts",
+            "line": 1,
+            "reason": "provenance type shared by deterministic pipeline outputs"
+          },
+          {
+            "file_path": "packages/tasks/src/merchants/swiggy/schema.ts",
+            "line": 14,
+            "reason": "merchant schema used to validate transaction fields"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/body-fallback.test.ts",
+            "line": 2,
+            "reason": "focused fallback fixture coverage"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/swiggy-body-signals.test.ts",
+            "line": 3,
+            "reason": "focused marketing and body signal coverage"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pipeline.test.ts",
+            "line": 21,
+            "reason": "pipeline behavior coverage for schemaUsed, dataSource, and provenance"
+          },
+          {
+            "file_path": "packages/tasks/src/extract/pipeline.integration.test.ts",
+            "line": 4,
+            "reason": "real extractor integration gate when VITEST_INTEGRATION is enabled"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-body-only.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-body-only.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-order-with-pdf.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-order-with-pdf.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-promotion.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-promotion.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-status-update.eml",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/fixtures/imap/swiggy-status-update.expected.json",
+            "line": 1,
+            "reason": "committed EML fixtures and expected JSON proof inputs"
+          },
+          {
+            "file_path": "packages/e2e-tests/scripts/fixtures-check.ts",
+            "line": 1,
+            "reason": "fixture canonicalization and EML sanity gate"
+          }
+        ]
+      }
+    ],
+    "note": "Ingest changes require sibling analysis across pipeline, body fallback, body signals, merchant schema, PDF extractor, fixtures, goldens, and provenance handling."
+  },
+  "gates": [
+    {
+      "command": "pnpm qa:ingest",
+      "skipped": false,
+      "exitCode": 0,
+      "durationMs": 781,
+      "stdoutTail": "\n> slash-cash@0.1.6 qa:ingest /Users/ravikumarr/github/knitly-pr62\n> pnpm --filter @workspace/e2e-tests qa:ingest\n\n\n> @workspace/e2e-tests@0.1.0 qa:ingest /Users/ravikumarr/github/knitly-pr62/packages/e2e-tests\n> tsx scripts/qa-ingest-check.ts\n\nIngest QA scenario check passed (9 edges, 4 committed fixtures, 5 replay rows).\n",
+      "stderrTail": ""
+    },
+    {
+      "command": "pnpm e2e:ingest",
+      "skipped": false,
+      "exitCode": 0,
+      "durationMs": 4049,
+      "stdoutTail": "\n> slash-cash@0.1.6 e2e:ingest /Users/ravikumarr/github/knitly-pr62\n> pnpm --filter @workspace/e2e-tests e2e:ingest\n\n\n> @workspace/e2e-tests@0.1.0 e2e:ingest /Users/ravikumarr/github/knitly-pr62/packages/e2e-tests\n> tsx scripts/real-behavior-proof.ts --strict --output-dir ../../.agents/skills/ingest-proof/reports/latest\n\nWrote .agents/skills/ingest-proof/reports/latest/real-behavior-proof.json\nWrote .agents/skills/ingest-proof/reports/latest/real-behavior-proof.md\n",
+      "stderrTail": ""
+    }
+  ],
+  "findings": [],
+  "artifacts": {
+    "json": ".agents/skills/autoreview/reports/pr62-phase-doc-fix-closeout.json",
+    "markdown": ".agents/skills/autoreview/reports/pr62-phase-doc-fix-closeout.md"
+  }
+}

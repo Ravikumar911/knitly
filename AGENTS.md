@@ -89,6 +89,8 @@ If commands fail from missing deps, run `pnpm install` once and retry.
 - Repo-wide rules: this file.
 - App-specific Next.js + tRPC + AI client patterns: `apps/main/AGENTS.md`.
 - Reusable workflows: `.agents/skills/*/SKILL.md`.
+- Agentic closeout plan: `packages/docs/roadmap/agentic-coding-adoption.md`.
+- Closeout workflow: `.agents/skills/autoreview`; ingest proof workflow: `.agents/skills/ingest-proof`; high-level handoffs and ingest sweeps: `.agents/skills/orchestrator` plus `.agents/skills/ingest-edge-sweep`; living scenario contracts live under `qa/scenarios/` (Phase 5).
 
 ## Safety rails
 
@@ -96,3 +98,27 @@ If commands fail from missing deps, run `pnpm install` once and retry.
 - Do not add hosted auth, cloud DB, or Trigger.dev-style task platforms without an explicit product decision and dependency review.
 - **Active pivot (2026-04-22):** Gmail access now goes through IMAP + a user-generated app password (ADR-024), and onboarding runs through an interactive `@clack/prompts` wizard (ADR-025). See [`packages/docs/roadmap/pivot-imap.md`](./packages/docs/roadmap/pivot-imap.md) for the active execution plan. Do not add new retired Google mailbox tooling anywhere outside `packages/docs/` (where the superseded ADRs live).
 - When changing schema, use Drizzle generate/migrate flows from `packages/database` (`package.json` scripts: `generate`, `migrate`).
+- For non-trivial changes, especially ingest/extraction work, follow the agentic closeout plan in `packages/docs/roadmap/agentic-coding-adoption.md` and run `.agents/skills/autoreview` before landing. For ingest/extraction work, also run `.agents/skills/ingest-proof` / `pnpm e2e:ingest`, update or cite the relevant `qa/scenarios/` contract, and include the evidence map, sibling analysis, and real behavior proof you used.
+- For large ingest goals, ongoing maintenance, or "sweep/close/triage edge cases" requests, start from `.agents/skills/ingest-edge-sweep/SKILL.md` or `.agents/skills/orchestrator/SKILL.md` so work is decomposed into traceable candidates with worker reports, proof bundles, and autoreview closeout.
+
+## ClawSweeper-Style Review Policy
+
+This policy applies to PR reviews, closeout passes, and agent self-review before asking a human to trust a change. Treat it as additive to the architecture boundaries and safety rails above.
+
+- **Read before verdicts**: before saying a change is good, bad, complete, best-fix, or proof-sufficient, search and read the relevant code path. Include owners, entry points, callers, callees, sibling surfaces sharing the same invariant, scoped docs, dependency contracts, and existing tests.
+- **Build an evidence map**: every non-trivial closeout should be able to cite the changed surface, runtime entry point, owner boundary, at least one caller and callee, sibling surfaces checked, tests or scenarios that cover the behavior, and the current main/shipped behavior. Use repo-root relative paths and line numbers.
+- **Ask the best-fix question**: every PR review or closeout must explicitly ask whether the patch is the best fix for the problem, not merely a plausible local fix. Prefer narrow changes that preserve local-first boundaries and deterministic ingest behavior.
+- **Require real behavior proof**: for user-visible behavior and all ingest/extraction changes, CI or mocked tests are not enough. Cite a real fixture roundtrip, dogfood run, UI journey, CLI run, or equivalent proof with exact observed values.
+- **Run the closeout loop before landing**: every non-trivial or non-docs change needs a fresh `.agents/skills/autoreview` loop until there are no accepted/actionable findings. Treat the harness output as advisory and verify accepted findings against real paths before fixing.
+- **Use scenarios as living contracts**: once `qa/scenarios/` exists (Phase 5), changes must update or cite the relevant scenarios, especially for ingest edge cases.
+- **Define shipped precisely**: "shipped" means reachable from a release tag or the documented release artifact, not merely merged, demoed, or passing locally.
+
+### Ingest and Extraction Proof
+
+All changes touching `packages/tasks/src/extract/**`, `packages/pdf-extractor/**`, `packages/e2e-tests/fixtures/imap/**`, or `qa/scenarios/ingest/**` require explicit sibling analysis across the full deterministic pipeline: `pipeline.ts`, `body-fallback.ts`, `swiggy-body-signals.ts`, `merchants/*`, pdf-extractor schema/parity code, goldens, fixture expectations, and provenance handling.
+
+The proof note must cite a real fixture roundtrip, dogfood run, or equivalent with exact values for the fields that matter, such as `schemaUsed`, `dataSource`, provenance, amounts, item names, order IDs, and warnings. If a full real-account dogfood run is maintainer-only, state the closest committed-fixture proof that was run and what remains manual.
+
+## Agentic Workflows
+
+The active adoption plan is `packages/docs/roadmap/agentic-coding-adoption.md`. It phases in policy, autoreview loops, real behavior proof, ingest `qa/scenarios/`, and orchestrated sweeps. Use the orchestrator for high-level handoffs, background/polling simulations, and broad ingest sweeps that should be split into landable units. Do not mark a phase shipped unless its verification and proof requirements are complete.

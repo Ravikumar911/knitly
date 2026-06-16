@@ -37,6 +37,10 @@ description: Add a type-safe tRPC v11 procedure in apps/main backed by @workspac
 
 5. **Verify** — `pnpm typecheck` and exercise the procedure from the UI or a small test.
 
+## Agentic closeout
+
+For non-trivial route work, use subagents when the change spans database, UI, and server boundaries. The closeout must cite the tRPC procedure, its database helper, at least one caller, and the UI or test that proves behavior. Run `pnpm typecheck`, relevant tests, and `.agents/skills/autoreview/scripts/autoreview` with an appropriate focused gate until clean. If the route exposes ingest/extraction state, also cite the relevant `qa/scenarios/ingest/**` contract and run `pnpm qa:ingest` plus `pnpm e2e:ingest`.
+
 ## API route
 
 The HTTP adapter lives at `apps/main/app/api/trpc/[trpc]/route.ts` — usually no change needed when adding procedures.

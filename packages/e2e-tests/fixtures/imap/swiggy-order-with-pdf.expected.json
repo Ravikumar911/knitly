@@ -1,6 +1,16 @@
 {
-  "amount": 512.4,
-  "kind": "processed",
-  "orderId": "SWG-PDF-1001",
-  "schemaUsed": "swiggy.deterministic.v1"
+  "modes": {
+    "pdf-disabled": {
+      "amount": 348.5,
+      "kind": "processed",
+      "orderId": "SWG-TEST-12345",
+      "schemaUsed": "swiggy.body.v1"
+    },
+    "pdf-enabled": {
+      "amount": 512.4,
+      "kind": "processed",
+      "orderId": "SWG-PDF-1001",
+      "schemaUsed": "swiggy.deterministic.v1"
+    }
+  }
 }
