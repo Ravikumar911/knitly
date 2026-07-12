@@ -142,7 +142,7 @@ pnpm dlx tsx packages/e2e-tests/scripts/dogfood-diff.ts
 
 When this phase signs off, the following must all be true. Do not declare the pivot done if any are still red:
 
-1. A clean macOS machine: `npm i -g slashcash` → `slashcash onboard` (Gmail + app password only) → dashboard opens → background sync populates Swiggy transactions, with **no** model pull anywhere in the path.
+1. A clean macOS machine: Download for Mac (Desktop app) → Desktop onboarding (Gmail + app password only) → dashboard opens → background sync populates Swiggy transactions, with **no** model pull anywhere in the path.
 2. `pnpm test`, `pnpm e2e:ingest`, `pnpm e2e:onboarding`, `pnpm architecture-smells`, `pnpm fixtures:check`, `pnpm bench`, and the Python golden suite all pass on CI.
 3. Real-account dogfood note is published in `current-state.md`.
 4. No remaining references to `slashAIV2`, `transactionsEnhanced`, `OCRModel`, `swiggy.sources.v1`, or "single Gemma source extraction" outside historical doc sections.

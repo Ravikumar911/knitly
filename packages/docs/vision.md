@@ -1,5 +1,7 @@
 # Vision
 
+> **Revision on 2026-07-12 (ADR-028).** Primary distribution is the **Desktop app** (Download for Mac → GitHub Releases). Public npm / `npm i -g slashcash` is deprecated as the product install path; `packages/cli` remains as the **Bundled runtime** inside the app. **Desktop onboarding** replaces end-user `slashcash onboard`. The **State directory** stays `~/.slashcash/`. See ADR-028.
+
 > **Revision on 2026-04-26.** The Gmail access story shipped end-to-end: IMAP + a user-issued Gmail app password (ADR-024) replaces the original `gws` + `gcloud` path (ADR-004, ADR-011, ADR-022), and the `@clack/prompts` wizard (ADR-025) replaces the original readline-only script. The current PDF extractor pivot, captured in [`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md), makes Swiggy ingest deterministic: a local Python package (Docling when available, plus PyMuPDF/pdfplumber fallback) extracts text/tables/fields via `child_process.spawn`, and TypeScript maps the result without an LLM. Assistant models are optional post-onboarding. The rest of this document — local-first posture, loopback auth boundary, single-user, `~/.slashcash/`, no telemetry — is unchanged. Paragraphs below that still mention `gws` are kept for historical continuity; treat them as superseded where they conflict.
 
 ## The problem we are pivoting away from
@@ -12,58 +14,58 @@ Most prospects don't get past that ask. They want the product. They don't want a
 
 ## What we're building instead
 
-A local-first, single-user app that the person installs on their own laptop. Globally installed from npm. Onboarded by a single interactive wizard that prepares the machine (Homebrew, Ollama, the `gemma4:latest` model) and asks for the user's Gmail address and a 16-character app password generated at <https://myaccount.google.com/apppasswords>. Started by a single command that boots the existing dashboard on `127.0.0.1` and schedules an in-process cron worker that pulls Gmail over IMAP (`imap.gmail.com:993` with the user's app password), parses it with the local model, and writes everything to a single SQLite file.
+A local-first, single-user **Desktop app** that the person downloads and runs on their own laptop (macOS). First launch runs **Desktop onboarding**: privacy disclosures, machine prep, Gmail address + 16-character app password from <https://myaccount.google.com/apppasswords>, and optional assistant setup. The app boots the existing dashboard on `127.0.0.1` and schedules an in-process cron worker that pulls Gmail over IMAP (`imap.gmail.com:993`), parses it deterministically, and writes everything to a single SQLite file under the **State directory** (`~/.slashcash/`).
 
-The hosted app at `slash.cash` / `app.slash.cash` is being **retired** as part of this pivot. The marketing site stays, as a landing page that points at the CLI; the hosted dashboard goes away once the CLI reaches feature parity. There is no "cloud mode" in the codebase — one code path, one product, fully local.
+The hosted app at `slash.cash` / `app.slash.cash` is being **retired** as part of this pivot. The marketing site stays as a landing page that points at **Download for Mac**; the hosted dashboard goes away once the desktop product reaches feature parity. There is no "cloud mode" in the codebase — one code path, one product, fully local. Public npm install is not the product path (ADR-028).
 
 ## What changes under the hood
 
 - Data lives on the user's disk, under `~/.slashcash/`.
 - There is no hosted auth. The server binds to loopback only; that's the boundary.
 - Gmail is read over IMAP using a user-issued app password stored in the macOS Keychain (or, as a clearly-flagged fallback, in `~/.slashcash/credentials.json` with mode `0600`). We don't ship a Google client ID, don't run an OAuth flow, and don't install `gcloud` or `gws`.
-- Parsing happens through a local Ollama server with `gemma4:latest`. We don't call OpenAI, Mistral, Anthropic or anything else.
+- Swiggy ingest is deterministic (local PDF extractor); assistant chat is optional and uses a configured local or user-supplied provider.
 - Background work is a `node-cron` schedule inside the same Node process that runs the Next.js dashboard. No Trigger.dev, no queues.
-- Distribution is a public npm package. The product is the CLI.
+- Distribution is the **Desktop app** via GitHub Releases. The `slashcash` package ships as the **Bundled runtime** inside that app, not as a supported global npm install.
 
 ## Product principles
 
 These are the tiebreakers for any ambiguous design choice in either phase.
 
-1. **Local-first, not a self-host variant.** The CLI is the product. It's not a second-class deployment of a hosted system.
+1. **Local-first, not a self-host variant.** The Desktop app is the product. It's not a second-class deployment of a hosted system, and it is not "install our npm CLI."
 2. **Single-user is a feature.** No login, no roles, no teams. Loopback bind is the auth boundary. This unlocks dramatic UI and code simplifications.
-3. **One command to install, one command to run.** Anything the user has to do beyond `slashcash onboard` and `slashcash start` needs a `slashcash doctor --fix` that does it for them.
+3. **One download to install, one app to run.** Anything the user has to do beyond Desktop onboarding and launching the app needs a repair path (`doctor --fix` / in-app equivalent) that does it for them.
 4. **Reuse what works, delete what doesn't.** The Next.js dashboard, the Drizzle schema and the Swiggy analytics are keepers. The Supabase surface, the Trigger.dev package, the Google OAuth dance, the PostgREST storage path and the hosted-only pages are on the chopping block.
 5. **One code path.** No mode switches, no cloud escape hatches, no branches to maintain. If a file is cloud-only, it's deleted, not gated.
-6. **No telemetry.** The local app makes no outbound calls we didn't ask for. Version checks, if any, are opt-in.
-7. **User owns their Gmail credential.** We don't ship OAuth flows, client secrets or token tables. The user generates an app password at Google, pastes it once during onboard, and we store it in the OS keychain where possible. Revocation is the user's one-click action in their Google account.
-8. **Skills are user-extensible.** Reading Gmail is one capability; bank statements, Sheets, and calendar are others. These are modeled as skills — folders with a frontmatter runbook and a manifest — so the surface area can grow without CLI changes.
-9. **Doctor over silent migrations.** When the config or the filesystem drifts, `slashcash doctor --fix` repairs it explicitly. Startup does not mutate user state on its own.
-10. **Schemas at boundaries.** Every external input — CLI argv, config file, `gws` output, Gmail responses, persisted JSON — is validated with a schema before it enters typed code.
-11. **Trust is surfaced, not buried.** The product's privacy guarantees (no server-side tokens, no cloud parsing, no telemetry, loopback-only dashboard, BYO Google Cloud project) are shown to the user at onboarding — at the top of `slashcash onboard` and again in one factual line right before each browser consent — and kept reachable forever through `slashcash privacy`. We never rely on the ADRs or the landing page to do that job; if the wizard doesn't say it, it doesn't count.
+6. **No telemetry.** The local app makes no outbound calls we didn't ask for. Version checks / auto-updates, if any, are explicit product surfaces (see desktop packaging), not silent phone-homes of finance data.
+7. **User owns their Gmail credential.** We don't ship OAuth flows, client secrets or token tables. The user generates an app password at Google, pastes it once during Desktop onboarding, and we store it in the OS keychain where possible. Revocation is the user's one-click action in their Google account.
+8. **Skills are user-extensible.** Reading Gmail is one capability; bank statements, Sheets, and calendar are others. These are modeled as skills — folders with a frontmatter runbook and a manifest — so the surface area can grow without rewriting the shell.
+9. **Doctor over silent migrations.** When the config or the filesystem drifts, repair is explicit. Startup does not mutate user state on its own.
+10. **Schemas at boundaries.** Every external input — config file, Gmail responses, persisted JSON — is validated with a schema before it enters typed code.
+11. **Trust is surfaced, not buried.** The product's privacy guarantees (no server-side tokens, no cloud parsing, no telemetry, loopback-only dashboard) are shown at Desktop onboarding and kept reachable forever through an in-app / runtime privacy surface. We never rely on the ADRs or the landing page alone to do that job.
 
 ## Target audience for v1
 
-v1 ships for **developers on macOS** — people who are already comfortable typing `npm i -g <package>`, enabling 2-Step Verification on their Google account if they haven't already, and pasting a 16-character app password into a terminal once. Primary markets are the US and India. The ADR-024 "IMAP + app password" flow is the v1 default: a single paste, no OAuth app-verification track, no Cloud Console walk, no `gcloud` cask. A non-developer audience and any scenario that genuinely requires OAuth-scoped read-only access (e.g. Advanced Protection Program users or locked-down Workspace tenants) is a distinct product motion that would reopen ADR-004; it is out of v1 scope.
+v1 ships for **people on macOS** who can download a desktop app, enable 2-Step Verification on their Google account if they haven't already, and paste a 16-character app password once during Desktop onboarding. Primary markets are the US and India. Comfort with `npm i -g` is **not** required. The ADR-024 "IMAP + app password" flow is the v1 default: a single paste, no OAuth app-verification track, no Cloud Console walk, no `gcloud` cask. Any scenario that genuinely requires OAuth-scoped read-only access (e.g. Advanced Protection Program users or locked-down Workspace tenants) is a distinct product motion that would reopen ADR-004; it is out of v1 scope.
 
 ## Non-goals
 
 Stated so we don't re-argue mid-phase.
 
-- A non-developer / consumer audience in v1 (see "Target audience for v1" above).
 - Multi-user / multi-tenant local mode.
-- Mobile, desktop GUI or system tray app.
+- Mobile or system-tray-only product (the Desktop app with a full dashboard UI is in scope; a tray-only / headless secondary product is not).
 - Cross-device sync.
-- A hosted "premium" tier layered on the CLI.
-- A pluggable multi-provider LLM abstraction.
+- A hosted "premium" tier layered on the local product.
+- A pluggable multi-provider LLM abstraction as a required ingest dependency.
 - Windows or Linux support in v1. macOS only.
 - Preserving the hosted app. It is being sunset.
+- Supporting `npm i -g slashcash` as a co-equal end-user install path (ADR-028).
 
 ## Success criteria for the pivot
 
 The pivot is done — i.e. it's what `slash.cash` recommends on the landing page — when all of these are true:
 
-1. A clean macOS machine goes from `npm i -g slashcash` to a populated dashboard in under ten minutes, including the model download.
-2. The dashboard at `http://127.0.0.1:<port>` shows real Swiggy analytics computed from the user's actual Gmail, with no outbound network calls after `onboard` completes.
-3. The chat assistant answers Swiggy questions using `gemma4:latest` locally at a quality level agreed against the existing eval suite (see Phase 2 W10).
-4. `slashcash doctor` is green after a clean `onboard`, with no manual steps required.
-5. The hosted dashboard is off; `slash.cash` points at the CLI; there are no remaining references to Supabase, Trigger.dev, OpenAI or Mistral in the shipping code.
+1. A clean macOS machine goes from **Download for Mac** to a populated dashboard in under ten minutes, including any first-run machine prep Desktop onboarding requires.
+2. The dashboard at `http://127.0.0.1:<port>` (or the embedded desktop window) shows real Swiggy analytics computed from the user's actual Gmail, with no unexpected outbound network calls after onboarding completes.
+3. The chat assistant answers Swiggy questions using a configured local or user-supplied provider at a quality level agreed against the existing eval suite.
+4. Doctor / repair is green after a clean Desktop onboarding, with no undocumented manual steps required.
+5. The hosted dashboard is off; `slash.cash` points at **Download for Mac**; there are no remaining references to Supabase, Trigger.dev, OpenAI or Mistral in the shipping code as required cloud backends.

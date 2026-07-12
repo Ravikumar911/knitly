@@ -4,9 +4,9 @@ import {
   ArrowRight,
   AppWindow,
   Database,
+  Download,
   Github,
   MailCheck,
-  Package,
   Sparkles,
 } from "lucide-react";
 
@@ -27,7 +27,7 @@ import { PositioningCards } from "@/components/marketing/positioning-cards";
 import { PrinciplesBand } from "@/components/marketing/principles-band";
 import { Section } from "@/components/marketing/section";
 import { TestimonialMarquee } from "@/components/marketing/testimonial-marquee";
-import { GITHUB_URL, NPM_URL } from "@/lib/links";
+import { GITHUB_URL, MAC_DMG_URL } from "@/lib/links";
 
 const trustItems = [
   "No bank login",
@@ -44,7 +44,7 @@ const demoSteps = [
     icon: AppWindow,
     label: "Install",
     title: "Open slash.cash",
-    body: "Use the desktop shell or install from npm. Either path starts the same local dashboard and keeps the runtime on your machine.",
+    body: "Download the Mac app for Apple Silicon, open slash.cash, and keep the local dashboard on your machine.",
   },
   {
     icon: MailCheck,
@@ -119,15 +119,15 @@ export default function HomePage() {
               <p className="mt-5 max-w-xl text-[1.05rem] leading-relaxed text-neutral-500 md:text-[1.12rem]">
                 slash.cash reads receipts from your inbox and turns them into a
                 clean spending dashboard. Start with Swiggy receipts today, then
-                use the local dashboard from the desktop shell or CLI. Your
-                numbers stay on your laptop.
+                use the local dashboard from the Mac app. Your numbers stay on
+                your laptop.
               </p>
             </BlurFade>
 
             <BlurFade delay={0.28} inView>
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <a
-                  href={NPM_URL}
+                  href={MAC_DMG_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex h-11 items-center gap-2 rounded-full px-5 text-[0.92rem] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(47,108,235,0.4)] transition hover:opacity-95"
@@ -136,8 +136,8 @@ export default function HomePage() {
                       "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-3))",
                   }}
                 >
-                  <Package className="h-3.5 w-3.5" />
-                  Install for free
+                  <Download className="h-3.5 w-3.5" />
+                  Download for Mac
                 </a>
                 <a
                   href={GITHUB_URL}
@@ -360,13 +360,13 @@ export default function HomePage() {
                   See your spending without handing over your data.
                 </h2>
                 <p className="mt-4 max-w-xl text-[1rem] leading-relaxed text-neutral-500 md:text-[1.05rem]">
-                  Install slash.cash, connect Gmail, and open a private
+                  Download slash.cash for Mac, connect Gmail, and open a private
                   dashboard on your laptop.
                 </p>
               </div>
               <div className="flex flex-col items-stretch gap-3 md:items-end">
                 <a
-                  href={NPM_URL}
+                  href={MAC_DMG_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full px-6 text-[0.92rem] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(47,108,235,0.35)] transition hover:opacity-95 md:w-auto"
@@ -375,8 +375,8 @@ export default function HomePage() {
                       "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-3))",
                   }}
                 >
-                  <Package className="h-4 w-4" />
-                  Install slash.cash
+                  <Download className="h-4 w-4" />
+                  Download for Mac
                 </a>
                 <a
                   href={GITHUB_URL}
@@ -388,8 +388,8 @@ export default function HomePage() {
                   View source
                 </a>
                 <span className="text-center text-[0.85rem] text-neutral-400 md:text-right">
-                  No credit card. No cloud account. Setup starts in your
-                  terminal.
+                  No credit card. No cloud account. Open the app and follow
+                  onboarding.
                 </span>
               </div>
             </div>

@@ -11,7 +11,7 @@ import {
   SheetTrigger,
 } from "@workspace/ui/components/sheet";
 
-import { NPM_URL } from "@/lib/links";
+import { MAC_DMG_URL } from "@/lib/links";
 
 const links = [
   { href: "/#why", label: "Why us" },
@@ -47,7 +47,7 @@ export function MobileNav() {
           ))}
         </nav>
         <a
-          href={NPM_URL}
+          href={MAC_DMG_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-full text-[0.9rem] font-semibold text-white"
@@ -56,7 +56,7 @@ export function MobileNav() {
               "linear-gradient(135deg, var(--slash-grad-1), var(--slash-grad-3))",
           }}
         >
-          Install free
+          Download for Mac
         </a>
       </SheetContent>
     </Sheet>

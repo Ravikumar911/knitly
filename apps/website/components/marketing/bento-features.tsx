@@ -270,14 +270,12 @@ export function BentoFeaturesSecondary() {
             />
             <div className="absolute inset-0 grid place-items-center p-6">
               <code className="rounded-2xl border border-black/5 bg-white px-5 py-4 text-[0.78rem] font-mono leading-relaxed text-neutral-700 shadow-[0_12px_32px_-12px_rgba(47,108,235,0.15)]">
-                <span className="text-neutral-400">$</span>{" "}
-                <span className="text-sky-700">npm i -g</span> slashcash
+                <span className="text-sky-700">Download</span> slash.cash for
+                Mac
                 <br />
-                <span className="text-neutral-400">$</span>{" "}
-                <span className="text-sky-700">slashcash</span> onboard
+                <span className="text-sky-700">Open</span> the app · onboard
                 <br />
-                <span className="text-neutral-400">$</span>{" "}
-                <span className="text-sky-700">slashcash</span> start
+                <span className="text-sky-700">Review</span> spending locally
               </code>
             </div>
           </div>

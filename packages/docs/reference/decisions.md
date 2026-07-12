@@ -4,6 +4,8 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-001 — Reuse the existing Next.js dashboard
 
+> **Scope updated / partially superseded on 2026-07-12 by ADR-028.** The rejection of extracting a new `apps/desktop` still means: do **not** rewrite the dashboard into a separate app. An Electron shell that wraps the **same** `apps/main` dashboard (primary distribution) is in scope under ADR-028. The rest of this ADR is unchanged.
+
 **Decision.** We wrap the existing `apps/main` with a CLI rather than extracting a new app or rewriting. Supabase, Trigger and the remote AI providers are removed from the existing code; the dashboard, tRPC routers, Drizzle schema and the Swiggy analytics structure are kept.
 
 **Why.** The dashboard and query surface are the biggest assets in the codebase. Rewriting them adds months and risks regression on a working UI. The cloud edges are well-scoped and cleanly removable.
@@ -84,6 +86,8 @@ Short architectural decision records. Each entry captures a choice that shapes t
 
 ## ADR-009 — Ship a prebuilt Next.js standalone inside the npm package
 
+> **Scope updated / partially superseded on 2026-07-12 by ADR-028.** The technical choice — prebuilt Next.js standalone, no install-time `next build` — still stands. The artifact destination for end users is the **desktop app** (`extraResources` / **Bundled runtime**), not a public npm product. Do not treat `npm i -g slashcash` as the shipping path.
+
 **Decision.** The CLI's release workflow builds `apps/main` with Next's standalone output and bundles the result inside the published `slashcash` tarball. `slashcash start` detects whether it's running from an installed tarball or from this monorepo and spawns the right server.
 
 **Why.** Running `next build` at install time is slow and fragile (image optimisation, sharp, node-gyp). Shipping a prebuilt tree makes `npm i -g slashcash` reliable and keeps the install fast. Native deps (`better-sqlite3`) ship prebuilds separately.
@@ -121,6 +125,8 @@ Short architectural decision records. Each entry captures a choice that shapes t
 **Revisit if.** Any of the underlying models, prompts or eval sets changes meaningfully.
 
 ## ADR-013 — No dual-run; fully local
+
+> **Scope updated / partially superseded on 2026-07-12 by ADR-028.** Fully local / no dual-run still stands. The marketing CTA is **Download for Mac** (desktop app), not a CLI / npm install. See ADR-028.
 
 **Decision.** There is no cloud mode, no mode switch, no dual build. The hosted app at `app.slash.cash` is being retired as part of this pivot; the marketing site at `slash.cash` is updated at the end of Phase 2 to point at the CLI. The codebase is single-track.
 
@@ -201,6 +207,8 @@ Short architectural decision records. Each entry captures a choice that shapes t
 **Revisit if.** CI hardware changes or published-install dogfood shows the budgets are unrealistic.
 
 ## ADR-021 — Release pipeline shape
+
+> **Superseded for end-user release on 2026-07-12 by ADR-028.** Primary end-user artifacts are GitHub Release desktop packages (`.dmg` / `.zip` / `latest-mac.yml`), not npm publish. Maintainer/dev pack of the bundled runtime may remain separately; do not implement product release against the npm-primary story below.
 
 **Decision.** Releases publish from `vX.Y.Z` tags. The workflow validates the tag against `packages/cli/package.json`, runs the source gates, builds the standalone app, packs the CLI, validates npm metadata and package contents, publishes that exact tarball to npm with provenance, verifies a fresh npm install, and attaches a checksum plus SBOM to the GitHub release. A separate install-smoke workflow runs the packed-install path on PRs and pushes to `main`.
 
@@ -375,3 +383,31 @@ A pinned venv under `~/.slashcash/` (rather than a project-local `pnpm-packed` P
 - `pip install` reliably takes longer than 90 seconds on a normal broadband link (switch to `uv`).
 - Python 3 becomes non-trivial to obtain on macOS (unlikely; Xcode CLT ships Python 3, brew ships current Python).
 - A meaningful fraction of users end up on PEP 668-locked Python installs that also refuse `python -m venv` (no signal of that today on macOS).
+
+## ADR-028 — Desktop is primary distribution; npm CLI install deprecated
+
+**Decision.**
+
+- Primary product distribution is the **Desktop app** (macOS Electron shell around the existing local dashboard and **Bundled runtime**).
+- End users install via the website **Download for Mac** CTA → GitHub Release artifacts (`.dmg` for humans, `.zip` + `latest-mac.yml` for electron-updater).
+- `packages/cli` (`slashcash`) remains as the **Bundled runtime** inside the desktop app — it supervises the local server and machine-side setup. It is **not** a supported global npm install path for end users.
+- Public **npm publish** and **`npm i -g slashcash` CTAs are deprecated** for the product.
+- **Desktop onboarding** (first-launch UI in the desktop app) replaces end-user `slashcash onboard` as the canonical setup path.
+- The **State directory** stays `~/.slashcash/` for config, SQLite, attachments, and related local state — not Electron `userData` as a separate product store.
+
+**Why.** A non-developer-friendly install, one primary path, and alignment with the locked “Desktop becomes primary distribution” product map. Keeping npm as co-equal product distribution leaves conflicting “CLI is the product” principles in vision and architecture.
+
+**Updates / partially supersedes.**
+
+- Vision and architecture language that banned a desktop GUI / listed “desktop shell” as not-in-v1, and that treated npm + CLI as the product.
+- End-user reading of **ADR-001**’s rejection of `apps/desktop` (rewrite still rejected; Electron wrap of the same dashboard is allowed).
+- **ADR-009** / **ADR-021** npm-as-product release destination (prebuilt standalone and pack mechanics may remain for the bundled runtime).
+- **ADR-013** marketing → CLI (CTA → Download for Mac).
+
+**Rejected.**
+
+- Keeping npm / `npm i -g slashcash` as a co-equal supported install for end users.
+- Using Electron `userData` / Application Support as the product data home instead of `~/.slashcash/`.
+- Deleting `packages/cli` entirely (the bundled runtime still needs it).
+
+**Revisit if.** Signing/notarization changes how we distribute; Windows or Linux desktop ships; or we intentionally return a supported CLI-only install path for power users.

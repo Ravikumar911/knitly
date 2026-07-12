@@ -1,45 +1,14 @@
-import { existsSync } from "node:fs";
-import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { platform } from "node:os";
 import { dirname, join } from "node:path";
-import pc from "picocolors";
-import {
-  describeCredentialStore,
-  readAssistantCredential,
-  readStoredCredentials,
-  writeAssistantCredential,
-  writeStoredCredentials,
-} from "../config/credentials.js";
-import { loadConfig, writeConfig } from "../config/load.js";
-import type { SlashcashConfig } from "../config/schema.js";
-import {
-  ensureStateDirs,
-  resolvePaths,
-  type SlashcashPaths,
-} from "../config/paths.js";
-import { CliError } from "../errors/format.js";
-import { ensureDashboardService } from "../daemon/service.js";
-import { ensurePythonEnvReady } from "../python/env.js";
-import { resolveDashboardLaunch } from "../start/resolve-server.js";
-import { loadDatabase } from "../runtime/database.js";
-import { loadImapClient } from "../runtime/tasks.js";
-import {
-  commandExists,
-  runCommand,
-  runInteractive,
-} from "../runtime/subprocess.js";
-import { installBundledSkills } from "../skills/registry.js";
+import type { SlashcashConfig } from "../local-state/schema";
 import {
   FINAL_SUMMARY,
   PRE_APP_PASSWORD_INPUT,
   TOP_BANNER,
-} from "../privacy/copy.js";
-import {
-  createClackPrompter,
-  WizardCancelledError,
-} from "../wizard/clack-prompter.js";
-import type { WizardPrompter } from "../wizard/prompts.js";
+} from "./privacy";
+import type { OnboardContext, OnboardStep } from "./pipeline";
+import { OnboardError } from "./types";
 
 const HOMEBREW_INSTALL_URL = "https://brew.sh/";
 const APP_PASSWORD_URL = "https://myaccount.google.com/apppasswords";
@@ -57,87 +26,7 @@ type HostedAssistantProvider = Extract<
   "openai-compatible" | "anthropic"
 >;
 
-type DetectResult =
-  | { done: true; message?: string }
-  | { done: false; message?: string };
-
-type OnboardContext = {
-  paths: SlashcashPaths;
-  config: SlashcashConfig;
-  dryRun: boolean;
-  skipExternal: boolean;
-  yes: boolean;
-  nonInteractive: boolean;
-  freshConfig: boolean;
-  prompter: WizardPrompter;
-  pendingPassword: string | null;
-  credentialStore: "keychain" | "file" | null;
-};
-
-type Step = {
-  id: string;
-  label: string;
-  detect(ctx: OnboardContext): Promise<DetectResult> | DetectResult;
-  install(ctx: OnboardContext): Promise<void> | void;
-  verify(ctx: OnboardContext): Promise<void> | void;
-};
-
-export async function runOnboard(
-  options: {
-    dryRun?: boolean;
-    skipExternal?: boolean;
-    yes?: boolean;
-    nonInteractive?: boolean;
-  } = {},
-) {
-  const paths = resolvePaths();
-  const freshConfig = !existsSync(paths.config);
-  const ctx: OnboardContext = {
-    paths,
-    config: loadConfig({ createIfMissing: true }),
-    dryRun: options.dryRun === true,
-    skipExternal: options.skipExternal === true || options.dryRun === true,
-    yes: options.yes === true,
-    nonInteractive: options.nonInteractive === true,
-    freshConfig,
-    prompter: createClackPrompter(),
-    pendingPassword: null,
-    credentialStore: null,
-  };
-
-  const activeState = { step: "welcome" };
-  const onCancel = () => {
-    console.error(
-      `\nCancelled at step ${activeState.step}. Run \`slashcash doctor --fix\` to resume.`,
-    );
-    process.exit(130);
-  };
-
-  process.once("SIGINT", onCancel);
-
-  try {
-    ctx.prompter.intro("slashcash setup");
-    if (process.env.SLASHCASH_E2E !== "1") {
-      ctx.prompter.note(TOP_BANNER);
-    }
-
-    await runPipeline(ctx, buildSteps(), activeState);
-    printFinalSummary(ctx);
-    ctx.prompter.outro(
-      `Onboarding complete. Run \`slashcash start\` to launch http://${ctx.config.server.host}:${ctx.config.server.port}.`,
-    );
-  } catch (error) {
-    if (error instanceof WizardCancelledError) {
-      process.exitCode = 130;
-      return;
-    }
-    throw error;
-  } finally {
-    process.off("SIGINT", onCancel);
-  }
-}
-
-function buildSteps(): Step[] {
+export function buildOnboardSteps(): OnboardStep[] {
   return [
     welcomeStep,
     assistantProviderStep,
@@ -159,73 +48,12 @@ function buildSteps(): Step[] {
   ];
 }
 
-async function runPipeline(
-  ctx: OnboardContext,
-  steps: Step[],
-  activeState: { step: string },
-) {
-  for (const step of steps) {
-    activeState.step = step.id;
-    const detected = await step.detect(ctx);
-    if (detected.done) {
-      console.log(
-        `${pc.green("done")} ${step.label}${detected.message ? `: ${detected.message}` : ""}`,
-      );
-      continue;
-    }
-
-    await step.install(ctx);
-    await step.verify(ctx);
-    console.log(pc.green(`done ${step.label}`));
-  }
+export function listOnboardStepIds() {
+  return buildOnboardSteps().map((step) => step.id);
 }
 
 function isSkipped(ctx: OnboardContext) {
   return ctx.skipExternal || process.env.SLASHCASH_E2E === "1";
-}
-
-function browserOpenCommand(url: string) {
-  if (platform() === "darwin") {
-    return { command: "open", args: [url] };
-  }
-  if (platform() === "win32") {
-    return { command: "cmd", args: ["/c", "start", "", url] };
-  }
-  return { command: "xdg-open", args: [url] };
-}
-
-function openUrlInDefaultBrowser(url: string) {
-  const { command, args } = browserOpenCommand(url);
-  const result = runCommand(command, args, { timeoutMs: 10_000 });
-  if (!result.ok) {
-    throw new Error(
-      result.stderr.trim() ||
-        result.stdout.trim() ||
-        `\`${command}\` exited with ${result.code ?? "no code"}`,
-    );
-  }
-}
-
-async function promptToOpenAppPasswordPage(ctx: OnboardContext) {
-  await ctx.prompter.text({
-    message: "Press Enter to open Google App Passwords in your browser.",
-  });
-
-  const stepSpinner = ctx.prompter.spinner();
-  stepSpinner.start("Opening Google App Passwords");
-  try {
-    openUrlInDefaultBrowser(APP_PASSWORD_URL);
-    stepSpinner.stop("Opened Google App Passwords");
-  } catch (error) {
-    stepSpinner.error("Could not open Google App Passwords");
-    throw new CliError({
-      area: "auth",
-      symptom: "Could not open the Google App Passwords page.",
-      cause: error instanceof Error ? error.message : String(error),
-      fix: "Rerun `slashcash onboard` from a desktop session where the OS browser opener is available.",
-      docs: APP_PASSWORD_URL,
-    });
-  }
 }
 
 function isHostedAssistant(ctx: OnboardContext) {
@@ -283,43 +111,32 @@ function setAssistantConfig(
     ctx.config.ai.chatModel = ctx.config.assistant.chatModel;
     ctx.config.ai.visionModel ||= ctx.config.assistant.chatModel;
   }
-  writeConfig(ctx.config);
+  ctx.host.writeConfig(ctx.config);
 }
 
-const homebrewStep: Step = {
-  id: "homebrew",
-  label: "Homebrew",
-  detect(ctx) {
-    if (isSkipped(ctx)) {
-      return { done: true, message: "skipped by local/E2E mode" };
-    }
-    if (isHostedAssistant(ctx)) {
-      return { done: true, message: "hosted assistant provider" };
-    }
-    if (platform() !== "darwin") {
-      return { done: true, message: "not required on this platform" };
-    }
-    return commandExists("brew")
-      ? { done: true, message: "installed" }
-      : { done: false };
-  },
-  install() {
-    throw new CliError({
-      area: "binary",
-      symptom: "Homebrew is required.",
-      cause: "slashcash uses Homebrew to install Ollama on macOS.",
-      fix: `Install Homebrew from ${HOMEBREW_INSTALL_URL}, then rerun \`slashcash onboard\`.`,
-      docs: HOMEBREW_INSTALL_URL,
-    });
-  },
-  verify() {
-    if (!commandExists("brew")) {
-      throw new Error("brew is still missing from PATH.");
-    }
-  },
-};
+async function promptToOpenAppPasswordPage(ctx: OnboardContext) {
+  await ctx.ui.text({
+    message: "Press Enter to open Google App Passwords in your browser.",
+  });
 
-const welcomeStep: Step = {
+  const stepSpinner = ctx.ui.spinner();
+  stepSpinner.start("Opening Google App Passwords");
+  try {
+    ctx.host.openUrl(APP_PASSWORD_URL);
+    stepSpinner.stop("Opened Google App Passwords");
+  } catch (error) {
+    stepSpinner.error("Could not open Google App Passwords");
+    throw new OnboardError({
+      area: "auth",
+      symptom: "Could not open the Google App Passwords page.",
+      cause: error instanceof Error ? error.message : String(error),
+      fix: "Open https://myaccount.google.com/apppasswords in your browser, then continue setup.",
+      docs: APP_PASSWORD_URL,
+    });
+  }
+}
+
+const welcomeStep: OnboardStep = {
   id: "welcome",
   label: "Welcome",
   detect() {
@@ -329,7 +146,7 @@ const welcomeStep: Step = {
   verify() {},
 };
 
-const assistantProviderStep: Step = {
+const assistantProviderStep: OnboardStep = {
   id: "assistant-provider",
   label: "Assistant provider",
   async detect(ctx) {
@@ -346,7 +163,7 @@ const assistantProviderStep: Step = {
     if (ctx.config.assistant.provider !== "none" && !ctx.freshConfig) {
       const provider = ctx.config.assistant.provider;
       if (isHostedAssistantProvider(provider)) {
-        const existing = await readAssistantCredential(provider);
+        const existing = await ctx.host.readAssistantCredential(provider);
         if (!existing) {
           return { done: false, message: "missing assistant API key" };
         }
@@ -366,7 +183,7 @@ const assistantProviderStep: Step = {
     }
     const provider = ctx.config.assistant.provider;
     if (isHostedAssistantProvider(provider)) {
-      const existing = await readAssistantCredential(provider);
+      const existing = await ctx.host.readAssistantCredential(provider);
       if (!existing) {
         return { done: false, message: "missing assistant API key" };
       }
@@ -375,16 +192,16 @@ const assistantProviderStep: Step = {
   },
   async install(ctx) {
     if (ctx.nonInteractive) {
-      throw new CliError({
+      throw new OnboardError({
         area: "config",
         symptom: "Onboarding needs an assistant provider choice.",
         cause:
-          "`--non-interactive` was passed before the assistant provider was configured.",
-        fix: "Run `slashcash onboard --yes` to use local Ollama, or run `slashcash assistant install` first.",
+          "`nonInteractive` was set before the assistant provider was configured.",
+        fix: "Pass yes: true to use local Ollama, or configure the assistant provider first.",
       });
     }
 
-    const provider = await ctx.prompter.select({
+    const provider = await ctx.ui.select({
       message: "Where should slash.cash run extraction and chat?",
       initialValue:
         ctx.config.assistant.provider === "none"
@@ -409,13 +226,12 @@ const assistantProviderStep: Step = {
       ],
     });
 
-    const defaults = providerDefaults(provider);
-    setAssistantConfig(ctx, defaults);
+    setAssistantConfig(ctx, providerDefaults(provider));
 
     if (provider === "openai-compatible" || provider === "anthropic") {
-      const existing = await readAssistantCredential(provider);
+      const existing = await ctx.host.readAssistantCredential(provider);
       if (!existing) {
-        const apiKey = await ctx.prompter.password({
+        const apiKey = await ctx.ui.password({
           message:
             provider === "anthropic"
               ? "Paste the Anthropic API key."
@@ -424,7 +240,7 @@ const assistantProviderStep: Step = {
             return value?.trim() ? undefined : "API key is required.";
           },
         });
-        await writeAssistantCredential({ provider, apiKey });
+        await ctx.host.writeAssistantCredential({ provider, apiKey });
       }
     }
   },
@@ -435,7 +251,40 @@ const assistantProviderStep: Step = {
   },
 };
 
-const modelQuestionStep: Step = {
+const homebrewStep: OnboardStep = {
+  id: "homebrew",
+  label: "Homebrew",
+  detect(ctx) {
+    if (isSkipped(ctx)) {
+      return { done: true, message: "skipped by local/E2E mode" };
+    }
+    if (isHostedAssistant(ctx)) {
+      return { done: true, message: "hosted assistant provider" };
+    }
+    if (platform() !== "darwin") {
+      return { done: true, message: "not required on this platform" };
+    }
+    return ctx.host.commandExists("brew")
+      ? { done: true, message: "installed" }
+      : { done: false };
+  },
+  install() {
+    throw new OnboardError({
+      area: "binary",
+      symptom: "Homebrew is required.",
+      cause: "slashcash uses Homebrew to install Ollama on macOS.",
+      fix: `Install Homebrew from ${HOMEBREW_INSTALL_URL}, then resume setup.`,
+      docs: HOMEBREW_INSTALL_URL,
+    });
+  },
+  verify(ctx) {
+    if (!ctx.host.commandExists("brew")) {
+      throw new Error("brew is still missing from PATH.");
+    }
+  },
+};
+
+const modelQuestionStep: OnboardStep = {
   id: "chat-model",
   label: "Chat model",
   detect(ctx) {
@@ -452,16 +301,15 @@ const modelQuestionStep: Step = {
   },
   async install(ctx) {
     if (ctx.nonInteractive) {
-      throw new CliError({
+      throw new OnboardError({
         area: "config",
         symptom: "Onboarding needs one model choice.",
-        cause:
-          "`--non-interactive` was passed without a saved config or `--yes`.",
-        fix: "Run `slashcash onboard --yes` to accept the default model.",
+        cause: "`nonInteractive` was set without a saved config or yes: true.",
+        fix: "Pass yes: true to accept the default model.",
       });
     }
 
-    const model = await ctx.prompter.select({
+    const model = await ctx.ui.select({
       message: "Choose the local chat model.",
       initialValue: ctx.config.assistant.chatModel || DEFAULT_OLLAMA_CHAT_MODEL,
       options: [
@@ -477,7 +325,7 @@ const modelQuestionStep: Step = {
     ctx.config.ai.chatModel = model;
     ctx.config.ai.ollamaBaseUrl = ctx.config.assistant.baseUrl;
     ctx.config.ai.visionModel ||= model;
-    writeConfig(ctx.config);
+    ctx.host.writeConfig(ctx.config);
   },
   verify(ctx) {
     if (!ctx.config.assistant.chatModel.trim()) {
@@ -486,7 +334,7 @@ const modelQuestionStep: Step = {
   },
 };
 
-const ollamaInstallStep: Step = {
+const ollamaInstallStep: OnboardStep = {
   id: "ollama-install",
   label: "Ollama install",
   detect(ctx) {
@@ -496,23 +344,23 @@ const ollamaInstallStep: Step = {
     if (isHostedAssistant(ctx)) {
       return { done: true, message: "hosted assistant provider" };
     }
-    return commandExists("ollama")
+    return ctx.host.commandExists("ollama")
       ? { done: true, message: "installed" }
       : { done: false };
   },
   install(ctx) {
     if (platform() !== "darwin") {
-      throw new CliError({
+      throw new OnboardError({
         area: "binary",
         symptom: "Ollama is required for the local assistant provider.",
         cause: "slash.cash could not find `ollama` in PATH.",
-        fix: "Install Ollama for your platform from https://ollama.com/download, then rerun `slashcash onboard`.",
+        fix: "Install Ollama for your platform from https://ollama.com/download, then resume setup.",
         docs: "https://ollama.com/download",
       });
     }
-    const stepSpinner = ctx.prompter.spinner();
+    const stepSpinner = ctx.ui.spinner();
     stepSpinner.start("Installing Ollama with Homebrew");
-    const result = runCommand("brew", ["install", OLLAMA_FORMULA], {
+    const result = ctx.host.runCommand("brew", ["install", OLLAMA_FORMULA], {
       timeoutMs: 10 * 60_000,
     });
     if (!result.ok) {
@@ -523,14 +371,14 @@ const ollamaInstallStep: Step = {
     }
     stepSpinner.stop("Ollama installed");
   },
-  verify() {
-    if (!commandExists("ollama")) {
+  verify(ctx) {
+    if (!ctx.host.commandExists("ollama")) {
       throw new Error("ollama is still missing from PATH.");
     }
   },
 };
 
-const ollamaServiceStep: Step = {
+const ollamaServiceStep: OnboardStep = {
   id: "ollama-service",
   label: "Ollama service",
   async detect(ctx) {
@@ -540,42 +388,42 @@ const ollamaServiceStep: Step = {
     if (isHostedAssistant(ctx)) {
       return { done: true, message: "hosted assistant provider" };
     }
-    return (await isOllamaReachable(ctx.config.assistant.baseUrl, 250))
+    return (await ctx.host.isOllamaReachable(ctx.config.assistant.baseUrl, 250))
       ? { done: true, message: "reachable" }
       : { done: false };
   },
   async install(ctx) {
-    const stepSpinner = ctx.prompter.spinner();
+    const stepSpinner = ctx.ui.spinner();
     stepSpinner.start("Starting Ollama background service");
-    if (platform() === "darwin" && commandExists("brew")) {
-      runCommand("brew", ["services", "start", OLLAMA_FORMULA], {
+    if (platform() === "darwin" && ctx.host.commandExists("brew")) {
+      ctx.host.runCommand("brew", ["services", "start", OLLAMA_FORMULA], {
         timeoutMs: 60_000,
       });
     } else {
-      const child = spawn("ollama", ["serve"], {
-        detached: true,
-        stdio: "ignore",
-      });
-      child.unref();
+      ctx.host.runCommand("ollama", ["serve"], { timeoutMs: 1_000 });
     }
-    if (!(await isOllamaReachable(ctx.config.assistant.baseUrl, 20_000))) {
+    if (
+      !(await ctx.host.isOllamaReachable(ctx.config.assistant.baseUrl, 20_000))
+    ) {
       stepSpinner.error("Ollama did not become reachable");
       throw new Error(
         platform() === "darwin"
           ? "Ollama did not become reachable. Try: brew services restart ollama"
-          : "Ollama did not become reachable. Start `ollama serve` and rerun onboarding.",
+          : "Ollama did not become reachable. Start `ollama serve` and resume setup.",
       );
     }
     stepSpinner.stop("Ollama service is reachable");
   },
   async verify(ctx) {
-    if (!(await isOllamaReachable(ctx.config.assistant.baseUrl, 1_000))) {
+    if (
+      !(await ctx.host.isOllamaReachable(ctx.config.assistant.baseUrl, 1_000))
+    ) {
       throw new Error("Ollama is not reachable.");
     }
   },
 };
 
-const ollamaPullStep: Step = {
+const ollamaPullStep: OnboardStep = {
   id: "ollama-pull",
   label: "Ollama model",
   detect(ctx) {
@@ -585,16 +433,16 @@ const ollamaPullStep: Step = {
     if (isHostedAssistant(ctx)) {
       return { done: true, message: "hosted assistant provider" };
     }
-    const list = runCommand("ollama", ["list"], { timeoutMs: 15_000 });
+    const list = ctx.host.runCommand("ollama", ["list"], { timeoutMs: 15_000 });
     if (!list.ok) return { done: false };
     return list.stdout.includes(ctx.config.assistant.chatModel)
       ? { done: true, message: ctx.config.assistant.chatModel }
       : { done: false };
   },
   async install(ctx) {
-    const stepSpinner = ctx.prompter.spinner();
+    const stepSpinner = ctx.ui.spinner();
     stepSpinner.start(`Pulling ${ctx.config.assistant.chatModel}`);
-    const code = await runInteractive("ollama", [
+    const code = await ctx.host.runInteractive("ollama", [
       "pull",
       ctx.config.assistant.chatModel,
     ]);
@@ -605,7 +453,7 @@ const ollamaPullStep: Step = {
     stepSpinner.stop(`${ctx.config.assistant.chatModel} is ready`);
   },
   verify(ctx) {
-    const list = runCommand("ollama", ["list"], { timeoutMs: 15_000 });
+    const list = ctx.host.runCommand("ollama", ["list"], { timeoutMs: 15_000 });
     if (!list.ok || !list.stdout.includes(ctx.config.assistant.chatModel)) {
       throw new Error(
         `${ctx.config.assistant.chatModel} is not available in ollama.`,
@@ -614,7 +462,7 @@ const ollamaPullStep: Step = {
   },
 };
 
-const gmailAccountStep: Step = {
+const gmailAccountStep: OnboardStep = {
   id: "gmail-account",
   label: "Gmail account",
   detect(ctx) {
@@ -626,16 +474,16 @@ const gmailAccountStep: Step = {
   },
   async install(ctx) {
     if (ctx.nonInteractive) {
-      throw new CliError({
+      throw new OnboardError({
         area: "auth",
         symptom: "A Gmail address is required.",
         cause:
-          "`--non-interactive` was passed before Gmail credentials were configured.",
-        fix: "Run `slashcash onboard` interactively and enter the Gmail address you want to sync.",
+          "`nonInteractive` was set before Gmail credentials were configured.",
+        fix: "Enter the Gmail address you want to sync during interactive setup.",
       });
     }
 
-    const address = await ctx.prompter.text({
+    const address = await ctx.ui.text({
       message: "Enter the Gmail address to sync.",
       placeholder: "you@gmail.com",
       defaultValue: ctx.config.gmail.address || undefined,
@@ -647,7 +495,7 @@ const gmailAccountStep: Step = {
     });
 
     ctx.config.gmail.address = address.trim().toLowerCase();
-    writeConfig(ctx.config);
+    ctx.host.writeConfig(ctx.config);
   },
   verify(ctx) {
     if (!isEmailAddress(ctx.config.gmail.address)) {
@@ -656,7 +504,7 @@ const gmailAccountStep: Step = {
   },
 };
 
-const gmailAppPasswordStep: Step = {
+const gmailAppPasswordStep: OnboardStep = {
   id: "gmail-app-password",
   label: "Gmail app password",
   async detect(ctx) {
@@ -664,7 +512,7 @@ const gmailAppPasswordStep: Step = {
       return { done: true, message: "skipped by local/E2E mode" };
     }
 
-    const credentials = await readStoredCredentials();
+    const credentials = await ctx.host.readStoredCredentials();
     if (
       credentials &&
       credentials.address === ctx.config.gmail.address.trim().toLowerCase()
@@ -672,7 +520,7 @@ const gmailAppPasswordStep: Step = {
       ctx.credentialStore = credentials.store;
       return {
         done: true,
-        message: describeCredentialStore(credentials.store),
+        message: ctx.host.describeCredentialStore(credentials.store),
       };
     }
 
@@ -680,19 +528,19 @@ const gmailAppPasswordStep: Step = {
   },
   async install(ctx) {
     if (ctx.nonInteractive) {
-      throw new CliError({
+      throw new OnboardError({
         area: "auth",
         symptom: "A Gmail app password is required.",
         cause:
-          "`--non-interactive` was passed before Gmail IMAP credentials were configured.",
-        fix: "Run `slashcash onboard` interactively, generate an app password, and paste it into the wizard.",
+          "`nonInteractive` was set before Gmail IMAP credentials were configured.",
+        fix: "Generate an app password and paste it into the setup wizard.",
         docs: APP_PASSWORD_URL,
       });
     }
 
-    ctx.prompter.note(PRE_APP_PASSWORD_INPUT, "Gmail app password");
+    ctx.ui.note(PRE_APP_PASSWORD_INPUT, "Gmail app password");
     await promptToOpenAppPasswordPage(ctx);
-    const password = await ctx.prompter.password({
+    const password = await ctx.ui.password({
       message: "Paste the 16-character Gmail app password.",
       validate(value) {
         const normalized = normalizeAppPassword(value);
@@ -710,7 +558,7 @@ const gmailAppPasswordStep: Step = {
   },
 };
 
-const imapVerifyStep: Step = {
+const imapVerifyStep: OnboardStep = {
   id: "imap-verify",
   label: "Gmail IMAP verify",
   async detect(ctx) {
@@ -718,7 +566,7 @@ const imapVerifyStep: Step = {
       return { done: true, message: "skipped by local/E2E mode" };
     }
 
-    const credentials = await readStoredCredentials();
+    const credentials = await ctx.host.readStoredCredentials();
     if (
       credentials &&
       credentials.address === ctx.config.gmail.address.trim().toLowerCase() &&
@@ -734,25 +582,23 @@ const imapVerifyStep: Step = {
     return { done: false };
   },
   async install(ctx) {
-    const { verifyImapLogin } = await loadImapClient();
-
     while (true) {
-      const stepSpinner = ctx.prompter.spinner();
+      const stepSpinner = ctx.ui.spinner();
       stepSpinner.start(`Verifying ${ctx.config.gmail.imapServer}`);
-      const result = await verifyImapLogin({
+      const result = await ctx.host.verifyImapLogin({
         address: ctx.config.gmail.address,
         appPassword: ctx.pendingPassword || undefined,
       });
 
       if (result.ok) {
-        const stored = await writeStoredCredentials({
+        const stored = await ctx.host.writeStoredCredentials({
           address: ctx.config.gmail.address,
           appPassword: ctx.pendingPassword || "",
         });
         ctx.credentialStore = stored.store;
         ctx.pendingPassword = null;
         ctx.config.gmail.passwordStore = stored.store;
-        writeConfig(ctx.config);
+        ctx.host.writeConfig(ctx.config);
         stepSpinner.stop(`Connected as ${stored.address}`);
         return;
       }
@@ -768,7 +614,7 @@ const imapVerifyStep: Step = {
         });
       }
 
-      ctx.prompter.note(
+      ctx.ui.note(
         [
           `symptom: ${result.error.symptom}`,
           `cause: ${result.error.cause}`,
@@ -777,7 +623,7 @@ const imapVerifyStep: Step = {
         "Gmail IMAP check failed",
       );
 
-      const retry = await ctx.prompter.confirm({
+      const retry = await ctx.ui.confirm({
         message: "Retry with a different app password?",
         initialValue: true,
       });
@@ -792,7 +638,7 @@ const imapVerifyStep: Step = {
       }
 
       await promptToOpenAppPasswordPage(ctx);
-      const password = await ctx.prompter.password({
+      const password = await ctx.ui.password({
         message: "Paste a new Gmail app password.",
         validate(value) {
           const normalized = normalizeAppPassword(value);
@@ -805,50 +651,44 @@ const imapVerifyStep: Step = {
     }
   },
   async verify(ctx) {
-    const credentials = await readStoredCredentials();
+    const credentials = await ctx.host.readStoredCredentials();
     if (!credentials) {
       throw new Error("gmail credentials were not saved.");
     }
   },
 };
 
-const stateDirStep: Step = {
+const stateDirStep: OnboardStep = {
   id: "state-dir",
   label: "State directory",
   detect(ctx) {
-    ensureStateDirs(ctx.paths);
+    ctx.host.ensureStateDirs(ctx.paths);
     return { done: true, message: ctx.paths.home };
   },
   install(ctx) {
-    ensureStateDirs(ctx.paths);
+    ctx.host.ensureStateDirs(ctx.paths);
   },
   verify(ctx) {
-    ensureStateDirs(ctx.paths);
+    ctx.host.ensureStateDirs(ctx.paths);
   },
 };
 
-const dbMigrateStep: Step = {
+const dbMigrateStep: OnboardStep = {
   id: "db-migrate",
   label: "SQLite database",
   async detect(ctx) {
-    process.env.SQLITE_DB_PATH = ctx.paths.db;
-    const { ensureLocalDatabase } = await loadDatabase();
-    ensureLocalDatabase();
+    await ctx.host.ensureLocalDatabase(ctx.paths.db);
     return { done: true, message: ctx.paths.db };
   },
   async install(ctx) {
-    process.env.SQLITE_DB_PATH = ctx.paths.db;
-    const { ensureLocalDatabase } = await loadDatabase();
-    ensureLocalDatabase();
+    await ctx.host.ensureLocalDatabase(ctx.paths.db);
   },
   async verify(ctx) {
-    process.env.SQLITE_DB_PATH = ctx.paths.db;
-    const { ensureLocalDatabase } = await loadDatabase();
-    ensureLocalDatabase();
+    await ctx.host.ensureLocalDatabase(ctx.paths.db);
   },
 };
 
-const localProfileStep: Step = {
+const localProfileStep: OnboardStep = {
   id: "local-profile",
   label: "Local profile",
   async detect(ctx) {
@@ -857,53 +697,43 @@ const localProfileStep: Step = {
       return { done: true, message: "local placeholder" };
     }
 
-    process.env.SQLITE_DB_PATH = ctx.paths.db;
-    const { ensureLocalDatabase, getLocalProfileIdentity, LOCAL_USER_ID } =
-      await loadDatabase();
-    ensureLocalDatabase();
-
-    const profile = await getLocalProfileIdentity(LOCAL_USER_ID);
-    return profile.email === email
+    const profileEmail = await ctx.host.getLocalProfileEmail(ctx.paths.db);
+    return profileEmail === email
       ? { done: true, message: email }
       : { done: false };
   },
   async install(ctx) {
-    await syncLocalProfile(ctx);
+    const email = normalizedGmailAddress(ctx);
+    if (!email) return;
+    await ctx.host.syncLocalProfileEmail(ctx.paths.db, email);
   },
   async verify(ctx) {
     const email = normalizedGmailAddress(ctx);
-    if (!email) {
-      return;
-    }
+    if (!email) return;
 
-    process.env.SQLITE_DB_PATH = ctx.paths.db;
-    const { ensureLocalDatabase, getLocalProfileIdentity, LOCAL_USER_ID } =
-      await loadDatabase();
-    ensureLocalDatabase();
-
-    const profile = await getLocalProfileIdentity(LOCAL_USER_ID);
-    if (profile.email !== email) {
+    const profileEmail = await ctx.host.getLocalProfileEmail(ctx.paths.db);
+    if (profileEmail !== email) {
       throw new Error("local profile email did not update.");
     }
   },
 };
 
-const bundledSkillsStep: Step = {
+const bundledSkillsStep: OnboardStep = {
   id: "bundled-skills",
   label: "Bundled skills",
-  detect() {
-    installBundledSkills();
+  detect(ctx) {
+    ctx.host.installBundledSkills();
     return { done: true, message: "gmail-swiggy installed" };
   },
-  install() {
-    installBundledSkills();
+  install(ctx) {
+    ctx.host.installBundledSkills();
   },
-  verify() {
-    installBundledSkills();
+  verify(ctx) {
+    ctx.host.installBundledSkills();
   },
 };
 
-const pythonEnvStep: Step = {
+const pythonEnvStep: OnboardStep = {
   id: "python-env",
   label: "PDF extractor",
   async detect(ctx) {
@@ -914,10 +744,9 @@ const pythonEnvStep: Step = {
       return { done: true, message: "disabled" };
     }
 
-    const result = await ensurePythonEnvReady({
+    const result = await ctx.host.ensurePythonEnvReady({
       config: ctx.config,
       paths: ctx.paths,
-      fix: false,
     });
     if (!result.ok) {
       return { done: false };
@@ -926,11 +755,14 @@ const pythonEnvStep: Step = {
     return { done: true, message: result.runtime.pythonBin };
   },
   async install(ctx) {
-    const pid = startDetachedCommand(ctx, ["doctor", "--fix", "--quick"]);
-    console.log(
-      pc.yellow(
-        `Installing PDF extractor in the background (pid ${pid}); sync will use body-only extraction until it is ready.`,
-      ),
+    const pid = ctx.host.startDetachedCommand(ctx.paths, [
+      "doctor",
+      "--fix",
+      "--quick",
+    ]);
+    ctx.ui.note(
+      `Installing PDF extractor in the background (pid ${pid}); sync will use body-only extraction until it is ready.`,
+      "PDF extractor",
     );
   },
   verify() {
@@ -938,7 +770,7 @@ const pythonEnvStep: Step = {
   },
 };
 
-const kickoffSyncStep: Step = {
+const kickoffSyncStep: OnboardStep = {
   id: "kickoff-sync",
   label: "Initial sync",
   detect(ctx) {
@@ -948,7 +780,7 @@ const kickoffSyncStep: Step = {
     return { done: false };
   },
   install(ctx) {
-    const pid = startDetachedCommand(ctx, ["sync", "--full"]);
+    const pid = ctx.host.startDetachedCommand(ctx.paths, ["sync", "--full"]);
     const pidPath = join(ctx.paths.home, "pid", "sync.pid");
     mkdirSync(dirname(pidPath), { recursive: true });
     writeFileSync(pidPath, `${pid}\n`, { mode: 0o600 });
@@ -961,14 +793,14 @@ const kickoffSyncStep: Step = {
   },
 };
 
-const dashboardServiceStep: Step = {
+const dashboardServiceStep: OnboardStep = {
   id: "dashboard-service",
   label: "Dashboard service",
   detect(ctx) {
     if (ctx.dryRun || process.env.SLASHCASH_E2E === "1") {
       return { done: true, message: "skipped by local/E2E mode" };
     }
-    if (resolveDashboardLaunch().mode !== "packaged") {
+    if (ctx.host.resolveDashboardLaunchMode() !== "packaged") {
       return { done: true, message: "dev mode" };
     }
     if (process.platform !== "darwin") {
@@ -977,63 +809,28 @@ const dashboardServiceStep: Step = {
     return { done: false };
   },
   async install(ctx) {
-    await ensureDashboardService({ port: ctx.config.server.port });
+    await ctx.host.ensureDashboardService({ port: ctx.config.server.port });
   },
-  verify(ctx) {
+  verify() {
     return;
   },
 };
 
-function printFinalSummary(ctx: OnboardContext) {
-  console.log(pc.green("Local slash.cash state is ready."));
-  console.log(`home        ${ctx.paths.home}`);
-  console.log(`database    ${ctx.paths.db}`);
-  console.log(`skills      ${ctx.paths.skills}`);
-  console.log(
-    `dashboard   http://${ctx.config.server.host}:${ctx.config.server.port}`,
-  );
-  console.log(`assistant   ${ctx.config.assistant.provider}`);
-  console.log(
-    FINAL_SUMMARY({
-      credentialStore: describeCredentialStore(ctx.credentialStore),
+export function buildFinalSummary(ctx: OnboardContext) {
+  return {
+    home: ctx.paths.home,
+    database: ctx.paths.db,
+    skills: ctx.paths.skills,
+    dashboard: `http://${ctx.config.server.host}:${ctx.config.server.port}`,
+    assistant: ctx.config.assistant.provider,
+    privacy: FINAL_SUMMARY({
+      credentialStore: ctx.host.describeCredentialStore(ctx.credentialStore),
     }),
-  );
+  };
 }
 
-function startDetachedCommand(ctx: OnboardContext, args: string[]) {
-  const child = spawn("pnpm", ["--filter", "slashcash", "dev", "--", ...args], {
-    cwd: process.cwd(),
-    detached: true,
-    stdio: "ignore",
-    env: {
-      ...process.env,
-      SLASHCASH_HOME: ctx.paths.home,
-      SQLITE_DB_PATH: ctx.paths.db,
-      SLASHCASH_ATTACHMENTS_DIR: ctx.paths.attachments,
-    },
-  });
-  child.unref();
-  return child.pid ?? 0;
-}
-
-async function isOllamaReachable(baseUrl: string, timeoutMs: number) {
-  const endpoint = new URL(baseUrl);
-  endpoint.pathname = "/api/tags";
-  const started = Date.now();
-
-  while (Date.now() - started < timeoutMs) {
-    try {
-      const response = await fetch(endpoint, {
-        signal: AbortSignal.timeout(Math.min(1_000, timeoutMs)),
-      });
-      if (response.ok) return true;
-    } catch {
-      // Retry until the outer timeout expires.
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-
-  return false;
+export function privacyTopBanner() {
+  return TOP_BANNER;
 }
 
 function isEmailAddress(value: string | undefined) {
@@ -1047,17 +844,4 @@ function normalizeAppPassword(value: string | undefined) {
 function normalizedGmailAddress(ctx: OnboardContext) {
   const email = ctx.config.gmail.address.trim().toLowerCase();
   return email || null;
-}
-
-async function syncLocalProfile(ctx: OnboardContext) {
-  const email = normalizedGmailAddress(ctx);
-  if (!email) {
-    return;
-  }
-
-  process.env.SQLITE_DB_PATH = ctx.paths.db;
-  const { ensureLocalDatabase, syncLocalProfileIdentity, LOCAL_USER_ID } =
-    await loadDatabase();
-  ensureLocalDatabase();
-  await syncLocalProfileIdentity(LOCAL_USER_ID, email);
 }

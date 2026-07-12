@@ -26,7 +26,7 @@ const items = [
   },
   {
     q: "What can I try today?",
-    a: "Install slash.cash from npm, run setup, and open the local dashboard. Today it is focused on Swiggy receipts from Gmail.",
+    a: "Download slash.cash for Mac (Apple Silicon), open the app, and complete onboarding. Today it is focused on Swiggy receipts from Gmail. If macOS Gatekeeper blocks the first open, right-click the app and choose Open.",
   },
 ];
 

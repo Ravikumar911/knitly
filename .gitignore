@@ -29,6 +29,7 @@ tmp/
 out/
 build
 dist
+apps/desktop/release/
 
 
 # Debug

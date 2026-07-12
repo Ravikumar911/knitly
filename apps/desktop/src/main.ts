@@ -4,6 +4,7 @@ import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { app, BrowserWindow, shell } from "electron";
+import { resolveDesktopProductHome } from "./slashcash-home.js";
 
 const DEFAULT_PORT = 3000;
 const SERVER_START_TIMEOUT_MS = 45_000;
@@ -59,7 +60,7 @@ function spawnDashboardServer(port: number) {
   const launch = resolveDashboardLaunch();
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    SLASHCASH_HOME: process.env.SLASHCASH_HOME || app.getPath("userData"),
+    SLASHCASH_HOME: resolveDesktopProductHome(),
     PORT: String(port),
     SLASHCASH_PORT: String(port),
     HOSTNAME: "127.0.0.1",
