@@ -3,7 +3,12 @@ import { existsSync } from "node:fs";
 import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, Menu, shell } from "electron";
+import {
+  checkForUpdatesFromMenu,
+  checkForUpdatesOnLaunch,
+  configureAboutPanelGatekeeperNote,
+} from "./auto-update.js";
 import { resolveDesktopProductHome } from "./slashcash-home.js";
 
 const DEFAULT_PORT = 3000;
@@ -243,6 +248,63 @@ function stopDashboardServer() {
   dashboardProcess = null;
 }
 
+function installApplicationMenu() {
+  const isMac = process.platform === "darwin";
+  const template: Electron.MenuItemConstructorOptions[] = [
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: "about" as const },
+              { type: "separator" as const },
+              {
+                label: "Check for Updates…",
+                click: () => {
+                  void checkForUpdatesFromMenu();
+                },
+              },
+              { type: "separator" as const },
+              { role: "services" as const },
+              { type: "separator" as const },
+              { role: "hide" as const },
+              { role: "hideOthers" as const },
+              { role: "unhide" as const },
+              { type: "separator" as const },
+              { role: "quit" as const },
+            ],
+          },
+        ]
+      : []),
+    { role: "fileMenu" },
+    { role: "editMenu" },
+    { role: "viewMenu" },
+    { role: "windowMenu" },
+    {
+      role: "help",
+      submenu: [
+        {
+          label: "Check for Updates…",
+          visible: !isMac,
+          click: () => {
+            void checkForUpdatesFromMenu();
+          },
+        },
+        {
+          label: "slash.cash on GitHub",
+          click: () => {
+            void shell.openExternal(
+              "https://github.com/Ravikumar911/knitly/releases",
+            );
+          },
+        },
+      ],
+    },
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -256,7 +318,12 @@ if (!app.requestSingleInstanceLock()) {
 
   app
     .whenReady()
-    .then(createWindow)
+    .then(async () => {
+      configureAboutPanelGatekeeperNote();
+      installApplicationMenu();
+      await createWindow();
+      checkForUpdatesOnLaunch();
+    })
     .catch((error: unknown) => {
       console.error(error);
       app.quit();

@@ -32,16 +32,24 @@
     "directories": {
       "output": "release"
     },
-    "files": ["dist/**/*", "package.json"],
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
     "extraResources": [
       {
         "from": "resources/slashcash",
         "to": "slashcash",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.finance",
       "identity": null,
       "hardenedRuntime": false,
@@ -58,5 +66,8 @@
         "releaseType": "release"
       }
     ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
   }
 }
