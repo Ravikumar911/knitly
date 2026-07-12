@@ -35,6 +35,12 @@
       "skillPath": "skills/productivity/grilling/SKILL.md",
       "computedHash": "1de9e777a60b184b29412fadacb7bbde8c14bb7037e5c4d9d086c941281d1742"
     },
+    "handoff": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/productivity/handoff/SKILL.md",
+      "computedHash": "87e353708ab36062eac54ddb593a97ca553c0cb4bfa1ed1fdaf68520700723f1"
+    },
     "implement": {
       "source": "mattpocock/skills",
       "sourceType": "github",
