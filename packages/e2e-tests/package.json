@@ -20,6 +20,7 @@
     "@playwright/test": "^1.48.0",
     "@types/node": "^20",
     "@workspace/eslint-config": "workspace:*",
+    "@workspace/tasks": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "better-sqlite3": "latest",
     "dotenv": "^16.4.7",

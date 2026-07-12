@@ -53,6 +53,26 @@
       "types": "./src/utils/*.ts",
       "import": "./dist/utils/*.js",
       "default": "./dist/utils/*.js"
+    },
+    "./onboard": {
+      "types": "./src/onboard/index.ts",
+      "import": "./dist/onboard/index.js",
+      "default": "./dist/onboard/index.js"
+    },
+    "./onboard/*": {
+      "types": "./src/onboard/*.ts",
+      "import": "./dist/onboard/*.js",
+      "default": "./dist/onboard/*.js"
+    },
+    "./local-state": {
+      "types": "./src/local-state/index.ts",
+      "import": "./dist/local-state/index.js",
+      "default": "./dist/local-state/index.js"
+    },
+    "./local-state/*": {
+      "types": "./src/local-state/*.ts",
+      "import": "./dist/local-state/*.js",
+      "default": "./dist/local-state/*.js"
     }
   },
   "dependencies": {
@@ -60,6 +80,7 @@
     "@workspace/database": "workspace:*",
     "ai": "6.0.168",
     "imapflow": "^1.0.181",
+    "keytar": "^7.9.0",
     "mailparser": "^3.7.2",
     "zod": "^3.25.76"
   },
