@@ -5,6 +5,8 @@ import { ArrowRight, Check, Sparkles } from "lucide-react";
 import { ShineBorder } from "@workspace/ui/components/shine-border";
 import { cn } from "@workspace/ui/lib/utils";
 
+import { MAC_DMG_URL } from "@/lib/links";
+
 interface PricingTier {
   name: string;
   price: string;
@@ -21,7 +23,7 @@ const tiers: PricingTier[] = [
   {
     name: "Free",
     price: "₹0",
-    description: "The private dashboard you can install today.",
+    description: "The private dashboard you can download today.",
     badge: "Available now",
     highlighted: true,
     features: [
@@ -31,8 +33,8 @@ const tiers: PricingTier[] = [
       "Open-source core",
       "No cloud finance account",
     ],
-    cta: "Install on npm",
-    href: "https://www.npmjs.com/package/slashcash",
+    cta: "Download for Mac",
+    href: MAC_DMG_URL,
   },
   {
     name: "Assistant",

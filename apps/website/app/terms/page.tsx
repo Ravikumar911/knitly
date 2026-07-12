@@ -95,9 +95,9 @@ export default function TermsOfServicePage() {
 
         <h2>6. Third-party services</h2>
         <p>
-          Gmail, npm, optional AI providers, and your operating system are
-          third-party services. We are not responsible for their availability,
-          policies, or outages.
+          Gmail, GitHub Releases, optional AI providers, and your operating
+          system are third-party services. We are not responsible for their
+          availability, policies, or outages.
         </p>
 
         <h2>7. Changes</h2>

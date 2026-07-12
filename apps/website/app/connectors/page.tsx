@@ -87,7 +87,7 @@ export default function ConnectorsPage() {
 
           <BlurFade delay={0.28} inView>
             <div className="mt-7">
-              <InstallCta showCommand />
+              <InstallCta />
             </div>
           </BlurFade>
         </div>

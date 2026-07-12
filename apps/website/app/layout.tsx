@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Github } from "lucide-react";
 
 import { MobileNav } from "@/components/marketing/mobile-nav";
-import { GITHUB_URL, NPM_URL } from "@/lib/links";
+import { GITHUB_URL, MAC_DMG_URL } from "@/lib/links";
 
 import "./globals.css";
 
@@ -152,12 +152,12 @@ function Header() {
             <span>GitHub</span>
           </a>
           <a
-            href={NPM_URL}
+            href={MAC_DMG_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="hidden sm:inline-flex h-9 items-center rounded-full border border-black/10 bg-white/90 px-3.5 text-[0.82rem] font-semibold text-neutral-800 shadow-sm transition hover:bg-white"
           >
-            Install free
+            Download for Mac
           </a>
         </div>
       </div>
@@ -272,12 +272,12 @@ function Footer() {
               </li>
               <li>
                 <a
-                  href={NPM_URL}
+                  href={MAC_DMG_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="transition hover:text-neutral-900"
                 >
-                  npm package
+                  Download for Mac
                 </a>
               </li>
               <li>
@@ -392,6 +392,7 @@ export default function RootLayout({
               url: "https://slash.cash/",
               applicationCategory: "FinanceApplication",
               operatingSystem: "macOS",
+              downloadUrl: MAC_DMG_URL,
               description:
                 "Private spending dashboard for macOS that reads receipts from your inbox and runs on your laptop.",
               offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
