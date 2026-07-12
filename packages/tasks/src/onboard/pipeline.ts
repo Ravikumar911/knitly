@@ -28,7 +28,7 @@ export type OnboardStep = {
 export type StepStatusEvent = {
   stepId: OnboardStepId;
   label: string;
-  status: "skipped" | "done";
+  status: "started" | "skipped" | "done";
   message?: string;
 };
 
@@ -44,6 +44,11 @@ export async function runPipeline(
     if (options.activeStep) {
       options.activeStep.step = step.id;
     }
+    options.onStatus?.({
+      stepId: step.id,
+      label: step.label,
+      status: "started",
+    });
     const detected = await step.detect(ctx);
     if (detected.done) {
       options.onStatus?.({

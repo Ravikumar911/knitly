@@ -4,6 +4,7 @@ import { analyticsRouter } from "./analytics";
 import { transactionsRouter } from "./transactions";
 import { feedbackRouter } from "./feedback";
 import { chatRouter } from "./chat";
+import { onboardRouter } from "./onboard";
 
 export const appRouter = createTRPCRouter({
   // Merge the routers
@@ -12,6 +13,7 @@ export const appRouter = createTRPCRouter({
   transactions: transactionsRouter,
   feedback: feedbackRouter,
   chat: chatRouter,
+  onboard: onboardRouter,
 });
 
 // export type definition of API
