@@ -61,5 +61,17 @@
   "main": "eslint.config.mjs",
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "electron",
+      "keytar"
+    ],
+    "ignoredBuiltDependencies": [
+      "core-js-pure",
+      "esbuild",
+      "sharp"
+    ]
+  }
 }

@@ -2,12 +2,12 @@
 
 import {
   ArrowRight,
+  AppWindow,
   Database,
   Github,
   MailCheck,
   Package,
   Sparkles,
-  TerminalSquare,
 } from "lucide-react";
 
 import { AnimatedShinyText } from "@workspace/ui/components/magicui/animated-shiny-text";
@@ -34,16 +34,17 @@ const trustItems = [
   "No cloud account",
   "Open source",
   "Runs on your laptop",
+  "Desktop shell",
   "Reads receipts",
   "Private by default",
 ];
 
 const demoSteps = [
   {
-    icon: TerminalSquare,
+    icon: AppWindow,
     label: "Install",
-    title: "Install slash.cash",
-    body: "Install once from npm and run the guided setup. It prepares the local app and tells you exactly what it needs.",
+    title: "Open slash.cash",
+    body: "Use the desktop shell or install from npm. Either path starts the same local dashboard and keeps the runtime on your machine.",
   },
   {
     icon: MailCheck,
@@ -117,7 +118,8 @@ export default function HomePage() {
             <BlurFade delay={0.2} inView>
               <p className="mt-5 max-w-xl text-[1.05rem] leading-relaxed text-neutral-500 md:text-[1.12rem]">
                 slash.cash reads receipts from your inbox and turns them into a
-                clean spending dashboard. Start with Swiggy receipts today. Your
+                clean spending dashboard. Start with Swiggy receipts today, then
+                use the local dashboard from the desktop shell or CLI. Your
                 numbers stay on your laptop.
               </p>
             </BlurFade>
@@ -161,7 +163,7 @@ export default function HomePage() {
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#2f6ceb]" />
-                  Open-source core
+                  Desktop shell
                 </span>
               </div>
             </BlurFade>

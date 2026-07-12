@@ -1,7 +1,13 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Plug, ScanSearch, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  AppWindow,
+  Plug,
+  ScanSearch,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 
 import {
   AnimatedSpan,
@@ -180,26 +186,26 @@ export function BentoFeatures() {
       <BentoCell
         className="md:col-span-1 min-h-[380px]"
         eyebrow="Simple setup"
-        title="Install once, then open the app"
-        description="The command line handles setup and health checks. The day-to-day experience is the local dashboard."
+        title="Desktop shell, local runtime"
+        description="Open the desktop shell to supervise the same local dashboard runtime. The CLI still handles setup, sync, and health checks."
         layout="bg"
         visual={
           <div className="absolute inset-x-5 top-5 h-[200px] overflow-hidden">
             <Terminal className="!h-full !max-w-full !rounded-lg !text-[0.72rem]">
-              <TypingAnimation duration={45}>$ slashcash sync</TypingAnimation>
+              <TypingAnimation duration={45}>$ slashcash start</TypingAnimation>
+              <AnimatedSpan className="text-sky-700">
+                <span>✓ Desktop shell opened</span>
+              </AnimatedSpan>
               <AnimatedSpan className="text-emerald-600">
-                <span>✓ Gmail connected</span>
+                <span>✓ Local dashboard running</span>
               </AnimatedSpan>
               <AnimatedSpan className="text-neutral-500">
-                <span>→ Finding Swiggy receipts</span>
-              </AnimatedSpan>
-              <AnimatedSpan className="text-amber-600">
-                <span>→ Reading receipt details</span>
-              </AnimatedSpan>
-              <AnimatedSpan className="text-sky-700">
-                <span>✓ Dashboard ready</span>
+                <span>→ Watching the app process</span>
               </AnimatedSpan>
             </Terminal>
+            <div className="absolute bottom-3 right-3 rounded-full border border-sky-100 bg-white/90 p-2 text-sky-700 shadow-sm">
+              <AppWindow className="h-5 w-5" />
+            </div>
           </div>
         }
       />
