@@ -7,16 +7,18 @@ description: Maintain repo agent instructions in AGENTS.md and .agents/skills wi
 
 ## Single source of truth
 
-- **Root** [`AGENTS.md`](../../../AGENTS.md) — repository-wide rules for Cursor, Claude Code, Codex, and other agents.
+- **Root** [`AGENTS.md`](../../../AGENTS.md) — repository-wide rules for Cursor, Claude Code, Codex, and other agents (includes **Agent workflow** — size-gated Matt Pocock SDLC).
 - **`CLAUDE.md`** — symlink to `AGENTS.md` so Claude Code reads the same file.
 - **Scoped** [`apps/main/AGENTS.md`](../../../apps/main/AGENTS.md) for deep, path-specific guidance.
 - **Skills** — `.agents/skills/<skill>/SKILL.md` for reusable workflows (with YAML frontmatter: `name`, `description`).
+- **Tracker / domain config** — `docs/agents/*.md` (written by `/setup-matt-pocock-skills`).
 
 ## When to update what
 
 | Change                                        | Update                                        |
 | --------------------------------------------- | --------------------------------------------- |
 | New package or boundary                       | `AGENTS.md` architecture section              |
+| Default coding workflow (grill / wayfinder)   | `AGENTS.md` **Agent workflow** section        |
 | App-only Next/tRPC/AI pattern                 | `apps/main/AGENTS.md`                         |
 | Repeatable workflow (PR checklist, migration) | New or existing skill under `.agents/skills/` |
 
