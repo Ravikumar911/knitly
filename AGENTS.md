@@ -84,9 +84,38 @@ If commands fail from missing deps, run `pnpm install` once and retry.
 - **Validation**: Zod (or existing schemas) for procedure inputs where applicable.
 - **Formatting**: `pnpm format` at root (Prettier on `**/*.{ts,tsx,md}`).
 
+## Agent workflow
+
+Default AI SDLC for coding work is Matt Pocock’s size-gated pipeline. Product skills (`add-trpc-route`, `shadcn`, `ai-sdk`, `run-tests`, etc.) are on-demand helpers inside implement/verify — not alternate SDLCs.
+
+**Small / clear** (localized fix, known destination):
+
+`/grill-with-docs` → `/to-spec` → `/implement` (skip `/to-tickets` when one slice is enough)
+
+**Big / foggy** (multi-session, unclear path):
+
+`/wayfinder` → resolve the map (grilling tickets use `/grilling` + `/domain-modeling`) → `/to-spec` → `/to-tickets` → `/implement`
+
+Rules:
+
+- Wayfinder is **plan-only**. AFK implementation starts at `/implement` (drives `/tdd` and closes with `/code-review`).
+- Verify with `/run-tests` and repo gates (`pnpm typecheck`, `pnpm test`, e2e as appropriate).
+- Skill bodies live under `.agents/skills/*/SKILL.md`.
+- Unfinished openclaw-style `orchestrator` / `autoreview` experiments are **retired**. Do not revive them without an explicit product decision.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues via `gh` (repo: `Ravikumar911/knitly`). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md` when present, plus existing ADRs/glossary under `packages/docs/reference/`. See `docs/agents/domain.md`.
+
 ## Progressive disclosure
 
-- Repo-wide rules: this file.
+- Repo-wide rules: this file (including **Agent workflow** above).
 - App-specific Next.js + tRPC + AI client patterns: `apps/main/AGENTS.md`.
 - Reusable workflows: `.agents/skills/*/SKILL.md`.
 
