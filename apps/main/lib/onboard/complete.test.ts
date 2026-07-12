@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { defaultConfig } from "@workspace/tasks/local-state";
-import { createDefaultOnboardHost } from "@workspace/tasks/onboard";
 import { isOnboardComplete } from "./complete";
 
 const homes: string[] = [];
@@ -28,10 +27,7 @@ function tempHome() {
 describe("isOnboardComplete", () => {
   it("is false when config is missing", async () => {
     tempHome();
-    const host = createDefaultOnboardHost({
-      startDetachedCommand: () => 0,
-    });
-    expect(await isOnboardComplete(host)).toBe(false);
+    expect(await isOnboardComplete()).toBe(false);
   });
 
   it("is false when assistant is none", async () => {
@@ -39,37 +35,31 @@ describe("isOnboardComplete", () => {
     mkdirSync(home, { recursive: true });
     writeFileSync(
       join(home, "config.json"),
-      `${JSON.stringify(defaultConfig, null, 2)}\n`,
+      JSON.stringify({
+        ...defaultConfig,
+        assistant: { ...defaultConfig.assistant, provider: "none" },
+      }),
     );
-    const host = createDefaultOnboardHost({
-      startDetachedCommand: () => 0,
-    });
-    expect(await isOnboardComplete(host)).toBe(false);
+    expect(await isOnboardComplete()).toBe(false);
   });
 
-  it("is true in E2E mode once assistant is set and db exists", async () => {
+  it("is true in E2E mode when config and db exist", async () => {
     const home = tempHome();
     process.env.SLASHCASH_E2E = "1";
     mkdirSync(home, { recursive: true });
     writeFileSync(
       join(home, "config.json"),
-      `${JSON.stringify(
-        {
-          ...defaultConfig,
-          assistant: {
-            provider: "ollama-local",
-            baseUrl: "http://127.0.0.1:11434/v1",
-            chatModel: "gemma4:latest",
-          },
+      JSON.stringify({
+        ...defaultConfig,
+        assistant: {
+          ...defaultConfig.assistant,
+          provider: "ollama-local",
+          chatModel: "gemma4:latest",
+          baseUrl: "http://127.0.0.1:11434/v1",
         },
-        null,
-        2,
-      )}\n`,
+      }),
     );
     writeFileSync(join(home, "db.sqlite"), "");
-    const host = createDefaultOnboardHost({
-      startDetachedCommand: () => 0,
-    });
-    expect(await isOnboardComplete(host)).toBe(true);
+    expect(await isOnboardComplete()).toBe(true);
   });
 });

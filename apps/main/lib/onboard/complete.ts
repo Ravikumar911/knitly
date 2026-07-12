@@ -1,52 +1,24 @@
 import {
-  createDefaultOnboardHost,
-  type OnboardHost,
-} from "@workspace/tasks/onboard";
+  loadConfig,
+  readStoredCredentials,
+  resolvePaths,
+} from "@workspace/tasks/local-state";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
-
-export function resolveBundledSkillsRoot(): string | null {
-  if (process.env.SLASHCASH_BUNDLED_SKILLS_DIR) {
-    return process.env.SLASHCASH_BUNDLED_SKILLS_DIR;
-  }
-
-  const candidates = [
-    join(process.cwd(), "packages/cli/bundled-skills"),
-    join(process.cwd(), "bundled-skills"),
-    join(process.cwd(), "..", "cli", "bundled-skills"),
-  ];
-
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  return null;
-}
-
-export function createAppOnboardHost(
-  overrides: Partial<Parameters<typeof createDefaultOnboardHost>[0]> = {},
-): OnboardHost {
-  return createDefaultOnboardHost({
-    bundledSkillsRoot: resolveBundledSkillsRoot(),
-    ...overrides,
-  });
-}
 
 /**
  * Local single-user gate: onboard is complete once assistant + Gmail IMAP
  * credentials are configured (E2E mode treats a persisted config as enough).
+ *
+ * Uses local-state helpers only so App Router entry gates do not pull the
+ * Node-only onboard host (IMAP/subprocess) into the Next compile graph.
  */
-export async function isOnboardComplete(
-  host: OnboardHost = createAppOnboardHost(),
-): Promise<boolean> {
-  const paths = host.resolvePaths();
-  if (!host.configExists(paths)) {
+export async function isOnboardComplete(): Promise<boolean> {
+  const paths = resolvePaths();
+  if (!existsSync(paths.config)) {
     return false;
   }
 
-  const config = host.loadConfig();
+  const config = loadConfig();
   if (config.assistant.provider === "none") {
     return false;
   }
@@ -60,7 +32,7 @@ export async function isOnboardComplete(
     return false;
   }
 
-  const credentials = await host.readStoredCredentials();
+  const credentials = await readStoredCredentials();
   return Boolean(
     credentials && credentials.address.trim().toLowerCase() === address,
   );

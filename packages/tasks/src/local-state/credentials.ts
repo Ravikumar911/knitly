@@ -300,7 +300,7 @@ export async function getCredentialState(): Promise<CredentialState> {
       address,
       store: "file",
       warning:
-        "Gmail app password is stored in ~/.slashcash/credentials.json. Move it to Keychain by rerunning `slashcash onboard`.",
+        "Gmail app password is stored in ~/.slashcash/credentials.json. Move it to Keychain by rerunning desktop onboarding.",
     };
   }
 

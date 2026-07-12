@@ -9,7 +9,8 @@ import {
   type UiPort,
   type UiSpinner,
 } from "@workspace/tasks/onboard";
-import { createAppOnboardHost, isOnboardComplete } from "./complete";
+import { isOnboardComplete } from "./complete";
+import { createAppOnboardHost } from "./host";
 import { stepIdToScreen, type WizardScreen } from "./screens";
 
 export const APP_PASSWORD_URL =
@@ -163,7 +164,7 @@ class OnboardWizardSession {
     }
 
     const complete =
-      this.phase === "complete" || (await isOnboardComplete(host));
+      this.phase === "complete" || (await isOnboardComplete());
     const needsAssistantChoice =
       !complete &&
       this.welcomeAcknowledged &&
@@ -209,7 +210,7 @@ class OnboardWizardSession {
 
     const host = createAppOnboardHost();
 
-    if (await isOnboardComplete(host)) {
+    if (await isOnboardComplete()) {
       this.phase = "complete";
       this.welcomeAcknowledged = true;
       return this.getSnapshot();
