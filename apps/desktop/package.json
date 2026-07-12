@@ -8,12 +8,51 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "pnpm run build && electron .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "pack:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --arm64 --publish never",
+    "pack:app": "pnpm run build && pnpm run pack:mac"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@workspace/typescript-config": "workspace:*",
     "electron": "^39.2.7",
-    "typescript": "5.7.3"
+    "electron-builder": "^26.0.12",
+    "typescript": "5.7.3",
+    "vitest": "^4.1.4"
+  },
+  "build": {
+    "appId": "cash.slash.app",
+    "productName": "slash.cash",
+    "directories": {
+      "output": "release"
+    },
+    "files": ["dist/**/*", "package.json"],
+    "extraResources": [
+      {
+        "from": "resources/slashcash",
+        "to": "slashcash",
+        "filter": ["**/*"]
+      }
+    ],
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.finance",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "artifactName": "slash.cash-${version}-mac-${arch}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Ravikumar911",
+        "repo": "knitly",
+        "releaseType": "release"
+      }
+    ]
   }
 }
