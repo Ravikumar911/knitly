@@ -11,10 +11,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "stage:runtime": "node scripts/stage-runtime.mjs",
+    "rebuild:natives": "node scripts/rebuild-natives.mjs",
     "pack:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --arm64 --publish never",
-    "pack:app": "pnpm run build && pnpm run pack:mac"
+    "pack:app": "pnpm run build && pnpm run pack:mac",
+    "pack:full": "pnpm run stage:runtime && pnpm run rebuild:natives && pnpm run pack:app"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.1",
     "@types/node": "^20",
     "@workspace/typescript-config": "workspace:*",
     "electron": "^39.2.7",
