@@ -22,6 +22,10 @@ After a release:
 3. Confirm `latest-mac.yml` is present on the release when auto-update is enabled.
 4. Launch the app on a clean macOS machine and complete **Desktop onboarding**.
 
+## Pre-tag UI verify (agent-browser)
+
+For launch → healthz → loopback `agent-browser` against real `~/.slashcash`, see [`desktop-verify.md`](./desktop-verify.md) and `./scripts/desktop-verify.sh`. CI must not mount personal home data; keep runner smoke to artifacts (+ temp-home healthz only).
+
 ## Local smoke path
 
 Maintainers can rehearse packaging locally with the desktop pack pipeline (exact script names live with `apps/desktop` packaging work) and, where still useful for the bundled runtime tree:
