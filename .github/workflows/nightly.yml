@@ -59,4 +59,4 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm pack:local
+      - run: pnpm bundle:runtime
