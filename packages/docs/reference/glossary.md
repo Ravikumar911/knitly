@@ -1,9 +1,25 @@
 # Reference — Glossary
 
-Short definitions for terms that appear across the plan and docs.
+Short definitions for terms that appear across the plan and docs. Product language matches root `CONTEXT.md`.
+
+**Desktop app**
+The primary product the person downloads and runs — an Electron shell around the local dashboard and bundled runtime.
+_Avoid:_ CLI product, npm package (as the product), desktop shell (as a secondary optional path).
+
+**Bundled runtime**
+The `slashcash` package shipped inside the desktop app to supervise the local server and machine-side setup steps.
+_Avoid:_ end-user CLI, global npm install, `npm i -g slashcash`.
+
+**State directory**
+`~/.slashcash/`. Holds `config.json`, `credentials.json` fallback storage, `db.sqlite`, `attachments/`, `logs/`, `pid/`, `skills/`, and `py-venv/`. The single on-disk home for both the desktop app and any internal runtime commands.
+_Avoid:_ Electron `userData` as the product data home, Application Support `slash.cash` as a separate product store.
+
+**Desktop onboarding**
+First-launch setup inside the desktop app UI that covers the former CLI onboard scope (privacy, machine prep, Gmail IMAP credentials, optional assistant).
+_Avoid:_ `slashcash onboard`, terminal wizard, marketing-site onboarding.
 
 **slashcash**
-The npm package and CLI. Global bin: `slashcash`.
+The bundled runtime package (`packages/cli`). Used inside the desktop app and by maintainers via `pnpm slashcash -- …`. Not the end-user install product.
 
 **local-first**
 All user data, compute, and credentials live on the user's machine. The product stays useful without hosted services after onboarding.
@@ -14,14 +30,8 @@ One human on one machine. No logins, teams, or sync.
 **loopback**
 `127.0.0.1`. The only address the dashboard binds to.
 
-**onboard**
-The interactive `slashcash onboard` wizard. It prompts for a Gmail address and app password, verifies IMAP login, prepares local state, and starts the initial sync without a model pull.
-
 **doctor**
-The diagnostic and repair flow behind `slashcash doctor` and `slashcash doctor --fix`.
-
-**state directory**
-`~/.slashcash/`. Holds `config.json`, `credentials.json` fallback storage, `db.sqlite`, `attachments/`, `logs/`, `pid/`, and `skills/`.
+The diagnostic and repair flow behind `slashcash doctor` and `slashcash doctor --fix` (and any in-app equivalent surfaced from Desktop onboarding).
 
 **config**
 The contents of `~/.slashcash/config.json`, validated against `packages/cli/src/config/schema.ts`.
@@ -54,7 +64,7 @@ The optional Python library ([github.com/DS4SD/docling](https://github.com/DS4SD
 The Node-side wrapper at `packages/tasks/src/extract/pdf-extractor.ts` plus the Python package at `packages/pdf-extractor/`. Node spawns `python -m slashcash_pdf_extractor` per PDF and parses the JSON stdout against a Zod mirror of the Python schema.
 
 **py-venv**
-The Python 3 virtualenv at `~/.slashcash/py-venv/`. Provisioned by `slashcash doctor --fix` from the pinned `packages/pdf-extractor/requirements.txt`. Tracked by the `.slashcash.install-hash` file so `pip install` only re-runs on drift.
+The Python 3 virtualenv at `~/.slashcash/py-venv/`. Provisioned by doctor repair / Desktop onboarding from the pinned `packages/pdf-extractor/requirements.txt`. Tracked by the `.slashcash.install-hash` file so `pip install` only re-runs on drift.
 
 **single-flight**
 The guarantee that the ingest job never overlaps with itself. Enforced by a module-level mutex.
@@ -63,10 +73,10 @@ The guarantee that the ingest job never overlaps with itself. Enforced by a modu
 The runtime object that maps skill-declared job ids to async functions for cron.
 
 **PID file**
-`~/.slashcash/pid/slashcash.pid.json`. Lets `slashcash stop` and `slashcash status` find the running process.
+`~/.slashcash/pid/slashcash.pid.json`. Lets stop/status find the running bundled-runtime process.
 
 **standalone output**
-Next.js packaging mode used for the published CLI bundle.
+Next.js packaging mode used for the dashboard tree staged into the bundled runtime / desktop `extraResources`.
 
 **ADR**
 Architecture decision record. Stored in `packages/docs/reference/decisions.md`.

@@ -109,8 +109,8 @@ The Python pydantic models in `packages/pdf-extractor/src/slashcash_pdf_extracto
 
 These still require a real machine, a real Gmail account, or release credentials:
 
-- clean-machine `npm i -g slashcash` verification (including `slashcash doctor --fix` provisioning the Python venv from scratch)
+- clean-machine Desktop app install / launch verification (including doctor repair provisioning the Python venv from scratch during Desktop onboarding)
 - real Gmail app-password dogfood, with at least twenty `transactions_v2` rows hand-diffed against real Swiggy receipts to validate deterministic extraction
-- cancel-during-`ollama pull` interrupt, then `slashcash doctor --fix` completing the pull and landing green (survived from the retired phase-2 doc)
-- npm publish / provenance / SBOM verification
+- cancel-during-`ollama pull` interrupt, then doctor repair completing the pull and landing green (survived from the retired phase-2 doc)
+- GitHub Release desktop artifact verification (`.dmg` / `.zip` / `latest-mac.yml`, checksums when attached)
 - DNS and hosted-surface shutdown tasks

@@ -1,38 +1,25 @@
 # Architecture — target state
 
-This is the shipped local-first shape after the IMAP pivot, with the Swiggy ingest pivot ([`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md)) making Python extraction deterministic and keeping AI out of the blocking ingest path.
+This is the shipped local-first shape after the IMAP pivot and the desktop-primary distribution decision (ADR-028), with the Swiggy ingest pivot ([`roadmap/pdf-extractor.md`](./roadmap/pdf-extractor.md)) making Python extraction deterministic and keeping AI out of the blocking ingest path.
 
 ## One-paragraph picture
 
-The user installs `slashcash` from npm. `slashcash onboard` prepares `~/.slashcash/`, asks for a Gmail address and app password, verifies IMAP login against `imap.gmail.com:993`, and gets the dashboard ready without requiring a model pull. `slashcash start` boots the Next.js dashboard on `127.0.0.1`, starts the in-process cron worker, reads Gmail through IMAP, converts PDF attachments through a per-PDF Python subprocess, deterministically maps Swiggy invoice/body fields, writes results to SQLite at `~/.slashcash/db.sqlite`, and stores attachments under `~/.slashcash/attachments/`. Assistant model setup is separate: users can configure Ollama/Gemma or a supported API provider when they want chat. The dashboard reads the same SQLite file through tRPC and Drizzle. There is no hosted auth; loopback bind is the boundary.
+The user downloads the **Desktop app** (macOS). First launch runs **Desktop onboarding**, which prepares the **State directory** (`~/.slashcash/`), collects a Gmail address and app password, verifies IMAP login against `imap.gmail.com:993`, and gets the dashboard ready without requiring a model pull. The Electron shell supervises the **Bundled runtime** (`slashcash`), which boots the Next.js dashboard on `127.0.0.1`, starts the in-process cron worker, reads Gmail through IMAP, converts PDF attachments through a per-PDF Python subprocess, deterministically maps Swiggy invoice/body fields, writes results to SQLite at `~/.slashcash/db.sqlite`, and stores attachments under `~/.slashcash/attachments/`. Assistant model setup is separate: users can configure Ollama/Gemma or a supported API provider when they want chat. The dashboard reads the same SQLite file through tRPC and Drizzle. There is no hosted auth; loopback bind is the boundary. Public npm install is not the product path.
 
 ## Process model
 
-One Node process runs two cooperating subsystems:
+The **Desktop app** owns the outer process (Electron). Inside it, one Node process (the bundled runtime) runs two cooperating subsystems:
 
 - the Next.js server on `127.0.0.1`
 - the cron worker, protected by a single-flight mutex
 
 Gmail access is not a subprocess anymore; it is an in-process IMAP client using `imapflow`. The PDF extractor is spawned on demand as a per-PDF `python3 -m slashcash_pdf_extractor` child process against the venv; there is no long-lived Python daemon. Ollama is only needed when the assistant uses a local model, not for Swiggy ingest.
 
-## CLI
+## Desktop app and bundled runtime
 
-`packages/cli` ships the `slashcash` bin. Its top-level commands are:
+`apps/desktop` is the primary product shell. It packages the dashboard and stages `packages/cli` as **extraResources** (the **Bundled runtime**). The shell sets `SLASHCASH_HOME` to `~/.slashcash/` and spawns the runtime to supervise the local server.
 
-- `onboard`
-- `start`
-- `stop`
-- `status`
-- `doctor`
-- `config`
-- `sync`
-- `skills`
-- `logs`
-- `db`
-- `privacy`
-- `version`
-
-Subcommands are lazy-loaded. Runtime boundaries such as argv, config, and IMAP credential state are validated before they reach the rest of the system.
+`packages/cli` still exposes a `slashcash` bin for maintainer and monorepo workflows (`pnpm slashcash -- …`). End users are not directed to `npm i -g slashcash`. Runtime-facing commands that remain useful internally include start/stop/status, doctor, config, sync, skills, logs, db, privacy, and version. Subcommands are lazy-loaded. Runtime boundaries such as argv, config, and IMAP credential state are validated before they reach the rest of the system.
 
 ## Dashboard
 
@@ -80,11 +67,11 @@ User state lives under `~/.slashcash/`:
 - `logs/`
 - `pid/`
 - `skills/`
-- `py-venv/` — Python 3 virtualenv holding Docling and the `slashcash_pdf_extractor` package; provisioned by `slashcash doctor --fix`
+- `py-venv/` — Python 3 virtualenv holding Docling and the `slashcash_pdf_extractor` package; provisioned by doctor repair / Desktop onboarding
 
-The Gmail app password is stored in the macOS Keychain when possible. If Keychain is unavailable, slashcash falls back to `~/.slashcash/credentials.json` and `doctor` reminds the user that the password is stored plaintext.
+The Gmail app password is stored in the macOS Keychain when possible. If Keychain is unavailable, slashcash falls back to `~/.slashcash/credentials.json` and doctor reminds the user that the password is stored plaintext.
 
-The Python venv is provisioned once from a pinned `packages/pdf-extractor/requirements.txt` and re-provisioned on hash drift. `doctor` surfaces the `python-env` check as a first-class repair target; its failure modes are listed in `python/errors.ts`.
+The Python venv is provisioned once from a pinned `packages/pdf-extractor/requirements.txt` and re-provisioned on hash drift. Doctor surfaces the `python-env` check as a first-class repair target; its failure modes are listed in `python/errors.ts`.
 
 ## Skills and cron
 
@@ -92,7 +79,7 @@ Skills live under `~/.slashcash/skills/`. The bundled `gmail-swiggy` skill contr
 
 ## Failure modes and doctor
 
-`slashcash doctor` covers:
+Doctor covers:
 
 - Node version
 - state directory
@@ -120,5 +107,5 @@ IMAP failures are classified into a closed union such as bad password, 2FA not e
 - hosted auth
 - multi-user or sync
 - cloud queue / worker fleet
-- desktop shell
 - Windows or Linux support
+- co-equal public npm / `npm i -g slashcash` product install (see ADR-028)
