@@ -1,5 +1,13 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { basename, extname, join, resolve } from "node:path";
+import {
+  basename,
+  extname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
 
 export function attachmentsRoot() {
   return resolve(
@@ -18,11 +26,21 @@ export function writeAttachmentFile(input: {
   const ext = extname(input.filename) || ".bin";
   const safeBase = basename(input.messageId).replace(/[^a-zA-Z0-9_-]/g, "_");
   const path = resolve(root, `${safeBase}${ext}`);
-  if (!path.startsWith(`${root}/`) && path !== root) {
+  if (!isInsideRoot(root, path)) {
     throw new Error("Attachment path escaped root.");
   }
   writeFileSync(path, input.content, { mode: 0o600 });
   return path;
+}
+
+function isInsideRoot(root: string, path: string) {
+  const relativePath = relative(root, path);
+  return (
+    relativePath === "" ||
+    (relativePath !== ".." &&
+      !relativePath.startsWith(`..${sep}`) &&
+      !isAbsolute(relativePath))
+  );
 }
 
 function defaultHome() {

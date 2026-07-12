@@ -1,3 +1,21 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+onlyBuiltDependencies:
+  - better-sqlite3
+  - electron
+  - keytar
+
+ignoredBuiltDependencies:
+  - core-js-pure
+  - esbuild
+  - sharp
+
+allowBuilds:
+  better-sqlite3: true
+  core-js-pure: false
+  electron: true
+  esbuild: false
+  keytar: true
+  sharp: false

@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, resolve, win32 } from "node:path";
 
 export type SlashcashPaths = {
   home: string;
@@ -19,6 +19,34 @@ export type SlashcashPaths = {
 
 export function resolveSlashcashHome() {
   return resolve(process.env.SLASHCASH_HOME || join(homedir(), ".slashcash"));
+}
+
+export function resolveDesktopSlashcashHome(
+  options: {
+    platform?: NodeJS.Platform;
+    homeDir?: string;
+    appData?: string;
+  } = {},
+) {
+  const platform = options.platform ?? process.platform;
+  const homeDir = options.homeDir ?? homedir();
+  const appData = options.appData ?? process.env.APPDATA;
+
+  if (platform === "darwin") {
+    return resolve(homeDir, "Library", "Application Support", "slash.cash");
+  }
+
+  if (platform === "win32") {
+    return win32.resolve(
+      appData || win32.join(homeDir, "AppData", "Roaming"),
+      "slash.cash",
+    );
+  }
+
+  return resolve(
+    process.env.XDG_DATA_HOME || join(homeDir, ".local", "share"),
+    "slash.cash",
+  );
 }
 
 export function resolvePaths(): SlashcashPaths {

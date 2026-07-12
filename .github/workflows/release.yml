@@ -61,6 +61,7 @@ jobs:
           fi
       - run: pnpm architecture-smells
       - run: pnpm typecheck
+      - run: pnpm --filter @knitly/website build
       - run: SLASHCASH_EVAL_SKIP_MODEL=1 pnpm eval:gate
       - run: pnpm pack:local
       - run: pnpm release:check
@@ -167,3 +168,37 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" "$TARBALL" "release-bundle/${PACKAGE_NAME}.sha256" "release-bundle/slashcash-package-manifest.json" --title "${GITHUB_REF_NAME}" --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-website:
+    name: Publish website
+    needs: [preflight, publish]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: website-production
+    permissions:
+      contents: read
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build website
+        run: pnpm --filter @knitly/website build
+      - name: Skip website publish when Vercel secrets are missing
+        if: env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == '' || env.VERCEL_TOKEN == ''
+        run: |
+          echo "Skipping website publish because VERCEL_ORG_ID, VERCEL_PROJECT_ID, or VERCEL_TOKEN is not configured."
+      - name: Publish website to Vercel
+        if: env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != '' && env.VERCEL_TOKEN != ''
+        working-directory: apps/website
+        run: |
+          pnpm dlx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          pnpm dlx vercel@latest build --prod --token="$VERCEL_TOKEN"
+          pnpm dlx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"
