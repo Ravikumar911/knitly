@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Github } from "lucide-react";
 
 import { MobileNav } from "@/components/marketing/mobile-nav";
-import { GITHUB_URL, MAC_DMG_URL } from "@/lib/links";
+import { GITHUB_URL, MAC_DMG_URL, SOFTWARE_DOWNLOAD_URL } from "@/lib/links";
 
 import "./globals.css";
 
@@ -392,7 +392,7 @@ export default function RootLayout({
               url: "https://slash.cash/",
               applicationCategory: "FinanceApplication",
               operatingSystem: "macOS",
-              downloadUrl: MAC_DMG_URL,
+              downloadUrl: SOFTWARE_DOWNLOAD_URL,
               description:
                 "Private spending dashboard for macOS that reads receipts from your inbox and runs on your laptop.",
               offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },

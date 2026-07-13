@@ -56,10 +56,11 @@ export default function PrivacyPolicyPage() {
         </ul>
         <h3>1.2 On this website</h3>
         <p>
-          The marketing site at slash.cash is static. We do not ask you to sign
-          in or upload financial files through the website. Standard server or
-          CDN logs (if any) may include IP address and browser type — the same
-          as any public website.
+          The marketing site at slash.cash is mostly static, with a download
+          redirect endpoint that points visitors to the current GitHub Release.
+          We do not ask you to sign in or upload financial files through the
+          website. Standard server or CDN logs (if any) may include IP address
+          and browser type — the same as any public website.
         </p>
         <h3>1.3 Optional assistant</h3>
         <p>

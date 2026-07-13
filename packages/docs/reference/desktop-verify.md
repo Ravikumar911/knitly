@@ -145,26 +145,15 @@ agent-browser close
 
 ## Website Download for Mac
 
-CTA source: `apps/website/lib/links.ts` + build-time resolve in `apps/website/next.config.mjs`.
+CTA source: `apps/website/lib/links.ts` points at `/download/mac`; `apps/website/app/download/mac/route.ts` resolves the latest GitHub Release at click time.
 
-- When a GitHub Release has `slash.cash-*-mac-arm64.dmg`, build embeds that `browser_download_url`.
-- Otherwise `MAC_DMG_URL` falls back to `https://github.com/Ravikumar911/knitly/releases/latest`.
+- When a GitHub Release has `slash.cash-*-mac-arm64.dmg`, `/download/mac` redirects to that `browser_download_url`.
+- Otherwise `/download/mac` redirects to `https://github.com/Ravikumar911/knitly/releases/latest`.
 
 Check without a full website build:
 
 ```bash
-node -e '
-const RE=/^slash\.cash-.+-mac-arm64\.dmg$/;
-const fallback="https://github.com/Ravikumar911/knitly/releases/latest";
-fetch("https://api.github.com/repos/Ravikumar911/knitly/releases/latest",{
-  headers:{Accept:"application/vnd.github+json","User-Agent":"slash-cash-desktop-verify"}
-}).then(async r=>{
-  if(!r.ok){console.log(fallback);return;}
-  const rel=await r.json();
-  const asset=(rel.assets||[]).find(a=>RE.test(a.name));
-  console.log(asset?.browser_download_url??fallback);
-});
-'
+curl -I https://slash.cash/download/mac
 ```
 
 Until the first desktop tag ships a matching `.dmg`, **fallback to `/releases/latest` is expected and correct**.
@@ -196,7 +185,7 @@ Desktop version today: `apps/desktop/package.json` → **0.1.0**. Tag must match
    gh run watch
    ```
 
-   Expect GitHub Release `v0.1.0` with the same assets; website deploy may run when Vercel secrets exist. Re-check `MAC_DMG_URL` resolve — should point at the real `.dmg`.
+   Expect GitHub Release `v0.1.0` with the same assets; website deploy may run when Vercel secrets exist. Re-check `/download/mac` — should point at the real `.dmg`.
 
 4. Paste checklist + `/tmp/slashcash-desktop-verify/` screenshot paths into the release or tracking issue.
 
@@ -222,7 +211,7 @@ Current Publish workflow (`.github/workflows/release.yml`): tag push creates the
 | Port wrong | 3000 taken; pin unset or discover via `lsof` / `~/.slashcash/logs` |
 | Assistant blank | Provider `none` — skip stream assert |
 | Website still npm Install | Marketing CTA not retargeted — block desktop-primary release |
-| `MAC_DMG_URL` = `/releases/latest` | No desktop `.dmg` on latest release yet — expected until first desktop tag |
+| `/download/mac` redirects to `/releases/latest` | No desktop `.dmg` on latest release yet — expected until first desktop tag |
 
 ## One-line bar
 
