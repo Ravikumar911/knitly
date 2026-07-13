@@ -107,20 +107,21 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: desktop-macos-arm64-${{ needs.preflight.outputs.version }}
           path: release-assets
       - name: Create GitHub release
-        working-directory: release-assets
         run: |
           shopt -s nullglob
-          ASSETS=(*.dmg *.zip latest-mac.yml *.blockmap)
+          ASSETS=(release-assets/*.dmg release-assets/*.zip release-assets/latest-mac.yml release-assets/*.blockmap)
           if [ ${#ASSETS[@]} -eq 0 ]; then
             echo "No desktop release assets found."
             exit 1
           fi
           gh release create "${GITHUB_REF_NAME}" "${ASSETS[@]}" \
+            --repo "${GITHUB_REPOSITORY}" \
             --title "${GITHUB_REF_NAME}" \
             --generate-notes
         env:
