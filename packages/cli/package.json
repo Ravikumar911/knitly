@@ -70,13 +70,13 @@
     "picocolors": "^1.1.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "zod": "^3.25.76",
-    "@workspace/tasks": "workspace:*"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@vitest/coverage-v8": "^4.1.4",
     "@workspace/database": "workspace:*",
+    "@workspace/tasks": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
     "tsx": "^4.19.3",
     "typescript": "5.7.3",

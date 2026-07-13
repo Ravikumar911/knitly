@@ -43,7 +43,7 @@ const templates: Record<ImapErrorCode, ImapTemplate> = {
     symptom: "Gmail rejected the saved app password.",
     cause:
       "The saved app password is wrong, revoked, or no longer valid after a Google password change.",
-    fix: "Run `slashcash doctor --reset-credentials`, generate a new app password, then rerun `slashcash onboard`.",
+    fix: "Run `slashcash doctor --reset-credentials`, generate a new app password, then rerun desktop onboarding.",
     docsUrl: "https://myaccount.google.com/apppasswords",
     requiresCredentialReset: true,
   },
@@ -52,7 +52,7 @@ const templates: Record<ImapErrorCode, ImapTemplate> = {
     symptom: "This Gmail account is not ready for app passwords.",
     cause:
       "App passwords only work after 2-Step Verification is enabled on the Google account.",
-    fix: "Turn on 2-Step Verification, generate an app password, then rerun `slashcash onboard`.",
+    fix: "Turn on 2-Step Verification, generate an app password, then rerun desktop onboarding.",
     docsUrl: "https://myaccount.google.com/signinoptions/twosv",
     requiresCredentialReset: true,
   },

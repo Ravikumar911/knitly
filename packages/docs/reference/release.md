@@ -22,6 +22,10 @@ After a release:
 3. Confirm `latest-mac.yml` is present on the release when auto-update is enabled.
 4. Launch the app on a clean macOS machine and complete **Desktop onboarding**.
 
+## Pre-tag UI verify (agent-browser)
+
+For launch → healthz → loopback `agent-browser` against real `~/.slashcash`, see [`desktop-verify.md`](./desktop-verify.md) and `./scripts/desktop-verify.sh`. CI must not mount personal home data; keep runner smoke to artifacts (+ temp-home healthz only).
+
 ## Local smoke path
 
 Maintainers can rehearse packaging locally with the desktop pack pipeline (exact script names live with `apps/desktop` packaging work) and, where still useful for the bundled runtime tree:
@@ -45,9 +49,11 @@ These checks only exist on a real tagged GitHub Release:
 - clean-machine Desktop app install + Desktop onboarding dogfood
 - updater feed reachability against the published release assets
 
-## Signing and notarization
+## Signing, notarization, and Gatekeeper
 
 v1 packaging may ship unsigned / ad-hoc builds (`CSC_IDENTITY_AUTO_DISCOVERY=false`) until signing and notarization are productized. Revisit when Gatekeeper friction blocks dogfood.
+
+**First open and after auto-updates:** Gatekeeper may block or re-prompt for unsigned `.app` bundles (including ones swapped in by `electron-updater` from the GitHub Release `.zip`). If macOS says the app cannot be opened, right-click → **Open**, or clear quarantine with `xattr -dr com.apple.quarantine` on the app path. The desktop About panel and **Check for Updates…** menu note this caveat for end users.
 
 ## Deprecated: npm as product publish
 

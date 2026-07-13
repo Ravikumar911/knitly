@@ -100,7 +100,9 @@ function spawnDashboard(
   port: number,
 ): ChildProcess {
   if (launch.mode === "packaged") {
-    return spawn("node", [launch.serverPath], {
+    // Use process.execPath so Electron-as-Node (desktop pack) and system Node
+    // both load natives rebuilt for the same ABI as the parent process.
+    return spawn(process.execPath, [launch.serverPath], {
       cwd: dirname(launch.serverPath),
       stdio: "inherit",
       env: {

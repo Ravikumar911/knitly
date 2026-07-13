@@ -1,12 +1,9 @@
-import { HydrateClient } from "@/trpc/server";
-import { ClientGreeting } from "@/components/client-greeting";
 import { redirect } from "next/navigation";
+import { isOnboardComplete } from "@/lib/onboard/complete";
 
-export default function Home() {
+export default async function Home() {
+  if (!(await isOnboardComplete())) {
+    redirect("/onboard");
+  }
   redirect("/dashboard");
-  return (
-    <HydrateClient>
-      <ClientGreeting />
-    </HydrateClient>
-  );
 }

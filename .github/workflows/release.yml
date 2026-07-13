@@ -18,8 +18,7 @@ env:
   SLASHCASH_DOCTOR_SKIP_OLLAMA: "1"
   SLASHCASH_DOCTOR_SKIP_GWS: "1"
   SLASHCASH_NO_OPEN: "1"
-  PACKAGE_DIR: packages/cli
-  PACKAGE_NAME: slashcash
+  CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
 jobs:
   preflight:
@@ -27,7 +26,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
-      artifact_name: ${{ steps.bundle.outputs.artifact_name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,137 +39,96 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-          registry-url: "https://registry.npmjs.org"
       - run: pnpm install --frozen-lockfile
-      - name: Resolve package version
+      - name: Resolve desktop version
         id: version
         run: |
-          VERSION=$(node -e "console.log(require('./' + process.env.PACKAGE_DIR + '/package.json').version)")
+          VERSION=$(node -p "require('./apps/desktop/package.json').version")
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Resolved ${PACKAGE_NAME}@${VERSION}."
+          echo "Resolved @knitly/desktop@${VERSION}."
       - name: Validate tag version
         if: github.event_name == 'push'
         run: test "v${{ steps.version.outputs.version }}" = "${GITHUB_REF_NAME}"
-      - name: Ensure version is not already published
-        if: github.event_name == 'push'
-        run: |
-          if npm view "${PACKAGE_NAME}@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
-            echo "${PACKAGE_NAME}@${{ steps.version.outputs.version }} is already published on npm."
-            exit 1
-          fi
       - run: pnpm architecture-smells
       - run: pnpm typecheck
       - run: pnpm --filter @knitly/website build
       - run: SLASHCASH_EVAL_SKIP_MODEL=1 pnpm eval:gate
-      - run: pnpm pack:local
-      - run: pnpm release:check
-      - name: Attach checksum
-        run: |
-          TARBALL=$(ls "${PACKAGE_DIR}"/${PACKAGE_NAME}-*.tgz | head -n 1)
-          shasum -a 256 "$TARBALL" > ${PACKAGE_NAME}.sha256
-      - name: Generate release manifest
-        run: |
-          TARBALL=$(ls "${PACKAGE_DIR}"/${PACKAGE_NAME}-*.tgz | head -n 1)
-          SHA256=$(shasum -a 256 "$TARBALL" | awk '{print $1}')
-          TAR_FILE="$TARBALL" SHA256="$SHA256" node <<'NODE' > slashcash-package-manifest.json
-          const { execFileSync } = require("node:child_process");
-          const path = require("node:path");
-
-          const pkg = require(`./${process.env.PACKAGE_DIR}/package.json`);
-          const files = execFileSync("tar", ["-tzf", process.env.TAR_FILE], { encoding: "utf8" })
-            .trim()
-            .split("\n")
-            .filter(Boolean);
-
-          const manifest = {
-            schemaVersion: 1,
-            packageName: pkg.name,
-            packageVersion: pkg.version,
-            gitRef: process.env.GITHUB_REF_NAME,
-            gitSha: process.env.GITHUB_SHA,
-            tarball: path.basename(process.env.TAR_FILE),
-            sha256: process.env.SHA256,
-            generatedAt: new Date().toISOString(),
-            fileCount: files.length,
-            files,
-          };
-
-          process.stdout.write(`${JSON.stringify(manifest, null, 2)}\n`);
-          NODE
-      - name: Upload release bundle
-        id: bundle
-        run: |
-          ARTIFACT_NAME="${PACKAGE_NAME}-release-bundle-${GITHUB_RUN_NUMBER}"
-          echo "artifact_name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.bundle.outputs.artifact_name }}
-          path: |
-            ${{ env.PACKAGE_DIR }}/${{ env.PACKAGE_NAME }}-*.tgz
-            ${{ env.PACKAGE_NAME }}.sha256
-            slashcash-package-manifest.json
-          if-no-files-found: error
+      - name: CLI runtime bundle smoke
+        run: pnpm bundle:runtime
       - name: Release rehearsal summary
         if: github.event_name == 'workflow_dispatch'
         run: |
-          echo "Dry run complete for ${PACKAGE_NAME}@${{ steps.version.outputs.version }}."
-          echo "The packaged tarball, checksum, and package manifest were uploaded as workflow artifacts."
-          echo "Push v${{ steps.version.outputs.version }} to publish ${PACKAGE_NAME} to npm and create the GitHub release."
+          echo "Dry run preflight complete for desktop v${{ steps.version.outputs.version }}."
+          echo "macOS pack artifacts will upload from the build-macos job."
+          echo "Push v${{ steps.version.outputs.version }} to create the GitHub Release and deploy the website."
 
-  publish:
-    name: Publish to npm
+  build-macos:
+    name: Pack macOS arm64
     needs: [preflight]
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    environment: npm-release
-    permissions:
-      contents: write
-      id-token: write
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      # Do not set registry-url here: setup-node writes an empty _authToken and
-      # npm CLI prefers that over OIDC token exchange (npm/cli#8730).
+      - name: Configure isolated slash.cash state
+        run: |
+          echo "SLASHCASH_HOME=${RUNNER_TEMP}/slashcash-home" >> "$GITHUB_ENV"
+          echo "SQLITE_DB_PATH=${RUNNER_TEMP}/slashcash-home/db.sqlite" >> "$GITHUB_ENV"
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
-      - name: Ensure npm supports Trusted Publishing
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Pack unsigned macOS arm64
+        run: pnpm desktop:pack
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Upload macOS release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-macos-arm64-${{ needs.preflight.outputs.version }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/latest-mac.yml
+            apps/desktop/release/*.blockmap
+          if-no-files-found: error
+      - name: Dry-run pack summary
+        if: github.event_name == 'workflow_dispatch'
         run: |
-          node --version
-          npm --version
-          npm install -g npm@latest
-          npm --version
+          echo "Dry run pack complete for desktop v${{ needs.preflight.outputs.version }}."
+          echo "Artifacts uploaded; no GitHub Release or website deploy on workflow_dispatch."
+          echo "Push v${{ needs.preflight.outputs.version }} to create the GitHub Release and deploy the website."
+
+  create-release:
+    name: Create GitHub Release
+    needs: [preflight, build-macos]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
       - uses: actions/download-artifact@v4
         with:
-          name: ${{ needs.preflight.outputs.artifact_name }}
-          path: release-bundle
-      - name: Ensure version is not already published
-        run: |
-          if npm view "${PACKAGE_NAME}@${{ needs.preflight.outputs.version }}" version >/dev/null 2>&1; then
-            echo "${PACKAGE_NAME}@${{ needs.preflight.outputs.version }} is already published on npm."
-            exit 1
-          fi
-      - name: Publish to npm
-        run: |
-          TARBALL=$(find release-bundle -type f -name "${PACKAGE_NAME}-*.tgz" | sort | head -n 1)
-          if [ -z "$TARBALL" ]; then
-            echo "Release tarball not found."
-            exit 1
-          fi
-          npm publish "$TARBALL" --access public --provenance
-      - name: Verify published install
-        run: node packages/cli/scripts/verify-published-install.mjs "${{ needs.preflight.outputs.version }}"
+          name: desktop-macos-arm64-${{ needs.preflight.outputs.version }}
+          path: release-assets
       - name: Create GitHub release
+        working-directory: release-assets
         run: |
-          TARBALL=$(find release-bundle -type f -name "${PACKAGE_NAME}-*.tgz" | sort | head -n 1)
-          gh release create "${GITHUB_REF_NAME}" "$TARBALL" "release-bundle/${PACKAGE_NAME}.sha256" "release-bundle/slashcash-package-manifest.json" --title "${GITHUB_REF_NAME}" --generate-notes
+          shopt -s nullglob
+          ASSETS=(*.dmg *.zip latest-mac.yml *.blockmap)
+          if [ ${#ASSETS[@]} -eq 0 ]; then
+            echo "No desktop release assets found."
+            exit 1
+          fi
+          gh release create "${GITHUB_REF_NAME}" "${ASSETS[@]}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-website:
     name: Publish website
-    needs: [preflight, publish]
+    needs: [preflight, create-release]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: website-production

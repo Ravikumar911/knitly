@@ -64,6 +64,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @workspace/tasks build
       - run: pnpm --filter slashcash test
       - run: pnpm --filter @workspace/tasks test
       - run: pnpm --filter @workspace/database test
