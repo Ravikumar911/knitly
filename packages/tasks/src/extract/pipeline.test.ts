@@ -37,7 +37,7 @@ describe("extractTransactionFromEmail", () => {
     vi.clearAllMocks();
   });
 
-  it("stores LLM output from PDF text and email body", async () => {
+  it("stores deterministic output from PDF text and email body", async () => {
     mocks.extractTextFromPdf.mockResolvedValue({
       ok: true,
       value: deterministicSource("/tmp/fixture.pdf"),
@@ -69,26 +69,18 @@ describe("extractTransactionFromEmail", () => {
       emailBody: "Paid Via UPI ₹512.40",
       subject: "Your Swiggy order",
     });
-    expect(mocks.extractSwiggyWithLlm).toHaveBeenCalledWith(
-      expect.objectContaining({
-        subject: "Your Swiggy order",
-        body: "Paid Via UPI ₹512.40",
-      }),
-      expect.arrayContaining([
-        expect.objectContaining({ attachmentPath: "/tmp/fixture.pdf" }),
-      ]),
-    );
-    expect(result.schemaUsed).toBe("swiggy.llm.v1");
+    expect(mocks.extractSwiggyWithLlm).not.toHaveBeenCalled();
+    expect(result.schemaUsed).toBe("swiggy.deterministic.v1");
     expect(result.dataSource).toBe("BOTH");
     expect(result.transactionId).toBe("txn-1");
     expect(mocks.storeTransactionV2Input).toHaveBeenCalledWith(
       expect.objectContaining({
         amount: 512.4,
-        schemaUsed: "swiggy.llm.v1",
+        schemaUsed: "swiggy.deterministic.v1",
         dataSource: "BOTH",
         merchantData: expect.objectContaining({
           provenance: expect.objectContaining({
-            parser: "swiggy-llm",
+            parser: "slashcash_pdf_extractor",
             sourceQuality: "text",
           }),
         }),
@@ -123,8 +115,9 @@ describe("extractTransactionFromEmail", () => {
     );
 
     expect(result.parseSuccess).toBe(true);
-    expect(result.schemaUsed).toBe("swiggy.fallback.v1");
+    expect(result.schemaUsed).toBe("swiggy.body.v1");
     expect(result.extractionData.transaction?.amount).toBe(348.5);
+    expect(mocks.extractSwiggyWithLlm).not.toHaveBeenCalled();
     expect(mocks.extractTextFromPdf).not.toHaveBeenCalled();
   });
 
@@ -165,12 +158,30 @@ describe("extractTransactionFromEmail", () => {
     expect(result.parseSuccess).toBe(true);
     expect(result.parseErrors).toEqual([]);
     expect(result.warnings).toEqual(
-      expect.arrayContaining([
-        "The PDF extractor timed out after 30000ms.",
-        "Extraction model unavailable: missing-api-key.",
-      ]),
+      expect.arrayContaining(["The PDF extractor timed out after 30000ms."]),
     );
+    expect(mocks.extractSwiggyWithLlm).not.toHaveBeenCalled();
     expect(result.extractionData.parseErrors).toEqual([]);
+  });
+
+  it("classifies marketing emails as clean non-transactions without model errors", async () => {
+    const result = await extractTransactionFromEmail({
+      userId: "local-user-id",
+      emailId: "email-1",
+      threadId: "thread-1",
+      subject: "Exclusive offer from Swiggy",
+      body: "Limited time offer. Use coupon code SAVE100. Tap to claim.",
+      date: "2026-04-22T19:42:00+05:30",
+      from: "offers@swiggy.in",
+      attachments: [],
+    });
+
+    expect(result.parseSuccess).toBe(false);
+    expect(result.parseErrors).toEqual([
+      "No completed Swiggy transaction was found.",
+    ]);
+    expect(result.extractionData.transaction).toBeUndefined();
+    expect(mocks.extractSwiggyWithLlm).not.toHaveBeenCalled();
   });
 });
 

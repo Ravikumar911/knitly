@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-12T12:47:35.363Z",
+  "command": "/Users/ravikumarr/.nvm/versions/node/v22.22.2/bin/node /Users/ravikumarr/github/knitly/.agents/skills/autoreview/scripts/autoreview --mode local --heartbeat-ms 1000 --report-name phase-3-verify --gate 'pnpm e2e:ingest'",
+  "mode": "local",
+  "commit": null,
+  "repoRoot": "/Users/ravikumarr/github/knitly",
+  "baseRef": "origin/main",
+  "branch": "main",
+  "status": "clean",
+  "summary": {
+    "dirtyFileCount": 22,
+    "committedFileCount": 0,
+    "scopeFileCount": 22,
+    "ingestFileCount": 0,
+    "gateCount": 1,
+    "actionableFindingCount": 0
+  },
+  "dirtyScope": [
+    {
+      "status": " M",
+      "path": ".agents/skills/run-tests/SKILL.md"
+    },
+    {
+      "status": " M",
+      "path": "AGENTS.md"
+    },
+    {
+      "status": " M",
+      "path": "apps/main/AGENTS.md"
+    },
+    {
+      "status": " M",
+      "path": "package.json"
+    },
+    {
+      "status": " M",
+      "path": "packages/docs/README.md"
+    },
+    {
+      "status": " M",
+      "path": "packages/docs/current-state.md"
+    },
+    {
+      "status": " M",
+      "path": "packages/docs/reference/testing.md"
+    },
+    {
+      "status": " M",
+      "path": "packages/e2e-tests/package.json"
+    },
+    {
+      "status": " M",
+      "path": "packages/e2e-tests/tests/assistant-feedback.spec.ts"
+    },
+    {
+      "status": " M",
+      "path": "packages/tasks/README.md"
+    },
+    {
+      "status": "??",
+      "path": ".agents/skills/autoreview/SKILL.md"
+    },
+    {
+      "status": "??",
+      "path": ".agents/skills/autoreview/reports/.gitignore"
+    },
+    {
+      "status": "??",
+      "path": ".agents/skills/autoreview/scripts/autoreview"
+    },
+    {
+      "status": "??",
+      "path": ".agents/skills/autoreview/scripts/autoreview.mjs"
+    },
+    {
+      "status": "??",
+      "path": ".agents/skills/autoreview/scripts/self-test.mjs"
+    },
+    {
+      "status": "??",
+      "path": ".agents/skills/ingest-proof/SKILL.md"
+    },
+    {
+      "status": "??",
+      "path": ".agents/skills/ingest-proof/reports/.gitignore"
+    },
+    {
+      "status": "??",
+      "path": ".agents/skills/ingest-proof/reports/latest/real-behavior-proof.json"
+    },
+    {
+      "status": "??",
+      "path": ".agents/skills/ingest-proof/reports/latest/real-behavior-proof.md"
+    },
+    {
+      "status": "??",
+      "path": "AGENTIC-ADOPTION-PROOF.md"
+    },
+    {
+      "status": "??",
+      "path": "packages/docs/roadmap/agentic-coding-adoption.md"
+    },
+    {
+      "status": "??",
+      "path": "packages/e2e-tests/scripts/real-behavior-proof.ts"
+    }
+  ],
+  "committedScope": [],
+  "scopeFiles": [
+    ".agents/skills/run-tests/SKILL.md",
+    "AGENTS.md",
+    "apps/main/AGENTS.md",
+    "package.json",
+    "packages/docs/README.md",
+    "packages/docs/current-state.md",
+    "packages/docs/reference/testing.md",
+    "packages/e2e-tests/package.json",
+    "packages/e2e-tests/tests/assistant-feedback.spec.ts",
+    "packages/tasks/README.md",
+    ".agents/skills/autoreview/SKILL.md",
+    ".agents/skills/autoreview/reports/.gitignore",
+    ".agents/skills/autoreview/scripts/autoreview",
+    ".agents/skills/autoreview/scripts/autoreview.mjs",
+    ".agents/skills/autoreview/scripts/self-test.mjs",
+    ".agents/skills/ingest-proof/SKILL.md",
+    ".agents/skills/ingest-proof/reports/.gitignore",
+    ".agents/skills/ingest-proof/reports/latest/real-behavior-proof.json",
+    ".agents/skills/ingest-proof/reports/latest/real-behavior-proof.md",
+    "AGENTIC-ADOPTION-PROOF.md",
+    "packages/docs/roadmap/agentic-coding-adoption.md",
+    "packages/e2e-tests/scripts/real-behavior-proof.ts"
+  ],
+  "ingest": {
+    "changedFiles": [],
+    "surfaces": [
+      "packages/tasks/src/extract/",
+      "packages/tasks/src/merchants/swiggy/",
+      "packages/pdf-extractor/",
+      "packages/e2e-tests/fixtures/imap/",
+      "packages/e2e-tests/fixtures/pdfs/",
+      "qa/scenarios/ingest/"
+    ],
+    "siblingScans": [],
+    "note": "No ingest surfaces changed in the detected scope."
+  },
+  "gates": [
+    {
+      "command": "pnpm e2e:ingest",
+      "skipped": false,
+      "exitCode": 0,
+      "durationMs": 1257,
+      "stdoutTail": "\n> slash-cash@0.1.6 e2e:ingest /Users/ravikumarr/github/knitly\n> pnpm --filter @workspace/e2e-tests e2e:ingest\n\n\n> @workspace/e2e-tests@0.1.0 e2e:ingest /Users/ravikumarr/github/knitly/packages/e2e-tests\n> tsx scripts/real-behavior-proof.ts --no-strict --output-dir ../../.agents/skills/ingest-proof/reports/latest\n\nWrote .agents/skills/ingest-proof/reports/latest/real-behavior-proof.json\nWrote .agents/skills/ingest-proof/reports/latest/real-behavior-proof.md\n",
+      "stderrTail": ""
+    }
+  ],
+  "findings": [],
+  "artifacts": {
+    "json": ".agents/skills/autoreview/reports/phase-3-verify.json",
+    "markdown": ".agents/skills/autoreview/reports/phase-3-verify.md"
+  }
+}

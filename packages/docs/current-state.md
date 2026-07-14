@@ -4,6 +4,10 @@
 
 > The historical notes further down describe the pre-pivot monorepo that the now-retired phases were written against. They are kept only to explain _why_ each retired phase existed. Treat any claim here that conflicts with `roadmap/pdf-extractor.md` as already out of date.
 
+## Active agentic adoption plan
+
+In addition to the deterministic Python Swiggy ingest pivot (`roadmap/pdf-extractor.md` and its phase files), the cross-cutting agentic adoption plan has shipped: [`roadmap/agentic-coding-adoption.md`](./roadmap/agentic-coding-adoption.md) (started 2026-06-12, all phases shipped 2026-06-13). It adopts reliable OpenClaw-style looped agentic development: hard policy in `AGENTS.md`, the `.agents/skills/autoreview` closeout loop, `.agents/skills/ingest-proof` plus `pnpm e2e:ingest`, `qa/scenarios/` enforcement, orchestrator/ingest-sweep ledgers, real behavior proof, and mandatory use of subagents for complex work. The proof log is `AGENTIC-ADOPTION-PROOF.md`. Future non-trivial work should use the day-to-day workflow in the adoption plan: delegate bounded exploration/implementation/verification, build an evidence map, update or cite living scenarios, run focused proof, rerun autoreview until clean, and record proof artifacts before landing.
+
 ## Retired phase docs — one-line shipped summaries
 
 The detail behind each entry lives in git history. For each deleted file, the PRs that closed its "Pending" checklist are reachable via `git log -- packages/docs/roadmap/<file>`.
